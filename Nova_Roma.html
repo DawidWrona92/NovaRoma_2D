@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Nova Roma — Etap 5</title>
+<title>Nova Roma — Etap 6</title>
 <style>
   :root {
     --panel-bg: rgba(20, 16, 12, 0.92);
@@ -12,6 +12,8 @@
     --text: #f0e6d2;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --hud-h: calc(46px + env(safe-area-inset-top, 0px)); /* nadpisywana z JS po zawinięciu paska */
+    --bar-h: 136px; /* wysokość dolnego paska budowy — nadpisywana z JS */
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0b08; font-family: Georgia, 'Times New Roman', serif; }
@@ -20,10 +22,10 @@
 
   /* ---------- HUD górny ---------- */
   #hud {
-    position: absolute; top: 0; left: 0; right: 0; height: calc(46px + var(--safe-top));
+    position: absolute; top: 0; left: 0; right: 0; min-height: calc(46px + var(--safe-top));
     background: linear-gradient(#2a2018, #1a140e);
     border-bottom: 2px solid var(--panel-border);
-    display: flex; align-items: center; gap: 18px; padding: var(--safe-top) 14px 0;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; padding: var(--safe-top) 14px 0;
     color: var(--text); font-size: 14px; z-index: 10;
     user-select: none;
   }
@@ -36,12 +38,23 @@
     padding: 4px 12px; cursor: pointer; font-family: inherit; font-size: 13px;
   }
   #hud button:hover { background: #55412a; }
+  #hud select {
+    background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border);
+    padding: 4px 6px; cursor: pointer; font-family: inherit; font-size: 13px; max-width: 190px;
+  }
+  #hud select:hover { background: #55412a; }
+  #btnMore { display: none; }
 
   @media (max-width: 720px), (max-height: 640px) {
     /* HUD na telefonie: zwarty, zawijany, większe przyciski dotykowe */
     #hud { flex-wrap: wrap; height: auto; padding: calc(4px + var(--safe-top)) 8px 4px; font-size: 12px; gap: 8px 12px; overflow-x: hidden; }
     #hud .title { font-size: 13px; }
     #hud button { padding: 8px 10px; font-size: 12px; touch-action: manipulation; }
+    #hud select { padding: 8px 6px; font-size: 12px; max-width: 150px; }
+    #btnMore { display: inline-block; }
+    #hud .sec { display: none; }
+    #hud.open .sec { display: inline-block; }
+    #advisor { width: calc(100vw - 16px) !important; max-height: 52vh !important; }
     /* podpowiedź widoczna na telefonie tylko jako komunikat chwilowy */
     #hint:not(.flash) { display: none !important; }
     #hint.flash { top: auto !important; bottom: 150px; left: 8px !important; right: 8px; font-size: 13px !important; }
@@ -55,18 +68,19 @@
     overflow-y: auto; -webkit-overflow-scrolling: touch;
     background: radial-gradient(ellipse at center, #2a2118 0%, #0d0b08 75%);
   }
-  #factionPick .inner { text-align: center; max-width: 860px; padding: 20px; }
+  #factionPick .inner { text-align: center; max-width: 1080px; padding: 20px; }
   #factionPick h1 { color: var(--gold); font-size: 42px; letter-spacing: 4px; margin-bottom: 4px; text-shadow: 0 2px 8px #000; }
   #factionPick p.sub { color: #a89878; margin-bottom: 26px; font-style: italic; }
   .factionCards { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; }
   .factionCard {
-    width: 240px; background: var(--panel-bg); border: 2px solid var(--panel-border);
+    width: 232px; background: var(--panel-bg); border: 2px solid var(--panel-border);
     padding: 14px; cursor: pointer; color: var(--text); transition: transform .15s, box-shadow .15s;
   }
   .factionCard:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.6); border-color: var(--gold); }
   .factionCard canvas { width: 100%; height: 130px; display: block; background: #10130f; border: 1px solid #000; }
   .factionCard h2 { margin: 10px 0 2px; font-size: 20px; }
   .factionCard .tagline { font-size: 12px; color: #a89878; font-style: italic; margin-bottom: 8px; }
+  .factionCard .campaign { font-size: 11px; color: #c8a860; margin-bottom: 6px; letter-spacing: .3px; }
   .factionCard ul { list-style: none; font-size: 12px; text-align: left; color: #c8bda8; }
   .factionCard li::before { content: "◆ "; color: var(--gold); }
   @media (max-width: 720px), (max-height: 640px) {
@@ -115,13 +129,13 @@
   #tooltip .expensive { color: #e08484; }
 
   #hint {
-    position: absolute; z-index: 30; left: 12px; top: calc(54px + var(--safe-top)); color: #b8a888;
+    position: absolute; z-index: 30; left: 12px; top: calc(var(--hud-h) + 8px); color: #b8a888;
     font-size: 12px; background: rgba(20,16,12,.85); padding: 4px 8px; border-radius: 3px;
     pointer-events: none;
   }
 
   #resPanel {
-    position: absolute; z-index: 8; top: calc(54px + var(--safe-top)); right: 0; bottom: 90px; width: 172px;
+    position: absolute; z-index: 8; top: calc(var(--hud-h) + 8px); right: 0; bottom: calc(var(--bar-h) + 6px); width: 172px;
     background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-right: none; color: var(--text); font-size: 11px;
     padding: 6px 8px; overflow-y: auto; user-select: none;
@@ -132,6 +146,24 @@
   #resPanel .row .cap { color: #7a6c55; font-size: 10px; }
   #resPanel .sep { border-top: 1px solid #3a2f22; margin: 5px 0; }
   #resPanel .full { color: #e08484; }
+  #resPanel .warn { color: #e8b060; }
+  #resPanel .link { color: #e8c860; cursor: pointer; text-decoration: underline; }
+  #advisor {
+    position: absolute; z-index: 25; left: 8px; top: calc(var(--hud-h) + 44px); width: 340px; max-height: 62vh;
+    overflow-y: auto; background: #17120d; border: 1px solid var(--panel-border); color: var(--text);
+    font-size: 12px; line-height: 1.45; padding: 8px 10px; -webkit-overflow-scrolling: touch;
+  }
+  #advisor h4 { color: var(--gold); font-size: 12px; margin: 8px 0 3px; letter-spacing: 1px; border-top: 1px solid #3a2f22; padding-top: 5px; }
+  #advisor .advHead { display: flex; justify-content: space-between; align-items: center; color: var(--gold); font-size: 14px; }
+  #advisor .advClose { cursor: pointer; padding: 2px 8px; color: #c8bda8; }
+  #advisor .advRow { margin: 2px 0; }
+  #bInfo {
+    position: absolute; z-index: 24; left: 8px; top: calc(var(--hud-h) + 40px); max-width: 270px;
+    background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text);
+    font-size: 12px; line-height: 1.45; padding: 7px 10px; pointer-events: none;
+  }
+  #bInfo h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
+  #bInfo .sub { color: #a89878; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -150,14 +182,20 @@
   <span class="spacer"></span>
   <button id="btnRations">Racje: ×1</button>
   <button id="btnTax">Podatek: 1</button>
-  <button id="btnBuilders">👷 Budowniczowie: 3</button>
-  <button id="btnTribute">📜 Haracz: Wyłączony</button>
-  <button id="btnVoyages">⛵ Wyprawy: Zwykłe</button>
-  <button id="btnCrisis">🔥 Kryzysy: wył.</button>
-  <button id="btnSpeed">Prędkość: ×1</button>
+  <button id="btnBuilders" class="sec">👷 Budowniczowie: 3</button>
+  <select id="btnTribute" class="sec" title="Haracz seniora: preset trudności albo własny poziom 1–11"></select>
+  <button id="btnVoyages" class="sec">⛵ Wyprawy: Zwykłe</button>
+  <button id="btnGuard" class="sec" title="Reguła wysyłki: po odjeździe załogi zostaje ≥ 90% potrzebnych robotników">⛵ Zapas załogi: 90%</button>
+  <button id="btnRaids" class="sec" title="Napady na karawanę (Saraceni): można wyłączyć w scenariuszu">🏴 Napady: wł.</button>
+  <button id="btnCrisis" class="sec">🔥 Kryzysy: wył.</button>
+  <button id="btnSpeed" class="sec">Prędkość: ×1</button>
+  <button id="btnAdvisor">🧭 Doradca</button>
+  <button id="btnMore">⚙ Więcej</button>
 </div>
 <div id="hint" style="display:none">Przeciągnij prawym przyciskiem / WASD — kamera · kółko — zoom · ESC — anuluj budowę</div>
 <div id="resPanel" style="display:none"></div>
+<div id="advisor" style="display:none"></div>
+<div id="bInfo" style="display:none"></div>
 <div id="buildBar" style="display:none">
   <div id="buildTabs"></div>
   <div id="buildItems"></div>
@@ -166,7 +204,7 @@
 <div id="factionPick">
   <div class="inner">
     <h1>NOVA ROMA</h1>
-    <p class="sub">v6 — Wybierz nację — każda buduje inaczej, wygląda inaczej i żyje inaczej.</p>
+    <p class="sub">v7 — Wybierz nację — każda buduje inaczej, wygląda inaczej i żyje inaczej.</p>
     <div class="factionCards" id="factionCards"></div>
   </div>
 </div>
@@ -184,7 +222,7 @@ window.addEventListener('error', ev => {
    NOVA ROMA — silnik świata, wybór nacji, budowa, ekonomia, haracz, zdarzenia.
    Moduły (każdy to IIFE z jasnym API):
 
-     Data      — cała zawartość (nacje, budynki, koszty, produkcja) jako dane
+     Data      — cała zawartość (4 nacje: Słowianie, Frankowie, Wikingowie, Saraceni; budynki, koszty, produkcja) jako dane
      RNG       — deterministyczny generator liczb losowych
      MapGen    — proceduralna mapa (teren, drzewa, złoża, brzeg)
      Gfx       — rysowanie kafli, budynków i obywateli
@@ -192,9 +230,10 @@ window.addEventListener('error', ev => {
      World     — stan gry: kafle, budynki, obywatele, zasoby
      Economy   — ekonomia przepływowa (Etap 2): obsada, produkcja, głód
      Build     — logistyka budowy (Etap 3): kolejka placów, budowniczowie
-     Tribute   — haracz seniora (Etap 4): żołnierze / złoto / wyprawy
+     Tribute   — haracz seniora (Etap 4): żołnierze / złoto / wyprawy / koszyk daniny Słowian
      Events    — świat dynamiczny (Etap 5): napady, kryzysy
      TestBots  — boty testowe R/D/N
+     Advisor   — doradca (Etap 6): statusy budynków, ostrzeżenia, plan budynków na poziom haraczu
      BuildMode — interfejs budowy, walidacja miejsc, duch budynku
      UI        — HUD, pasek budowy, tooltipy
      Game      — pętla czasu, render, input
@@ -232,7 +271,8 @@ const Data = (() => {
                  roofAlt:'#7d4a34', stone:'#9a9a92', accent:'#4865a0', metal:'#8b9aa5',
                  cloth:'#a03a3a', citizen:'#4865a0', citizenAlt:'#a03a3a', skin:'#e8c39a' },
       treesTarget: 300, treeGrowthMin: 5, deposits: { stone: 3, iron: 2, coal: 3 },
-      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Chleb', wood: 30, stone: 12 }
+      campaign: { order: 2, stars: 2, note: 'Najłatwiejsza z dotychczasowych' },
+      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Chleb', foodGood: 'chleb', wood: 30, stone: 12 }
     },
     saracens: {
       id: 'saracens', name: 'Saraceni', tagline: 'Woda, daktyle i handel',
@@ -241,7 +281,8 @@ const Data = (() => {
                  roofAlt:'#b89a68', stone:'#d8c8a0', accent:'#2f8a70', metal:'#c9a84a',
                  cloth:'#2f8a70', citizen:'#f0ead8', citizenAlt:'#2f8a70', skin:'#c89868' },
       treesTarget: 150, treeGrowthMin: 12, deposits: { clay: 2 },
-      start: { pop: 14, gold: 100, tools: 8, food: 36, foodKind: 'Daktyle', wood: 30, clay: 12 }
+      campaign: { order: 4, stars: 4, note: 'Etap późny: handel, woda, napady' },
+      start: { pop: 14, gold: 100, tools: 8, food: 36, foodKind: 'Daktyle', foodGood: 'daktyle', wood: 30, clay: 12 }
     },
     vikings: {
       id: 'vikings', name: 'Wikingowie', tagline: 'Drewno, morze i wyprawy',
@@ -250,24 +291,46 @@ const Data = (() => {
                  roofAlt:'#6a563a', stone:'#8a8a84', accent:'#b8c2c8', metal:'#b8c2c8',
                  cloth:'#3a5a3a', citizen:'#6a6a72', citizenAlt:'#3a5a3a', skin:'#e8c39a' },
       treesTarget: 450, treeGrowthMin: 3, deposits: { peat: 2 },
-      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Ryby', wood: 40 }
+      campaign: { order: 3, stars: 3, note: 'Etap średni: miód, broń, wyprawy' },
+      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Ryby', foodGood: 'ryby', wood: 40 }
+    },
+    slavs: {
+      id: 'slavs', name: 'Słowianie', tagline: 'Puszcza, bartnictwo i futra',
+      desc: ['Zbieractwo, barcie i futra z puszczy', 'Danina koszykowa: futra, miód i wosk', 'Nacja wprowadzająca (najłatwiejsza)'],
+      palette: { terrain: 'grass', logs: true, wall:'#a98457', timber:'#6b4a2f', roof:'#d3bf78',
+                 roofAlt:'#b59a52', stone:'#8f8f86', accent:'#b83a3a', metal:'#9aa4aa',
+                 cloth:'#b83a3a', citizen:'#e9e2cf', citizenAlt:'#7a5a3a', skin:'#e8c39a' },
+      treesTarget: 300, treeGrowthMin: 6, deposits: {},
+      campaign: { order: 1, stars: 1, note: 'Nacja wprowadzająca' },
+      start: { pop: 14, gold: 80, tools: 8, food: 36, foodKind: 'Kasza', foodGood: 'chleb', wood: 40 }
     }
+  };
+
+  /* Gęstość lasu, od której plon leśnych budynków zaczyna spadać: plon × min(1, drzewa / próg).
+     Frankowie, Saraceni i Wikingowie: tylko Chata myśliwego (80); Słowianie: wszystkie budynki leśne (200). */
+  const FOREST_REF = { franks: 80, saracens: 80, vikings: 80, slavs: 200 };
+
+  /* Danina koszykowa Słowian: wartość towaru w osobominutach i jego udział w żądaniu. */
+  const DANINA = {
+    values: { 'futro wyprawione': 2.8, 'miód': 1.5, 'wosk': 3.0 },
+    shares: { 'futro wyprawione': 0.40, 'miód': 0.35, 'wosk': 0.25 },
+    minShareEach: 0.5
   };
 
   const BUILDINGS = {
     keep:     { name:'Dwór', cat:'', art:'keep', worker:0, costs:null, note:'Serce osady (komora 20 szt.)' },
     /* --- wspólne --- */
-    hut:      { name:'Chata', cat:'Mieszkania', art:'hut', housing: 6, costs:{ franks:{d:4}, saracens:{d:2,gl:4}, vikings:{d:8} }, note:'+6 miejsca (Wikingowie +8)' },
-    woodcutter:{ name:'Chata drwala', cat:'Drewno', art:'woodcutter', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} }, out:{ pień:1.0 }, note:'Pierwsza darmowa' },
-    forester: { name:'Leśniczówka', cat:'Drewno', art:'forester', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} }, out:{ 'sadzonki':1.0 }, note:'Sadzi drzewa' },
-    sawmill:  { name:'Tartak', cat:'Drewno', art:'sawmill', worker:1, tool:true, inp:{ pień:1.0 }, out:{ deski:2.0 }, costs:{ franks:{d:6,k:2}, saracens:{d:4,gl:2}, vikings:{d:9} } },
-    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} } },
-    dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6} } },
-    orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} } },
-    watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4} } },
-    market:   { name:'Targ', cat:'Handel', art:'market', worker:1, costs:{ franks:{d:6}, saracens:{d:4,gl:4}, vikings:{d:6} }, note:'Sprzedaje towary i narzędzia (20 zł)' },
-    store:    { name:'Skład', cat:'Handel', art:'store', worker:0, out:{}, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4} }, note:'+80 szt. każdego towaru' },
-    temple:   { name:'Kościół / Meczet', cat:'Społeczne', art:'temple', worker:1, costs:{ franks:{d:8,zl:80}, saracens:{d:6,gl:4,zl:80}, vikings:{d:12,zl:80} }, note:'Dobrobyt +10' },
+    hut:      { name:'Chata', cat:'Mieszkania', art:'hut', housing: 6, costs:{ franks:{d:4}, saracens:{d:2,gl:4}, vikings:{d:8}, slavs:{d:4} }, note:'+6 miejsca (Wikingowie +8)' },
+    woodcutter:{ name:'Chata drwala', cat:'Drewno', art:'woodcutter', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ pień:1.0 }, note:'Pierwsza darmowa' },
+    forester: { name:'Leśniczówka', cat:'Drewno', art:'forester', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ 'sadzonki':1.0 }, note:'Sadzi drzewa' },
+    sawmill:  { name:'Tartak', cat:'Drewno', art:'sawmill', worker:1, tool:true, inp:{ pień:1.0 }, out:{ deski:2.0 }, costs:{ franks:{d:6,k:2}, saracens:{d:4,gl:2}, vikings:{d:9}, slavs:{d:8} } },
+    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', forest:true, inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, note:'Plon × min(1, drzewa/próg lasu)' },
+    dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6}, slavs:{d:6} } },
+    orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} } },
+    watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} } },
+    market:   { name:'Targ', cat:'Handel', art:'market', worker:1, costs:{ franks:{d:6}, saracens:{d:4,gl:4}, vikings:{d:6}, slavs:{d:6} }, note:'Kupno narzędzi 20 zł; Saraceni sprzedają tu kadzidło, tkaninę i ceramikę' },
+    store:    { name:'Skład', cat:'Handel', art:'store', worker:0, out:{}, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} }, note:'+80 szt. każdego towaru' },
+    temple:   { name:'Kościół / Meczet', names:{ franks:'Kościół', saracens:'Meczet', vikings:'Kościół', slavs:'Kapliczka' }, cat:'Społeczne', art:'temple', worker:1, costs:{ franks:{d:8,zl:80}, saracens:{d:6,gl:4,zl:80}, vikings:{d:12,zl:80}, slavs:{d:8,zl:80} }, note:'Dobrobyt +10: spala 0,3 dobra nacji/min (wino / kadzidło / miód pitny / wosk); 1 budynek na 50 osób' },
     /* --- Frankowie --- */
     quarry:   { name:'Kamieniołom', cat:'Surowce', art:'quarry', worker:1, tool:true, factions:['franks'], req:'deposit:stone', out:{ kamień:1.5 }, costs:{ franks:{d:4} } },
     farm:     { name:'Farma', cat:'Jedzenie', art:'farm', worker:1, factions:['franks'], out:{ zboże:1.5 }, costs:{ franks:{d:6,k:2} } },
@@ -280,7 +343,7 @@ const Data = (() => {
     armory:   { name:'Zbrojownia', cat:'Militaria', art:'armory', worker:1, tool:true, factions:['franks','vikings'], inp:{ sztabki:1.2, węgiel:1.2 }, out:{ broń:1.2 }, costs:{ franks:{d:8,k:6}, vikings:{d:17} } },
     vineyard: { name:'Winnica', cat:'Rzemiosło', art:'vineyard', worker:1, factions:['franks'], out:{ winogrona:1.0 }, costs:{ franks:{d:6,k:2} } },
     winery:   { name:'Winiarz', cat:'Rzemiosło', art:'winery', worker:1, factions:['franks'], inp:{ winogrona:1.0 }, out:{ wino:1.0 }, costs:{ franks:{d:6,k:2} } },
-    barracks: { name:'Koszary', cat:'Militaria', art:'barracks', worker:0, factions:['franks'], costs:{ franks:{d:8,k:8,zl:60} }, note:'Warunek dostaw żołnierzy' },
+    barracks: { name:'Koszary', cat:'Militaria', art:'barracks', worker:1, factions:['franks'], costs:{ franks:{d:8,k:8,zl:60} }, note:'Warunek dostaw żołnierzy' },
     /* --- Saraceni --- */
     claypit:  { name:'Glinianka', cat:'Surowce', art:'claypit', worker:1, tool:true, factions:['saracens'], req:'deposit:clay', out:{ glina:2.0 }, costs:{ saracens:{d:4} } },
     dategrove:{ name:'Gaj daktylowy', cat:'Jedzenie', art:'palms', worker:1, factions:['saracens'], inp:{ woda:0.6 }, out:{ daktyle:1.6 }, costs:{ saracens:{d:4,gl:4} } },
@@ -290,7 +353,7 @@ const Data = (() => {
     weaver:   { name:'Tkalnia', cat:'Rzemiosło', art:'weaver', worker:1, tool:true, factions:['saracens'], inp:{ bawełna:1.2 }, out:{ tkanina:1.0 }, costs:{ saracens:{d:4,gl:4} } },
     pottery:  { name:'Garncarnia', cat:'Rzemiosło', art:'pottery', worker:1, tool:true, factions:['saracens'], inp:{ glina:1.0, pień:0.3 }, out:{ ceramika:1.0 }, costs:{ saracens:{d:4,gl:4} } },
     qanat:    { name:'Qanat', cat:'Jedzenie', art:'qanat', worker:1, factions:['saracens'], out:{ woda:4.5 }, costs:{ saracens:{d:6,gl:10,zl:60} }, note:'Zastępuje 3 nosiwody' },
-    bathhouse:{ name:'Łaźnia', cat:'Społeczne', art:'bath', worker:1, factions:['saracens'], inp:{ woda:0.5 }, costs:{ saracens:{d:6,gl:6,zl:40} }, note:'Popularność +6' },
+    bathhouse:{ name:'Łaźnia', cat:'Społeczne', art:'bath', worker:1, welfare:6, factions:['saracens'], inp:{ woda:0.5 }, costs:{ saracens:{d:6,gl:6,zl:40} }, note:'Popularność +6' },
     caravanserai:{ name:'Karawanseraj', cat:'Handel', art:'serai', worker:1, factions:['saracens'], costs:{ saracens:{d:10,gl:10,zl:100} }, note:'Ceny +20% (max 2)' },
     guardpost:{ name:'Strażnica', cat:'Militaria', art:'guard', worker:1, factions:['saracens'], costs:{ saracens:{d:8,gl:6,zl:40} }, note:'Ryzyko napadu −40% (max 2)' },
     /* --- Wikingowie --- */
@@ -299,14 +362,30 @@ const Data = (() => {
     charburner:{ name:'Wypalarka węgla', cat:'Surowce', art:'kiln', worker:1, factions:['vikings'], inp:{ pień:2.0 }, out:{ węgiel:1.0 }, costs:{ vikings:{d:8} }, note:'Jedyne źródło węgla' },
     mead:     { name:'Miodosytnia', cat:'Rzemiosło', art:'mead', worker:1, factions:['vikings'], inp:{ woda:0.5 }, out:{ 'miód pitny':1.0 }, costs:{ vikings:{d:9} } },
     dock:     { name:'Przystań', cat:'Militaria', art:'dock', worker:0, factions:['vikings'], req:'waterEdge', costs:{ vikings:{d:15} }, note:'Warunek dla Okrętu' },
-    ship:     { name:'Okręt', cat:'Militaria', art:'ship', worker:0, factions:['vikings'], req:'waterEdge', costs:{ vikings:{d:40} }, note:'Wyprawa: 6 załogi, 6 miodu, 6 broni' }
+    ship:     { name:'Okręt', cat:'Militaria', art:'ship', worker:0, factions:['vikings'], req:'waterEdge', costs:{ vikings:{d:40} }, note:'Wyprawa: 6 załogi, 6 miodu, 6 broni' },
+    /* --- Słowianie (Puszcza: plon leśnych budynków × min(1, drzewa/200)) --- */
+    gatherer: { name:'Chata zbieracza', cat:'Jedzenie', art:'gatherer', worker:1, forest:true, factions:['slavs'], out:{ owoce:1.0 }, outLabel:{ owoce:'zbiory leśne' }, costs:{ slavs:{d:4} }, note:'Jedzenie bez wejść i bez narzędzia; zbiory leśne liczą się jako owoce' },
+    field:    { name:'Pole stałe', cat:'Jedzenie', art:'field', worker:1, factions:['slavs'], out:{ zboże:1.2 }, costs:{ slavs:{d:4} } },
+    kasha:    { name:'Kaszarnia', cat:'Jedzenie', art:'grits', worker:1, tool:true, factions:['slavs'], inp:{ zboże:1.5 }, out:{ chleb:2.25 }, outLabel:{ chleb:'kasza' }, costs:{ slavs:{d:6} }, note:'Kasza liczy się jako chleb' },
+    bartnik:  { name:'Barć', cat:'Surowce', art:'beehive', worker:1, forest:true, factions:['slavs'], out:{ plaster:1.2 }, costs:{ slavs:{d:4} }, note:'Plaster miodu; zanieś do Woskarni' },
+    waxery:   { name:'Woskarnia', cat:'Rzemiosło', art:'waxery', worker:1, tool:true, factions:['slavs'], inp:{ plaster:1.2 }, out:{ 'miód':0.84, wosk:0.36 }, costs:{ slavs:{d:6} }, note:'Miód i wosk idą do daniny; wosk spala też Kapliczka' },
+    trapper:  { name:'Chata łowcy futer', cat:'Surowce', art:'trapper', worker:1, forest:true, factions:['slavs'], out:{ 'futro surowe':0.8 }, costs:{ slavs:{d:4} }, note:'Futro surowe; wyprawia je Garbarnia' },
+    tannery:  { name:'Garbarnia', cat:'Rzemiosło', art:'tannery', worker:1, tool:true, factions:['slavs'], inp:{ 'futro surowe':0.8, woda:0.4 }, out:{ 'futro wyprawione':0.8 }, costs:{ slavs:{d:6} }, note:'Wymaga Chaty nosiwody (woda)' },
+    sauna:    { name:'Bania', cat:'Społeczne', art:'sauna', worker:1, welfare:6, factions:['slavs'], inp:{ woda:0.3, 'pień':0.2 }, costs:{ slavs:{d:6,zl:40} }, note:'Popularność +6 (drugie źródło Dobrobytu); 1 na 50 osób' }
   };
 
   const CATS = ['Mieszkania','Jedzenie','Drewno','Surowce','Rzemiosło','Handel','Militaria','Społeczne'];
 
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL };
+  /* nazwa budynku zależna od nacji (Kościół / Meczet / Kapliczka); bieżąca nacja ustawiana przez World.init */
+  const cur = { faction: null };
+  function nameOf(id, fid) {
+    const d = BUILDINGS[id]; if (!d) return id;
+    return (d.names && d.names[fid || cur.faction]) || d.name;
+  }
+
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, nameOf, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -335,18 +414,19 @@ const Camera = (() => {
 const MapGen = (() => {
   const SIZE = 48;
   function generate(factionId) {
-    RNG.seed(factionId === 'franks' ? 777 : factionId === 'saracens' ? 888 : 999);
+    RNG.seed({ franks: 777, saracens: 888, vikings: 999, slavs: 1111 }[factionId]);
     const c = Math.floor(SIZE/2);
     const tiles = new Array(SIZE * SIZE);
-    for (let i = 0; i < SIZE * SIZE; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null };
+    for (let i = 0; i < SIZE * SIZE; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null, x: i % SIZE, y: Math.floor(i / SIZE) };
 
     // Morze po jednej krawędzi (Wikingowie — pełne morze; inni — jezioro/zatoka)
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const i = y * SIZE + x;
         const nx = x / SIZE, ny = y / SIZE;
+        // Wikingowie: szerokie morze tuż przy osadzie (start zawsze nad morzem); inne nacje: zatoka przy krawędzi
         const coast = 5 + Math.sin(y * 0.35) * 2.5 + RNG.range(-0.8, 0.8)
-                      + (factionId === 'vikings' ? -1.5 : 3.5);
+                      + (factionId === 'vikings' ? 7.5 : 3.5);
         if (x < coast) tiles[i].h = 0;
         const mtn = Math.sin(nx*9)*Math.cos(ny*7)*0.9 + Math.sin((nx+ny)*13)*0.5;
         if (mtn > 0.92 && tiles[i].h === 1 && Math.hypot(x - c, y - c) > 9) tiles[i].h = 2; // skały nie na starcie
@@ -363,11 +443,7 @@ const MapGen = (() => {
         tiles[i].trees = RNG.int(1, 3);
     }
     // Złoża: gwarantowane minima; poza placem Dworu, na kaflu bez drzew
-    const depPlan = {
-      franks: [['stone',3], ['iron',2], ['coal',3]],
-      saracens: [['clay',2]],
-      vikings: [['peat',2]]
-    }[factionId];
+    const depPlan = Object.entries(f.deposits || {}); // liczba miejsc pod kopalnie to parametr generatora (dane nacji)
     for (const [kind, count] of depPlan) {
       let placed = 0, guard = 0;
       while (placed < count && guard++ < 500) {
@@ -384,7 +460,30 @@ const MapGen = (() => {
       const t = tiles[(c+dy)*SIZE + (c+dx)];
       if (t) { t.h = 1; t.trees = 0; t.deposit = null; }
     }
+    fitTrees(tiles, f.treesTarget, c);
     return { size: SIZE, tiles };
+  }
+
+  /* Liczba drzew na mapie = parametr generatora z danych nacji (300 / 150 / 450 / 300).
+     Nadmiar przerzedza kępy losowo; niedobór dosadza drzewa przy istniejących (kępy), potem gdziekolwiek. */
+  function fitTrees(tiles, target, c) {
+    let total = 0;
+    for (const t of tiles) total += t.trees;
+    const ok = t => t.h === 1 && !t.deposit && !(Math.abs(t.x - c) <= 2 && Math.abs(t.y - c) <= 2);
+    for (let guard = 0; total > target && guard < 200000; guard++) {
+      const t = tiles[RNG.int(0, tiles.length - 1)];
+      if (t.trees > 0) { t.trees--; total--; }
+    }
+    for (let guard = 0; total < target && guard < 200000; guard++) {
+      const t = tiles[RNG.int(0, tiles.length - 1)];
+      if (!ok(t) || t.trees >= 3) continue;
+      if (t.trees === 0 && guard < 100000) { // najpierw rozrost istniejących kęp
+        const i = tiles.indexOf(t), S = SIZE;
+        const near = [i - 1, i + 1, i - S, i + S].some(j => tiles[j] && tiles[j].trees > 0);
+        if (!near) continue;
+      }
+      t.trees++; total++;
+    }
   }
   function at(map, x, y) {
     if (x < 0 || y < 0 || x >= map.size || y >= map.size) return null;
@@ -606,7 +705,18 @@ const Gfx = (() => {
     ctx.strokeStyle = shade(p.wall, 0.6); ctx.lineWidth = 1; ctx.strokeRect(x - wW/2, y - wH, wW, wH);
     ctx.fillStyle = shade(p.wall, 1.16); ctx.fillRect(x - wW/2, y - wH, wW, 2*z); // rozświetlona góra ściany
     ctx.fillStyle = shade(p.wall, 0.8); ctx.fillRect(x - wW/2, y - 2*z, wW, 2*z); // przyziemie w cieniu
-    if (p.timber) { // szachulec / bierwiona
+    if (p.logs) { // zrąb: poziome bale z wystającymi końcami w narożach
+      ctx.strokeStyle = shade(p.wall, 0.6); ctx.lineWidth = 1;
+      const n = Math.max(2, Math.round(wH / (3.4*z)));
+      ctx.beginPath();
+      for (let i = 1; i < n; i++) { const yy = y - wH + i * wH / n; ctx.moveTo(x - wW/2, yy); ctx.lineTo(x + wW/2, yy); }
+      ctx.stroke();
+      ctx.fillStyle = shade(p.wall, 1.18);
+      for (let i = 0; i < n; i++) {
+        const yy = y - wH + (i + 0.5) * wH / n;
+        ctx.fillRect(x - wW/2 - 0.8*z, yy - 0.8*z, 1.8*z, 1.6*z); ctx.fillRect(x + wW/2 - 1.0*z, yy - 0.8*z, 1.8*z, 1.6*z);
+      }
+    } else if (p.timber) { // szachulec / bierwiona
       ctx.strokeStyle = shade(p.timber, 1.0); ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(x - wW/2, y - wH/2); ctx.lineTo(x + wW/2, y - wH/2);
@@ -718,6 +828,18 @@ const Gfx = (() => {
     ctx.beginPath(); ctx.ellipse(x, y - 3.5*z, 3.4*z, 3.8*z, 0, 0, 7); ctx.fill();
     ctx.strokeStyle = shade(c, 0.6); ctx.lineWidth = 1; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - 1.5*z, y - 6.2*z); ctx.lineTo(x + 1.5*z, y - 6.2*z); ctx.stroke();
+  }
+  function basket(ctx, x, y, z) { // kosz wiklinowy z uchwytem
+    ctx.fillStyle = '#b08850';
+    ctx.beginPath(); ctx.moveTo(x - 4.4*z, y - 5*z); ctx.lineTo(x - 3.2*z, y); ctx.lineTo(x + 3.2*z, y); ctx.lineTo(x + 4.4*z, y - 5*z); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7a5a30'; ctx.lineWidth = 0.9; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 4*z, y - 3.4*z); ctx.lineTo(x + 4*z, y - 3.4*z); ctx.moveTo(x - 3.6*z, y - 1.8*z); ctx.lineTo(x + 3.6*z, y - 1.8*z); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - 5*z, 4.4*z, Math.PI, 0); ctx.stroke();
+  }
+  function mushroom(ctx, x, y, z) { // grzyb: biała nóżka + czerwony kapelusz w kropki
+    ctx.fillStyle = '#efe6d0'; ctx.fillRect(x - 0.6*z, y - 1.6*z, 1.2*z, 2*z);
+    ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.ellipse(x, y - 1.6*z, 2*z, 1.3*z, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 0.9*z, y - 2.5*z, 0.6*z, 0.6*z); ctx.fillRect(x + 0.5*z, y - 2.2*z, 0.6*z, 0.6*z);
   }
   function pennant(ctx, x, y, z, p, t) { // proporzec na maszcie przy ścianie
     ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.5*z;
@@ -1346,6 +1468,19 @@ const Gfx = (() => {
         dome(ctx, x + 17*z, y, z, p, 10*z, 34*z, p.accent);
         ctx.strokeStyle = '#e8c860'; ctx.lineWidth = 1.4*z; // półksiężyc
         ctx.beginPath(); ctx.arc(x + 17*z, y - 44*z, 2.6*z, 0.6, 4.4); ctx.stroke();
+      } else if (p.logs) { // kapliczka: zrąb pod stromym dachem + rzeźbiony słup z wizerunkiem
+        base(ctx, x - 4*z, y, z, p, 20*z, 15*z);
+        roofGable(ctx, x - 4*z, y, z, p, 20*z, 15*z, 15*z, p.roofAlt);
+        ctx.fillStyle = '#2a1c10'; // nisza z płomykiem świecy
+        ctx.beginPath(); ctx.moveTo(x - 7.4*z, y); ctx.lineTo(x - 7.4*z, y - 9*z); ctx.arc(x - 4*z, y - 9*z, 3.4*z, Math.PI, 0); ctx.lineTo(x - 0.6*z, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f8c040'; ctx.beginPath(); ctx.ellipse(x - 4*z, y - 4.6*z + Math.sin(t * 9) * 0.2*z, 0.9*z, 1.5*z, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#d8b878'; ctx.lineWidth = 1.4*z; // skrzyżowane drągi na kalenicy
+        ctx.beginPath(); ctx.moveTo(x - 8*z, y - 33*z); ctx.lineTo(x + 0*z, y - 27*z); ctx.moveTo(x + 0*z, y - 33*z); ctx.lineTo(x - 8*z, y - 27*z); ctx.stroke();
+        ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x + 11*z, y - 27*z, 4*z, 27*z); // słup
+        ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 1; ctx.strokeRect(x + 11*z, y - 27*z, 4*z, 27*z);
+        ctx.fillStyle = '#e8d8b0'; for (const fy of [22, 14, 7]) ctx.fillRect(x + 11.8*z, y - fy*z, 2.4*z, 3*z); // twarze
+        ctx.fillStyle = p.accent; ctx.fillRect(x + 10.4*z, y - 11*z, 5.2*z, 1.2*z); // czerwona przepaska
+        ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.moveTo(x + 9.6*z, y - 27*z); ctx.lineTo(x + 13*z, y - 31*z); ctx.lineTo(x + 16.4*z, y - 27*z); ctx.closePath(); ctx.fill();
       } else { // kościół: wieża z krzyżem
         base(ctx, x, y, z, p, 26*z, 20*z);
         roofGable(ctx, x, y, z, p, 26*z, 20*z, 13*z);
@@ -1446,6 +1581,175 @@ const Gfx = (() => {
       ctx.restore();
     },
 
+    /* ---- SŁOWIANIE (zrąb z bali, strzecha, puszcza) ---- */
+    gatherer(ctx, x, y, z, p, t) { // chata zbieracza: kosze grzybów i jagód + suszone grzyby na sznurze
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 11*z, p.roofAlt);
+      door(ctx, x - 4*z, y, z);
+      windowLit(ctx, x + 4*z, y - 9*z, z, p);
+      basket(ctx, x + 12*z, y, z);
+      for (const [mx, my] of [[10.5, -5.2], [13.4, -5.8]]) mushroom(ctx, x + mx*z, y + my*z, z); // grzyby w koszu
+      ctx.fillStyle = '#3a4f8a'; // jagody
+      for (const [bx, by] of [[11.8, -6.4], [12.8, -5], [10.6, -4.4]]) { ctx.beginPath(); ctx.arc(x + bx*z, y + by*z, 0.9*z, 0, 7); ctx.fill(); }
+      ctx.strokeStyle = '#7a5a3a'; ctx.lineWidth = 1.2*z; // słupki suszarni
+      ctx.beginPath(); ctx.moveTo(x - 17*z, y); ctx.lineTo(x - 17*z, y - 11*z);
+      ctx.moveTo(x - 11*z, y); ctx.lineTo(x - 11*z, y - 11*z); ctx.stroke();
+      ctx.strokeStyle = '#c8b890'; ctx.lineWidth = 0.7*z; // sznur
+      ctx.beginPath(); ctx.moveTo(x - 17*z, y - 10*z); ctx.quadraticCurveTo(x - 14*z, y - 8*z, x - 11*z, y - 10*z); ctx.stroke();
+      ctx.fillStyle = '#d8c8a0';
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(x - (16.2 - i*1.7)*z, y - (8.6 + (i === 1 || i === 2 ? 0.8 : 0))*z, 0.9*z, 1.3*z, 0, 0, 7); ctx.fill(); }
+    },
+    beehive(ctx, x, y, z, p, t) { // barć: wysoki pień z dziuplą pełną plastrów + rój pszczół
+      shadow(ctx, x, y, z, 11);
+      ctx.fillStyle = '#6a4a2c'; // pień
+      ctx.beginPath(); ctx.moveTo(x - 5.5*z, y); ctx.lineTo(x - 4.5*z, y - 28*z); ctx.lineTo(x + 4.5*z, y - 28*z); ctx.lineTo(x + 5.5*z, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade('#6a4a2c', 0.55); ctx.lineWidth = 0.9; ctx.stroke();
+      ctx.strokeStyle = shade('#6a4a2c', 0.7); // kora
+      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(x + i*2.6*z, y - 1*z); ctx.lineTo(x + i*2.2*z, y - 27*z); ctx.stroke(); }
+      ctx.fillStyle = '#b08a5a'; // ścięty wierzch
+      ctx.beginPath(); ctx.ellipse(x, y - 28*z, 4.5*z, 1.7*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#7a5a3a'; ctx.beginPath(); ctx.ellipse(x, y - 28*z, 2.4*z, 0.9*z, 0, 0, 7); ctx.stroke();
+      ctx.fillStyle = '#25160b'; // dziupla
+      ctx.beginPath(); ctx.ellipse(x, y - 17*z, 2.6*z, 5.2*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#e8b840'; // plastry
+      for (const [cx, cy] of [[-0.8, -20], [0.9, -17.8], [-0.6, -15.5], [0.7, -13.4]]) { ctx.beginPath(); ctx.ellipse(x + cx*z, y + cy*z, 1.5*z, 1.1*z, 0, 0, 7); ctx.fill(); }
+      ctx.fillStyle = '#a07828'; ctx.fillRect(x - 3.6*z, y - 23.4*z, 7.2*z, 1.6*z); // deszczułka nad dziuplą
+      for (let i = 0; i < 5; i++) { // pszczoły krążą wokół barci
+        const a = t * 2.4 + i * 1.3, bx = x + Math.cos(a) * 8*z, by = y - 17*z + Math.sin(a * 1.7) * 5*z;
+        ctx.fillStyle = '#f0c830'; ctx.fillRect(bx, by, 1.5*z, 1.1*z);
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(bx + 0.2*z, by - 0.9*z, 1*z, 0.8*z);
+      }
+      ctx.fillStyle = '#8a6a3a'; ctx.fillRect(x + 8*z, y - 3.6*z, 9*z, 3.6*z); // kłoda-ul obok
+      ctx.fillStyle = '#e0c070'; ctx.beginPath(); ctx.ellipse(x + 8*z, y - 1.8*z, 1.1*z, 1.8*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = p.roof; ctx.beginPath(); ctx.moveTo(x + 7*z, y - 3.6*z); ctx.lineTo(x + 12.5*z, y - 8*z); ctx.lineTo(x + 18*z, y - 3.6*z); ctx.closePath(); ctx.fill();
+    },
+    waxery(ctx, x, y, z, p, t) { // woskarnia: chata + kocioł nad paleniskiem, bryły wosku i świece
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 24*z, 15*z);
+      roofGable(ctx, x, y, z, p, 24*z, 15*z, 11*z);
+      door(ctx, x - 7*z, y, z);
+      windowLit(ctx, x + 1*z, y - 10*z, z, p);
+      chimneyWith(ctx, x + 8*z, y - 21*z, z, p.stone);
+      ctx.fillStyle = '#3a2c20'; ctx.beginPath(); ctx.ellipse(x + 15*z, y + 1*z, 5.5*z, 2*z, 0, 0, 7); ctx.fill(); // palenisko
+      ctx.fillStyle = '#e87830'; ctx.beginPath(); ctx.ellipse(x + 15*z, y + 0.2*z, 3*z, 1*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#4a4038'; // kocioł
+      ctx.beginPath(); ctx.ellipse(x + 15*z, y - 5.6*z, 4.8*z, 4.4*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#25201a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#e8c04a'; ctx.beginPath(); ctx.ellipse(x + 15*z, y - 8.6*z, 3.6*z, 1.3*z, 0, 0, 7); ctx.fill(); // roztopiony wosk
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(x + 14*z, y - 8.9*z, 1.4*z, 0.5*z, 0, 0, 7); ctx.fill();
+      for (let i = 0; i < 3; i++) { // opar
+        ctx.beginPath(); ctx.arc(x + 15*z + Math.sin(t*1.4 + i)*2*z, y - (13 + i*4.5)*z, (2 + i*0.7)*z, 0, 7);
+        ctx.fillStyle = `rgba(240,235,215,${0.34 - i*0.1})`; ctx.fill();
+      }
+      for (const [bx, by] of [[-16, 0], [-12.4, 0], [-14.2, -3.4]]) { // bryły wosku
+        ctx.fillStyle = '#f0dc8a'; ctx.fillRect(x + bx*z - 2.4*z, y + by*z - 3*z, 4.8*z, 3*z);
+        ctx.strokeStyle = '#b8a050'; ctx.lineWidth = 0.8; ctx.strokeRect(x + bx*z - 2.4*z, y + by*z - 3*z, 4.8*z, 3*z);
+      }
+      ctx.fillStyle = '#f4efd8'; ctx.fillRect(x - 3*z, y - 7.6*z, 1.2*z, 4*z); // świeca
+      ctx.fillStyle = '#f8c040'; ctx.beginPath(); ctx.ellipse(x - 2.4*z, y - 8.4*z, 0.7*z, 1.2*z, 0, 0, 7); ctx.fill();
+    },
+    trapper(ctx, x, y, z, p, t) { // chata łowcy futer: skóry rozpięte na ramach + łuk
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 11*z, p.roofAlt);
+      door(ctx, x - 3*z, y, z);
+      ctx.strokeStyle = '#e8d8b8'; ctx.lineWidth = 1.5*z; // poroże nad wejściem
+      ctx.beginPath(); ctx.moveTo(x - 6*z, y - 15*z); ctx.lineTo(x - 8.5*z, y - 18.5*z); ctx.moveTo(x - 7.4*z, y - 16.8*z); ctx.lineTo(x - 9.6*z, y - 16.6*z);
+      ctx.moveTo(x - 0*z, y - 15*z); ctx.lineTo(x + 2.5*z, y - 18.5*z); ctx.moveTo(x + 1.4*z, y - 16.8*z); ctx.lineTo(x + 3.6*z, y - 16.6*z); ctx.stroke();
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.4*z; // rama
+      ctx.beginPath(); ctx.moveTo(x + 9*z, y); ctx.lineTo(x + 9*z, y - 15*z); ctx.moveTo(x + 19*z, y); ctx.lineTo(x + 19*z, y - 15*z);
+      ctx.moveTo(x + 8*z, y - 14*z); ctx.lineTo(x + 20*z, y - 14*z); ctx.stroke();
+      const pelts = [['#8a5a34', 11.8], ['#b8b0a0', 14.2], ['#6a4a30', 16.6]];
+      for (const [col, px] of pelts) { // skóry z łapami i ogonkiem
+        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x + px*z, y - 8*z, 1.7*z, 4.4*z, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = shade(col, 0.6); ctx.lineWidth = 0.8*z;
+        ctx.beginPath(); ctx.moveTo(x + (px - 1.4)*z, y - 11*z); ctx.lineTo(x + (px - 2.4)*z, y - 12.4*z);
+        ctx.moveTo(x + (px + 1.4)*z, y - 11*z); ctx.lineTo(x + (px + 2.4)*z, y - 12.4*z);
+        ctx.moveTo(x + px*z, y - 3.6*z); ctx.lineTo(x + px*z, y - 1.6*z); ctx.stroke();
+      }
+      ctx.strokeStyle = '#6a4a2c'; ctx.lineWidth = 1.2*z; // łuk przy ścianie
+      ctx.beginPath(); ctx.arc(x - 12*z, y - 6*z, 6*z, -1.1, 1.1); ctx.stroke();
+      ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 0.6*z; ctx.beginPath(); ctx.moveTo(x - 9.4*z, y - 11*z); ctx.lineTo(x - 9.4*z, y - 1*z); ctx.stroke();
+    },
+    tannery(ctx, x, y, z, p, t) { // garbarnia: kadź z garbnikiem + skóry na suszarni
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 24*z, 15*z);
+      roofGable(ctx, x, y, z, p, 24*z, 15*z, 10*z);
+      door(ctx, x - 7*z, y, z);
+      windowLit(ctx, x + 1*z, y - 10*z, z, p);
+      ctx.fillStyle = '#7a5a3a'; // kadź
+      ctx.fillRect(x + 8*z, y - 7*z, 8*z, 7*z);
+      ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 1; ctx.strokeRect(x + 8*z, y - 7*z, 8*z, 7*z);
+      ctx.beginPath(); ctx.moveTo(x + 8*z, y - 4.6*z); ctx.lineTo(x + 16*z, y - 4.6*z); ctx.moveTo(x + 8*z, y - 2.2*z); ctx.lineTo(x + 16*z, y - 2.2*z); ctx.stroke();
+      ctx.fillStyle = '#5a3a1c'; ctx.beginPath(); ctx.ellipse(x + 12*z, y - 7*z, 4*z, 1.4*z, 0, 0, 7); ctx.fill(); // garbnik
+      ctx.fillStyle = '#9a6a3c'; ctx.beginPath(); ctx.ellipse(x + 13.2*z, y - 7.6*z, 1.8*z, 0.8*z, 0.4, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.3*z; // suszarnia
+      ctx.beginPath(); ctx.moveTo(x - 20*z, y); ctx.lineTo(x - 20*z, y - 13*z); ctx.moveTo(x - 12.4*z, y); ctx.lineTo(x - 12.4*z, y - 13*z);
+      ctx.moveTo(x - 21*z, y - 12*z); ctx.lineTo(x - 11.4*z, y - 12*z); ctx.stroke();
+      for (const [col, hx] of [['#a8683a', -18.4], ['#8a5230', -15.6]]) { // wyprawione skóry
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x + hx*z - 2*z, y - 12*z); ctx.lineTo(x + hx*z + 2*z, y - 12*z);
+        ctx.lineTo(x + hx*z + 2.4*z, y - 6*z); ctx.lineTo(x + hx*z + 0.8*z, y - 4.6*z); ctx.lineTo(x + hx*z - 0.6*z, y - 6*z); ctx.lineTo(x + hx*z - 2.4*z, y - 4.4*z); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = shade(col, 0.6); ctx.lineWidth = 0.8; ctx.stroke();
+      }
+    },
+    field(ctx, x, y, z, p, t) { // pole stałe: złote żyto, kopiec siana i strach na wróble
+      function wRow(i) { return 18*z - i*3.5*z; }
+      function hRow(i) { return 5.5*z - i*1.5*z; }
+      plot(ctx, x, y, z, '#cbb25a');
+      ctx.strokeStyle = shade('#cbb25a', 0.72); ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - wRow(i), y - hRow(i)); ctx.lineTo(x + wRow(i), y - hRow(i)); ctx.stroke(); }
+      for (let i = 0; i < 16; i++) { // kłosy żyta (lekko falują)
+        const gx = x + (thash(i, 5, 1) - 0.5) * 32*z, gy = y + (thash(i, 9, 2) - 0.5) * 12*z;
+        const sway = Math.sin(t * 1.6 + i) * 0.8*z;
+        ctx.strokeStyle = '#d4b43e'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + sway, gy - 6*z); ctx.stroke();
+        ctx.fillStyle = '#e8cc58'; ctx.beginPath(); ctx.ellipse(gx + sway, gy - 6.6*z, 0.8*z, 1.6*z, 0, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = '#d8b850'; // kopiec siana
+      ctx.beginPath(); ctx.ellipse(x + 11*z, y + 1*z, 5.2*z, 1.9*z, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + 6*z, y + 0.4*z); ctx.quadraticCurveTo(x + 8*z, y - 9*z, x + 11*z, y - 11*z); ctx.quadraticCurveTo(x + 14*z, y - 9*z, x + 16*z, y + 0.4*z); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#a88a30'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.strokeStyle = '#6a4a2c'; ctx.lineWidth = 1.4*z; // strach na wróble
+      ctx.beginPath(); ctx.moveTo(x - 10*z, y); ctx.lineTo(x - 10*z, y - 12*z); ctx.moveTo(x - 14*z, y - 9*z); ctx.lineTo(x - 6*z, y - 9*z); ctx.stroke();
+      ctx.fillStyle = '#d8c090'; ctx.beginPath(); ctx.arc(x - 10*z, y - 13.2*z, 1.8*z, 0, 7); ctx.fill();
+      ctx.fillStyle = '#8a6a30'; ctx.beginPath(); ctx.ellipse(x - 10*z, y - 14.6*z, 3*z, 0.9*z, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x - 7.4*z, y - 14.6*z); ctx.lineTo(x - 10*z, y - 18.4*z); ctx.lineTo(x - 12.6*z, y - 14.6*z); ctx.closePath(); ctx.fill();
+    },
+    grits(ctx, x, y, z, p, t) { // kaszarnia: stępa z tłuczkiem + worki prosa
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 15*z);
+      roofGable(ctx, x, y, z, p, 26*z, 15*z, 10*z);
+      door(ctx, x - 7*z, y, z);
+      windowLit(ctx, x + 3*z, y - 10*z, z, p);
+      chimneyWith(ctx, x + 9*z, y - 22*z, z, p.stone);
+      const up = (Math.sin(t * 3.4) * 0.5 + 0.5) * 6*z; // tłuczek unosi się i opada
+      ctx.fillStyle = '#7a5a3a'; // stępa (drewniany moździerz)
+      ctx.beginPath(); ctx.moveTo(x + 11*z, y - 7.4*z); ctx.lineTo(x + 12.4*z, y); ctx.lineTo(x + 18.6*z, y); ctx.lineTo(x + 20*z, y - 7.4*z); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#d8c070'; ctx.beginPath(); ctx.ellipse(x + 15.5*z, y - 7.4*z, 4.5*z, 1.5*z, 0, 0, 7); ctx.fill(); // proso
+      ctx.strokeStyle = '#6a4a2c'; ctx.lineWidth = 2.2*z; // tłuczek
+      ctx.beginPath(); ctx.moveTo(x + 15.5*z, y - 8*z - up); ctx.lineTo(x + 15.5*z, y - 22*z - up); ctx.stroke();
+      sack(ctx, x - 1*z, y, z, '#d8c8a0'); sack(ctx, x + 3.4*z, y, z, '#c8b888');
+    },
+    sauna(ctx, x, y, z, p, t) { // bania: niski zrąb z parą, wiechcie brzozowe, wiaderko i drewno
+      shadow(ctx, x, y, z, 13);
+      base(ctx, x, y, z, p, 20*z, 11*z);
+      roofGable(ctx, x, y, z, p, 20*z, 11*z, 9*z, shade(p.roof, 0.85));
+      door(ctx, x - 2*z, y, z, '#2a1c10');
+      ctx.fillStyle = '#5a8a3a'; // wiechcie brzozowe przy drzwiach
+      for (const bx of [4.4, 6.8]) { ctx.beginPath(); ctx.ellipse(x + bx*z, y - 6.2*z, 1.2*z, 2.4*z, 0, 0, 7); ctx.fill(); }
+      ctx.strokeStyle = '#6a4a2c'; ctx.lineWidth = 0.8*z; ctx.beginPath(); ctx.moveTo(x + 4.4*z, y - 8.6*z); ctx.lineTo(x + 4.4*z, y - 9.8*z); ctx.moveTo(x + 6.8*z, y - 8.6*z); ctx.lineTo(x + 6.8*z, y - 9.8*z); ctx.stroke();
+      barrelV(ctx, x + 13*z, y, z, '#8a6a45', 3, 5); // wiaderko
+      ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 0.7*z; ctx.beginPath(); ctx.arc(x + 13*z, y - 5*z, 2.4*z, Math.PI, 0); ctx.stroke();
+      logStack(ctx, x - 15*z, y, z, '#8a6a45', 3);
+      for (let i = 0; i < 4; i++) { // para unosząca się z dachu
+        const ph = (t * 0.45 + i * 0.25) % 1;
+        ctx.beginPath(); ctx.arc(x + 2*z + Math.sin(ph * 6 + i) * 2.2*z, y - (20 + ph * 14)*z, (2.2 + ph * 2.6)*z, 0, 7);
+        ctx.fillStyle = `rgba(245,245,250,${0.42 * (1 - ph)})`; ctx.fill();
+      }
+    },
+
     /* ---- DWÓR (startowy, 2x2) ---- */
     keep(ctx, x, y, z, p, t) {
       shadow(ctx, x, y, z, 24);
@@ -1496,6 +1800,12 @@ const Gfx = (() => {
       ctx.fillStyle = p.cloth;
       ctx.beginPath(); ctx.ellipse(sx - 3.6*z, y0 - 8*z, 2.2*z, 3*z, 0.3, 0, 7); ctx.fill();
       ctx.strokeStyle = shade(p.metal, 0.6); ctx.lineWidth = 0.8*z; ctx.stroke();
+    } else if (factionId === 'slavs') { // lniana koszula z czerwoną obwódką i pasem, jasne włosy z przepaską
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(sx - 2.6*z, y0 - 6.8*z, 5.2*z, 0.9*z);
+      ctx.fillRect(sx - 2.6*z, y0 - 4.6*z, 5.2*z, 0.7*z);
+      ctx.fillStyle = '#c8a050'; ctx.beginPath(); ctx.arc(sx, y0 - 12.3*z, 2.7*z, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = p.accent; ctx.fillRect(sx - 2.5*z, y0 - 12.6*z, 5*z, 0.8*z);
     } else {
       ctx.fillStyle = '#5a4230';
       ctx.beginPath(); ctx.moveTo(sx - 2.6*z, y0 - 12.5*z); ctx.lineTo(sx, y0 - 15.5*z);
@@ -1540,13 +1850,18 @@ const World = (() => {
     time: 0, speed: 1, res: {}, nextId: 1,
     pop: 14, controls: { rations: 1, tax: 1 },
     starveTimer: 0, immigrantTimer: 0, tooled: {}, staffed: {},
-    saplings: [], treeFrac: 0, plantFrac: 0, churchFed: false, bathFed: false,
+    saplings: [], treeFrac: 0, plantFrac: 0, welfare: {}, foodRep: null,
     workersStaffed: 0, workersNeeded: 0, waitingForTool: false,
+    /* liczniki do raportów i testów */
+    stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
+    /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6 },
+    depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
     sites: [], builders: 3, buildersActive: 0, buildersWorking: 0, carriers: [],
     /* Etap 4 — haracz, handel, wyprawy */
     tribute: null, marketPrices: { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 },
-    voyageMode: 'normal', crewAway: 0, voyages: [],
+    voyageMode: 'normal', crewAway: 0, voyages: [], voyageStats: { done: 0, trips: 0 },
     /* Etap 5 — świat dynamiczny */
     raids: { count: 0, lost: 0, next: 40 }, crisis: null, eventMsgs: []
   };
@@ -1560,12 +1875,16 @@ const World = (() => {
     state.starveTimer = 0; state.immigrantTimer = 0;
     state.tooled = {}; state.staffed = {}; state.saplings = [];
     state.treeFrac = 0; state.plantFrac = 0;
-    state.churchFed = false; state.bathFed = false; state.waitingForTool = false;
+    state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
+    state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6 };
+    state.depositLeft = null;
+    Data.cur.faction = factionId;
     state.sites = []; state.builders = 3;
     state.buildersActive = 0; state.buildersWorking = 0; state.carriers = [];
     state.tribute = null;
     state.marketPrices = { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 };
-    state.voyageMode = 'normal'; state.crewAway = 0; state.voyages = [];
+    state.voyageMode = 'normal'; state.crewAway = 0; state.voyages = []; state.voyageStats = { done: 0, trips: 0 };
     state.raids = { count: 0, lost: 0, next: 40 };
     state.crisis = null; state.eventMsgs = [];
     const f = Data.FACTIONS[factionId];
@@ -1577,7 +1896,7 @@ const World = (() => {
     state.res.deski = f.start.wood;
     state.res.kamień = f.start.stone || 0;
     state.res.glina = f.start.clay || 0;
-    state.res[f.start.foodKind.toLowerCase()] = f.start.food;
+    state.res[f.start.foodGood] = f.start.food; // kasza Słowian liczy się jako chleb
     state.res.popularity = 50;
     // Dwór na środku (2x2)
     const c = Math.floor(state.map.size / 2) - 1;
@@ -1615,8 +1934,11 @@ const World = (() => {
     }
     if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
     if (def.req === 'shore' && !hasWater) return { ok: false, reason: 'Wymaga brzegu morza' };
-    if (id === 'fisherhut' && state.buildings.filter(b => b.id === 'fisherhut').length >= 6)
-      return { ok: false, reason: 'Brzeg pełny: maks. 6 Chat rybaka (spec.)' };
+    if (id === 'fisherhut') {
+      const spots = state.settings.shoreSpots ?? 6; // miejsca pod Chaty rybaka na wybrzeżu (parametr generatora map)
+      const used = state.buildings.filter(b => b.id === 'fisherhut').length + state.sites.filter(st => st.id === 'fisherhut').length;
+      if (used >= spots) return { ok: false, reason: 'Brzeg pełny: maks. ' + spots + ' Chat rybaka (spec.)' };
+    }
     if (def.req === 'waterEdge' && !hasWater) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do wody' };
     if (def.req && def.req.startsWith('deposit:')) {
       const kind = def.req.split(':')[1];
@@ -1763,8 +2085,9 @@ const World = (() => {
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
-   Ekonomia przepływowa v3.5: obsada, produkcja, popularność, imigracja/głód,
-   narzędzia z zaworami bezpieczeństwa, magazyny z limitami, las odnawialny.
+   Ekonomia przepływowa (spec v3.6): obsada, produkcja, popularność, imigracja/głód,
+   narzędzia z zaworami bezpieczeństwa, magazyny z limitami, las odnawialny,
+   Puszcza (plon leśnych budynków zależny od gęstości lasu), budynki wielowyjściowe.
    Moduł jest czystą funkcją stanu — bot testujący może wołać Economy.tick()
    bez renderowania gry. */
 const Economy = (() => {
@@ -1772,23 +2095,41 @@ const Economy = (() => {
     chleb:150, mięso:150, ser:150, owoce:150, daktyle:150, ryby:150,
     ruda:40, węgiel:40, sztabki:40, 'narzędzia':10, broń:60,
     żywica:40, kadzidło:40, winogrona:40, wino:60, 'miód pitny':60,
-    bawełna:40, tkanina:60, ceramika:60 };
+    bawełna:40, tkanina:60, ceramika:60,
+    /* Słowianie: spec nie podaje limitów — półprodukty jak inne (40), towary daniny jak jedzenie (150);
+       faktyczną pojemność wyznacza i tak wzór z capOf (6 × producenci + 20 + 80 × Składy) */
+    plaster:40, 'futro surowe':40, 'futro wyprawione':150, 'miód':150, wosk:150 };
   const FOODS = ['ryby','chleb','mięso','ser','owoce','daktyle']; // ryby schodzą pierwsze
-  const FOOD_PRIORITY = ['hunter','dairy','orchard','watercarrier','qanat','farm','mill','bakery','dategrove','fisherhut'];
+  /* gdy ludzi brakuje, najpierw obsadzane są budynki żywności */
+  const FOOD_PRIORITY = ['hunter','dairy','orchard','gatherer','watercarrier','qanat','farm','field','mill','kasha','bakery','dategrove','fisherhut'];
   const MINE_EATERS = { ironmine:0.5, coalmine:0.5, incense:0.5, peatmine:0.25 };
-  const DOBRO = { franks:'wino', saracens:'kadzidło', vikings:'miód pitny' };
+  const DOBRO = { franks:'wino', saracens:'kadzidło', vikings:'miód pitny', slavs:'wosk' };
   const TAX_INCOME = [0, 0.05, 0.10, 0.15];
   const RATIONS_POP = { 0.5:-25, 1:0, 1.5:8, 2:15 };
   const TAX_POP = { 0:8, 1:0, 2:-8, 3:-16 };
+  /* kolejność przetwarzania w ticku: woda i drewno → surowce → przetwórstwo → Dobrobyt.
+     Kolejność ma znaczenie tylko tam, gdzie dwa budynki sięgają po ten sam towar w jednym ticku (spec). */
+  const PROD_ORDER = ['qanat','watercarrier','woodcutter','forester','fisherhut','peatmine','claypit','quarry',
+    'ironmine','coalmine','hunter','dairy','orchard','gatherer','field','farm','dategrove','cotton','incensewood',
+    'vineyard','bartnik','trapper','charburner','sawmill','mill','kasha','winery','smelter','bakery','incense',
+    'toolforge','armory','mead','weaver','pottery','waxery','tannery','sauna','temple','bathhouse'];
+  const ORDER_IDX = {}; PROD_ORDER.forEach((id, i) => { ORDER_IDX[id] = i; });
+  const orderOf = id => (id in ORDER_IDX ? ORDER_IDX[id] : 50);
 
-  function outGood(id) { const d = Data.BUILDINGS[id].out; return d ? Object.keys(d)[0] : null; }
-  function outRate(id) { const d = Data.BUILDINGS[id].out; return d ? Object.values(d)[0] : 0; }
-  function isFoodOut(id) { return FOODS.includes(outGood(id)); }
+  /* wyjścia budynku jako tablica [towar, tempo]; pierwsze jest wyjściem głównym */
+  function outsOf(id) { const d = Data.BUILDINGS[id].out; return d ? Object.entries(d) : []; }
+  function outGood(id) { const o = outsOf(id); return o.length ? o[0][0] : null; }
+  function outRate(id) { const o = outsOf(id); return o.length ? o[0][1] : 0; }
+  function isFoodOut(id) { return outsOf(id).some(([g]) => FOODS.includes(g)); }
 
   /* mnożniki Wikingów: drwal 1,3; leśnik 2,0; tartak 1,3 (→2,6 deski) */
   const VIK_RATE = { woodcutter: 1.3, forester: 2.0, sawmill: 1.3 };
   function vikScale(id) {
     return World.state().factionId === 'vikings' ? (VIK_RATE[id] || 1) : 1;
+  }
+  /* gęstość lasu: plon × min(1, drzewa / próg nacji) dla budynków z flagą forest */
+  function forestMult(s, def, treeTotal) {
+    return def.forest ? Math.min(1, treeTotal / Data.FOREST_REF[s.factionId]) : 1;
   }
 
   function totalFood(res) { return FOODS.reduce((a, g) => a + (res[g] || 0), 0); }
@@ -1797,35 +2138,68 @@ const Economy = (() => {
     const per = s.factionId === 'vikings' ? 8 : 6;
     return 20 + s.buildings.reduce((a, b) => a + (b.id === 'hut' ? per : 0), 0);
   }
+  /* pojemność towaru w osadzie: min(limit, 6 × czynni producenci + 20 (komora Dworu) + 80 × Składy) */
   function capOf(s, good) {
-    const producers = s.buildings.filter(b => outGood(b.id) === good).length;
-    const stores = s.buildings.filter(b => b.id === 'store').length;
+    let producers = 0, stores = 0;
+    for (const b of s.buildings) {
+      if (b.id === 'store') stores++;
+      else if (s.staffed[b.uid] && outsOf(b.id).some(([g]) => g === good)) producers++;
+    }
     return Math.min(LIMIT[good] ?? Infinity, 6 * producers + 20 + 80 * stores);
   }
   function popularity(s) {
     let p = 50 + (RATIONS_POP[s.controls.rations] ?? 0) + (TAX_POP[s.controls.tax] ?? 0);
     const kinds = FOODS.filter(g => s.res[g] > 5).length;
     if (kinds > 1) p += 4 * (kinds - 1);
-    const temples = s.buildings.filter(b => b.id === 'temple').length;
-    if (temples * 50 >= s.pop && s.churchFed) p += 10;
-    const baths = s.buildings.filter(b => b.id === 'bathhouse').length;
-    if (s.factionId === 'saracens' && baths * 50 >= s.pop && s.bathFed) p += 6;
+    /* Dobrobyt: obsłużone budynki (zasilone w poprzednim ticku) × 50 osób ≥ ludność */
+    const w = s.welfare || {};
+    if ((w.temple || 0) > 0 && w.temple * 50 >= s.pop) p += 10;
+    const baths = (w.bathhouse || 0) + (w.sauna || 0);
+    if (baths > 0 && baths * 50 >= s.pop) p += 6;
     return Math.max(0, Math.min(100, p));
   }
+
+  /* --- potencjał jedzenia: produkcja przy dostępnych wejściach (chleb liczy Piekarnia, Farma i Młyn nie) ---
+     Wejście jest dostępne, gdy leży w magazynie albo wytwarza je obsadzony budynek, który sam ma wejścia. */
+  function producibleSet(s) {
+    const memo = new Map();
+    const inputOk = (g, need) => (s.res[g] || 0) >= need ||
+      s.buildings.some(b => outsOf(b.id).some(([og]) => og === g) && working(b));
+    const working = b => {
+      if (memo.has(b.uid)) return memo.get(b.uid);
+      memo.set(b.uid, false); // blokada cykli
+      let ok = !!s.staffed[b.uid];
+      if (ok) { const inp = Data.BUILDINGS[b.id].inp || {}; for (const g in inp) if (!inputOk(g, inp[g])) { ok = false; break; } }
+      memo.set(b.uid, ok);
+      return ok;
+    };
+    return working;
+  }
   function potentialFood(s) {
-    // produkcja żywności przy dostępnych wejściach; chleb liczy Piekarnia, Farma/Młyn nie
     const treeTotal = World.treeCount();
+    const working = producibleSet(s);
     let pot = 0;
     for (const b of s.buildings) {
       if (!isFoodOut(b.id)) continue;
       const def = Data.BUILDINGS[b.id];
-      if (!def.worker) continue;
-      let frac = 1;
-      for (const g in (def.inp || {})) if (s.res[g] < def.inp[g]) frac = 0; // binarnie: wejścia dostępne lub nie
-      if (b.id === 'hunter') frac *= Math.min(1, treeTotal / 80);
-      pot += outRate(b.id) * frac;
+      if (!def.worker || !working(b)) continue;
+      const k = forestMult(s, def, treeTotal);
+      for (const [g, r] of outsOf(b.id)) if (FOODS.includes(g)) pot += r * k;
     }
     return pot;
+  }
+  /* bilans jedzenia do bramki imigracji i interfejsu: zużycie = ludzie + budowniczowie w pracy + kopalnie/wytwórnie;
+     P_max to największa ludność, przy której brama (110% zużycia) jeszcze się otwiera */
+  function foodReport(s) {
+    const potential = potentialFood(s);
+    const people = foodRate(s);
+    const builders = (s.buildersWorking || 0) * 0.5 / 6 * s.controls.rations;
+    let buildings = 0;
+    for (const b of s.buildings) { const e = MINE_EATERS[b.id]; if (e && s.staffed[b.uid]) buildings += e; }
+    const perPerson = s.controls.rations / 6;
+    const room = Math.max(0, potential / 1.1 - builders - buildings);
+    return { potential, people, builders, buildings, consumption: people + builders + buildings,
+             pmax: Math.floor(room / perPerson) + 1 };
   }
 
   /* --- obsada: budynki żywności pierwszeństwo, potem reszta --- */
@@ -1836,14 +2210,15 @@ const Economy = (() => {
     let waitingTool = false;
     const prio = id => { const i = FOOD_PRIORITY.indexOf(id); return i === -1 ? 99 : i; };
     const order = [...s.buildings].sort((a, b) => prio(a.id) - prio(b.id));
+    for (const b of s.buildings) b.st = null;
     for (const b of order) {
       const def = Data.BUILDINGS[b.id];
       if (!def.worker || b.id === 'keep') continue;
       s.workersNeeded++;
-      if (free < 1) continue; // narzędzie zużywamy dopiero przy faktycznym obsadzeniu
+      if (free < 1) { b.st = { c: 'nostaff' }; continue; } // narzędzie zużywamy dopiero przy faktycznym obsadzeniu
       if (def.tool && !s.tooled[b.uid]) {
         if (s.res.narzędzia >= 1) { s.res.narzędzia -= 1; s.tooled[b.uid] = true; }
-        else { waitingTool = true; continue; }
+        else { waitingTool = true; b.st = { c: 'tool' }; continue; }
       }
       s.staffed[b.uid] = true; free--;
     }
@@ -1851,13 +2226,17 @@ const Economy = (() => {
     s.waitingForTool = waitingTool;
     // zawory bezpieczeństwa narzędzi
     if (waitingTool) {
-      if (s.res.narzędzia < 1) // kuźnia zamkowa: ok. 1 narzędzie na 8 min, aż do pełnej sztuki
+      if (s.res.narzędzia < 1) { // kuźnia zamkowa: ok. 1 narzędzie na 8 min, aż do pełnej sztuki
+        const before = s.res.narzędzia;
         s.res.narzędzia = Math.min(1, s.res.narzędzia + 0.125 * dt);
+        s.stats.toolsForged += s.res.narzędzia - before;
+      }
       const marketOn = s.buildings.some(b => b.id === 'market' && s.staffed[b.uid]);
       // zakup na Targu 20 zł, ale rezerwa na żołd (Frankowie) nietykalna
       if (marketOn && s.res.złoto >= 20 + (Tribute.soldierReserve ? Tribute.soldierReserve(s) : 0) && s.res.narzędzia < 1) {
         s.res.złoto -= 20;
         s.res.narzędzia = Math.min(LIMIT['narzędzia'], s.res.narzędzia + 1);
+        s.stats.toolsBought++;
       }
     }
   }
@@ -1873,55 +2252,84 @@ const Economy = (() => {
     const starving = s.starveTimer >= 5;
     const food5min = foodRate(s) * 5;
     const treeTotal = World.treeCount(); // raz na tick, nie przy każdym budynku
-    s.churchFed = false; s.bathFed = false; // premie wyliczamy na nowo w tym ticku
+    const fed = { temple: 0, bathhouse: 0, sauna: 0 }; // Dobrobyt liczony na nowo w tym ticku
+    const producers = s.buildings.filter(b => b.id !== 'keep' && Data.BUILDINGS[b.id].worker && s.staffed[b.uid])
+      .sort((a, b) => orderOf(a.id) - orderOf(b.id));
+
+    /* wejścia dla kilku odbiorców (pnie: Tartak, Wypalarka, Garncarnia, Bania; węgiel: Huta i Zbrojownia;
+       sztabki, woda…): gdy popyt przekracza zapas, każdy dostaje ten sam ułamek (spec). Ułamek liczony przy
+       pierwszym odbiorcy z bieżącego zapasu (producenci są wcześniej w kolejce), więc sam się koryguje —
+       bez tego Huta zawłaszcza jedyny węgiel i Zbrojownia stoi, aż zapas sztabek dobije do limitu. */
+    const demand = {}, ration = {};
+    for (const b of producers) {
+      const inp = Data.BUILDINGS[b.id].inp; if (!inp) continue;
+      const sc = vikScale(b.id);
+      for (const g in inp) demand[g] = (demand[g] || 0) + inp[g] * sc * dt;
+    }
 
     /* --- produkcja --- */
-    for (const b of s.buildings) {
+    for (const b of producers) {
       const def = Data.BUILDINGS[b.id];
-      if (b.id === 'keep' || !def.worker) continue;
-      if (!s.staffed[b.uid]) continue;
       // kopalnie i wytwórnia kadzidła jedzą tylko z nadwyżki
-      if (MINE_EATERS[b.id] && totalFood(res) < food5min) continue;
-      // Dobrobyt: kościół/meczet spala dobro nacji (0,3/min)
+      if (MINE_EATERS[b.id] && totalFood(res) < food5min) { b.st = { c: 'food' }; continue; }
+      // Dobrobyt: kościół/meczet/kapliczka spala dobro nacji (0,3/min)
       if (b.id === 'temple') {
         const good = DOBRO[s.factionId];
-        if (res[good] >= 0.3 * dt) { res[good] -= 0.3 * dt; s.churchFed = true; }
-        else s.churchFed = false;
+        if (res[good] >= 0.3 * dt) { res[good] -= 0.3 * dt; fed.temple++; }
+        else b.st = { c: 'in', g: good };
         continue;
       }
-      const og = outGood(b.id);
+      const dk = def.req && def.req.startsWith('deposit:') ? def.req.slice(8) : null; // złoże może być skończone
+      if (dk && s.depositLeft && s.depositLeft[dk] !== undefined && s.depositLeft[dk] <= 0) { b.st = { c: 'depleted', g: dk }; continue; }
+      const outs = outsOf(b.id);
       const sc = vikScale(b.id);
       const inp = def.inp || {};
-      let frac = 1;
+      let frac = 1, limit = null;
       for (const g in inp) {
         const need = inp[g] * sc * dt;
-        if (need > 0) frac = Math.min(frac, res[g] / need);
+        if (need <= 0) continue;
+        if (ration[g] === undefined) ration[g] = demand[g] > 0 ? Math.min(1, res[g] / demand[g]) : 1;
+        const k = ration[g];
+        if (k < frac) { frac = k; limit = g; }
       }
-      if (b.id === 'woodcutter') frac = Math.min(frac, treeTotal / (outRate('woodcutter') * sc * dt));
-      if (b.id === 'hunter') frac *= Math.min(1, treeTotal / 80);
+      if (limit !== null && frac < 0.999) b.st = { c: 'in', g: limit };
+      if (b.id === 'woodcutter') {
+        const k = treeTotal / (outRate('woodcutter') * sc * dt);
+        if (k < frac) { frac = k; b.st = { c: 'in', g: 'drzewa' }; }
+      }
+      frac *= forestMult(s, def, treeTotal);
       const hungerK = (starving && !isFoodOut(b.id)) ? 0.75 : 1;
       // pełny magazyn wyjścia zatrzymuje budynek BEZ zużywania wejść (spec.)
-      if (og && og in LIMIT) {
-        const maxOut = outRate(b.id) * sc * popMult * hungerK * dt;
-        if (maxOut > 0) frac = Math.min(frac, Math.max(0, capOf(s, og) - res[og]) / maxOut);
+      for (const [og, rate] of outs) {
+        if (!(og in LIMIT)) continue;
+        const maxOut = rate * sc * popMult * hungerK * dt;
+        if (maxOut > 0) {
+          const k = Math.max(0, capOf(s, og) - res[og]) / maxOut;
+          if (k < frac) { frac = k; if (k < 0.999) b.st = { c: 'full', g: og }; }
+        }
       }
       frac = Math.max(0, Math.min(1, frac));
-      for (const g in inp) res[g] -= inp[g] * sc * frac * dt;
-      if (b.id === 'bathhouse') s.bathFed = frac >= 1;
-      // Leśniczówka: sadzonki dojrzewają po czasie nacji
-      if (og === 'sadzonki') {
-        // akumulacja ułamkowa — przy małym dt produkcja < 1 sadzonki/tick
-        s.plantFrac += outRate(b.id) * sc * frac * popMult * dt;
-        const growth = Data.FACTIONS[s.factionId].treeGrowthMin;
-        while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push({ t: s.time + growth }); }
-        continue;
+      for (const g in inp) res[g] = Math.max(0, res[g] - inp[g] * sc * frac * dt);
+      b.eff = frac * popMult * hungerK; // do pokazania w interfejsie
+      if (def.welfare && frac >= 0.999) fed[b.id]++;
+      for (const [og, rate] of outs) {
+        // Leśniczówka: sadzonki dojrzewają po czasie nacji
+        if (og === 'sadzonki') {
+          // akumulacja ułamkowa — przy małym dt produkcja < 1 sadzonki/tick
+          s.plantFrac += rate * sc * frac * popMult * dt;
+          const growth = Data.FACTIONS[s.factionId].treeGrowthMin;
+          while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push({ t: s.time + growth }); }
+          continue;
+        }
+        if (!(og in LIMIT)) continue;
+        const room = Math.max(0, capOf(s, og) - res[og]);
+        let made = Math.min(rate * sc * frac * popMult * hungerK * dt, room);
+        if (dk && s.depositLeft && s.depositLeft[dk] !== undefined) { made = Math.min(made, s.depositLeft[dk]); s.depositLeft[dk] -= made; }
+        res[og] += made;
+        if (b.id === 'woodcutter') World.takeTrees(made);
       }
-      if (!og || !(og in LIMIT)) continue;
-      const room = Math.max(0, capOf(s, og) - res[og]);
-      const made = Math.min(outRate(b.id) * sc * frac * popMult * hungerK * dt, room);
-      res[og] += made;
-      if (b.id === 'woodcutter') World.takeTrees(made);
     }
+    s.welfare = fed;
     // dojrzałe sadzonki stają się drzewami
     s.saplings = s.saplings.filter(sp => {
       if (s.time >= sp.t) { World.addTree(); return false; }
@@ -1929,11 +2337,13 @@ const Economy = (() => {
     });
 
     /* --- zawory Dworu --- */
-    const sawmillOn = s.buildings.some(b => b.id === 'sawmill' && s.staffed[b.uid]);
-    if (!sawmillOn && res['pień'] > 0) { // piła zamkowa: 0,6 pnia/min na deski
+    // piła zamkowa: zawsze przerabia do 0,6 pnia/min na deski (1:1), jeśli są pnie
+    if (res['pień'] > 0) {
       const conv = Math.min(0.6 * dt, res['pień']);
-      res['pień'] -= conv;
-      res.deski = Math.min(capOf(s, 'deski'), res.deski + conv * 2);
+      const room = Math.max(0, capOf(s, 'deski') - res.deski);
+      const used = Math.min(conv, room);
+      res['pień'] -= used;
+      res.deski += used;
     }
     if (s.factionId === 'franks' && !s.buildings.some(b => b.id === 'quarry') && res['kamień'] < 6)
       res['kamień'] = Math.min(6, res['kamień'] + 0.4 * dt);
@@ -1963,14 +2373,16 @@ const Economy = (() => {
     const shortfall = need;
     if (shortfall > 0.0001) s.starveTimer += dt;
     else s.starveTimer = 0;
-    if (s.starveTimer > 5) s.pop = Math.max(10, s.pop - dt); // głód: 1 osoba/min
+    if (s.starveTimer > 5) { s.pop = Math.max(10, s.pop - dt); s.stats.starveMin += dt; } // głód: 1 osoba/min
 
     /* --- podatki --- */
     res.złoto += TAX_INCOME[s.controls.tax] * s.pop * dt;
 
-    /* --- imigracja --- */
+    /* --- imigracja: brak głodu, potencjał jedzenia ≥ 110% zużycia, miejsce w chatach, popularność ≥ 45 --- */
+    const rep = foodReport(s);
+    s.foodRep = rep;
     const ok = shortfall <= 0.0001 &&
-      potentialFood(s) >= 1.1 * foodRate(s) &&
+      rep.potential >= 1.1 * rep.consumption &&
       s.pop < housing(s) &&
       pop >= 45;
     if (ok) {
@@ -1980,7 +2392,8 @@ const Economy = (() => {
     } else s.immigrantTimer = 0;
   }
 
-  return { tick, LIMIT, FOODS, popularity, housing, capOf, potentialFood, foodRate, totalFood };
+  return { tick, LIMIT, FOODS, MINE_EATERS, DOBRO, popularity, housing, capOf, potentialFood, foodReport, foodRate,
+           totalFood, outsOf, outGood, isFoodOut, forestMult, orderOf };
 })();
 
 /* ====================== MODUL: BUILD (Etap 3: logistyka) =================== */
@@ -2036,6 +2449,7 @@ const Build = (() => {
   function cancel(site) { // anulowanie placu: materiały i złoto wracają
     const s = World.state();
     for (const g in site.need) s.res[g] += (site.got[g] || 0);
+    s.stats.planksSpent -= (site.got.deski || 0);
     s.res.złoto += site.gold;
     const size = site.id === 'keep' ? 2 : 1;
     for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
@@ -2056,7 +2470,7 @@ const Build = (() => {
     // gang budowniczych: ustawienie 2–5; rekrutacja z wolnej ludności,
     // pracownicy budynków mają pierwszeństwo, ale gang nie schodzi poniżej 2
     const setting = Math.max(2, Math.min(5, s.builders));
-    const freePop = Math.floor(s.pop) - s.workersStaffed;
+    const freePop = Math.floor(s.pop) - s.workersStaffed - (s.crewAway || 0);
     const active = Math.max(2, Math.min(setting, freePop));
     s.buildersActive = active;
     // dostępne materiały — wcześniejszy plac w kolejce bierze pierwszeństwo
@@ -2093,7 +2507,8 @@ const Build = (() => {
           const take = Math.min(miss, Math.max(0, eff), budget);
           if (take > 0) {
             site.got[g] = (site.got[g] || 0) + take;
-            avail[g] -= take; s.res[g] -= take; budget -= take;
+            avail[g] -= take; s.res[g] = Math.max(0, s.res[g] - take); budget -= take;
+            if (g === 'deski') s.stats.planksSpent += take;
           }
         }
       }
@@ -2118,33 +2533,56 @@ const Build = (() => {
 /* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
 /* Haracz jest jedyną presją w grze. Poziom L żąda 2L osobominut pracy na minutę;
    nacje płacą własną jednostką: Frankowie żołnierzem (broń + 3 zł żołdu + osoba),
-   Saraceni złotem z handlu (krzywe cen na Targu), Wikingowie wyprawą okrętu.
-   Terminy co 15 min od pierwszego (60 / 50 / 110), żądanie skumulowane,
+   Saraceni złotem z handlu (krzywe cen na Targu), Wikingowie wyprawą okrętu,
+   Słowianie koszykiem daniny (futro wyprawione, miód, wosk — wartość w osobominutach).
+   Terminy co 15 min od pierwszego (60 / 50 / 110 / 60), żądanie skumulowane,
    wyprawy zaokrąglane w dół, ogłoszenie 30 min przed pierwszym terminem. */
 const Tribute = (() => {
-  const PRESET_LEVEL = { easy: 3, normal: 5, hard: 6 };
-  const PRESET_LABEL = { off: 'Wyłączony', easy: 'Łatwy (poz. 3)', normal: 'Normalny (poz. 5)',
-    hard: 'Trudny (poz. 6)', master: 'Mistrz' };
-  const MASTER_LEVEL = { franks: 10, saracens: 7, vikings: 12 };
-  const FIRST_TERM = { franks: 60, saracens: 50, vikings: 110 };
+  /* presety trudności: poziom haraczu zależy od nacji (spec: Łatwy 3/3/3/3, Normalny 5/5/5/6,
+     Trudny 6/6/6/8, Mistrz 10/7/12/11); scenarzysta może też podać poziom 1–11 ('custom') */
+  const PRESET_LEVEL = {
+    easy:   { franks: 3,  saracens: 3, vikings: 3,  slavs: 3 },
+    normal: { franks: 5,  saracens: 5, vikings: 5,  slavs: 6 },
+    hard:   { franks: 6,  saracens: 6, vikings: 6,  slavs: 8 },
+    master: { franks: 10, saracens: 7, vikings: 12, slavs: 11 }
+  };
+  const PRESET_LABEL = { off: 'Wyłączony', easy: 'Łatwy', normal: 'Normalny', hard: 'Trudny', master: 'Mistrz', custom: 'Własny' };
+  const FIRST_TERM = { franks: 60, saracens: 50, vikings: 110, slavs: 60 };
+  const TERM_EVERY = 15;
   // wartość żądana na jednostkę czasu (na 15 min), wg tabeli "Skala poziomów"
   const RATE = {
     franks:  [0, 1.6, 3.2, 4.7, 6.3, 7.9, 9.5, 11.1, 12.6, 14.2, 15.8, 17.4],
     saracens:[0, 27, 54, 81, 108, 135, 162, 189, 216, 243, 270, 297],
-    vikings: [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5]
+    vikings: [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5],
+    slavs:   [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
   };
+  const UNIT = { franks: 'żołn.', saracens: 'zł', vikings: 'wypr.', slavs: 'os.min.' };
   const TRADE = { kadzidło: { base: 4.2, floor: 0.9 }, tkanina: { base: 3.6, floor: 0.9 },
                   ceramika: { base: 2.4, floor: 0.6 } };
-  const NEED_LIST = { franks: ['Koszary', 'Zbrojownia'], saracens: ['Targ'],
-                      vikings: ['Przystań', 'Okręt', 'Miodosytnia', 'Zbrojownia'] };
+  /* łańcuch, który trzeba mieć na pierwszy termin (lista brakujących w ogłoszeniu) */
+  const NEED_LIST = {
+    franks: ['barracks', 'ironmine', 'coalmine', 'smelter', 'armory'],
+    saracens: ['market', 'watercarrier', 'incensewood', 'incense'],
+    vikings: ['mead', 'watercarrier', 'peatmine', 'charburner', 'smelter', 'armory', 'dock', 'ship'],
+    slavs: ['bartnik', 'waxery', 'trapper', 'tannery', 'watercarrier', 'store']
+  };
 
-  function set(preset) {
+  function labelOf(t) {
+    if (!t) return PRESET_LABEL.off;
+    return t.preset === 'master' ? 'Mistrz (poz. ' + t.level + ')'
+         : t.preset === 'custom' ? 'Poziom ' + t.level
+         : PRESET_LABEL[t.preset] + ' (poz. ' + t.level + ')';
+  }
+
+  function set(preset, customLevel) {
     const s = World.state();
     if (preset === 'off') { s.tribute = null; return 'Haracz wyłączony'; }
-    const level = preset === 'master' ? MASTER_LEVEL[s.factionId] : PRESET_LEVEL[preset];
+    const level = preset === 'custom'
+      ? Math.max(1, Math.min(11, Math.round(customLevel || 1)))
+      : PRESET_LEVEL[preset][s.factionId];
     s.tribute = { preset, level, firstTerm: FIRST_TERM[s.factionId], announced: false, msgShown: false,
-      terms: 0, met: 0, missed: 0, delivered: 0, soldierFrac: 0 };
-    return 'Haracz: ' + PRESET_LABEL[preset] + (preset === 'master' ? ' (poz. ' + level + ')' : '');
+      terms: 0, met: 0, missed: 0, delivered: 0, soldierFrac: 0, byGood: {}, log: [], lastOk: null };
+    return 'Haracz: ' + labelOf(s.tribute);
   }
 
   function requiredCum(level, faction, n) {
@@ -2163,6 +2601,16 @@ const Tribute = (() => {
     return 3 * Math.max(0, upcoming - t.delivered);
   }
 
+  function missingChain(s) {
+    const seen = new Set(), out = [];
+    for (const id of (NEED_LIST[s.factionId] || [])) {
+      if (s.buildings.some(b => b.id === id)) continue;
+      const nm = Data.nameOf(id);
+      if (!seen.has(nm)) { seen.add(nm); out.push(nm); }
+    }
+    return out;
+  }
+
   function tick(dt) {
     const s = World.state();
     marketTick(s, dt);
@@ -2171,30 +2619,77 @@ const Tribute = (() => {
     if (!t) return;
     // ogłoszenie 30 min przed pierwszym terminem, z listą brakujących budynków
     if (!t.announced && s.time >= t.firstTerm - 30) {
-      const missing = NEED_LIST[s.factionId].filter(nm =>
-        !s.buildings.some(b => Data.BUILDINGS[b.id] && Data.BUILDINGS[b.id].name === nm));
+      const missing = missingChain(s);
       t.announced = true;
       t.announceMsg = 'Senior żąda haraczu (poziom ' + t.level + ') — pierwsza rata za 30 min' +
         (missing.length ? '. Brakuje: ' + missing.join(', ') : '');
     }
     if (s.factionId === 'franks') soldiersTick(s, t, dt);
     // termin haraczu co 15 min; żądanie skumulowane od pierwszego terminu
-    if (s.time >= t.firstTerm + t.terms * 15) {
+    if (s.time >= t.firstTerm + t.terms * TERM_EVERY) {
       const required = requiredCum(t.level, s.factionId, t.terms + 1);
+      let ok;
       if (s.factionId === 'saracens') { // płatność złotem — ze skarbca
         const due = Math.max(0, required - t.delivered);
         const pay = Math.min(s.res.złoto, due);
         s.res.złoto -= pay; t.delivered += pay;
-      }
-      if (t.delivered >= required) t.met++; else t.missed++;
+        ok = t.delivered >= required - 1e-6;
+      } else if (s.factionId === 'slavs') {
+        ok = settleBasket(s, t, required);
+      } else ok = t.delivered >= required - 1e-6;
+      if (ok) t.met++; else t.missed++;
+      t.lastOk = ok;
+      t.log.push({ n: t.terms + 1, time: s.time, required, delivered: t.delivered, ok });
       t.terms++;
     }
   }
 
-  /* --- Frankowie: dostawa żołnierzy (Koszary, broń, żołd 3 zł, osoba) --- */
+  /* --- Słowianie: danina koszykowa. Płatność idzie z magazynów w terminie: każdy towar pokrywa swój udział
+     (40 / 35 / 25% wartości), nadwyżka dowolnego towaru zasila niedobór; spełnienie wymaga łącznej wartości
+     ≥ żądanie i ≥ 50% udziału każdego towaru. Braki przechodzą na następny termin (żądanie skumulowane). --- */
+  function settleBasket(s, t, required) {
+    const V = Data.DANINA.values, SH = Data.DANINA.shares;
+    const goods = Object.keys(V);
+    const D = Math.max(0, required - t.delivered);          // brakująca wartość [osobominuty]
+    const take = {}; let paid = 0, minOk = true;
+    for (const g of goods) {
+      const shareVal = SH[g] * D;
+      const units = Math.min(s.res[g] || 0, shareVal / V[g]);
+      take[g] = units; paid += units * V[g];
+      if (units * V[g] < Data.DANINA.minShareEach * shareVal - 1e-9) minOk = false;
+    }
+    let short = D - paid;
+    if (short > 1e-9) { // nadwyżka jednego towaru pokrywa niedobór innego (najpierw ta o największej wartości)
+      const spare = goods.map(g => [g, (s.res[g] || 0) - take[g]]).filter(x => x[1] > 1e-9)
+        .sort((a, b) => b[1] * V[b[0]] - a[1] * V[a[0]]);
+      for (const [g, sp] of spare) {
+        if (short <= 1e-9) break;
+        const add = Math.min(sp, short / V[g]);
+        take[g] += add; paid += add * V[g]; short -= add * V[g];
+      }
+    }
+    for (const g of goods) { s.res[g] -= take[g]; t.byGood[g] = (t.byGood[g] || 0) + take[g] * V[g]; }
+    t.delivered += paid;
+    return paid >= D - 1e-6 && minOk;
+  }
+
+  /* Słowianie: ile każdego towaru brakuje do najbliższego terminu (dla interfejsu i doradcy) */
+  function basketStatus(s) {
+    const t = s.tribute; if (!t || s.factionId !== 'slavs') return null;
+    const V = Data.DANINA.values, SH = Data.DANINA.shares;
+    const required = requiredCum(t.level, 'slavs', t.terms + 1);
+    const D = Math.max(0, required - t.delivered);
+    const rows = Object.keys(V).map(g => {
+      const needVal = SH[g] * D, needUnits = needVal / V[g], have = s.res[g] || 0;
+      return { good: g, have, needUnits, needVal, haveVal: have * V[g], minUnits: Data.DANINA.minShareEach * needUnits };
+    });
+    return { required, D, rows, totalVal: rows.reduce((a, r) => a + r.haveVal, 0) };
+  }
+
+  /* --- Frankowie: dostawa żołnierzy (czynne Koszary, broń, żołd 3 zł, osoba) --- */
   function soldiersTick(s, t, dt) {
     if (!t.announced) return;
-    if (!s.buildings.some(b => b.id === 'barracks')) return;
+    if (!s.buildings.some(b => b.id === 'barracks' && s.staffed[b.uid])) return;
     const upcoming = requiredCum(t.level, 'franks', Math.max(1, t.terms + 1));
     let want = upcoming - t.delivered;
     if (want <= 0) return;
@@ -2224,42 +2719,41 @@ const Tribute = (() => {
       s.res.broń = Math.max(0, s.res.broń - (v.great ? 2 : 1)); // 1/2 bronie
       s.res.złoto += v.great ? 80 : 30;                       // łup
       if (v.great) s.res.narzędzia = Math.min(10, s.res.narzędzia + 2);
+      s.voyageStats.done += v.great ? 3 : 1; s.voyageStats.trips++;
       if (s.tribute) s.tribute.delivered += v.great ? 3 : 1;
     }
     // wypłynięcia: tryb "Zwykłe" (1 okręt) albo "Mieszane" (wielka, gdy 2 okręty)
     if (!s.buildings.some(b => b.id === 'dock')) return;
     const freeShips = s.buildings.filter(b => b.id === 'ship' && !(b.awayUntil > s.time));
-    if (s.voyageMode === 'mixed' && freeShips.length >= 2) {
-      trySail(s, [freeShips[0], freeShips[1]], true);
-    }
+    if (s.voyageMode === 'mixed' && freeShips.length >= 2 && trySail(s, [freeShips[0], freeShips[1]], true)) return;
     const still = s.buildings.filter(b => b.id === 'ship' && !(b.awayUntil > s.time));
     if (still.length >= 1) trySail(s, [still[0]], false);
   }
 
   function trySail(s, ships, great) {
     const crew = great ? 12 : 6, needM = great ? 12 : 6, needW = great ? 12 : 6;
-    if (s.res['miód pitny'] < needM || s.res.broń < needW) return;
-    const freePop = Math.floor(s.pop) - s.workersStaffed - s.buildersActive - s.crewAway;
-    if (freePop < crew) return;
-    if (great) {
-      // po odjeździe zostaje ≥ 90% potrzebnych robotników i ≥ 10 osób
-      if (s.pop - crew < 10 || s.pop - crew < 0.9 * s.workersNeeded) return;
-    }
+    if (s.res['miód pitny'] < needM || s.res.broń < needW) return false;
+    // reguła wysyłki: po odjeździe zostaje ≥ 10 osób i (domyślnie) ≥ 90% robotników potrzebnych budynkom
+    const left = Math.floor(s.pop) - (s.crewAway || 0) - crew;
+    if (left < 10) return false;
+    if (s.settings.voyageGuard !== false && left - (s.buildersActive || 0) < 0.9 * s.workersNeeded) return false;
     s.res['miód pitny'] -= needM;
     s.res.broń -= needW;
     s.crewAway += crew;
     const until = s.time + (great ? 12 : 10);
     for (const b of ships) b.awayUntil = until;
     s.voyages.push({ until, crew, great, ships: ships.map(b => b.uid) });
+    return true;
   }
 
   /* --- Targ: sprzedaż towarów handlowych z krzywymi cen (Saraceni) --- */
   function marketTick(s, dt) {
     const mkts = s.buildings.filter(b => b.id === 'market' && s.staffed[b.uid]).length;
-    const serai = Math.min(2, s.buildings.filter(b => b.id === 'caravanserai' && s.staffed[b.uid]).length);
-    if (mkts + serai === 0) return;
-    const nM = mkts + 2 * serai;             // Karawanseraj liczy się jak 2 Targi
-    const mul = 1 + 0.2 * serai;             // +20% cen bazowych i podłóg
+    const serai = s.buildings.filter(b => b.id === 'caravanserai' && s.staffed[b.uid]).length;
+    // Karawanseraj liczy się jak 2 Targi (max 2 w sumie — drugi niczego nie dodaje); ceny +20% (bez kumulacji)
+    const nM = mkts + Math.min(2, 2 * serai);
+    if (nM === 0) return;
+    const mul = serai > 0 ? 1.2 : 1;
     for (const g in TRADE) {
       let p = s.marketPrices[g];
       const base = TRADE[g].base * mul, floor = TRADE[g].floor * mul;
@@ -2282,7 +2776,8 @@ const Tribute = (() => {
     }
   }
 
-  return { set, tick, soldierReserve, requiredCum, PRESET_LABEL };
+  return { set, tick, soldierReserve, requiredCum, labelOf, missingChain, basketStatus,
+           PRESET_LABEL, PRESET_LEVEL, FIRST_TERM, RATE, UNIT, TERM_EVERY };
 })();
 
 /* ==================== MODUL: EVENTS (Etap 5: świat dynamiczny) =================== */
@@ -2310,7 +2805,7 @@ const Events = (() => {
 
   function tick(dt) {
     const s = World.state();
-    if (s.factionId === 'saracens') {
+    if (s.factionId === 'saracens' && s.settings.raids !== false) { // napady można wyłączyć w scenariuszu (preset Łatwy)
       const guards = guardsActive(s, dt);
       const r = s.raids;
       if (s.time >= r.next) {          // kontrola co 10 min od 40. minuty
@@ -2351,7 +2846,7 @@ const Events = (() => {
       const b = s.buildings.find(bb => bb.id === id);
       if (!b) continue;
       destroy(s, b);
-      burned.push(Data.BUILDINGS[id].name);
+      burned.push(Data.nameOf(id));
     }
     if (burned.length) msg(s, '🔥 Pożar! Spłonęło: ' + burned.join(', '));
   }
@@ -2360,18 +2855,25 @@ const Events = (() => {
     msg(s, '📉 Krach cen! Targ płaci ceny podłogowe.');
   }
   function deforest(s, n) { World.takeTrees(n); msg(s, '🪓 Wylesienie: ' + n + ' drzew.'); }
+  function forestFire(s, share) { // pożar lasu: znika część drzew (Puszcza Słowian: plony maleją, gdy drzew < 200)
+    const n = Math.round(World.treeCount() * share);
+    World.takeTrees(n);
+    msg(s, '🔥 Pożar lasu! Znika ' + Math.round(share * 100) + '% drzew (' + n + ').');
+  }
 
   /* harmonogram "Kryzysy: harmonogram" — scenariusze kryzysowe v3.5 */
   const SCHEDULE = {
     franks:   [ { at: 60, fn: s => { fire(s, ['bakery', 'mill', 'farm', 'orchard']); plague(s); } } ],
     saracens: [ { at: 60, fn: s => fire(s, ['dategrove', 'dategrove', 'qanat']) },
                 { at: 70, fn: s => priceCrash(s) } ],
-    vikings:  [ { at: 90, fn: s => fire(s, ['dock', 'ship']) } ]
+    vikings:  [ { at: 90, fn: s => fire(s, ['dock', 'ship']) } ],
+    slavs:    [ { at: 60, fn: s => plague(s) },
+                { at: 70, fn: s => { forestFire(s, 0.6); fire(s, ['bartnik', 'bartnik', 'bartnik', 'waxery', 'waxery', 'waxery']); } } ]
   };
   function setCrisis(on) {
     const s = World.state();
     s.crisis = on ? { idx: 0 } : null;
-    return on ? 'Kryzysy wg harmonogramu (scenariusze v3.5)' : 'Kryzysy wyłączone';
+    return on ? 'Kryzysy wg harmonogramu (scenariusze spec v3.6)' : 'Kryzysy wyłączone';
   }
   function runCrisis(s) {
     if (!s.crisis) return;
@@ -2382,7 +2884,7 @@ const Events = (() => {
     }
   }
 
-  return { tick, plague, fire, priceCrash, deforest, destroy, setCrisis, guardsActive };
+  return { tick, plague, fire, priceCrash, deforest, forestFire, destroy, setCrisis, guardsActive, msg };
 })();
 
 /* ===================== MODUL: TESTBOTS (boty R/D/N, Etap 5-testy) ============ */
@@ -2400,23 +2902,32 @@ const TestBots = (() => {
     saracens: ['woodcutter','woodcutter','sawmill','watercarrier','dategrove','claypit',
       'forester','forester','hunter','watercarrier','dategrove','market','store',
       'incensewood','incense','hut','hut','qanat','cotton','weaver','dategrove','dairy',
-      'orchard','hut','temple','pottery','bathhouse','incensewood','incense','hut','caravanserai','hut'],
+      'orchard','hut','temple','pottery','bathhouse','incensewood','incense','market','caravanserai','hut','hut','cotton','weaver'],
     vikings: ['woodcutter','woodcutter','woodcutter','sawmill','forester','fisherhut','fisherhut',
       'hunter','hut','hut','watercarrier','forester','sawmill','woodcutter','fisherhut',
       'dairy','orchard','market','store','mead','peatmine','charburner','charburner',
-      'smelter','armory','dock','ship','hut','toolforge','temple','hut','fisherhut','ship','hut']
+      'smelter','armory','dock','ship','hut','toolforge','temple','hut','fisherhut','ship','hut'],
+    /* Słowianie: 4 kroki z rozdziału "Przepis na gospodarkę" (pary: Chata łowcy + Garbarnia, Barć + Woskarnia) */
+    slavs: ['woodcutter','woodcutter','sawmill','gatherer','gatherer','forester','hut','hut','orchard','watercarrier',
+      'gatherer','field','field','kasha','trapper','tannery','bartnik','waxery',
+      'hut','dairy','store','market','trapper','tannery','bartnik','waxery','hut',
+      'temple','sauna','forester','bartnik','waxery','hut','hut','trapper','tannery']
   };
   const FOOD_BUILD = {
     franks: ['farm','bakery','dairy','orchard','hunter','mill'],
     saracens: ['dategrove','dairy','orchard','hunter'],
-    vikings: ['fisherhut','dairy','orchard','hunter']
+    vikings: ['fisherhut','dairy','orchard','hunter'],
+    slavs: ['gatherer','dairy','orchard','field','kasha','hunter']
   };
+  /* okno oceny: 6 terminów po pierwszym (spec: Frankowie 150, Saraceni 140, Wikingowie 200, Słowianie 150 min) */
+  const EVAL_END = { franks: 150, saracens: 140, vikings: 200, slavs: 150 };
 
   function snapshot() { const s = World.state(); const o = {}; for (const k in s) { try { o[k] = JSON.parse(JSON.stringify(s[k])); } catch (e) { o[k] = s[k]; } } return o; }
   function restore(snap) {
     const s = World.state();
     for (const k in snap) s[k] = snap[k];
     s.keep = s.buildings.find(b => b.id === 'keep') || s.keep; // tożsamość Dworu po klonowaniu
+    Data.cur.faction = s.factionId; // przebieg bota mógł dotyczyć innej nacji (nazwy budynków zależą od nacji)
   }
 
   /* szukanie miejsca: złoże / brzeg / las / zwykłe (spirala od Dworu) */
@@ -2454,6 +2965,9 @@ const TestBots = (() => {
   }
 
   function tryBuild(s, id) {
+    // Okręt wymaga gotowej Przystani: gdy jej plac jeszcze stoi, bot czeka (nie pomija pozycji przepisu)
+    if (id === 'ship' && !s.buildings.some(b => b.id === 'dock'))
+      return s.sites.some(st => st.id === 'dock') ? 'wait' : 'noplace';
     const spot = findPlace(s, id);
     if (!spot) return 'noplace';
     const r = Build.enqueue(id, spot.x, spot.y);
@@ -2472,10 +2986,13 @@ const TestBots = (() => {
     const eps = cfg.epsilon != null ? cfg.epsilon : 0.15;
     const decideEvery = cfg.bot === 'D' ? 2.0 : 0.5;
     const marks = {};
-    const DT = 0.1, END = 150;
-    for (let t = 0; t < END; t += DT) {
+    const DT = 0.1, END = cfg.end || EVAL_END[cfg.faction] || 150;
+    let pop36 = null, peak = 0;
+    for (let t = 0; t < END - 0.05; t += DT) {
       World.tick(DT); // Economy + Build + Tribute + Events + czas
       if (Economy.totalFood(s.res) < 0.01) famineMin += DT;
+      if (pop36 === null && s.pop >= 36) pop36 = Math.round(t);
+      if (s.pop > peak) peak = s.pop;
       for (const m of [20, 40, 60, 90, 150]) if (t >= m && !(m in marks)) marks[m] = Math.floor(s.pop);
       if (t >= nextDecide) {
         nextDecide = t + decideEvery;
@@ -2487,9 +3004,10 @@ const TestBots = (() => {
             for (const i2 of (FOOD_BUILD[cfg.faction] || [])) if (tryBuild(s, i2) === 'built') break;
           } else if (full) tryBuild(s, 'hut');
           else if (s.res.deski < 6) tryBuild(s, 'woodcutter');
-          else if (s.waitingForTool) tryBuild(s, cfg.faction === 'saracens' ? 'store' : 'toolforge');
+          else if (s.waitingForTool) tryBuild(s, (cfg.faction === 'saracens' || cfg.faction === 'slavs') ? 'market' : 'toolforge');
           else if (s.tribute && s.tribute.announceMsg) { // ogłoszenie haraczu: dobuduj łańcuch
-            const need = { franks: ['barracks','armory'], saracens: ['market'], vikings: ['dock','ship','mead','armory'] }[cfg.faction] || [];
+            const need = { franks: ['barracks','armory'], saracens: ['market'], vikings: ['dock','ship','mead','armory'],
+              slavs: ['watercarrier','bartnik','waxery','trapper','tannery'] }[cfg.faction] || [];
             for (const i2 of need) if (!s.buildings.some(b2 => b2.id === i2)) { tryBuild(s, i2); break; }
           } else tryBuild(s, 'hut');
         } else {
@@ -2504,10 +3022,15 @@ const TestBots = (() => {
       }
       if (onTick) onTick(t / END);
     }
-    marks[150] = Math.floor(s.pop); // pętla kończy się tuż przed t = 150
+    if (!(150 in marks)) marks[150] = Math.floor(s.pop); // pętla kończy się tuż przed końcem okna
     const tribute = s.tribute ? (s.tribute.met + '/' + (s.tribute.met + s.tribute.missed)) : '—';
     const out = { faction: cfg.faction, bot: cfg.bot, tax: s.controls.tax,
-      pop: marks, famine: Math.round(famineMin), tribute, gold: Math.round(s.res.złoto), pop36: null };
+      pop: marks, famine: Math.round(famineMin), tribute, gold: Math.round(s.res.złoto), pop36,
+      endPop: Math.floor(s.pop), peak: Math.floor(peak), planks: Math.round(s.stats.planksSpent),
+      toolsBought: s.stats.toolsBought, starveMin: Math.round(s.stats.starveMin),
+      trees: World.treeCount(), delivered: s.tribute ? Math.round(s.tribute.delivered) : 0,
+      voyages: s.voyageStats ? s.voyageStats.done : 0, byGood: s.tribute ? s.tribute.byGood : null,
+      raids: s.raids.count, lost: Math.round(s.raids.lost) };
     restore(snap);
     return out;
   }
@@ -2517,11 +3040,11 @@ const TestBots = (() => {
   function createPanel() {
     if (panel) return;
     panel = document.createElement('div');
-    panel.style.cssText = 'position:absolute;z-index:60;left:8px;bottom:120px;background:rgba(20,16,12,.94);border:1px solid #6b543a;color:#f0e6d2;font-size:12px;padding:6px 8px;max-width:300px;max-height:46vh;overflow:auto;';
+    panel.style.cssText = 'position:absolute;z-index:60;left:8px;bottom:calc(var(--bar-h, 136px) + 8px);background:rgba(20,16,12,.94);border:1px solid #6b543a;color:#f0e6d2;font-size:12px;padding:6px 8px;max-width:300px;max-height:46vh;overflow:auto;';
     panel.innerHTML = '<b id="botToggle" style="color:#e8c860;cursor:pointer">🧪 Boty testowe ▸</b>' +
       '<div id="botBody" style="display:none;margin-top:4px">' +
       '<button data-b="R">Bot R (przepis+szum)</button> <button data-b="D">Bot D (opóźnienie)</button> <button data-b="N">Bot N (reaktywny)</button><br>' +
-      '<button data-b="T3">Frank: podatek 3 (brzegowy)</button> <button data-b="ALL">3×R: F/S/V</button><br>' +
+      '<button data-b="T3">Frank: podatek 3 (brzegowy)</button> <button data-b="ALL">4×R: W/F/V/S</button><br>' +
       '<div id="botOut" style="margin-top:6px;white-space:pre-line"></div></div>';
     panel.querySelectorAll('button').forEach(b => b.style.cssText = 'background:#3a2c1c;color:#f0e6d2;border:1px solid #6b543a;font-size:11px;padding:4px 6px;margin:2px;cursor:pointer;');
     document.body.appendChild(panel);
@@ -2538,7 +3061,7 @@ const TestBots = (() => {
       await new Promise(r => setTimeout(r, 10));
       const fac = World.state().factionId || 'franks';
       let lines = [];
-      if (b === 'ALL') for (const f of ['franks','saracens','vikings']) lines.push(fmt(runSync({ faction: f, bot: 'R' })));
+      if (b === 'ALL') for (const f of ['slavs','franks','vikings','saracens']) lines.push(fmt(runSync({ faction: f, bot: 'R' })));
       else if (b === 'T3') lines.push(fmt(runSync({ faction: 'franks', bot: 'R', tax: 3 })));
       else lines.push(fmt(runSync({ faction: fac, bot: b })));
       out.textContent = lines.join('\n');
@@ -2551,7 +3074,205 @@ const TestBots = (() => {
       'głód: ' + r.famine + ' min · haracz: ' + r.tribute + ' terminów · złoto: ' + r.gold;
   }
 
-  return { runSync, createPanel };
+  return { runSync, createPanel, RECIPE, FOOD_BUILD, EVAL_END, findPlace, tryBuild, snapshot, restore };
+})();
+
+/* ============================= MODUL: ADVISOR ============================== */
+/* Doradca (spec: „interfejs musi pokazywać »brak wejścia« na budynku”, „doradca podaje pełną listę
+   zależności i liczby budynków na poziom”, „podatek górniczy musi być widoczny”, ostrzeżenie przy
+   popularności < 45). Moduł tylko czyta stan gry — nie zmienia ekonomii. */
+const Advisor = (() => {
+  const COLOR = { bad: '#e08484', warn: '#e8b060', info: '#a8b8a8', good: '#8fce8f' };
+  const BADGE = { in: ['!', '#d84a4a'], tool: ['T', '#e8a030'], nostaff: ['P', '#5f86c4'], full: ['Z', '#8a8a82'], food: ['J', '#a8783a'], depleted: ['X', '#6a6a6a'] };
+
+  /* budynki nacji, które wytwarzają dany towar (podpowiedź przy „brak wejścia”) */
+  function sourcesOf(good, fid) {
+    const out = [];
+    for (const [id, d] of Object.entries(Data.BUILDINGS)) {
+      if (id === 'keep' || (d.factions && !d.factions.includes(fid))) continue;
+      if (d.out && good in d.out) out.push(Data.nameOf(id, fid));
+    }
+    return out;
+  }
+  const goodLabel = (def, g) => (def && def.outLabel && def.outLabel[g]) || g;
+
+  function statusOf(b) {
+    const s = World.state(), def = Data.BUILDINGS[b.id];
+    const mk = (code, sev, text) => ({ code, sev, text });
+    if (b.id === 'keep') return mk('ok', 'info', 'Serce osady: komora 20 szt. każdego towaru, piła zamkowa, 20 miejsc. Budowniczowie: ' + s.builders + ' (2–5; zmiana przyciskiem 👷 w pasku).');
+    if (!def.worker) {
+      if (b.id === 'ship' && b.awayUntil > s.time) return mk('ok', 'info', 'W rejsie — wróci za ' + Math.ceil(b.awayUntil - s.time) + ' min');
+      return mk('ok', 'info', def.note || 'Nie wymaga pracownika');
+    }
+    if (!s.staffed[b.uid]) {
+      if (b.st && b.st.c === 'tool')
+        return mk('tool', 'warn', 'Czeka na narzędzie: Targ kupi je za 20 zł, kuźnia zamkowa dorobi ok. 1 szt. na 8 min');
+      return mk('nostaff', 'warn', 'Brak pracownika — za mało wolnej ludności (żywność obsadzana pierwsza)');
+    }
+    const st = b.st;
+    if (st && st.c === 'in') {
+      if (st.g === 'drzewa') return mk('in', 'bad', 'Brak wejścia: drzewa na mapie — posadź je Leśniczówką');
+      const src = sourcesOf(st.g, s.factionId);
+      return mk('in', 'bad', 'Brak wejścia: ' + st.g + (src.length ? ' — zbuduj: ' + src.join(' / ') : ''));
+    }
+    if (st && st.c === 'full')
+      return mk('full', 'warn', 'Magazyn pełny: ' + st.g + ' — produkcja stoi bez kary (zbuduj Skład albo zużyj towar)');
+    if (st && st.c === 'food')
+      return mk('food', 'warn', 'Stoi: jedzenie tylko z nadwyżki (zapas poniżej 5 min zużycia ludności)');
+    if (st && st.c === 'depleted') return mk('depleted', 'warn', 'Złoże wyczerpane — budynek stoi');
+    const eff = b.eff != null ? Math.round(b.eff * 100) : 100;
+    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności');
+  }
+  function codeOf(b) { // szybki kod statusu (bez tekstu) — używany co klatkę przy rysowaniu znaczników
+    const s = World.state(), def = Data.BUILDINGS[b.id];
+    if (b.id === 'keep' || !def.worker) return 'ok';
+    if (!s.staffed[b.uid]) return (b.st && b.st.c === 'tool') ? 'tool' : 'nostaff';
+    return (b.st && b.st.c) || 'ok';
+  }
+  function badgeOf(b) { return BADGE[codeOf(b)] || null; }
+
+  /* ostrzeżenia ogólne, od najpilniejszych */
+  function warnings(s) {
+    const w = [], pop = s.res.popularity || 50, rep = s.foodRep;
+    const cnt = id => s.buildings.filter(b => b.id === id).length;
+    if (s.starveTimer > 0) {
+      const left = Math.max(0, 5 - s.starveTimer);
+      w.push({ sev: 'bad', text: s.starveTimer >= 5 ? 'GŁÓD: ludność ginie (1 os./min). Zbuduj żywność lub obniż racje.'
+        : 'Brak jedzenia od ' + s.starveTimer.toFixed(1) + ' min — za ' + left.toFixed(1) + ' min zacznie ginąć ludność.' });
+    }
+    if (pop < 45) w.push({ sev: 'bad', text: 'Popularność ' + Math.round(pop) + ' < 45 — imigracja zamrożona.' +
+      (s.controls.tax >= 2 ? ' Podatek ' + s.controls.tax + ' obniża ją o ' + (s.controls.tax === 3 ? 16 : 8) + ' (kościół/meczet/kapliczka +10).' : ' Zwiększ racje lub zbuduj Dobrobyt.') });
+    else if (s.controls.tax === 3) w.push({ sev: 'warn', text: 'Podatek 3 daje −16 popularności — pułapka w grze startowej (spec: zamraża imigrację). Popularność: ' + Math.round(pop) + '.' });
+    if (rep) {
+      if (rep.buildings > 0) w.push({ sev: 'info', text: 'Podatek górniczy: kopalnie/wytwórnie zjadają ' + rep.buildings.toFixed(2).replace('.', ',') + ' porcji/min (≈ ' + Math.round(rep.buildings * 6) + ' ' + osob(Math.round(rep.buildings * 6)) + '), tylko z nadwyżki jedzenia.' });
+      if (rep.potential < 1.1 * rep.consumption && s.starveTimer === 0) {
+        const f1 = v => v.toFixed(1).replace('.', ',');
+        if (Math.floor(s.pop) >= rep.pmax)
+          w.push({ sev: 'info', text: 'Ludność osiągnęła limit żywności (' + Math.floor(s.pop) + ' ≈ maks. ' + rep.pmax + '): produkcja ' + f1(rep.potential) + ' = 110% zużycia ' + f1(rep.consumption) + '. Aby rosła, dobuduj źródła jedzenia.' });
+        else
+          w.push({ sev: 'warn', text: 'Imigracja wstrzymana: produkcja jedzenia ' + f1(rep.potential) + ' < 110% zużycia (' + f1(rep.consumption) + '). Maks. ludność ≈ ' + rep.pmax + '.' });
+      }
+    }
+    if (s.pop >= Economy.housing(s)) w.push({ sev: 'warn', text: 'Brak miejsc w domach (' + Math.floor(s.pop) + '/' + Economy.housing(s) + ') — zbuduj Chaty.' });
+    if (s.waitingForTool) w.push({ sev: 'warn', text: 'Budynek czeka na narzędzie — postaw Targ (kupno 20 zł)' + (s.factionId === 'franks' || s.factionId === 'vikings' ? ' lub Kuźnię narzędzi.' : '.') });
+    // zbiorczo: budynki bez wejścia (z podpowiedzią źródła)
+    const groups = {};
+    for (const b of s.buildings) {
+      if (codeOf(b) !== 'in') continue;
+      const st = statusOf(b);
+      const key = st.code + '|' + st.text;
+      (groups[key] = groups[key] || { st, n: 0, name: Data.nameOf(b.id) }).n++;
+    }
+    for (const k in groups) {
+      const g = groups[k];
+      if (g.st.code === 'in') w.push({ sev: 'bad', text: g.n + '× ' + g.name + ' — ' + g.st.text });
+    }
+    const fullN = s.buildings.filter(b => codeOf(b) === 'full').length;
+    if (fullN >= 2 && !cnt('store')) w.push({ sev: 'warn', text: fullN + ' budynków stoi z pełnym magazynem — Skład (+80 szt. każdego towaru) odblokuje produkcję.' });
+    // haracz: łańcuch i terminy
+    const t = s.tribute;
+    if (t) {
+      if (s.time >= t.firstTerm - 30 && s.time < t.firstTerm + 15 * Math.max(1, t.terms)) {
+        const miss = Tribute.missingChain(s);
+        if (miss.length) w.push({ sev: s.time >= t.firstTerm - 10 ? 'bad' : 'warn', text: 'Haracz: brakuje budynków łańcucha — ' + miss.join(', ') + '.' });
+      }
+      if (s.factionId === 'franks' && !cnt('barracks') && s.time >= t.firstTerm - 30)
+        w.push({ sev: 'bad', text: 'Koszary! Bez nich nie ma dostaw żołnierzy (stawiaj najpóźniej 30 min przed pierwszym terminem).' });
+      if (s.factionId === 'slavs') {
+        const tr = World.treeCount(), ref = Data.FOREST_REF.slavs;
+        if (tr < ref) w.push({ sev: 'warn', text: 'Puszcza: ' + tr + ' drzew < ' + ref + ' — plony zbieraczy, barci i łowców ×' + (tr / ref).toFixed(2).replace('.', ',') + '. Dosadź Leśniczówkami.' });
+      }
+    }
+    if (s.factionId === 'slavs' && !t) {
+      const tr = World.treeCount(), ref = Data.FOREST_REF.slavs;
+      if (tr < ref) w.push({ sev: 'warn', text: 'Puszcza: ' + tr + ' drzew < ' + ref + ' — plony leśne ×' + (tr / ref).toFixed(2).replace('.', ',') + '.' });
+    }
+    if (s.factionId === 'vikings' && s.voyageMode === 'mixed' && cnt('ship') % 2 === 1)
+      w.push({ sev: 'info', text: 'Tryb „Mieszane”: wielka wyprawa wymaga 2 okrętów naraz — przy nieparzystej liczbie okrętów jeden pływa jako zwykła wyprawa.' });
+    if (s.factionId === 'saracens' && s.settings.raids !== false && s.res.złoto > 300)
+      w.push({ sev: 'info', text: 'Napad na karawanę grozi, gdy skarbiec > 150 zł (teraz ' + Math.floor(s.res.złoto) + ' zł). Strażnica obniża ryzyko o 40%.' });
+    return w;
+  }
+
+  /* wymagane budynki na wybrany poziom haraczu (orientacyjnie, wg tabel „Warstwy mistrzostwa” i tempa łańcuchów) */
+  function plan(s) {
+    const t = s.tribute; if (!t) return null;
+    const fid = s.factionId, L = t.level, table = Tribute.RATE[fid];
+    const rate = table[L] !== undefined ? table[L] : table[1] * L; // jednostek / 15 min
+    const need = {}, notes = [];
+    const add = (id, n) => { need[id] = Math.max(need[id] || 0, n); };
+    if (fid === 'franks') {
+      const w = rate / 15, cells = Math.max(1, Math.ceil(w - 1e-9));
+      add('barracks', 1); add('armory', cells); add('smelter', cells); add('ironmine', cells); add('coalmine', 2 * cells);
+      add('bakery', 1);
+      notes.push('Żołnierz = 1 broń + 1 osoba + 3 zł żołdu: ' + w.toFixed(2).replace('.', ',') + ' żołn./min = ' + (3 * w).toFixed(1).replace('.', ',') + ' zł/min.');
+      notes.push('Komórka metalurgii (Fe : 2 węgle : Huta : Zbrojownia) zjada 1,5 porcji/min — około pół łańcucha chleba.');
+      if (L >= 10) notes.push('Poziom ' + L + ' wymaga rozbudowy ludności (3 Chaty, Sad, Mleczarnia, Myśliwy na każdy krok); podatek 2 + wino.');
+    } else if (fid === 'saracens') {
+      add('market', 1); add('watercarrier', 1); add('incensewood', 1); add('incense', 1);
+      if (L >= 3) { add('incensewood', 2); add('incense', 2); }
+      if (L >= 4) { add('cotton', 1); add('weaver', 1); }
+      if (L >= 5) add('pottery', 1);
+      if (L >= 6) { add('cotton', 2); add('weaver', 2); }
+      if (L >= 7) { add('caravanserai', 1); add('market', 2); }
+      notes.push('Skarbiec płaci ' + Math.round(rate) + ' zł co 15 min (' + (rate / 15).toFixed(1).replace('.', ',') + ' zł/min). Każdy towar ma własną krzywą cen; rynek się nasyca.');
+      notes.push('Sufit pojemności wg spec: samo kadzidło 4, + ceramika 5, + tkanina 6, + Karawanseraj i 2. Targ 8.');
+    } else if (fid === 'vikings') {
+      add('dock', 1); add('mead', 1); add('watercarrier', 1); add('peatmine', 1); add('charburner', 2); add('smelter', 1); add('armory', 1);
+      add('ship', L >= 12 ? 4 : L >= 8 ? 3 : L >= 4 ? 2 : 1);
+      if (L >= 8) add('mead', 2);
+      notes.push('Wyprawa: 6 załogi + 6 miodu + 6 broni, 10 min, ginie 1 osoba i 1 broń; wielka (2 okręty, 12/12/12) liczy się za 3.');
+      notes.push('Poziom ' + L + ' = ' + rate.toFixed(1).replace('.', ',') + ' wypraw / 15 min. Ludność ogranicza: po odjeździe zostaje ≥ 90% robotników.');
+      if (L >= 8) notes.push('Powyżej 7 potrzebna rozbudowa osady (Chaty, żywność) i tryb „Mieszane” (parzysta liczba okrętów).');
+    } else if (fid === 'slavs') {
+      const pairs = Math.max(1, Math.ceil(2 * L / 4.58 - 0.1)); // para miodu+wosku 2,34 i para futer 2,24 osobominut/min
+      add('bartnik', pairs); add('waxery', pairs); add('trapper', pairs); add('tannery', pairs);
+      add('watercarrier', Math.max(1, Math.ceil(0.4 * pairs / 1.5)));
+      if (L >= 6) add('store', 1);
+      notes.push('Poziom ' + L + ' żąda ' + 2 * L + ' osobominut/min (' + rate + ' / 15 min): futro 40%, miód 35%, wosk 25%; każdy towar ≥ 50% swojego udziału.');
+      notes.push('Para łańcuchów (Barć+Woskarnia i Łowca+Garbarnia) daje ≈ 4,6 osobominut/min ≈ 2,3 poziomu. Skład podnosi pojemność (bez niego −1 poziom).');
+      notes.push('Las poniżej 200 drzew obniża plony; Kapliczka spala wosk z daniny (Dobrobyt kosztuje ≈ 1 poziom).');
+    }
+    const lines = Object.entries(need).map(([id, n]) => ({ id, name: Data.nameOf(id), need: n, have: s.buildings.filter(b => b.id === id).length }));
+    return { level: L, rate, lines, notes };
+  }
+
+  function esc(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  const osob = n => n === 1 ? 'osobę' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'osoby' : 'osób';
+
+  function render() {
+    const s = World.state();
+    let h = '<div class="advHead"><b>🧭 Doradca</b><span class="advClose" id="advClose">✕</span></div>';
+    const ws = warnings(s);
+    h += '<h4>Ostrzeżenia</h4>';
+    if (!ws.length) h += '<div class="advRow" style="color:' + COLOR.good + '">Brak — osada działa bez zastrzeżeń.</div>';
+    for (const x of ws) h += '<div class="advRow" style="color:' + COLOR[x.sev] + '">' + (x.sev === 'bad' ? '⛔ ' : x.sev === 'warn' ? '⚠ ' : 'ℹ ') + esc(x.text) + '</div>';
+    const rep = s.foodRep;
+    if (rep) {
+      h += '<h4>Żywność</h4>';
+      const f = v => v.toFixed(1).replace('.', ',');
+      h += '<div class="advRow">Produkcja (potencjał): <b>' + f(rep.potential) + '</b> porcji/min</div>';
+      h += '<div class="advRow">Zużycie: ludzie ' + f(rep.people) + (rep.builders ? ' + budowniczowie ' + f(rep.builders) : '') + (rep.buildings ? ' + kopalnie/wytwórnie ' + f(rep.buildings) : '') + ' = <b>' + f(rep.consumption) + '</b></div>';
+      h += '<div class="advRow">Brama imigracji: produkcja ≥ 110% zużycia → maks. ludność ≈ <b>' + rep.pmax + '</b> (obecnie ' + Math.floor(s.pop) + ')</div>';
+    }
+    const pl = plan(s);
+    h += '<h4>Haracz</h4>';
+    if (!pl) h += '<div class="advRow" style="color:' + COLOR.info + '">Haracz wyłączony — wybierz preset albo poziom 1–11 w pasku u góry.</div>';
+    else {
+      h += '<div class="advRow">' + esc(Tribute.labelOf(s.tribute)) + ': ' + pl.rate + ' ' + Tribute.UNIT[s.factionId] + ' / 15 min. Budynki potrzebne na ten poziom:</div>';
+      for (const l of pl.lines) {
+        const ok = l.have >= l.need;
+        h += '<div class="advRow" style="color:' + (ok ? COLOR.good : COLOR.warn) + '">' + (ok ? '✔' : '✘') + ' ' + esc(l.name) + ' ' + l.have + '/' + l.need + '</div>';
+      }
+      for (const n of pl.notes) h += '<div class="advRow" style="color:' + COLOR.info + '">• ' + esc(n) + '</div>';
+    }
+    h += '<h4>Znaczniki na budynkach</h4><div class="advRow" style="color:' + COLOR.info + '">' +
+      '<b style="color:#d84a4a">!</b> brak wejścia · <b style="color:#e8a030">T</b> czeka na narzędzie · <b style="color:#5f86c4">P</b> brak pracownika · ' +
+      '<b style="color:#8a8a82">Z</b> magazyn pełny · <b style="color:#a8783a">J</b> czeka na nadwyżkę jedzenia · <b style="color:#6a6a6a">X</b> złoże wyczerpane. Najedź kursorem lub dotknij budynek, aby zobaczyć szczegóły.</div>';
+    return h;
+  }
+
+  return { statusOf, codeOf, badgeOf, warnings, plan, render, sourcesOf, goodLabel };
 })();
 
 /* ============================ MODUL: BUILDMODE ============================= */
@@ -2564,6 +3285,12 @@ const BuildMode = (() => {
   function isSelected() { return selected; }
   function setHover(wx, wy) { hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
 
+  function buildingAtHover() {
+    const s = World.state(), t = s.map && MapGen.at(s.map, hover.x, hover.y);
+    if (!t || !t.occup) return null;
+    return s.buildings.find(b => b.uid === t.occup) || null;
+  }
+
   function click() {
     if (!selected) {
       // klik na plac budowy (poza trybem budowy) anuluje go — zwrot materiałów i złota
@@ -2572,7 +3299,9 @@ const BuildMode = (() => {
         Build.cancel(st);
         UI.flashHint('Budowa anulowana — materiały wróciły do magazynu');
         UI.refreshHUD();
+        return;
       }
+      UI.pinBuilding(buildingAtHover()); // klik na budynek: karta stanu (klik w puste pole ją zamyka)
       return;
     }
     // klik otwiera plac budowy; budowniczowie doniosą materiały i zbudują
@@ -2602,7 +3331,7 @@ const BuildMode = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { select, clear, isSelected, setHover, click, draw, hover: () => hover };
+  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, hover: () => hover };
 })();
 
 /* ================================ MODUL: UI ================================ */
@@ -2620,7 +3349,9 @@ const UI = (() => {
 
   function buildFactionCards() {
     const wrap = document.getElementById('factionCards');
-    for (const fid of ['franks', 'saracens', 'vikings']) {
+    // kolejność kampanii (spec): Słowianie, Frankowie, Wikingowie, Saraceni — trudniejsza nacja później
+    const order = Object.keys(Data.FACTIONS).sort((a, b) => Data.FACTIONS[a].campaign.order - Data.FACTIONS[b].campaign.order);
+    for (const fid of order) {
       const f = Data.FACTIONS[fid];
       const card = document.createElement('div');
       card.className = 'factionCard';
@@ -2629,6 +3360,9 @@ const UI = (() => {
       card.appendChild(mini);
       const h2 = document.createElement('h2'); h2.textContent = f.name; card.appendChild(h2);
       const tag = document.createElement('div'); tag.className = 'tagline'; tag.textContent = f.tagline; card.appendChild(tag);
+      const camp = document.createElement('div'); camp.className = 'campaign';
+      camp.textContent = 'Etap kampanii ' + f.campaign.order + '/4 · trudność ' + '★'.repeat(f.campaign.stars) + '☆'.repeat(4 - f.campaign.stars) + ' — ' + f.campaign.note;
+      card.appendChild(camp);
       const ul = document.createElement('ul');
       f.desc.forEach(d => { const li = document.createElement('li'); li.textContent = d; ul.appendChild(li); });
       card.appendChild(ul);
@@ -2662,6 +3396,14 @@ const UI = (() => {
       Gfx.drawCitizen(mctx, fake, 175, 110, 1.3, fid, f.palette, 0);
     }
   }
+
+  /* HUD zawija się do kilku wierszy: pozostałe panele przesuwają się o jego faktyczną wysokość */
+  function syncHudHeight() { // wysokości HUD i paska budowy sterują położeniem paneli (zasoby, doradca, panel botów)
+    const root = document.documentElement.style;
+    root.setProperty('--hud-h', Math.ceil(hud.getBoundingClientRect().height) + 'px');
+    if (buildBar.offsetHeight) root.setProperty('--bar-h', buildBar.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', syncHudHeight);
 
   function startGame(fid) {
     if (gameStarted) return;
@@ -2699,27 +3441,47 @@ const UI = (() => {
     const updB = () => { btnB.textContent = '👷 Budowniczowie: ' + s.builders; };
     btnB.onclick = () => { s.builders = s.builders >= 5 ? 2 : s.builders + 1; updB(); };
     updB();
-    // preset haraczu (Łatwy/Normalny/Trudny/Mistrz) i tryb wypraw Wikingów
-    const btnTr = document.getElementById('btnTribute');
+    // preset haraczu (Łatwy/Normalny/Trudny/Mistrz) albo własny poziom 1–11; tryb wypraw Wikingów
+    const selTr = document.getElementById('btnTribute');
     const btnV = document.getElementById('btnVoyages');
-    let preset = 'off';
-    const updTr = () => {
-      btnTr.textContent = '📜 Haracz: ' + (preset === 'off' ? 'Wyłączony' : Tribute.PRESET_LABEL[preset]);
+    const trOpts = [['off', '📜 Haracz: wyłączony']];
+    for (const pr of ['easy', 'normal', 'hard', 'master'])
+      trOpts.push([pr, '📜 ' + Tribute.PRESET_LABEL[pr] + ' (poz. ' + Tribute.PRESET_LEVEL[pr][fid] + ')']);
+    for (let l = 1; l <= 11; l++) trOpts.push(['L' + l, '📜 Własny poziom ' + l]);
+    selTr.innerHTML = '';
+    for (const [v, label] of trOpts) { const o = document.createElement('option'); o.value = v; o.textContent = label; selTr.appendChild(o); }
+    selTr.value = 'off';
+    selTr.onchange = () => {
+      const v = selTr.value;
+      UI.flashHint(v[0] === 'L' ? Tribute.set('custom', +v.slice(1)) : Tribute.set(v));
+      selTr.blur();
     };
-    btnTr.onclick = () => {
-      const order = ['off', 'easy', 'normal', 'hard', 'master'];
-      preset = order[(order.indexOf(preset) + 1) % order.length];
-      UI.flashHint(Tribute.set(preset));
-      updTr();
-    };
-    updTr();
     if (fid === 'vikings') {
       const updV = () => { btnV.textContent = '⛵ Wyprawy: ' + (s.voyageMode === 'mixed' ? 'Mieszane' : 'Zwykłe'); };
       btnV.onclick = () => { s.voyageMode = s.voyageMode === 'mixed' ? 'normal' : 'mixed'; updV(); };
       updV();
+      const btnG = document.getElementById('btnGuard');
+      const updG = () => { btnG.textContent = '⛵ Zapas załogi: ' + (s.settings.voyageGuard ? '90%' : 'brak'); };
+      btnG.onclick = () => { s.settings.voyageGuard = !s.settings.voyageGuard; updG(); };
+      updG();
     } else {
       btnV.style.display = 'none';
+      document.getElementById('btnGuard').style.display = 'none';
     }
+    const btnRd = document.getElementById('btnRaids');
+    if (fid === 'saracens') {
+      const updRd = () => { btnRd.textContent = '🏴 Napady: ' + (s.settings.raids ? 'wł.' : 'wył.'); };
+      btnRd.onclick = () => { s.settings.raids = !s.settings.raids; updRd(); };
+      updRd();
+    } else btnRd.style.display = 'none';
+    document.getElementById('btnAdvisor').onclick = () => UI.toggleAdvisor();
+    const btnMore = document.getElementById('btnMore');
+    btnMore.onclick = () => { // małe ekrany: rzadko używane ustawienia zwijane pod „Więcej"
+      const open = hud.classList.toggle('open');
+      btnMore.textContent = open ? '⚙ Mniej' : '⚙ Więcej';
+      syncHudHeight();
+    };
+    document.getElementById('advisor').addEventListener('click', ev => { if (ev.target.id === 'advClose') UI.toggleAdvisor(false); });
     // kryzysy wg harmonogramu (scenariusze v3.5) — domyślnie wyłączone
     const btnC = document.getElementById('btnCrisis');
     let crisisOn = false;
@@ -2728,6 +3490,7 @@ const UI = (() => {
     updC();
     upd();
     document.getElementById('resPanel').style.display = 'block';
+    syncHudHeight();
     Game.start();
   }
 
@@ -2766,7 +3529,7 @@ const UI = (() => {
       const art = Gfx.ART[def.art];
       if (art) art(mctx, 31, 38, 0.85, p, 0);
       item.appendChild(mini);
-      const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = def.name; item.appendChild(nm);
+      const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = Data.nameOf(id, fid); item.appendChild(nm);
       const cost = document.createElement('div'); cost.className = 'bcost';
       const c = World.costOf(id);
       cost.textContent = Object.entries(c).map(([k, v]) => v + Data.RES_LABEL[k]).join(' · ') +
@@ -2777,21 +3540,24 @@ const UI = (() => {
         document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
         item.classList.add('selected');
       };
-      item.onmouseenter = () => showTooltip(def, c, item);
+      item.onmouseenter = () => showTooltip(id, def, c, item);
       item.onmouseleave = hideTooltip;
       buildItems.appendChild(item);
     }
+    syncHudHeight(); // wysokość paska zależy od zawijania nazw pozycji
   }
 
-  function showTooltip(def, c, anchor) {
-    const afford = World.canAfford(Object.keys(Data.BUILDINGS).find(k => Data.BUILDINGS[k] === def));
-    let html = '<h3>' + def.name + '</h3>';
+  function showTooltip(id, def, c, anchor) {
+    const afford = World.canAfford(id);
+    const lbl = g => Advisor.goodLabel(def, g);
+    let html = '<h3>' + Data.nameOf(id) + '</h3>';
     const costStr = Object.entries(c).map(([k, v]) => v + ' ' + Data.RES_LABEL[k]).join(', ');
     html += '<div class="' + (afford ? 'affordable' : 'expensive') + '">Koszt: ' + (costStr || '—') + '</div>';
     if (def.tool) html += '<div class="expensive">Wymaga narzędzia</div>';
     if (def.worker) html += '<div>Pracownik: ' + def.worker + '</div>';
-    if (def.inp) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(', ') + ' /min</div>';
-    if (def.out) html += '<div><b>' + Object.entries(def.out).map(([k, v]) => v + ' ' + k).join(', ') + ' /min</b></div>';
+    if (def.inp) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
+    if (def.out) html += '<div><b>' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</b></div>';
+    if (def.forest) html += '<div class="sub">Puszcza: plon × min(1, drzewa/' + Data.FOREST_REF[World.state().factionId] + ')</div>';
     if (def.note) html += '<em>' + def.note + '</em>';
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
@@ -2820,6 +3586,39 @@ const UI = (() => {
       flashHint(t.announceMsg);
     }
     refreshResPanel();
+    refreshOverlays();
+  }
+
+  /* karta budynku (najechanie / dotknięcie) i panel Doradcy */
+  let pinned = null, hovered = null, advisorOpen = false;
+  const infoEl = document.getElementById('bInfo');
+  function buildingInfoHtml(b) {
+    const def = Data.BUILDINGS[b.id], st = Advisor.statusOf(b), lbl = g => Advisor.goodLabel(def, g);
+    let h = '<h3>' + Data.nameOf(b.id) + '</h3>';
+    h += '<div style="color:' + { bad: '#e08484', warn: '#e8b060', info: '#a8b8a8', good: '#8fce8f' }[st.sev] + '">' + st.text + '</div>';
+    if (def.inp) h += '<div class="sub">Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
+    if (def.out) h += '<div class="sub">Wyjście: ' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</div>';
+    if (def.tool) h += '<div class="sub">Wymaga narzędzia' + (World.state().tooled[b.uid] ? ' (obsadzony)' : '') + '</div>';
+    return h;
+  }
+  function showInfo(b) {
+    if (!b) { infoEl.style.display = 'none'; return; }
+    infoEl.innerHTML = buildingInfoHtml(b);
+    infoEl.style.display = 'block';
+  }
+  function refreshOverlays() {
+    const shown = advisorOpen ? null : (pinned || hovered);
+    if (shown && World.state().buildings.includes(shown)) showInfo(shown);
+    else { pinned = null; hovered = null; showInfo(null); }
+    if (advisorOpen) document.getElementById('advisor').innerHTML = Advisor.render();
+  }
+  function pinBuilding(b) { pinned = b; refreshOverlays(); }
+  function hoverBuilding(b) { if (b !== hovered) { hovered = b; refreshOverlays(); } }
+  function toggleAdvisor(force) {
+    advisorOpen = force === undefined ? !advisorOpen : force;
+    const el = document.getElementById('advisor');
+    el.style.display = advisorOpen ? 'block' : 'none';
+    if (advisorOpen) el.innerHTML = Advisor.render();
   }
 
   let lastPanel = -1;
@@ -2845,16 +3644,30 @@ const UI = (() => {
     }
     if (!shown) html += '<div class="row"><span class="v">— pusto —</span></div>';
     html += '<div class="sep"></div>';
+    const rep = s.foodRep;
+    if (rep) { // bilans jedzenia: produkcja, zużycie, podatek górniczy, maksymalna ludność z bramki imigracji
+      const f = v => v.toFixed(1).replace('.', ',');
+      html += '<h3>ŻYWNOŚĆ</h3>';
+      html += `<div class="row"><span>Produkcja</span><span class="v">${f(rep.potential)}/min</span></div>`;
+      html += `<div class="row"><span>Zużycie ludzi</span><span class="v">−${f(rep.people + rep.builders)}</span></div>`;
+      if (rep.buildings > 0) html += `<div class="row warn"><span>Podatek górniczy</span><span class="v">−${f(rep.buildings)}</span></div>`;
+      html += `<div class="row"><span>Maks. ludność</span><span class="v">${rep.pmax}</span></div>`;
+      html += '<div class="sep"></div>';
+    }
     const starve = s.starveTimer > 0 ? Math.ceil(5 - s.starveTimer) : null;
     html += `<div class="row"><span>Głód za</span><span class="v">${starve !== null ? starve + ' min' : '—'}</span></div>`;
     if (s.waitingForTool) html += '<div class="row full"><span>Budynek czeka na narzędzie!</span></div>';
+    if ((s.res.popularity || 50) < 45) html += '<div class="row full"><span>Popularność < 45: brak imigracji!</span></div>';
+    else if (s.controls.tax === 3) html += '<div class="row warn"><span>Podatek 3: −16 popularności</span></div>';
+    const nWarn = Advisor.warnings(s).filter(x => x.sev !== 'info').length;
+    html += `<div class="row"><span class="link" id="resAdvisor">🧭 Doradca${nWarn ? ' (' + nWarn + ' ⚠)' : ''}</span></div>`;
     // budowniczowie i kolejka budowy
     html += `<div class="row"><span>Budowniczowie</span><span class="v">${s.buildersActive || 0}/${s.builders}</span></div>`;
     if (s.sites.length) {
       html += '<div class="sep"></div><h3>BUDOWA</h3>';
       s.sites.slice(0, 4).forEach((st, i) => {
         const pr = Math.round(Build.progressOf(st) * 100);
-        html += `<div class="row"><span>${i + 1}. ${Data.BUILDINGS[st.id].name}</span>` +
+        html += `<div class="row"><span>${i + 1}. ${Data.nameOf(st.id)}</span>` +
                 `<span class="v">${pr}%</span></div>`;
       });
       if (s.sites.length > 4)
@@ -2865,7 +3678,7 @@ const UI = (() => {
     const t = s.tribute;
     if (t) {
       html += '<div class="sep"></div><h3>HARACZ</h3>';
-      const unit = s.factionId === 'franks' ? 'żołn.' : s.factionId === 'saracens' ? 'zł' : 'wypr.';
+      const unit = Tribute.UNIT[s.factionId];
       const required = Tribute.requiredCum(t.level, s.factionId, Math.max(1, t.terms + 1));
       const nextAt = t.firstTerm + t.terms * 15;
       if (s.time < t.firstTerm)
@@ -2876,6 +3689,15 @@ const UI = (() => {
       html += `<div class="row"><span>Terminy</span><span class="v">${t.met} ✔ / ${t.missed} ✘</span></div>`;
       if (s.factionId === 'franks' && !s.buildings.some(b => b.id === 'barracks'))
         html += '<div class="row full"><span>Bez Koszar brak dostaw!</span></div>';
+      const bk = Tribute.basketStatus(s); // Słowianie: koszyk daniny na najbliższy termin
+      if (bk) {
+        html += `<div class="row"><span style="color:#7a6c55">Koszyk (szt. / potrzeba, min. 50%)</span></div>`;
+        for (const r of bk.rows) {
+          const low = r.have < r.minUnits - 1e-9;
+          html += `<div class="row${low ? ' full' : ''}"><span>${r.good}</span><span class="v">${Math.floor(r.have)} / ${Math.ceil(r.needUnits)}</span></div>`;
+        }
+        html += `<div class="row"><span>Wartość w zapasie</span><span class="v">${Math.floor(bk.totalVal)} / ${Math.ceil(bk.D)}</span></div>`;
+      }
     }
     if (s.factionId === 'vikings' && (s.voyages.length || s.crewAway)) {
       html += `<div class="row"><span>Załoga w morzu</span><span class="v">${s.crewAway}</span></div>`;
@@ -2892,6 +3714,8 @@ const UI = (() => {
     }
     if (s.crisis) html += '<div class="row full"><span>🔥 Kryzysy: harmonogram aktywny</span></div>';
     panel.innerHTML = html;
+    const link = document.getElementById('resAdvisor');
+    if (link) link.onclick = () => UI.toggleAdvisor(true);
   }
 
   function flashHint(msg) {
@@ -2906,7 +3730,7 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor };
 })();
 
 /* ================================ MODUL: GAME ============================== */
@@ -3019,6 +3843,17 @@ const Game = (() => {
                         bx, by, z, s.factionId, f.palette, t);
       }
     }
+    // znaczniki statusu: ! brak wejścia · T narzędzie · P pracownik · Z pełny magazyn · J jedzenie (spec: „brak wejścia” na budynku)
+    for (const b of s.buildings) {
+      const badge = Advisor.badgeOf(b); if (!badge) continue;
+      const scr = Camera.worldToScreen(b.x + 0.5, b.y + 0.5);
+      if (scr.x < -40 || scr.x > canvas.width / dpr + 40 || scr.y < -40 || scr.y > canvas.height / dpr + 40) continue;
+      const bx = scr.x + 13 * z, by = scr.y - 36 * z, r = 6.5 * z;
+      ctx.fillStyle = badge[1]; ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = Math.max(1, z); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(8, Math.round(9 * z)) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.fillText(badge[0], bx, by + 3.3 * z); ctx.textAlign = 'start';
+    }
     BuildMode.draw(ctx);
   }
 
@@ -3057,6 +3892,7 @@ const Game = (() => {
     } else {
       const w = Camera.screenToWorld(e.clientX, e.clientY);
       BuildMode.setHover(w.x, w.y);
+      UI.hoverBuilding(BuildMode.isSelected() ? null : BuildMode.buildingAtHover());
     }
   });
   canvas.addEventListener('click', e => {
@@ -3148,6 +3984,7 @@ const Game = (() => {
     keys[e.key.toLowerCase()] = true;
     if (e.key === 'Escape') {
       BuildMode.clear();
+      UI.pinBuilding(null);
       document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
     }
   });
