@@ -20,6 +20,8 @@ function ramp(stops, t) { // stops: [[pozycja, [r,g,b]], ...]
   }
   return stops[stops.length - 1][1];
 }
+/* tablica kolorów (256 wpisów) zamiast liczenia rampy dla każdego piksela */
+function lutRamp(stops, n = 256) { return Array.from({ length: n }, (_, i) => ramp(stops, i / (n - 1))); }
 function newCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h); return c; }
 
 /* drobny szum ziarna dodany do całej tekstury */
@@ -55,12 +57,23 @@ function fbm(size, cells, oct, seed) {
   return out;
 }
 
-/* miękki cień/poświata: rysuje kształt poza płótnem i przesuwa jego cień (shadowBlur działa w każdej przeglądarce) */
+/* miękki cień/poświata: rysuje kształt poza płótnem i przesuwa jego cień (shadowBlur działa w każdej przeglądarce).
+   Rozmycie i przesunięcie cienia nie podlegają macierzy, więc skalujemy je o mnożnik z bieżącej macierzy kontekstu. */
 function softFill(g, pathFn, color, blur, dx = 0, dy = 0) {
-  const OFF = 4000;
+  const OFF = 4000, R = g.getTransform().a || 1;
   g.save();
-  g.shadowColor = color; g.shadowBlur = blur; g.shadowOffsetX = OFF + dx; g.shadowOffsetY = dy;
+  g.shadowColor = color; g.shadowBlur = blur * R; g.shadowOffsetX = (OFF + dx) * R; g.shadowOffsetY = dy * R;
   g.translate(-OFF, 0);
   g.fillStyle = '#000'; g.beginPath(); pathFn(g); g.fill();
   g.restore();
 }
+
+/* LOD (mipmapy): przy oddaleniu rysujemy wstępnie pomniejszone kopie — bez poszarpanych krawędzi */
+function lodHalf(c) {
+  if (!c._h) {
+    const h = newCanvas(Math.max(1, c.width >> 1), Math.max(1, c.height >> 1)), g = h.getContext('2d');
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, h.width, h.height); c._h = h;
+  }
+  return c._h;
+}
+function lodPick(c, ratio) { while (ratio >= 2 && c.width > 8 && c.height > 8) { c = lodHalf(c); ratio /= 2; } return c; }

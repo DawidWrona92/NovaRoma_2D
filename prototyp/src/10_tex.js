@@ -3,6 +3,7 @@
    więc na każdej ścianie / połaci deska, bal czy dachówka mają ten sam rozmiar. */
 const GEN = {};
 const TEXCACHE = {};
+let TEXRES = 1;                     // mnożnik rozdzielczości tekstur terenu (ustawiany przy starcie razem z RES)
 function tex(name, pal) {
   const key = name + '|' + (pal || '');
   return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal));
@@ -175,18 +176,18 @@ GEN.plaster = (base = '#e9dfc4') => {
 
 /* --- ubita ziemia (decal pod budynkami) --- */
 GEN.dirt = (base = '#85693b') => {
-  const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, b = hex(base);
+  const T = TEXRES, B = 128, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, b = hex(base);
   const n1 = fbm(N, 4, 3, 61), n2 = periodicNoise(N, 32, 67);
-  const stops = [[0, scaleC(b, 0.62)], [0.5, b], [1, scaleC(b, 1.32)]];
-  for (let i = 0; i < N * N; i++) { const col = ramp(stops, n1[i] * 0.75 + n2[i] * 0.45 - 0.1); d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
-  g.putImageData(im, 0, 0);
+  const stops = [[0, scaleC(b, 0.62)], [0.5, b], [1, scaleC(b, 1.32)]], lut = lutRamp(stops);
+  for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] * 0.75 + n2[i] * 0.45 - 0.1) * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0); g.scale(T, T);
   const r = rng(71);
   for (let i = 0; i < 260; i++) { // kamyki i grudki
-    const x = r() * N, y = r() * N, s = 0.8 + r() * 1.8, l = r() < 0.5;
+    const x = r() * B, y = r() * B, s = 0.8 + r() * 1.8, l = r() < 0.5;
     g.fillStyle = l ? `rgba(220,205,170,${0.25 + r() * 0.3})` : `rgba(40,28,14,${0.25 + r() * 0.3})`;
     g.beginPath(); g.ellipse(x, y, s * 1.4, s, r() * 3, 0, TAU); g.fill();
   }
-  return { c, ppu: 96 };
+  return { c, ppu: 96 * T };
 };
 
 /* --- tkanina w pasy (markizy Saracenów) --- */

@@ -1,12 +1,16 @@
 /* ====================== SCENA: RZUT, ŚCIANY, POŁACIE, CIENIE ======================
-   Sprite budynku jest wypiekany raz (supersampling S×) z brył 3D: każda ściana i połać to równoległobok
-   z teksturą nałożoną afinicznie (w rzucie ortogonalnym to dokładne odwzorowanie), oświetlony z lewej góry.
-   Układ współrzędnych: środek kafla = (0,0), x rośnie w prawo-dół ekranu, y w lewo-dół, z w górę. */
-const S = 2;                       // supersampling
-const AX = 32 * S, AY = 16 * S;    // piksele na jednostkę świata: sx = (x−y)·AX, sy = (x+y)·AY
-const VH = 39 * S;                 // piksele na jednostkę wysokości (rzut dimetryczny 2:1)
+   Sprite budynku jest wypiekany raz z brył 3D: każda ściana i połać to równoległobok z teksturą nałożoną afinicznie
+   (w rzucie ortogonalnym to dokładne odwzorowanie), oświetlony z lewej góry.
+   Układ współrzędnych: środek pola = (0,0), x rośnie w prawo-dół ekranu, y w lewo-dół, z w górę (1 jednostka = 1 pole).
+   Dwa niezależne mnożniki:
+     F   — skala geometrii sprite'a (żeby budynek wypełniał swoje pole; tekstury zachowują stałą gęstość na ekranie),
+     RES — rozdzielczość wypieku (px na px logiczny); wszystko rysujemy w px logicznych pod macierzą RES. */
+const S = 2;                       // 1 pole = 64·S px logicznych szerokości
+const AX = 32 * S, AY = 16 * S;    // sx = (x−y)·AX, sy = (x+y)·AY
+const VH = 39 * S;                 // px na jednostkę wysokości (rzut dimetryczny 2:1)
 const LIGHT = { top: 1.0, south: 0.86, east: 0.6, roofS: 1.02, roofN: 0.78, roofE: 0.8, roofW: 1.0 };
 const SHADOW_DIR = [0.62, 0.1];    // długość cienia (x,y) na jednostkę wysokości — pada w prawo-dół
+let RES = 1;                       // ustawiane przy starcie (zależnie od DPR / parametru ?q=)
 
 function convexHull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -18,28 +22,31 @@ function convexHull(pts) {
 }
 
 class Scene {
-  constructor(w, h, ax, ay) {
-    this.w = w; this.h = h; this.ax = ax; this.ay = ay;
-    this.pcv = newCanvas(w, h); this.pg = this.pcv.getContext('2d');       // warstwa 1: plac / decale terenu
-    this.ucv = newCanvas(w, h); this.gu = this.ucv.getContext('2d');       // warstwa 2: cień rzucony, mrok przy podstawie
-    this.c = newCanvas(w, h); this.g = this.c.getContext('2d');            // warstwa 3: obiekty
+  /* w,h,ax,ay — wymiary i punkt zaczepienia w px logicznych przy F=1; o.F — skala geometrii; o.R — rozdzielczość; o.ground — tylko warstwa terenu */
+  constructor(w, h, ax, ay, o = {}) {
+    const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
+    this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
+    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R);                                // piksele
+    const mk = () => { const c = newCanvas(this.pw, this.ph), g = c.getContext('2d'); g.setTransform(R, 0, 0, R, 0, 0); return [c, g]; };
+    [this.pcv, this.pg] = mk();                                                                      // warstwa 1: plac / decale terenu
+    if (!o.ground) { [this.ucv, this.gu] = mk(); [this.c, this.g] = mk(); }                          // warstwa 2: cień rzucony; warstwa 3: obiekty
     this.pats = {};
   }
-  P(x, y, z = 0) { return [(x - y) * AX + this.ax, (x + y) * AY - z * VH + this.ay]; }
+  P(x, y, z = 0) { const F = this.F; return [(x - y) * AX * F + this.ax, (x + y) * AY * F - z * VH * F + this.ay]; }
   pat(name, pal, ctx) {
     const k = name + '|' + (pal || '') + '|' + (ctx === this.gu ? 'u' : 'o');
     if (!this.pats[k]) { const t = tex(name, pal); this.pats[k] = { pat: (ctx || this.g).createPattern(t.c, 'repeat'), ppu: t.ppu }; }
     return this.pats[k];
   }
 
-  /* równoległobok O + s·U + t·V pokryty teksturą (jednostki: tekstura ma stałą gęstość ppu) */
+  /* równoległobok O + s·U + t·V pokryty teksturą; gęstość tekstury na ekranie jest stała niezależnie od F (K·F) */
   face(O, U, V, mat, o = {}) {
-    const g = this.g, m = this.pat(mat, o.pal), lu = Math.hypot(...U), lv = Math.hypot(...V), K = o.ppu || m.ppu;
+    const g = this.g, R = this.R, m = this.pat(mat, o.pal), lu = Math.hypot(...U), lv = Math.hypot(...V), K = (o.ppu || m.ppu) * this.F;
     const p0 = this.P(...O), pu = this.P(O[0] + U[0], O[1] + U[1], O[2] + U[2]), pv = this.P(O[0] + V[0], O[1] + V[1], O[2] + V[2]);
     const a = (pu[0] - p0[0]) / (lu * K), b = (pu[1] - p0[1]) / (lu * K), c = (pv[0] - p0[0]) / (lv * K), d = (pv[1] - p0[1]) / (lv * K);
     const sc = Math.hypot(a, b) || 1;
     g.save();
-    g.setTransform(a, b, c, d, p0[0], p0[1]);
+    g.setTransform(R * a, R * b, R * c, R * d, R * p0[0], R * p0[1]);
     g.beginPath();
     if (o.clip) o.clip.forEach(([s, t], i) => g[i ? 'lineTo' : 'moveTo'](s * lu * K, t * lv * K)); else g.rect(0, 0, lu * K, lv * K);
     g.closePath();
@@ -63,10 +70,10 @@ class Scene {
 
   /* rysowanie 2D w układzie ściany: jednostki = jednostki świata (u wzdłuż U, v wzdłuż V) */
   local(O, U, V, fn) {
-    const g = this.g, lu = Math.hypot(...U), lv = Math.hypot(...V);
+    const g = this.g, R = this.R, lu = Math.hypot(...U), lv = Math.hypot(...V);
     const p0 = this.P(...O), pu = this.P(O[0] + U[0], O[1] + U[1], O[2] + U[2]), pv = this.P(O[0] + V[0], O[1] + V[1], O[2] + V[2]);
     g.save();
-    g.setTransform((pu[0] - p0[0]) / lu, (pu[1] - p0[1]) / lu, (pv[0] - p0[0]) / lv, (pv[1] - p0[1]) / lv, p0[0], p0[1]);
+    g.setTransform(R * (pu[0] - p0[0]) / lu, R * (pu[1] - p0[1]) / lu, R * (pv[0] - p0[0]) / lv, R * (pv[1] - p0[1]) / lv, R * p0[0], R * p0[1]);
     fn(g, lu, lv);
     g.restore();
   }
@@ -85,7 +92,7 @@ class Scene {
     const sd = o.dir || SHADOW_DIR;
     const pts = pts3.map(([x, y, z]) => this.P(x + z * sd[0], y + z * sd[1], 0));
     const hull = convexHull(pts);
-    softFill(this.gu, g => { hull.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); }, `rgba(14,22,8,${o.alpha ?? 0.5})`, o.blur ?? 9);
+    softFill(this.gu, g => { hull.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); }, `rgba(14,22,8,${o.alpha ?? 0.5})`, (o.blur ?? 9) * this.F);
   }
   shadowBox(x0, y0, x1, y1, h, o) {
     this.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h]], o);
@@ -93,47 +100,57 @@ class Scene {
   /* miękki mrok przy podstawie (ambient occlusion) */
   contact(x0, y0, x1, y1, o = {}) {
     const e = o.grow ?? 0.05, P = (x, y) => this.P(x, y, 0);
-    softFill(this.gu, g => { [[x0 - e, y0 - e], [x1 + e, y0 - e], [x1 + e, y1 + e], [x0 - e, y1 + e]].forEach(([x, y], i) => { const p = P(x, y); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }); g.closePath(); }, `rgba(10,12,4,${o.alpha ?? 0.55})`, o.blur ?? 6);
+    softFill(this.gu, g => { [[x0 - e, y0 - e], [x1 + e, y0 - e], [x1 + e, y1 + e], [x0 - e, y1 + e]].forEach(([x, y], i) => { const p = P(x, y); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }); g.closePath(); }, `rgba(10,12,4,${o.alpha ?? 0.55})`, (o.blur ?? 6) * this.F);
   }
 
   /* decal terenu: tekstura rzucona w płaszczyznę świata (izometrycznie), przycięta do wielokątów z miękkim brzegiem */
   decal(mat, pal, polys, o = {}) {
-    const m = tex(mat, pal), K = m.ppu, t = newCanvas(this.w, this.h), tg = t.getContext('2d');
-    tg.setTransform(AX / K, AY / K, -AX / K, AY / K, this.ax, this.ay);
+    const R = this.R, m = tex(mat, pal), K = m.ppu;
+    let x0 = 0, y0 = 0, x1 = this.w, y1 = this.h;                          // obszar roboczy (px logiczne) — dla wielokątów tylko ich obwiednia
+    if (polys) {
+      let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
+      for (const pts of polys) for (const [x, y] of pts) { const p = this.P(x, y, 0); if (p[0] < a) a = p[0]; if (p[0] > c) c = p[0]; if (p[1] < b) b = p[1]; if (p[1] > d) d = p[1]; }
+      const mg = (o.feather ?? 14) * 2 + 6;
+      x0 = Math.max(0, a - mg); y0 = Math.max(0, b - mg); x1 = Math.min(this.w, c + mg); y1 = Math.min(this.h, d + mg);
+      if (x1 <= x0 || y1 <= y0) return;
+    }
+    const ox = Math.floor(x0 * R), oy = Math.floor(y0 * R), tw = Math.ceil(x1 * R) - ox, th = Math.ceil(y1 * R) - oy, lx = ox / R, ly = oy / R;   // przesunięcie w px urządzenia
+    const t = newCanvas(tw, th), tg = t.getContext('2d');
+    tg.setTransform(R * AX / K, R * AY / K, -R * AX / K, R * AY / K, R * (this.ax - lx), R * (this.ay - ly));
     tg.fillStyle = tg.createPattern(m.c, 'repeat');
-    const R = (this.w + this.h) * K / Math.min(AX, AY);
-    tg.fillRect(-R, -R, 2 * R, 2 * R);
+    const ext = (this.w + this.h) * K / Math.min(AX, AY);
+    tg.fillRect(-ext, -ext, 2 * ext, 2 * ext);
     tg.setTransform(1, 0, 0, 1, 0, 0);
     if (polys) {
-      const mk = newCanvas(this.w, this.h), mg = mk.getContext('2d');
+      const mk = newCanvas(tw, th), mg = mk.getContext('2d'); mg.setTransform(R, 0, 0, R, -R * lx, -R * ly);
       const path = g => { for (const pts of polys) { pts.forEach(([x, y], i) => { const p = this.P(x, y, 0); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }); g.closePath(); } };
       if (o.feather === 0) { mg.fillStyle = '#fff'; mg.beginPath(); path(mg); mg.fill(); } else softFill(mg, path, '#fff', o.feather ?? 14);
       tg.globalCompositeOperation = 'destination-in'; tg.drawImage(mk, 0, 0);
     }
     const dst = o.layer || this.pg;
-    dst.save(); dst.globalAlpha = o.alpha ?? 1; if (o.blend) dst.globalCompositeOperation = o.blend; dst.drawImage(t, 0, 0); dst.restore();
+    dst.save(); dst.setTransform(1, 0, 0, 1, 0, 0); dst.globalAlpha = o.alpha ?? 1; if (o.blend) dst.globalCompositeOperation = o.blend; dst.drawImage(t, ox, oy); dst.restore();
   }
   /* jednolita, rozmyta plama koloru (mokry piasek, ściółka) */
   flat(polys, color, feather, layer) {
     softFill(layer || this.pg, g => { for (const pts of polys) { pts.forEach(([x, y], i) => { const p = this.P(x, y, 0); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }); g.closePath(); } }, color, feather);
   }
-  /* organiczna plama ubitej ziemi z miękkim brzegiem (znak rozpoznawczy „Settlers": brązowy plac wokół budynku) */
+  /* organiczna plama ubitej ziemi (znak rozpoznawczy „Settlers"); wymiary w POLACH (niezależnie od F) */
   patch(cx, cy, rx, ry, o = {}) {
-    const r = rng(o.seed || 9), pts = [], n = 16;
-    for (let i = 0; i < n; i++) { const a = i / n * TAU, k = 0.82 + r() * 0.3; pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); }
-    this.decal('dirt', o.pal, [pts], { feather: o.feather ?? 14, alpha: o.alpha ?? 0.92 });
+    const r = rng(o.seed || 9), pts = [], n = 16, f = 1 / this.F;
+    for (let i = 0; i < n; i++) { const a = i / n * TAU, k = 0.82 + r() * 0.3; pts.push([(cx + Math.cos(a) * rx * k) * f, (cy + Math.sin(a) * ry * k) * f]); }
+    this.decal('dirt', o.pal, [pts], { feather: o.feather ?? 12, alpha: o.alpha ?? 0.92 });
   }
 
   /* walec pionowy (wieża, minaret, beczka): gradient poziomy, elipsy góry i dołu */
   cyl(cx, cy, z0, z1, r, o = {}) {
-    const g = this.g, [px, pyb] = this.P(cx, cy, z0), [, pyt] = this.P(cx, cy, z1), rx = r * AX * 1.4142, ry = r * AY * 1.4142;
+    const g = this.g, R = this.R, F = this.F, [px, pyb] = this.P(cx, cy, z0), [, pyt] = this.P(cx, cy, z1), rx = r * AX * F * 1.4142, ry = r * AY * F * 1.4142;
     const col = o.color || [150, 140, 125];
     g.save();
     g.beginPath(); g.moveTo(px - rx, pyt); g.lineTo(px - rx, pyb); g.ellipse(px, pyb, rx, ry, 0, Math.PI, 0, true); g.lineTo(px + rx, pyt); g.ellipse(px, pyt, rx, ry, 0, 0, Math.PI, true); g.closePath();
     g.clip();
     if (o.mat) {
       const m = this.pat(o.mat, o.pal), K = m.ppu, sc = o.texScale || (VH / K);
-      g.save(); g.setTransform(sc, 0, 0, sc, px - rx, pyt - ry); g.fillStyle = m.pat; g.fillRect(0, 0, (rx * 2) / sc + 2, ((pyb - pyt) + ry * 2) / sc + 2); g.restore();
+      g.save(); g.setTransform(R * sc, 0, 0, R * sc, R * (px - rx), R * (pyt - ry)); g.fillStyle = m.pat; g.fillRect(0, 0, (rx * 2) / sc + 2, ((pyb - pyt) + ry * 2) / sc + 2); g.restore();
     } else { g.fillStyle = css(col); g.fillRect(px - rx, pyt - ry, rx * 2, pyb - pyt + ry * 2); }
     const gr = g.createLinearGradient(px - rx, 0, px + rx, 0);   // zaokrąglenie: światło z lewej, cień z prawej
     gr.addColorStop(0, 'rgba(255,240,200,0.16)'); gr.addColorStop(0.28, 'rgba(255,240,200,0.04)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
@@ -144,7 +161,7 @@ class Scene {
     g.beginPath(); g.moveTo(px - rx, pyt); g.lineTo(px - rx, pyb); g.ellipse(px, pyb, rx, ry, 0, Math.PI, 0, true); g.lineTo(px + rx, pyt); g.stroke();
     if (o.top !== false) { // wierzch
       g.beginPath(); g.ellipse(px, pyt, rx, ry, 0, 0, TAU);
-      if (o.topMat) { const m = this.pat(o.topMat, o.topPal); g.save(); g.clip(); const K = m.ppu; g.setTransform(AX / K, AY / K, -AX / K, AY / K, px, pyt); g.fillStyle = m.pat; g.fillRect(-2 * K, -2 * K, 4 * K, 4 * K); g.restore(); g.beginPath(); g.ellipse(px, pyt, rx, ry, 0, 0, TAU); }
+      if (o.topMat) { const m = this.pat(o.topMat, o.topPal); g.save(); g.clip(); const K = m.ppu; g.setTransform(R * AX / K, R * AY / K, -R * AX / K, R * AY / K, R * px, R * pyt); g.fillStyle = m.pat; g.fillRect(-2 * K, -2 * K, 4 * K, 4 * K); g.restore(); g.beginPath(); g.ellipse(px, pyt, rx, ry, 0, 0, TAU); }
       else { g.fillStyle = css(scaleC(col, 1.12)); g.fill(); }
       g.strokeStyle = 'rgba(14,8,4,0.4)'; g.stroke();
     }
@@ -152,12 +169,13 @@ class Scene {
 
   /* gotowy sprite: warstwy p (plac), u (cień) oraz c (obiekty z obrysem) — scena rysuje je w osobnych przebiegach */
   finish(o = {}) {
-    const out = newCanvas(this.w, this.h), g = out.getContext('2d');
-    const t = newCanvas(this.w, this.h), tg = t.getContext('2d');
-    tg.drawImage(this.c, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = `rgba(14,9,5,${o.outline ?? 0.5})`; tg.fillRect(0, 0, this.w, this.h);
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]) g.drawImage(t, dx * 1.2, dy * 1.2);
+    const R = this.R, out = newCanvas(this.pw, this.ph), g = out.getContext('2d');
+    const t = newCanvas(this.pw, this.ph), tg = t.getContext('2d');
+    tg.drawImage(this.c, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = `rgba(14,9,5,${o.outline ?? 0.5})`; tg.fillRect(0, 0, this.pw, this.ph);
+    const ow = 1.2 * R;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]) g.drawImage(t, dx * ow, dy * ow);
     g.drawImage(this.c, 0, 0);
-    return { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay };
+    return { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, F: this.F };
   }
 }
 
@@ -186,14 +204,9 @@ function gableRoof(sc, o) {
 function pyramidRoof(sc, o) {
   const { x0, y0, x1, y1, z, rise, mat, pal } = o, ov = o.ov ?? 0.05, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2, top = z + rise;
   const a = [x0 - ov, y0 - ov, z - rise * ov / ((x1 - x0) / 2)], b = [x1 + ov, y0 - ov, a[2]], c = [x1 + ov, y1 + ov, a[2]], d = [x0 - ov, y1 + ov, a[2]];
-  const quadTri = (p, q, shade, e) => {
-    // trójkąt (p, q, wierzchołek) jako połać o podstawie p→q
+  const quadTri = (p, q, shade) => {
     const U = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], T = [xm, ym, top], V = [T[0] - p[0], T[1] - p[1], T[2] - p[2]];
     sc.face(p, U, V, mat, { shade, pal, edge: 0.4, clip: [[0, 0], [1, 0], [0, 1]], ppu: o.ppu });
   };
-  // dwie widoczne połacie: wschodnia (a→... prawa) i południowa (lewa) + dwie tylne dla poprawnych krawędzi
-  quadTri(a, b, LIGHT.roofN);   // północna
-  quadTri(d, a, LIGHT.roofW);   // zachodnia
-  quadTri(c, d, LIGHT.roofS);   // południowa
-  quadTri(b, c, LIGHT.roofE);   // wschodnia
+  quadTri(a, b, LIGHT.roofN); quadTri(d, a, LIGHT.roofW); quadTri(c, d, LIGHT.roofS); quadTri(b, c, LIGHT.roofE);
 }
