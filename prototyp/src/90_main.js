@@ -65,7 +65,7 @@ const tileRect = (i, j, w, h, e = 0.05) => [[i + e, j + e], [i + w - e, j + e], 
 const LAKE = [blob(27.0, 3.6, 3.7, 2.3, 3, 64, 0.2), blob(24.0, 4.6, 1.7, 1.3, 5, 40, 0.22), blob(30.2, 4.8, 1.8, 1.3, 8, 40, 0.22)];
 const SAND = [blob(27.0, 21.0, 7.0, 4.6, 12, 64, 0.2), blob(31.5, 18.0, 3.0, 2.6, 14, 40, 0.2), blob(24.0, 26.0, 4.0, 2.4, 15, 40, 0.2)];
 const FLOOR = [blob(4.0, 4.0, 4.6, 3.6, 20), blob(13.0, 1.0, 4.0, 1.4, 22), blob(1.2, 14.0, 2.0, 3.4, 23)];
-const FIELDS = [['wheat', tileRect(2, 24, 5, 3)], ['green', tileRect(7, 24, 4, 3)], ['plow', tileRect(2, 27, 4, 2)]];
+const FIELDS = [];                                                  // pola uprawne to teraz budynki (franks_farm, slavs_field)
 const ROADS = [
   [[0.5, 9.5], [10.5, 9.5], [21.5, 9.5], [33.5, 9.5]],                       // główna ulica (Frankowie → Wikingowie)
   [[10.5, 9.5], [10.5, 17.5], [10.5, 28.5]],                                // na południe, do Słowian
@@ -82,14 +82,16 @@ const FOOT = [];                                                    // ślady bu
 /* plan budynków: [nazwa sprite'a, i, j] — (i,j) to północny róg obrysu; środek = (i+fw/2, j+fh/2). Brakujące sprite'y są pomijane. */
 const PLAN = [
   // Frankowie
-  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['franks_temple', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
-  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11],
+  ['franks_keep', 12, 4], ['franks_barracks', 17, 5], ['franks_temple', 5, 6], ['franks_toolforge', 10, 5], ['franks_mill', 17, 1], ['franks_armory', 1, 6],
+  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11], ['franks_bakery', 7, 11], ['franks_market', 3, 11],
   // Słowianie
-  ['slavHut', 2, 15], ['slavHut', 5, 15], ['slavStore', 7, 15], ['slavWaxery', 2, 19], ['slavShrine', 5, 19], ['slavHut', 8, 20], ['well', 9, 18],
+  ['slavs_hut', 2, 15], ['slavs_hut', 4, 15], ['slavs_store', 6, 15], ['slavs_waxery', 2, 19], ['slavs_temple', 5, 19], ['slavs_sauna', 8, 19],
+  ['slavs_keep', 3, 23], ['slavs_field', 7, 23], ['slavs_gatherer', 0, 23], ['slavs_bartnik', 7, 26],
   // Wikingowie
-  ['vikingDock', 20, 3], ['vikingHall', 25, 7], ['vikingHut', 30, 7], ['vikingMead', 22, 6], ['vikingHut', 30, 11],
+  ['vikings_dock', 20, 3], ['vikings_ship', 25, 3, { bob: 1 }], ['vikings_temple', 23, 11], ['vikings_keep', 26, 11], ['vikings_mead', 30, 11],
   // Saraceni
-  ['saracenMarket', 22, 15], ['saracenMosque', 28, 15], ['saracenSerai', 24, 18], ['saracenHouse', 22, 23], ['saracenHouse', 25, 23], ['saracenHouse', 29, 23], ['saracenHouse', 28, 19]
+  ['saracens_market', 23, 15], ['saracens_temple', 28, 15], ['saracens_caravanserai', 24, 18], ['saracens_bathhouse', 28, 18], ['saracens_dategrove', 31, 18],
+  ['saracens_keep', 23, 23], ['saracens_hut', 28, 23], ['saracens_hut', 30, 23], ['saracens_guardpost', 32, 23]
 ];
 
 /* ---------- teren: kafle wypiekane na żądanie ---------- */
@@ -148,11 +150,19 @@ async function step(label, fn) {
   if (performance.now() - (step.last ?? 0) > 40) { await nextPaint(); step.last = performance.now(); }      // oddajemy sterowanie najwyżej co ~40 ms
   const v = fn(); DONE++; return v;
 }
+/* które sprite'y wypiekać: do kontroli jakości i arkuszy — wszystkie lub wskazane; do widoku mapy — tylko te z PLAN (w grze: tylko budynki wybranej nacji) */
+function wantedSprites() {
+  const all = Object.keys(BAKED), h = location.hash;
+  if (LINT || QS.has('all') || /^#sheet-b/.test(h) || h === '#sheet-r' || h === '#sheet') return all;
+  if (QS.get('sprite')) return QS.get('sprite').split(',').filter(n => BAKED[n]);
+  const m = h.match(/^#sheet-r-([a-z]+)/); if (m && NATIONS[m[1]]) return NATIONS[m[1]].map(id => spriteName(m[1], id)).filter(n => BAKED[n]);
+  const need = new Set(PLAN.map(p => p[0])); need.add('hay'); need.add('logs'); return all.filter(n => need.has(n));
+}
 async function bakeAll() {
   let t0 = performance.now();
-  const names = Object.keys(BAKED), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
+  const names = wantedSprites(), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
   TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12;
-  for (const n of names) { LINT_NAME = n; SPR[n] = await step('Budynki', BAKED[n]); }
+  for (const n of names) { LINT_NAME = n; try { SPR[n] = await step('Budynki', BAKED[n]); } catch (e) { e.message = `[${n}] ${e.message}`; throw e; } }
   window.__lint = LINT_LOG;
   tmark('budynki', t0); t0 = performance.now();
   const oaks = await many('Drzewa', 5, i => TREES.oak(100 + i)), pines = await many('Drzewa', 4, i => TREES.pine(200 + i)), palms = await many('Drzewa', 3, i => TREES.palm(300 + i));
@@ -166,14 +176,13 @@ async function bakeAll() {
 function layoutWorld() {
   const { oaks, pines, palms, rocks, tufts, sandTufts, cast } = SETS;
   const objs = [], R0 = [];                                          // R0: obrysy budynków (do omijania i do sortowania)
-  const add = (spr, x, y, o = {}) => { const ob = { spr, x, y, k: o.k ?? 1, sway: o.sway || 0, ph: o.ph ?? 0, bob: o.bob || 0, smoke: o.smoke && o.smoke.map(v => v * spr.F), rect: o.rect }; objs.push(ob); return ob; };
+  const add = (spr, x, y, o = {}) => { const ob = { spr, x, y, k: o.k ?? 1, sway: o.sway || 0, ph: o.ph ?? 0, bob: o.bob || 0, smoke: o.smoke || spr.smoke, rect: o.rect }; objs.push(ob); return ob; };
   const bld = (name, i, j, o = {}) => {
     const spr = SPR[name]; if (!spr) return null; const fw = spr.fw, fh = spr.fh;
     R0.push({ x0: i, y0: j, x1: i + fw, y1: j + fh }); FOOT.push([i, j, fw, fh]);
     return add(spr, i + fw / 2, j + fh / 2, Object.assign({ rect: { x0: i, y0: j, x1: i + fw, y1: j + fh, big: true } }, o));
   };
   for (const [n, i, j, o] of PLAN) bld(n, i, j, o);
-  if (SPR.longship) add(SPR.longship, 27.2, 3.6, { bob: 1 });
   if (SPR.hay) { add(SPR.hay, 12, 22.5); add(SPR.hay, 13, 23); add(SPR.logs, 1.5, 14.5); add(SPR.hay, 9.5, 25); }
 
   const lakeNear = (x, y) => LAKE.some(p => inPoly(x, y, growPoly(p, 0.55)));
@@ -317,10 +326,10 @@ function drawFrame(t, dt) {
     }
   }
 
-  // dym z kominów
-  for (const o of WORLD.objs) if (o.smoke) {
-    o.nextPuff = (o.nextPuff ?? Math.random() * 0.6) - dt;
-    if (o.nextPuff < 0) { o.nextPuff += 0.45 + Math.random() * 0.2; smoke.push({ x: o.x + o.smoke[0], y: o.y + o.smoke[1], z: o.smoke[2], a: 0, ph: Math.random() * TAU }); }
+  // dym z kominów i otworów dymnych: kotwice zapisane w sprite'ie (spr.smoke), emisja tylko dla widocznych budynków
+  for (const it of list) if (it.o && it.o.smoke && it.o.smoke.length) {
+    const o = it.o; o.nextPuff = o.nextPuff || o.smoke.map(() => Math.random() * 0.8);
+    o.smoke.forEach((a, n) => { o.nextPuff[n] -= dt; if (o.nextPuff[n] < 0) { o.nextPuff[n] += 0.5 + Math.random() * 0.25; smoke.push({ x: o.x + a[0], y: o.y + a[1], z: a[2], a: 0, ph: Math.random() * TAU }); } });
   }
   for (let i = smoke.length - 1; i >= 0; i--) {
     const p = smoke[i]; p.a += dt; p.z += dt * 0.3; p.x += dt * 0.12; p.y -= dt * 0.05;
@@ -395,7 +404,7 @@ function sheetFrame() {
     if (!rows.length) return;
     const z = Math.min(Z, (W * 0.98) / Math.max(...rows.map(r => r.w)), (H - rows.length * lab - 12 * dpr) / rows.reduce((a, r) => a + r.up + r.down, 0));
     const text = (t, x, y, px, bold, al = 'center') => { ctx.textAlign = al; ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
-    let y = 8 * dpr;
+    let y = 8 * dpr + 24 * z;
     for (const r of rows) {
       const base = y + r.up * z; let x = (W - (r.w * z)) / 2 + GAP * z;
       if (r.title) text(r.title, 14 * dpr, y + 20 * dpr, 17, true, 'left');
@@ -441,7 +450,7 @@ async function boot() {
   BAKE_MS = performance.now() - t0; window.__bakeMs = BAKE_MS; window.__parts = PARTS;
   document.getElementById('bake').textContent = `Wypiek: ${BAKE_MS.toFixed(0)} ms · rozdzielczość ×${RES} · ${innerWidth}×${innerHeight} @${dpr}`;
   const ld = document.getElementById('load'); if (ld) ld.style.display = 'none';
-  if (sheet) { sheetFrame(); window.__ready = true; return; }
+  if (sheet) { sheetFrame(); window.__catalog = catalogJSON; window.__ready = true; return; }
   addEventListener('resize', () => { const r = zoom / ZDEF; resize(); zoom = clamp(ZDEF * r, ZMIN, ZMAX); clampCam(); updateUI(); });
   // sterowanie: przeciąganie, kółko, pinch, przyciski, klawisze
   const ptrs = new Map(); let pinch0 = null;
@@ -468,6 +477,6 @@ async function boot() {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-  window.__setZoom = z => setZoom(z); window.__ready = true;
+  window.__setZoom = z => setZoom(z); window.__catalog = catalogJSON; window.__ready = true;
 }
 boot().catch(e => { const t = document.getElementById('ltxt'); if (t) t.textContent = 'Błąd: ' + e.message; console.error(e); });

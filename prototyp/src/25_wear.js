@@ -50,6 +50,13 @@ function thatchPatch(g, r, x, y, w, h, pat, px) {
   g.fillStyle = 'rgba(46,28,10,0.85)'; for (const [kx, ky] of [[x + w * 0.12, cy0 + (cy1 - cy0) * 0.12], [x + w * 0.88, cy0 + (cy1 - cy0) * 0.88]]) { g.beginPath(); g.arc(kx, ky, 1.5 / px, 0, TAU); g.fill(); }
 }
 
+/* kolor łaty: na ciemnych ścianach (smołowane deski, ciemny gont) łata ma być tylko trochę jaśniejsza, a nie jasnobrązowa */
+function patchPal(base, def) {
+  if (typeof base !== 'string' || !/^#[0-9a-f]{6}$/i.test(base)) return def;
+  const c = hex(base), lum = (c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11) / 255; if (lum > 0.38) return def;
+  const m = mixc(scaleC(c, 1.35), hex(def), clamp((lum - 0.1) / 0.28, 0, 1) * 0.6);
+  return '#' + m.map(v => (v | 0).toString(16).padStart(2, '0')).join('');
+}
 function wearFace(sc, mat, o, W, H, K, px, seed) {
   const P = WEAR[mat]; if (!P) return;
   const k = (o.wear ?? 1) * sc.wear; if (k <= 0) return;
@@ -79,7 +86,7 @@ function wearFace(sc, mat, o, W, H, K, px, seed) {
   }
   // 4) łaty napraw — inny odcień materiału w tym samym układzie tekstury (deski/gonty/kamienie pasują do siatki)
   if (P.patch) for (let i = cnt(P.patchN * k * A * 0.5); i > 0; i--) {
-    const [m2, pal2, shape] = P.patch, pat = sc.pat(m2, pal2).pat, gu = 16;
+    const [m2, pal0, shape] = P.patch, pal2 = patchPal(o.pal, pal0), pat = sc.pat(m2, pal2).pat, gu = 16;
     g.save();
     if (shape === 'rect') {
       const w = gu * (1 + (r() * 3 | 0)) * (mat === 'log' ? 2 : 1), h = gu * (mat === 'plank' ? 2 + (r() * 3 | 0) : 1 + (r() * 2 | 0)), x = Math.floor(r() * Math.max(1, (W - w) / gu)) * gu, y = Math.floor(r() * Math.max(1, (H - h) / gu)) * gu;

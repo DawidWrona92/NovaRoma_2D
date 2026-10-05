@@ -6,7 +6,7 @@ const TEXCACHE = {};
 let TEXRES = 1;                     // mnożnik rozdzielczości tekstur terenu (ustawiany przy starcie razem z RES)
 function tex(name, pal) {
   const key = name + '|' + (pal || '');
-  return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal));
+  return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal ?? undefined));        // null = brak palety (domyślna z parametru generatora)
 }
 /* rysuje obiekt także w kopiach przesuniętych o okres, żeby kafelek był bezszwowy */
 function wrapDraw(N, x, y, w, h, fn) {

@@ -20,6 +20,7 @@ function door(sc, O, U, V, u0, w, h, o = {}) {
     if (o.lintel) { g.fillStyle = o.lintel; g.fillRect(u0 - 0.06, vb - h - (o.arch ? w / 2 : 0) - 0.06, w + 0.12, 0.05); }
   });
   const dir = [U[0] / lu, U[1] / lu, U[2] / lu], up = [-V[0] / lv, -V[1] / lv, -V[2] / lv];
+  if (sc.doors) sc.doors.push({ side: Math.abs(U[0]) > Math.abs(U[1]) ? 'S' : 'E', x: +(O[0] + dir[0] * (u0 + w / 2)).toFixed(3), y: +(O[1] + dir[1] * (u0 + w / 2)).toFixed(3), z: +(O[2] - vb).toFixed(3) });   // wejście do katalogu
   const base = [O[0] + dir[0] * u0 + V[0] / lv * vb, O[1] + dir[1] * u0 + V[1] / lv * vb, O[2] + dir[2] * u0 + V[2] / lv * vb];
   const topLeft = [base[0] + up[0] * h, base[1] + up[1] * h, base[2] + up[2] * h];
   sc.face(topLeft, [dir[0] * w, dir[1] * w, dir[2] * w], [-up[0] * h, -up[1] * h, -up[2] * h], 'plank', { shade: 1, pal: o.pal || '#6a4a2c', edge: 0.5, wear: 0.4, vgrad: [[0, 0.25], [0.5, 0], [1, 0.2]], clip: o.arch ? [[0, 1], [0, 0.18], [0.08, 0.1], [0.5, 0.0], [0.92, 0.1], [1, 0.18], [1, 1]] : undefined });

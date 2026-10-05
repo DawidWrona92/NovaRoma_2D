@@ -1,0 +1,2384 @@
+{
+ "wersja": "v4-katalog",
+ "pole": {
+  "AX": 64,
+  "AY": 32,
+  "VH": 78
+ },
+ "nacje": {
+  "franks": {
+   "nazwa": "FRANKOWIE",
+   "budynki": {
+    "keep": {
+     "sprite": "franks_keep",
+     "nazwa": "Dwór",
+     "obrys": [
+      4,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.13,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.125,
+      "y": 0.45
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 592,
+      "h": 568,
+      "ax": 265,
+      "ay": 376
+     }
+    },
+    "hut": {
+     "sprite": "franks_hut",
+     "nazwa": "Chata",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "dym": [
+      [
+       0.38,
+       -0.35,
+       3.194
+      ]
+     ],
+     "sprite_px": {
+      "w": 332,
+      "h": 356,
+      "ax": 137,
+      "ay": 254
+     }
+    },
+    "woodcutter": {
+     "sprite": "franks_woodcutter",
+     "nazwa": "Chata drwala",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.28,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.28,
+      "y": 0.1
+     },
+     "dym": [
+      [
+       -0.4,
+       -0.375,
+       2
+      ]
+     ],
+     "sprite_px": {
+      "w": 264,
+      "h": 256,
+      "ax": 117,
+      "ay": 187
+     }
+    },
+    "forester": {
+     "sprite": "franks_forester",
+     "nazwa": "Leśniczówka",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": -0.08
+     },
+     "dym": [
+      [
+       -0.6,
+       -0.465,
+       1.92
+      ]
+     ],
+     "sprite_px": {
+      "w": 252,
+      "h": 256,
+      "ax": 129,
+      "ay": 187
+     }
+    },
+    "sawmill": {
+     "sprite": "franks_sawmill",
+     "nazwa": "Tartak",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 296,
+      "h": 252,
+      "ax": 157,
+      "ay": 167
+     }
+    },
+    "hunter": {
+     "sprite": "franks_hunter",
+     "nazwa": "Chata myśliwego",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 0.05
+     },
+     "dym": [
+      [
+       -0.6,
+       -0.4,
+       1.9
+      ]
+     ],
+     "sprite_px": {
+      "w": 240,
+      "h": 244,
+      "ax": 113,
+      "ay": 183
+     }
+    },
+    "dairy": {
+     "sprite": "franks_dairy",
+     "nazwa": "Mleczarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.2
+     },
+     "dym": [
+      [
+       0.4,
+       -0.8,
+       1.975
+      ]
+     ],
+     "sprite_px": {
+      "w": 352,
+      "h": 268,
+      "ax": 161,
+      "ay": 182
+     }
+    },
+    "orchard": {
+     "sprite": "franks_orchard",
+     "nazwa": "Sad",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 372,
+      "h": 232,
+      "ax": 185,
+      "ay": 131
+     }
+    },
+    "watercarrier": {
+     "sprite": "franks_watercarrier",
+     "nazwa": "Chata nosiwody",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.61,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.61,
+      "y": -0.2
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 280,
+      "h": 204,
+      "ax": 121,
+      "ay": 136
+     }
+    },
+    "market": {
+     "sprite": "franks_market",
+     "nazwa": "Targ",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 392,
+      "h": 260,
+      "ax": 181,
+      "ay": 164
+     }
+    },
+    "store": {
+     "sprite": "franks_store",
+     "nazwa": "Skład",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [
+      [
+       0.8,
+       -0.45,
+       2.76
+      ]
+     ],
+     "sprite_px": {
+      "w": 388,
+      "h": 348,
+      "ax": 169,
+      "ay": 238
+     }
+    },
+    "temple": {
+     "sprite": "franks_temple",
+     "nazwa": "Kościół",
+     "obrys": [
+      4,
+      2
+     ],
+     "wejscie": {
+      "strona": "E",
+      "x": 2,
+      "y": 0
+     },
+     "drzwi": {
+      "strona": "E",
+      "x": 1.94,
+      "y": 0
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 460,
+      "h": 536,
+      "ax": 181,
+      "ay": 365
+     }
+    },
+    "quarry": {
+     "sprite": "franks_quarry",
+     "nazwa": "Kamieniołom",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 364,
+      "h": 216,
+      "ax": 161,
+      "ay": 126
+     }
+    },
+    "farm": {
+     "sprite": "franks_farm",
+     "nazwa": "Farma",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -1.52,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -1.525,
+      "y": -0.4
+     },
+     "dym": [
+      [
+       -1.5,
+       -0.9,
+       2.15
+      ]
+     ],
+     "sprite_px": {
+      "w": 484,
+      "h": 368,
+      "ax": 221,
+      "ay": 250
+     }
+    },
+    "mill": {
+     "sprite": "franks_mill",
+     "nazwa": "Młyn",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -1.05,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -1.055,
+      "y": 1.3
+     },
+     "dym": [
+      [
+       -0.82,
+       0.7,
+       2.415
+      ]
+     ],
+     "sprite_px": {
+      "w": 400,
+      "h": 348,
+      "ax": 189,
+      "ay": 248
+     }
+    },
+    "bakery": {
+     "sprite": "franks_bakery",
+     "nazwa": "Piekarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.54,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.536,
+      "y": -0.2
+     },
+     "dym": [
+      [
+       -0.55,
+       -0.775,
+       2.57
+      ]
+     ],
+     "sprite_px": {
+      "w": 316,
+      "h": 332,
+      "ax": 153,
+      "ay": 250
+     }
+    },
+    "ironmine": {
+     "sprite": "franks_ironmine",
+     "nazwa": "Kopalnia żelaza",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 388,
+      "h": 228,
+      "ax": 185,
+      "ay": 127
+     }
+    },
+    "coalmine": {
+     "sprite": "franks_coalmine",
+     "nazwa": "Kopalnia węgla",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 388,
+      "h": 228,
+      "ax": 185,
+      "ay": 127
+     }
+    },
+    "smelter": {
+     "sprite": "franks_smelter",
+     "nazwa": "Huta",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.15,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.15,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.7,
+       -0.6,
+       3.1
+      ]
+     ],
+     "sprite_px": {
+      "w": 344,
+      "h": 384,
+      "ax": 153,
+      "ay": 293
+     }
+    },
+    "toolforge": {
+     "sprite": "franks_toolforge",
+     "nazwa": "Kuźnia narzędzi",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [
+      [
+       0.55,
+       -0.7,
+       2.82
+      ]
+     ],
+     "sprite_px": {
+      "w": 376,
+      "h": 332,
+      "ax": 173,
+      "ay": 234
+     }
+    },
+    "armory": {
+     "sprite": "franks_armory",
+     "nazwa": "Zbrojownia",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.495,
+      "y": -0.05
+     },
+     "dym": [
+      [
+       -0.9,
+       -0.45,
+       2.1
+      ]
+     ],
+     "sprite_px": {
+      "w": 304,
+      "h": 296,
+      "ax": 161,
+      "ay": 211
+     }
+    },
+    "vineyard": {
+     "sprite": "franks_vineyard",
+     "nazwa": "Winnica",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.83,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.83,
+      "y": 1.4
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 320,
+      "h": 236,
+      "ax": 153,
+      "ay": 119
+     }
+    },
+    "winery": {
+     "sprite": "franks_winery",
+     "nazwa": "Winiarz",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.48,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.48,
+      "y": -0.3
+     },
+     "dym": [
+      [
+       0.2,
+       -0.85,
+       2.3
+      ]
+     ],
+     "sprite_px": {
+      "w": 336,
+      "h": 288,
+      "ax": 161,
+      "ay": 202
+     }
+    },
+    "barracks": {
+     "sprite": "franks_barracks",
+     "nazwa": "Koszary",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.45
+     },
+     "dym": [
+      [
+       -0.75,
+       -0.92,
+       2.894
+      ],
+      [
+       0.75,
+       -0.92,
+       2.894
+      ]
+     ],
+     "sprite_px": {
+      "w": 472,
+      "h": 400,
+      "ax": 213,
+      "ay": 285
+     }
+    }
+   }
+  },
+  "saracens": {
+   "nazwa": "SARACENI",
+   "budynki": {
+    "keep": {
+     "sprite": "saracens_keep",
+     "nazwa": "Dwór",
+     "obrys": [
+      4,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.13,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.125,
+      "y": 0.2
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 560,
+      "h": 448,
+      "ax": 261,
+      "ay": 279
+     }
+    },
+    "hut": {
+     "sprite": "saracens_hut",
+     "nazwa": "Chata",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.29,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.288,
+      "y": 0.5
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 288,
+      "h": 292,
+      "ax": 137,
+      "ay": 215
+     }
+    },
+    "woodcutter": {
+     "sprite": "saracens_woodcutter",
+     "nazwa": "Chata drwala",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 0
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 240,
+      "h": 208,
+      "ax": 125,
+      "ay": 128
+     }
+    },
+    "forester": {
+     "sprite": "saracens_forester",
+     "nazwa": "Leśniczówka",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": -0.08
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 260,
+      "h": 200,
+      "ax": 137,
+      "ay": 127
+     }
+    },
+    "sawmill": {
+     "sprite": "saracens_sawmill",
+     "nazwa": "Tartak",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 300,
+      "h": 244,
+      "ax": 153,
+      "ay": 148
+     }
+    },
+    "hunter": {
+     "sprite": "saracens_hunter",
+     "nazwa": "Chata myśliwego",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 0.05
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 240,
+      "h": 204,
+      "ax": 121,
+      "ay": 132
+     }
+    },
+    "dairy": {
+     "sprite": "saracens_dairy",
+     "nazwa": "Mleczarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.2
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 344,
+      "h": 240,
+      "ax": 161,
+      "ay": 155
+     }
+    },
+    "orchard": {
+     "sprite": "saracens_orchard",
+     "nazwa": "Sad",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 380,
+      "h": 232,
+      "ax": 189,
+      "ay": 131
+     }
+    },
+    "watercarrier": {
+     "sprite": "saracens_watercarrier",
+     "nazwa": "Chata nosiwody",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 236,
+      "h": 224,
+      "ax": 113,
+      "ay": 163
+     }
+    },
+    "market": {
+     "sprite": "saracens_market",
+     "nazwa": "Targ",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 432,
+      "h": 284,
+      "ax": 213,
+      "ay": 163
+     }
+    },
+    "store": {
+     "sprite": "saracens_store",
+     "nazwa": "Skład",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 324,
+      "h": 248,
+      "ax": 149,
+      "ay": 159
+     }
+    },
+    "temple": {
+     "sprite": "saracens_temple",
+     "nazwa": "Meczet",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 400,
+      "h": 376,
+      "ax": 197,
+      "ay": 225
+     }
+    },
+    "claypit": {
+     "sprite": "saracens_claypit",
+     "nazwa": "Glinianka",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.94,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.945,
+      "y": -0.7
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 380,
+      "h": 244,
+      "ax": 169,
+      "ay": 152
+     }
+    },
+    "dategrove": {
+     "sprite": "saracens_dategrove",
+     "nazwa": "Gaj daktylowy",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 372,
+      "h": 264,
+      "ax": 185,
+      "ay": 166
+     }
+    },
+    "incensewood": {
+     "sprite": "saracens_incensewood",
+     "nazwa": "Las kadzidlany",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.86,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.863,
+      "y": 1.3
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 372,
+      "h": 228,
+      "ax": 185,
+      "ay": 112
+     }
+    },
+    "incense": {
+     "sprite": "saracens_incense",
+     "nazwa": "Wytwórnia kadzidła",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.38,
+      "y": -0.3
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 316,
+      "h": 268,
+      "ax": 145,
+      "ay": 186
+     }
+    },
+    "cotton": {
+     "sprite": "saracens_cotton",
+     "nazwa": "Plantacja bawełny",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.9,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.9,
+      "y": 1.4
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 316,
+      "h": 204,
+      "ax": 149,
+      "ay": 88
+     }
+    },
+    "weaver": {
+     "sprite": "saracens_weaver",
+     "nazwa": "Tkalnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.45,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.45,
+      "y": -0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 336,
+      "h": 236,
+      "ax": 165,
+      "ay": 155
+     }
+    },
+    "pottery": {
+     "sprite": "saracens_pottery",
+     "nazwa": "Garncarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": -0.35
+     },
+     "dym": [
+      [
+       0.74,
+       -0.76,
+       0.62
+      ]
+     ],
+     "sprite_px": {
+      "w": 304,
+      "h": 244,
+      "ax": 149,
+      "ay": 155
+     }
+    },
+    "qanat": {
+     "sprite": "saracens_qanat",
+     "nazwa": "Qanat",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 312,
+      "h": 220,
+      "ax": 157,
+      "ay": 128
+     }
+    },
+    "bathhouse": {
+     "sprite": "saracens_bathhouse",
+     "nazwa": "Łaźnia",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.58,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.584,
+      "y": 0.3
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 384,
+      "h": 296,
+      "ax": 193,
+      "ay": 190
+     }
+    },
+    "caravanserai": {
+     "sprite": "saracens_caravanserai",
+     "nazwa": "Karawanseraj",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 512,
+      "h": 404,
+      "ax": 253,
+      "ay": 254
+     }
+    },
+    "guardpost": {
+     "sprite": "saracens_guardpost",
+     "nazwa": "Strażnica",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.15
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 280,
+      "h": 296,
+      "ax": 121,
+      "ay": 218
+     }
+    }
+   }
+  },
+  "vikings": {
+   "nazwa": "WIKINGOWIE",
+   "budynki": {
+    "keep": {
+     "sprite": "vikings_keep",
+     "nazwa": "Dwór",
+     "obrys": [
+      4,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.24,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.236,
+      "y": -0.5
+     },
+     "dym": [
+      [
+       -0.72,
+       -1,
+       2.13
+      ]
+     ],
+     "sprite_px": {
+      "w": 488,
+      "h": 404,
+      "ax": 245,
+      "ay": 276
+     }
+    },
+    "hut": {
+     "sprite": "vikings_hut",
+     "nazwa": "Chata",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 0.4
+     },
+     "dym": [
+      [
+       -0.24,
+       -0.11,
+       1.95
+      ]
+     ],
+     "sprite_px": {
+      "w": 284,
+      "h": 252,
+      "ax": 133,
+      "ay": 171
+     }
+    },
+    "woodcutter": {
+     "sprite": "vikings_woodcutter",
+     "nazwa": "Chata drwala",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.34,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.345,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.345,
+       -0.425,
+       1.72
+      ]
+     ],
+     "sprite_px": {
+      "w": 276,
+      "h": 236,
+      "ax": 129,
+      "ay": 163
+     }
+    },
+    "forester": {
+     "sprite": "vikings_forester",
+     "nazwa": "Leśniczówka",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": -0.08
+     },
+     "dym": [
+      [
+       -0.49,
+       -0.465,
+       1.67
+      ]
+     ],
+     "sprite_px": {
+      "w": 264,
+      "h": 240,
+      "ax": 133,
+      "ay": 167
+     }
+    },
+    "sawmill": {
+     "sprite": "vikings_sawmill",
+     "nazwa": "Tartak",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 312,
+      "h": 256,
+      "ax": 157,
+      "ay": 167
+     }
+    },
+    "hunter": {
+     "sprite": "vikings_hunter",
+     "nazwa": "Chata myśliwego",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 0.05
+     },
+     "dym": [
+      [
+       -0.51,
+       -0.4,
+       1.7
+      ]
+     ],
+     "sprite_px": {
+      "w": 252,
+      "h": 236,
+      "ax": 117,
+      "ay": 167
+     }
+    },
+    "dairy": {
+     "sprite": "vikings_dairy",
+     "nazwa": "Mleczarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.2
+     },
+     "dym": [
+      [
+       0,
+       -0.92,
+       1.94
+      ]
+     ],
+     "sprite_px": {
+      "w": 360,
+      "h": 272,
+      "ax": 161,
+      "ay": 186
+     }
+    },
+    "orchard": {
+     "sprite": "vikings_orchard",
+     "nazwa": "Sad",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 372,
+      "h": 236,
+      "ax": 185,
+      "ay": 135
+     }
+    },
+    "watercarrier": {
+     "sprite": "vikings_watercarrier",
+     "nazwa": "Chata nosiwody",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.61,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.61,
+      "y": -0.2
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 280,
+      "h": 212,
+      "ax": 121,
+      "ay": 136
+     }
+    },
+    "market": {
+     "sprite": "vikings_market",
+     "nazwa": "Targ",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 416,
+      "h": 276,
+      "ax": 201,
+      "ay": 163
+     }
+    },
+    "store": {
+     "sprite": "vikings_store",
+     "nazwa": "Skład",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 348,
+      "h": 284,
+      "ax": 153,
+      "ay": 190
+     }
+    },
+    "temple": {
+     "sprite": "vikings_temple",
+     "nazwa": "Kościół",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "E",
+      "x": 1.5,
+      "y": 0
+     },
+     "drzwi": {
+      "strona": "E",
+      "x": 1.2,
+      "y": 0
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 380,
+      "h": 344,
+      "ax": 205,
+      "ay": 239
+     }
+    },
+    "fisherhut": {
+     "sprite": "vikings_fisherhut",
+     "nazwa": "Chata rybaka",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.51,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.505,
+      "y": -0.15
+     },
+     "dym": [
+      [
+       -0.505,
+       -0.525,
+       1.7
+      ]
+     ],
+     "sprite_px": {
+      "w": 256,
+      "h": 248,
+      "ax": 125,
+      "ay": 171
+     }
+    },
+    "peatmine": {
+     "sprite": "vikings_peatmine",
+     "nazwa": "Kopalnia darniowa",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 1.07,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 1.075,
+      "y": -0.7
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 416,
+      "h": 220,
+      "ax": 197,
+      "ay": 108
+     }
+    },
+    "charburner": {
+     "sprite": "vikings_charburner",
+     "nazwa": "Wypalarka węgla",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 1.18,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 1.175,
+      "y": -0.8
+     },
+     "dym": [
+      [
+       0,
+       0.15,
+       0.85
+      ]
+     ],
+     "sprite_px": {
+      "w": 420,
+      "h": 212,
+      "ax": 193,
+      "ay": 106
+     }
+    },
+    "mead": {
+     "sprite": "vikings_mead",
+     "nazwa": "Miodosytnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.37,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.368,
+      "y": -0.3
+     },
+     "dym": [
+      [
+       0.092,
+       -0.86,
+       1.9
+      ]
+     ],
+     "sprite_px": {
+      "w": 376,
+      "h": 292,
+      "ax": 165,
+      "ay": 195
+     }
+    },
+    "dock": {
+     "sprite": "vikings_dock",
+     "nazwa": "Przystań",
+     "obrys": [
+      4,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -1.6,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -1.6,
+      "y": 0.8
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 376,
+      "h": 304,
+      "ax": 201,
+      "ay": 203
+     }
+    },
+    "smelter": {
+     "sprite": "vikings_smelter",
+     "nazwa": "Huta",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.76,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.76,
+      "y": -0.2
+     },
+     "dym": [
+      [
+       -0.55,
+       -0.75,
+       2.8
+      ],
+      [
+       0.95,
+       0.3,
+       1.05
+      ]
+     ],
+     "sprite_px": {
+      "w": 336,
+      "h": 364,
+      "ax": 161,
+      "ay": 269
+     }
+    },
+    "toolforge": {
+     "sprite": "vikings_toolforge",
+     "nazwa": "Kuźnia narzędzi",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [
+      [
+       0.55,
+       -0.7,
+       2.7
+      ]
+     ],
+     "sprite_px": {
+      "w": 396,
+      "h": 316,
+      "ax": 185,
+      "ay": 222
+     }
+    },
+    "armory": {
+     "sprite": "vikings_armory",
+     "nazwa": "Zbrojownia",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.47,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.473,
+      "y": -0.05
+     },
+     "dym": [
+      [
+       0.015,
+       -0.475,
+       1.9
+      ]
+     ],
+     "sprite_px": {
+      "w": 300,
+      "h": 308,
+      "ax": 145,
+      "ay": 230
+     }
+    },
+    "ship": {
+     "sprite": "vikings_ship",
+     "nazwa": "Okręt",
+     "obrys": [
+      4,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 308,
+      "h": 272,
+      "ax": 153,
+      "ay": 181
+     }
+    }
+   }
+  },
+  "slavs": {
+   "nazwa": "SŁOWIANIE",
+   "budynki": {
+    "keep": {
+     "sprite": "slavs_keep",
+     "nazwa": "Dwór",
+     "obrys": [
+      4,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.322,
+      "y": -0.5
+     },
+     "dym": [
+      [
+       -0.752,
+       -0.975,
+       2.48
+      ]
+     ],
+     "sprite_px": {
+      "w": 524,
+      "h": 400,
+      "ax": 257,
+      "ay": 264
+     }
+    },
+    "hut": {
+     "sprite": "slavs_hut",
+     "nazwa": "Chata",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.19,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.192,
+      "y": 0.4
+     },
+     "dym": [
+      [
+       -0.32,
+       -0.11,
+       2.14
+      ]
+     ],
+     "sprite_px": {
+      "w": 280,
+      "h": 268,
+      "ax": 125,
+      "ay": 187
+     }
+    },
+    "woodcutter": {
+     "sprite": "slavs_woodcutter",
+     "nazwa": "Chata drwala",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.34,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.345,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.345,
+       -0.425,
+       1.78
+      ]
+     ],
+     "sprite_px": {
+      "w": 260,
+      "h": 236,
+      "ax": 113,
+      "ay": 167
+     }
+    },
+    "forester": {
+     "sprite": "slavs_forester",
+     "nazwa": "Leśniczówka",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.49,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.49,
+      "y": -0.08
+     },
+     "dym": [
+      [
+       -0.49,
+       -0.465,
+       1.76
+      ]
+     ],
+     "sprite_px": {
+      "w": 264,
+      "h": 244,
+      "ax": 133,
+      "ay": 171
+     }
+    },
+    "sawmill": {
+     "sprite": "slavs_sawmill",
+     "nazwa": "Tartak",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 328,
+      "h": 260,
+      "ax": 169,
+      "ay": 171
+     }
+    },
+    "hunter": {
+     "sprite": "slavs_hunter",
+     "nazwa": "Chata myśliwego",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.38,
+      "y": 0.05
+     },
+     "dym": [
+      [
+       -0.51,
+       -0.4,
+       1.78
+      ]
+     ],
+     "sprite_px": {
+      "w": 272,
+      "h": 240,
+      "ax": 137,
+      "ay": 171
+     }
+    },
+    "dairy": {
+     "sprite": "slavs_dairy",
+     "nazwa": "Mleczarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": -0.2
+     },
+     "dym": [
+      [
+       0,
+       -0.92,
+       1.97
+      ]
+     ],
+     "sprite_px": {
+      "w": 348,
+      "h": 268,
+      "ax": 153,
+      "ay": 186
+     }
+    },
+    "orchard": {
+     "sprite": "slavs_orchard",
+     "nazwa": "Sad",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 372,
+      "h": 232,
+      "ax": 185,
+      "ay": 131
+     }
+    },
+    "watercarrier": {
+     "sprite": "slavs_watercarrier",
+     "nazwa": "Chata nosiwody",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.61,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.61,
+      "y": -0.2
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 288,
+      "h": 208,
+      "ax": 129,
+      "ay": 139
+     }
+    },
+    "market": {
+     "sprite": "slavs_market",
+     "nazwa": "Targ",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 436,
+      "h": 276,
+      "ax": 221,
+      "ay": 163
+     }
+    },
+    "store": {
+     "sprite": "slavs_store",
+     "nazwa": "Skład",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.68
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 364,
+      "h": 332,
+      "ax": 165,
+      "ay": 218
+     }
+    },
+    "temple": {
+     "sprite": "slavs_temple",
+     "nazwa": "Kapliczka",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 368,
+      "h": 280,
+      "ax": 177,
+      "ay": 174
+     }
+    },
+    "gatherer": {
+     "sprite": "slavs_gatherer",
+     "nazwa": "Chata zbieracza",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.45,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.445,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.445,
+       -0.425,
+       1.75
+      ]
+     ],
+     "sprite_px": {
+      "w": 268,
+      "h": 240,
+      "ax": 129,
+      "ay": 167
+     }
+    },
+    "field": {
+     "sprite": "slavs_field",
+     "nazwa": "Pole stałe",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 404,
+      "h": 224,
+      "ax": 201,
+      "ay": 120
+     }
+    },
+    "kasha": {
+     "sprite": "slavs_kasha",
+     "nazwa": "Kaszarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.37,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.374,
+      "y": -0.35
+     },
+     "dym": [
+      [
+       0,
+       -0.875,
+       1.88
+      ]
+     ],
+     "sprite_px": {
+      "w": 340,
+      "h": 272,
+      "ax": 141,
+      "ay": 191
+     }
+    },
+    "bartnik": {
+     "sprite": "slavs_bartnik",
+     "nazwa": "Barć",
+     "obrys": [
+      3,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.17,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.175,
+      "y": 1.4
+     },
+     "dym": [
+      [
+       -0.72,
+       0.4,
+       0.3
+      ]
+     ],
+     "sprite_px": {
+      "w": 376,
+      "h": 328,
+      "ax": 189,
+      "ay": 226
+     }
+    },
+    "waxery": {
+     "sprite": "slavs_waxery",
+     "nazwa": "Woskarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0.37,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0.368,
+      "y": -0.3
+     },
+     "dym": [
+      [
+       0.092,
+       -0.86,
+       1.96
+      ]
+     ],
+     "sprite_px": {
+      "w": 372,
+      "h": 300,
+      "ax": 165,
+      "ay": 199
+     }
+    },
+    "trapper": {
+     "sprite": "slavs_trapper",
+     "nazwa": "Chata łowcy futer",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.45,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.445,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.51,
+       -0.425,
+       1.75
+      ]
+     ],
+     "sprite_px": {
+      "w": 260,
+      "h": 240,
+      "ax": 125,
+      "ay": 171
+     }
+    },
+    "tannery": {
+     "sprite": "slavs_tannery",
+     "nazwa": "Garbarnia",
+     "obrys": [
+      2,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.48,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.48,
+      "y": -0.5
+     },
+     "dym": [
+      [
+       -0.2,
+       -0.95,
+       1.84
+      ]
+     ],
+     "sprite_px": {
+      "w": 348,
+      "h": 276,
+      "ax": 169,
+      "ay": 191
+     }
+    },
+    "sauna": {
+     "sprite": "slavs_sauna",
+     "nazwa": "Bania",
+     "obrys": [
+      2,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.34,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.345,
+      "y": 0.05
+     },
+     "dym": [
+      [
+       -0.085,
+       -0.375,
+       1.62
+      ]
+     ],
+     "sprite_px": {
+      "w": 252,
+      "h": 212,
+      "ax": 117,
+      "ay": 151
+     }
+    }
+   }
+  }
+ }
+}

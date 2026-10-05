@@ -13,7 +13,7 @@ const SHADOW_DIR = [0.62, 0.1];    // długość cienia (x,y) na jednostkę wyso
 let RES = 1;                       // ustawiane przy starcie (zależnie od DPR / parametru ?q=)
 /* kontrola jakości (?lint=1): każdy sprite rejestruje bryły i elementy ścian; po wypieku powstaje lista ostrzeżeń (window.__lint):
    przenikanie brył, zła kolejność rysowania, okna poza ścianą / nachodzące na siebie / zbyt gęste, sprite obcięty przy krawędzi płótna */
-const LINT = /[?&]lint=1/.test(location.search), LINT_LOG = []; let LINT_NAME = '';
+const LINT = /[?&]lint=1/.test(SEARCH), LINT_LOG = []; let LINT_NAME = '';
 
 function convexHull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -46,11 +46,11 @@ class Scene {
     const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
     this.Rp = o.pRes ?? (o.ground ? R : Math.min(R, 1)); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
     this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
-    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh;
+    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh; this.smokes = []; this.doors = [];                // kotwice dymu: [x, y, z] w polach względem środka obrysu
     const mk = res => { const c = newCanvas(Math.ceil(this.w * res), Math.ceil(this.h * res)), g = c.getContext('2d'); g.setTransform(res, 0, 0, res, 0, 0); return [c, g]; };
     [this.pcv, this.pg] = mk(this.Rp);                                                               // warstwa 1: plac / decale terenu
     if (!o.ground) { [this.ucv, this.gu] = mk(this.Ru); [this.c, this.g] = mk(R); }                  // warstwa 2: cień rzucony; warstwa 3: obiekty
-    this.pats = {}; this.wear = /[?&]nowear=1/.test(location.search) ? 0 : (o.wear ?? 1); this._wn = 0;                                           // natężenie zużycia (0 = czysto)
+    this.pats = {}; this.wear = /[?&]nowear=1/.test(SEARCH) ? 0 : (o.wear ?? 1); this._wn = 0;                                           // natężenie zużycia (0 = czysto)
     this.vols = []; this.walls = new Map();                                                          // rejestry kontroli jakości (tylko przy ?lint=1)
   }
   /* ---------- kontrola jakości ---------- */
@@ -249,7 +249,7 @@ class Scene {
     g.drawImage(this.c, 0, 0);
     if (o.grain !== 0) addSpriteGrain(g, this.pw, this.ph, R, o.grain ?? 1);
     if (LINT) this.lint(LINT_NAME, out);
-    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh };
+    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh, smoke: this.smokes.map(a => a.slice()), doors: this.doors.map(d => ({ ...d })) };
     return o.crop === false ? spr : cropSprite(spr);
   }
 }
@@ -272,7 +272,7 @@ function cropSprite(s) {
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const [l, res] of [['c', s.R], ['u', s.Ru], ['p', s.Rp]]) {
     const im = s[l]; if (!im) continue;
-    const k = 4, sw = Math.max(1, Math.ceil(im.width / k)), sh = Math.max(1, Math.ceil(im.height / k)), t = newCanvas(sw, sh), g = t.getContext('2d');
+    const k = 4, sw = Math.max(1, Math.ceil(im.width / k)), sh = Math.max(1, Math.ceil(im.height / k)), t = newCanvas(sw, sh), g = t.getContext('2d', { willReadFrequently: true });
     g.drawImage(im, 0, 0, sw, sh); const d = g.getImageData(0, 0, sw, sh).data;
     for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (d[(y * sw + x) * 4 + 3] > 3) {
       const X0 = x * k / res, X1 = (x + 1) * k / res, Y0 = y * k / res, Y1 = (y + 1) * k / res;

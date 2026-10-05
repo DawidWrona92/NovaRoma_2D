@@ -1,6 +1,7 @@
 'use strict';
 /* ====================== NARZĘDZIA ====================== */
 const TAU = Math.PI * 2;
+const SEARCH = typeof location !== 'undefined' ? location.search : '';   // parametry URL (?lint=1, ?nowear=1, ?q=…) — bezpieczne także bez przeglądarki (testy headless)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 

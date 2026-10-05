@@ -35,10 +35,12 @@ class Build {
     const pts = [[o.x0 - ov, o.y0 - ov, z], [o.x1 + ov, o.y0 - ov, z], [o.x1 + ov, o.y1 + ov, z], [o.x0 - ov, o.y1 + ov, z], [xm, ym, top]];
     return this.add('roof', o.x0 - ov, o.y0 - ov, z, o.x1 + ov, o.y1 + ov, top, () => pyramidRoof(this.sc, o), { tag: o.tag, nest: o.nest, pts, contact: false });
   }
-  /* dach jednospadowy: pochyła płaszczyzna od krawędzi północnej (wyżej) do południowej (niżej) o spadek drop */
+  /* dach jednospadowy: pochyła płaszczyzna od krawędzi północnej (wyżej) do południowej (niżej) o spadek drop; dir:'N' — odwrotnie (spada na północ) */
   lean(o) {
-    const { x0, y0, x1, y1, z, drop } = o, pts = [[x0, y0, z], [x1, y0, z], [x1, y1, z - drop], [x0, y1, z - drop]];
-    return this.add('roof', x0, y0, z - drop, x1, y1, z, () => this.sc.face([x0, y0, z], [x1 - x0, 0, 0], [0, y1 - y0, -drop], o.mat, { shade: 1.0, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] }), { tag: o.tag, nest: o.nest, pts, contact: false });
+    const { x0, y0, x1, y1, z, drop } = o, N = o.dir === 'N', pts = N ? [[x0, y0, z - drop], [x1, y0, z - drop], [x1, y1, z], [x0, y1, z]] : [[x0, y0, z], [x1, y0, z], [x1, y1, z - drop], [x0, y1, z - drop]];
+    return this.add('roof', x0, y0, z - drop, x1, y1, z, () => N
+      ? this.sc.face([x0, y1, z], [x1 - x0, 0, 0], [0, y0 - y1, -drop], o.mat, { shade: LIGHT.roofN, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] })
+      : this.sc.face([x0, y0, z], [x1 - x0, 0, 0], [0, y1 - y0, -drop], o.mat, { shade: 1.0, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] }), { tag: o.tag, nest: o.nest, pts, contact: false });
   }
   cone(cx, cy, z0, r, h, col, o = {}) {
     const pts = []; for (let k = 0; k < 8; k++) pts.push([cx + Math.cos(k * TAU / 8) * r, cy + Math.sin(k * TAU / 8) * r, z0]); pts.push([cx, cy, z0 + h]);
@@ -58,11 +60,13 @@ class Build {
   hay(x, y) { return this.part(x - 0.22, y - 0.22, 0, x + 0.22, y + 0.22, 0.5, () => haystack(this.sc, x, y), { tag: 'stóg' }); }
   skep(x, y, s = 1) { return this.part(x - 0.08 * s, y - 0.08 * s, 0, x + 0.08 * s, y + 0.08 * s, 0.2 * s, () => skep(this.sc, x, y, s), { tag: 'ul', shadow: false }); }
   stairs(xa, xb, y, n, h, mat = 'stone', d = 0.14, pal) { return this.part(xa, y, 0, xb, y + n * d, h, () => stairs(this.sc, xa, xb, y, n, h, mat, d, pal), { tag: 'schody', kind: 'box', shadow: false }); }
-  chimney(cx, cy, zb, zt, w = 0.26, mat = 'stone', pal) { return this.part(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zb, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, () => chimney(this.sc, cx, cy, zb, zt, w, mat, pal), { tag: 'komin', kind: 'box', shadow: false }); }
+  /* kotwica dymu (animowany dym nad kominem / otworem dymnym): pozycja w polach względem środka obrysu */
+  smoke(x, y, z) { this.sc.smokes.push([+x.toFixed(3), +y.toFixed(3), +z.toFixed(3)]); }
+  chimney(cx, cy, zb, zt, w = 0.26, mat = 'stone', pal) { this.smoke(cx, cy, zt + 0.12); return this.part(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zb, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, () => chimney(this.sc, cx, cy, zb, zt, w, mat, pal), { tag: 'komin', kind: 'box', shadow: false }); }
 
   /* komin osadzony w połaci dwuspadowej roof (te same opcje co w gable()), w punkcie (x,y); h — wysokość nad połacią */
   chim(roof, x, y, h = 0.7, w = 0.26, mat = 'stone', pal) {
-    const zb = gableZ(roof, x, y) - 0.1;
+    const zb = gableZ(roof, x, y) - 0.1; this.smoke(x, y, zb + h + 0.3);
     return this.part(x - w / 2 - 0.035, y - w / 2 - 0.035, zb, x + w / 2 + 0.035, y + w / 2 + 0.035, zb + h + 0.17, () => { chimney(this.sc, x, y, zb, zb + h + 0.1, w, mat, pal); soot(this.sc, x, y, zb + 0.05, w * 0.8, 0.45); }, { tag: 'komin', kind: 'box' });
   }
 

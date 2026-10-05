@@ -19,3 +19,21 @@ const NAMES = {
 const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
 const spriteName = (nation, id) => `${nation}_${id}`;
 const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id];
+
+/* eksport katalogu do integracji z grą: id → sprite, obrys, wejście, kotwice dymu, rozmiar i kotwica sprite'a.
+   Współrzędne (wejście, drzwi, dym): pola względem środka obrysu (x w prawo-dół, y w lewo-dół, z w górę); sprite: w px logicznych, (ax, ay) = środek obrysu na ziemi.
+   `wejscie` = punkt na krawędzi obrysu, do którego dochodzą pracownicy (strona S: y = fh/2, strona E: x = fw/2); `drzwi` = faktyczne położenie pierwszych drzwi w bryle (null, gdy budynek ma wejście bez drzwi: wiata, sad, targ…).
+   Środek obrysu budynku z północnym rogiem (i, j) leży w polu (i + fw/2, j + fh/2); na ekranie (przy zoomie 1): ((x − y)·AX, (x + y)·AY). */
+function catalogJSON() {
+  const out = { wersja: 'v4-katalog', pole: { AX, AY, VH }, nacje: {} }, r2 = v => +v.toFixed(2), cl = (v, m) => Math.max(-m, Math.min(m, v));
+  for (const n of Object.keys(NATIONS)) {
+    out.nacje[n] = { nazwa: NATION_PL[n], budynki: {} };
+    for (const id of NATIONS[n]) {
+      const s = SPR[spriteName(n, id)]; if (!s) continue;
+      const d = (s.doors && s.doors[0]) || null, fw = s.fw, fh = s.fh;
+      const wejscie = d && d.side === 'E' ? { strona: 'E', x: r2(fw / 2), y: r2(cl(d.y, fh / 2 - 0.3)) } : { strona: 'S', x: r2(cl(d ? d.x : 0, fw / 2 - 0.3)), y: r2(fh / 2) };
+      out.nacje[n].budynki[id] = { sprite: spriteName(n, id), nazwa: nameOfBuilding(n, id), obrys: [fw, fh], wejscie, drzwi: d ? { strona: d.side, x: d.x, y: d.y } : null, dym: s.smoke || [], sprite_px: { w: Math.round(s.w), h: Math.round(s.h), ax: Math.round(s.ax), ay: Math.round(s.ay) } };
+    }
+  }
+  return out;
+}

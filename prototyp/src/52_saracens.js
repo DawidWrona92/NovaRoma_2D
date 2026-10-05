@@ -164,7 +164,7 @@ BAKED.saracens_market = function () {
   B.part(-0.3, -0.4, 0.26, 0.3, 0.2, 0.3, () => { const g = sc.g, f = sc.F, [wx, wy] = sc.P(0, -0.1, 0.26); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.27 * AX * f * 1.4142, 0.27 * AY * f * 1.4142, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
   for (const [px, py] of [[-0.3, -0.4], [0.24, -0.4], [-0.3, 0.14], [0.24, 0.14]]) B.box(px, py, 0.26, px + 0.06, py + 0.06, 1.0, 'bark', { ao: 0.1, pal: '#6a4a2c' });
   B.pyramid({ x0: -0.34, x1: 0.34, y0: -0.44, y1: 0.24, z: 1.0, rise: 0.4, mat: 'thatch', pal: '#9a8a4a', ov: 0.1 });
-  B.crate(1.2, 1.2, 0.2, 0.2); B.crate(1.2, 1.0, 0.2, 0.34); B.barrel(-1.3, 1.25); B.sack(1.0, 1.25); B.sack(1.15, 1.3, '#c9b27a', 0.9); B.jar(-1.1, 1.05);
+  B.crate(1.2, 1.2, 0.2, 0.2); B.crate(1.2, 1.0, 0.2, 0.34); B.barrel(-1.3, 1.25); B.sack(0.85, 1.25); B.sack(0.98, 1.36, '#c9b27a', 0.9); B.jar(-1.1, 1.05);
   return B.flush();
 };
 
@@ -280,7 +280,7 @@ BAKED.saracens_pottery = function () {
   const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
   sc.patch(0, 0.2, 1.2, 1.7, { seed: 32, pal: '#b79a62', alpha: 0.75 });
   flatHouse(B, { x0: -0.85, x1: 0.35, y0: -1.4, y1: -0.35, h: 0.88, S: { door: sarDoor(0.3, 0.34, 0.52), win: { n: 1, ...arcWin(0.2, 0.34, 0.24) } }, E: { win: { n: 1, ...arcWin(0.18, 0.32, 0.24, { frame: SR.wood }) } } });
-  B.box(0.5, -1.0, 0, 0.98, -0.52, 0.25, 'sandstone', { pal: '#b88a52', ao: 0.3 }); B.dome(0.74, -0.76, 0.25, 0.26, { cols: ['#e8c898', '#c8946a', '#9a6a44', '#5a3c24'], finial: false });
+  B.box(0.5, -1.0, 0, 0.98, -0.52, 0.25, 'sandstone', { pal: '#b88a52', ao: 0.3 }); B.dome(0.74, -0.76, 0.25, 0.26, { cols: ['#e8c898', '#c8946a', '#9a6a44', '#5a3c24'], finial: false }); B.smoke(0.74, -0.76, 0.62);
   B.part(0.6, -0.55, 0.25, 0.88, -0.45, 0.45, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.74, -0.5, 0.33); g.fillStyle = '#1c120c'; g.beginPath(); g.ellipse(px, py, 8 * f, 6 * f, 0, 0, TAU); g.fill(); const gl = g.createRadialGradient(px, py, 0, px, py, 8 * f); gl.addColorStop(0, 'rgba(255,220,120,0.9)'); gl.addColorStop(1, 'rgba(255,100,20,0.5)'); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py + 1 * f, 5.4 * f, 3.8 * f, 0, 0, TAU); g.fill(); }, { tag: 'otwór pieca', shadow: false, nest: true });
   for (const [x, y, s] of [[-0.7, 0.2, 1], [-0.52, 0.3, 0.9], [-0.7, 0.42, 1.1], [-0.4, 0.5, 0.9], [0.0, 0.2, 1], [0.18, 0.3, 0.9]]) B.jar(x, y, s);
   B.disc(0.4, 0.55, 0, 0.18, 0.06, [196, 140, 90]); B.heap(0.85, 0.5, 0.25, 0.18, 'clay');

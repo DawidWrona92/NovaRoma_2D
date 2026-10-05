@@ -108,10 +108,10 @@ Object.assign(Build.prototype, {
 
 /* ---------- elementy wojskowe, górnicze i winiarskie ---------- */
 Object.assign(Build.prototype, {
-  /* palisada: rząd zaostrzonych pali wzdłuż odcinka */
-  palisade(x0, y0, x1, y1, h = 0.55) {
+  /* palisada: rząd zaostrzonych pali wzdłuż odcinka (od poziomu z0, np. na koronie wału) */
+  palisade(x0, y0, x1, y1, h = 0.55, z0 = 0) {
     const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.11));
-    return this.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, 0, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, h + 0.1, () => { for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; this.sc.box(x - 0.04, y - 0.04, 0, x + 0.04, y + 0.04, h + (i % 3) * 0.04, 'bark', { ao: 0.2, pal: '#8a6a40' }); } }, { tag: 'palisada', shadow: false });
+    return this.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, z0, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, z0 + h + 0.1, () => { for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; this.sc.box(x - 0.04, y - 0.04, z0, x + 0.04, y + 0.04, z0 + h + (i % 3) * 0.04, 'bark', { ao: 0.2, pal: '#8a6a40' }); } }, { tag: 'palisada', shadow: false });
   },
   /* sztandar na wysokim drzewcu (kolor + złoty krzyż) */
   banner(x, y, h = 1.5, col = '#2f5aa8') {

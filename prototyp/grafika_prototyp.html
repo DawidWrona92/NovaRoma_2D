@@ -28,6 +28,7 @@ canvas{display:block;cursor:grab;touch-action:none}
 /* ---- 00_util.js ---- */
 /* ====================== NARZĘDZIA ====================== */
 const TAU = Math.PI * 2;
+const SEARCH = typeof location !== 'undefined' ? location.search : '';   // parametry URL (?lint=1, ?nowear=1, ?q=…) — bezpieczne także bez przeglądarki (testy headless)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -114,7 +115,7 @@ const TEXCACHE = {};
 let TEXRES = 1;                     // mnożnik rozdzielczości tekstur terenu (ustawiany przy starcie razem z RES)
 function tex(name, pal) {
   const key = name + '|' + (pal || '');
-  return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal));
+  return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal ?? undefined));        // null = brak palety (domyślna z parametru generatora)
 }
 /* rysuje obiekt także w kopiach przesuniętych o okres, żeby kafelek był bezszwowy */
 function wrapDraw(N, x, y, w, h, fn) {
@@ -414,7 +415,7 @@ const SHADOW_DIR = [0.62, 0.1];    // długość cienia (x,y) na jednostkę wyso
 let RES = 1;                       // ustawiane przy starcie (zależnie od DPR / parametru ?q=)
 /* kontrola jakości (?lint=1): każdy sprite rejestruje bryły i elementy ścian; po wypieku powstaje lista ostrzeżeń (window.__lint):
    przenikanie brył, zła kolejność rysowania, okna poza ścianą / nachodzące na siebie / zbyt gęste, sprite obcięty przy krawędzi płótna */
-const LINT = /[?&]lint=1/.test(location.search), LINT_LOG = []; let LINT_NAME = '';
+const LINT = /[?&]lint=1/.test(SEARCH), LINT_LOG = []; let LINT_NAME = '';
 
 function convexHull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -447,11 +448,11 @@ class Scene {
     const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
     this.Rp = o.pRes ?? (o.ground ? R : Math.min(R, 1)); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
     this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
-    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh;
+    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh; this.smokes = []; this.doors = [];                // kotwice dymu: [x, y, z] w polach względem środka obrysu
     const mk = res => { const c = newCanvas(Math.ceil(this.w * res), Math.ceil(this.h * res)), g = c.getContext('2d'); g.setTransform(res, 0, 0, res, 0, 0); return [c, g]; };
     [this.pcv, this.pg] = mk(this.Rp);                                                               // warstwa 1: plac / decale terenu
     if (!o.ground) { [this.ucv, this.gu] = mk(this.Ru); [this.c, this.g] = mk(R); }                  // warstwa 2: cień rzucony; warstwa 3: obiekty
-    this.pats = {}; this.wear = /[?&]nowear=1/.test(location.search) ? 0 : (o.wear ?? 1); this._wn = 0;                                           // natężenie zużycia (0 = czysto)
+    this.pats = {}; this.wear = /[?&]nowear=1/.test(SEARCH) ? 0 : (o.wear ?? 1); this._wn = 0;                                           // natężenie zużycia (0 = czysto)
     this.vols = []; this.walls = new Map();                                                          // rejestry kontroli jakości (tylko przy ?lint=1)
   }
   /* ---------- kontrola jakości ---------- */
@@ -650,7 +651,7 @@ class Scene {
     g.drawImage(this.c, 0, 0);
     if (o.grain !== 0) addSpriteGrain(g, this.pw, this.ph, R, o.grain ?? 1);
     if (LINT) this.lint(LINT_NAME, out);
-    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh };
+    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh, smoke: this.smokes.map(a => a.slice()), doors: this.doors.map(d => ({ ...d })) };
     return o.crop === false ? spr : cropSprite(spr);
   }
 }
@@ -673,7 +674,7 @@ function cropSprite(s) {
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const [l, res] of [['c', s.R], ['u', s.Ru], ['p', s.Rp]]) {
     const im = s[l]; if (!im) continue;
-    const k = 4, sw = Math.max(1, Math.ceil(im.width / k)), sh = Math.max(1, Math.ceil(im.height / k)), t = newCanvas(sw, sh), g = t.getContext('2d');
+    const k = 4, sw = Math.max(1, Math.ceil(im.width / k)), sh = Math.max(1, Math.ceil(im.height / k)), t = newCanvas(sw, sh), g = t.getContext('2d', { willReadFrequently: true });
     g.drawImage(im, 0, 0, sw, sh); const d = g.getImageData(0, 0, sw, sh).data;
     for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (d[(y * sw + x) * 4 + 3] > 3) {
       const X0 = x * k / res, X1 = (x + 1) * k / res, Y0 = y * k / res, Y1 = (y + 1) * k / res;
@@ -778,6 +779,13 @@ function thatchPatch(g, r, x, y, w, h, pat, px) {
   g.fillStyle = 'rgba(46,28,10,0.85)'; for (const [kx, ky] of [[x + w * 0.12, cy0 + (cy1 - cy0) * 0.12], [x + w * 0.88, cy0 + (cy1 - cy0) * 0.88]]) { g.beginPath(); g.arc(kx, ky, 1.5 / px, 0, TAU); g.fill(); }
 }
 
+/* kolor łaty: na ciemnych ścianach (smołowane deski, ciemny gont) łata ma być tylko trochę jaśniejsza, a nie jasnobrązowa */
+function patchPal(base, def) {
+  if (typeof base !== 'string' || !/^#[0-9a-f]{6}$/i.test(base)) return def;
+  const c = hex(base), lum = (c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11) / 255; if (lum > 0.38) return def;
+  const m = mixc(scaleC(c, 1.35), hex(def), clamp((lum - 0.1) / 0.28, 0, 1) * 0.6);
+  return '#' + m.map(v => (v | 0).toString(16).padStart(2, '0')).join('');
+}
 function wearFace(sc, mat, o, W, H, K, px, seed) {
   const P = WEAR[mat]; if (!P) return;
   const k = (o.wear ?? 1) * sc.wear; if (k <= 0) return;
@@ -807,7 +815,7 @@ function wearFace(sc, mat, o, W, H, K, px, seed) {
   }
   // 4) łaty napraw — inny odcień materiału w tym samym układzie tekstury (deski/gonty/kamienie pasują do siatki)
   if (P.patch) for (let i = cnt(P.patchN * k * A * 0.5); i > 0; i--) {
-    const [m2, pal2, shape] = P.patch, pat = sc.pat(m2, pal2).pat, gu = 16;
+    const [m2, pal0, shape] = P.patch, pal2 = patchPal(o.pal, pal0), pat = sc.pat(m2, pal2).pat, gu = 16;
     g.save();
     if (shape === 'rect') {
       const w = gu * (1 + (r() * 3 | 0)) * (mat === 'log' ? 2 : 1), h = gu * (mat === 'plank' ? 2 + (r() * 3 | 0) : 1 + (r() * 2 | 0)), x = Math.floor(r() * Math.max(1, (W - w) / gu)) * gu, y = Math.floor(r() * Math.max(1, (H - h) / gu)) * gu;
@@ -918,10 +926,12 @@ class Build {
     const pts = [[o.x0 - ov, o.y0 - ov, z], [o.x1 + ov, o.y0 - ov, z], [o.x1 + ov, o.y1 + ov, z], [o.x0 - ov, o.y1 + ov, z], [xm, ym, top]];
     return this.add('roof', o.x0 - ov, o.y0 - ov, z, o.x1 + ov, o.y1 + ov, top, () => pyramidRoof(this.sc, o), { tag: o.tag, nest: o.nest, pts, contact: false });
   }
-  /* dach jednospadowy: pochyła płaszczyzna od krawędzi północnej (wyżej) do południowej (niżej) o spadek drop */
+  /* dach jednospadowy: pochyła płaszczyzna od krawędzi północnej (wyżej) do południowej (niżej) o spadek drop; dir:'N' — odwrotnie (spada na północ) */
   lean(o) {
-    const { x0, y0, x1, y1, z, drop } = o, pts = [[x0, y0, z], [x1, y0, z], [x1, y1, z - drop], [x0, y1, z - drop]];
-    return this.add('roof', x0, y0, z - drop, x1, y1, z, () => this.sc.face([x0, y0, z], [x1 - x0, 0, 0], [0, y1 - y0, -drop], o.mat, { shade: 1.0, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] }), { tag: o.tag, nest: o.nest, pts, contact: false });
+    const { x0, y0, x1, y1, z, drop } = o, N = o.dir === 'N', pts = N ? [[x0, y0, z - drop], [x1, y0, z - drop], [x1, y1, z], [x0, y1, z]] : [[x0, y0, z], [x1, y0, z], [x1, y1, z - drop], [x0, y1, z - drop]];
+    return this.add('roof', x0, y0, z - drop, x1, y1, z, () => N
+      ? this.sc.face([x0, y1, z], [x1 - x0, 0, 0], [0, y0 - y1, -drop], o.mat, { shade: LIGHT.roofN, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] })
+      : this.sc.face([x0, y0, z], [x1 - x0, 0, 0], [0, y1 - y0, -drop], o.mat, { shade: 1.0, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] }), { tag: o.tag, nest: o.nest, pts, contact: false });
   }
   cone(cx, cy, z0, r, h, col, o = {}) {
     const pts = []; for (let k = 0; k < 8; k++) pts.push([cx + Math.cos(k * TAU / 8) * r, cy + Math.sin(k * TAU / 8) * r, z0]); pts.push([cx, cy, z0 + h]);
@@ -941,11 +951,13 @@ class Build {
   hay(x, y) { return this.part(x - 0.22, y - 0.22, 0, x + 0.22, y + 0.22, 0.5, () => haystack(this.sc, x, y), { tag: 'stóg' }); }
   skep(x, y, s = 1) { return this.part(x - 0.08 * s, y - 0.08 * s, 0, x + 0.08 * s, y + 0.08 * s, 0.2 * s, () => skep(this.sc, x, y, s), { tag: 'ul', shadow: false }); }
   stairs(xa, xb, y, n, h, mat = 'stone', d = 0.14, pal) { return this.part(xa, y, 0, xb, y + n * d, h, () => stairs(this.sc, xa, xb, y, n, h, mat, d, pal), { tag: 'schody', kind: 'box', shadow: false }); }
-  chimney(cx, cy, zb, zt, w = 0.26, mat = 'stone', pal) { return this.part(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zb, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, () => chimney(this.sc, cx, cy, zb, zt, w, mat, pal), { tag: 'komin', kind: 'box', shadow: false }); }
+  /* kotwica dymu (animowany dym nad kominem / otworem dymnym): pozycja w polach względem środka obrysu */
+  smoke(x, y, z) { this.sc.smokes.push([+x.toFixed(3), +y.toFixed(3), +z.toFixed(3)]); }
+  chimney(cx, cy, zb, zt, w = 0.26, mat = 'stone', pal) { this.smoke(cx, cy, zt + 0.12); return this.part(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zb, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, () => chimney(this.sc, cx, cy, zb, zt, w, mat, pal), { tag: 'komin', kind: 'box', shadow: false }); }
 
   /* komin osadzony w połaci dwuspadowej roof (te same opcje co w gable()), w punkcie (x,y); h — wysokość nad połacią */
   chim(roof, x, y, h = 0.7, w = 0.26, mat = 'stone', pal) {
-    const zb = gableZ(roof, x, y) - 0.1;
+    const zb = gableZ(roof, x, y) - 0.1; this.smoke(x, y, zb + h + 0.3);
     return this.part(x - w / 2 - 0.035, y - w / 2 - 0.035, zb, x + w / 2 + 0.035, y + w / 2 + 0.035, zb + h + 0.17, () => { chimney(this.sc, x, y, zb, zb + h + 0.1, w, mat, pal); soot(this.sc, x, y, zb + 0.05, w * 0.8, 0.45); }, { tag: 'komin', kind: 'box' });
   }
 
@@ -1142,10 +1154,10 @@ Object.assign(Build.prototype, {
 
 /* ---------- elementy wojskowe, górnicze i winiarskie ---------- */
 Object.assign(Build.prototype, {
-  /* palisada: rząd zaostrzonych pali wzdłuż odcinka */
-  palisade(x0, y0, x1, y1, h = 0.55) {
+  /* palisada: rząd zaostrzonych pali wzdłuż odcinka (od poziomu z0, np. na koronie wału) */
+  palisade(x0, y0, x1, y1, h = 0.55, z0 = 0) {
     const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.11));
-    return this.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, 0, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, h + 0.1, () => { for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; this.sc.box(x - 0.04, y - 0.04, 0, x + 0.04, y + 0.04, h + (i % 3) * 0.04, 'bark', { ao: 0.2, pal: '#8a6a40' }); } }, { tag: 'palisada', shadow: false });
+    return this.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, z0, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, z0 + h + 0.1, () => { for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; this.sc.box(x - 0.04, y - 0.04, z0, x + 0.04, y + 0.04, z0 + h + (i % 3) * 0.04, 'bark', { ao: 0.2, pal: '#8a6a40' }); } }, { tag: 'palisada', shadow: false });
   },
   /* sztandar na wysokim drzewcu (kolor + złoty krzyż) */
   banner(x, y, h = 1.5, col = '#2f5aa8') {
@@ -1313,13 +1325,19 @@ Object.assign(Build.prototype, {
       low: [mat, pal, kolor ryglówki?]; up: [mat, pal, kolor ryglówki?]; plinth: [mat, pal] | false;
       S, E — elewacje parteru (opcje facade); S2, E2 — piętra; nu — liczba pól ryglówki;
       roof: { mat, pal, rise, ov, ovE, ridge, gableMat, gablePal, gwin }; chim: [x, y, h, w] | null; wear */
+/* grubość darniowej połaci: ciemna krawędź pod okapem przedniej (widocznej) połaci */
+function sodEdge(sc, roof, R, pal = '#4a3a22', mat = 'dirt', shade = 0.7) {
+  const ovE = roof.ovE ?? 0.1;
+  if (roof.ridge === 'y') sc.face([R.xEo, roof.y1 + ovE, R.eaveZ], [0, -(roof.y1 - roof.y0 + 2 * ovE), 0], [0, 0, -0.1], mat, { shade, pal, edge: 0.45 });
+  else sc.face([roof.x0 - ovE, R.ySo, R.eaveZ], [roof.x1 - roof.x0 + 2 * ovE, 0, 0], [0, 0, -0.1], mat, { shade, pal, edge: 0.45 });
+}
 function cottage(B, o) {
   const sc = B.sc, zp = o.zp ?? 0.1, { x0, x1, y0, y1 } = o, z1 = zp + o.h1, two = o.floors === 2, J = two ? (o.J ?? 0.1) : 0, zt = two ? z1 + o.h2 : z1, low = o.low, up = o.up || o.low;
   if (o.plinth !== false) { const p = o.plinth || ['stone', null]; B.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, p[0], { ao: 0.4, pal: p[1] }); }
   const timber = (S, E, spec, nuS, nuE) => { if (spec[2]) { halfTimber(sc, S.O, S.U, S.V, { nu: nuS, col: spec[2] }); halfTimber(sc, E.O, E.U, E.V, { nu: nuE, col: spec[2] }); } };
   B.box(x0, y0, zp, x1, y1, z1, low[0], { ao: 0.3, pal: low[1], eave: two ? 0.55 : 0.4, wear: o.wear }, (S, E) => {
     timber(S, E, low, o.nuS ?? Math.max(2, Math.round((x1 - x0) / 0.5)), o.nuE ?? Math.max(2, Math.round((y1 - y0) / 0.5)));
-    if (o.S) facade(sc, S, o.S); if (o.E) facade(sc, E, o.E); if (o.deco1) o.deco1(S, E);
+    const rS = o.S ? facade(sc, S, o.S) : null, rE = o.E ? facade(sc, E, o.E) : null; if (o.deco1) o.deco1(S, E, rS, rE, { x0, y0, x1, y1, z0: zp, z1 });
   });
   if (two) B.box(x0 - J, y0 - J, z1, x1 + J, y1 + J, zt, up[0], { ao: 0.15, pal: up[1], eave: 0.3, wear: o.wear }, (S, E) => {
     const nS = o.S2 && o.S2.win ? o.S2.win.n : 2, nE = o.E2 && o.E2.win ? o.E2.win.n : 2;                      // pola ryglówki = liczba okien, okna w środku pól (słup nigdy nie przecina okna)
@@ -1327,13 +1345,55 @@ function cottage(B, o) {
     if (o.S2) facade(sc, S, { ...o.S2, marg: 0 }); if (o.E2) facade(sc, E, { ...o.E2, marg: 0 }); if (o.deco2) o.deco2(S, E);
   });
   const r = o.roof, roof = { x0: x0 - J, x1: x1 + J, y0: y0 - J, y1: y1 + J, z: zt, rise: r.rise, ov: r.ov ?? 0.1, ovE: r.ovE ?? 0.1, mat: r.mat, pal: r.pal, gableMat: r.gableMat, gablePal: r.gablePal, ridge: o.ridge || 'x', nest: r.nest };
-  B.gable(roof, () => {
+  B.gable(roof, (R) => {
+    if (r.sod) sodEdge(sc, roof, R, r.sodPal, r.sodMat, r.sodShade);
     if (!r.gwin) return;
     const gy = roof.ridge === 'y', G = gy ? { O: [roof.x0, roof.y1, zt + r.rise], U: [roof.x1 - roof.x0, 0, 0], V: [0, 0, -r.rise] } : { O: [roof.x1, roof.y1, zt + r.rise], U: [0, -(roof.y1 - roof.y0), 0], V: [0, 0, -r.rise] };
     const lu = Math.hypot(...G.U), w = r.gwin.w ?? 0.16; windowAt(sc, G.O, G.U, G.V, lu / 2 - w / 2, r.rise * 0.4, w, r.gwin.h ?? 0.22, { frame: r.gwin.frame || '#3b2616', shutters: r.gwin.shut });
   });
   if (o.chim) { const [cx, cy, ch, cw, cm, cp] = o.chim; B.chim(roof, cx, cy, ch, cw, cm, cp); }
   return { roof, zp, z1, zt, J, x0, x1, y0, y1 };
+}
+
+/* ---- 29_catalog.js ---- */
+/* ====================== KATALOG BUDYNKÓW: id z gry → sprite, obrys, nazwa ======================
+   Sprite budynku `id` nacji `n` nazywa się `${n}_${id}` (np. franks_mill). Obrys (fw×fh w polach) pochodzi z wypieczonego sprite'a.
+   Lista id odpowiada Data.BUILDINGS z Nova_Roma.html: 12 budynków wspólnych + budynki specyficzne dla nacji. */
+const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple'];
+const NATIONS = {
+  franks: COMMON_IDS.concat(['quarry', 'farm', 'mill', 'bakery', 'ironmine', 'coalmine', 'smelter', 'toolforge', 'armory', 'vineyard', 'winery', 'barracks']),
+  saracens: COMMON_IDS.concat(['claypit', 'dategrove', 'incensewood', 'incense', 'cotton', 'weaver', 'pottery', 'qanat', 'bathhouse', 'caravanserai', 'guardpost']),
+  vikings: COMMON_IDS.concat(['fisherhut', 'peatmine', 'charburner', 'mead', 'dock', 'smelter', 'toolforge', 'armory', 'ship']),
+  slavs: COMMON_IDS.concat(['gatherer', 'field', 'kasha', 'bartnik', 'waxery', 'trapper', 'tannery', 'sauna'])
+};
+const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
+const NAMES = {
+  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia',
+  quarry: 'Kamieniołom', farm: 'Farma', mill: 'Młyn', bakery: 'Piekarnia', ironmine: 'Kopalnia żelaza', coalmine: 'Kopalnia węgla', smelter: 'Huta', toolforge: 'Kuźnia narzędzi', armory: 'Zbrojownia', vineyard: 'Winnica', winery: 'Winiarz', barracks: 'Koszary',
+  claypit: 'Glinianka', dategrove: 'Gaj daktylowy', incensewood: 'Las kadzidlany', incense: 'Wytwórnia kadzidła', cotton: 'Plantacja bawełny', weaver: 'Tkalnia', pottery: 'Garncarnia', qanat: 'Qanat', bathhouse: 'Łaźnia', caravanserai: 'Karawanseraj', guardpost: 'Strażnica',
+  fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
+  gatherer: 'Chata zbieracza', field: 'Pole stałe', kasha: 'Kaszarnia', bartnik: 'Barć', waxery: 'Woskarnia', trapper: 'Chata łowcy futer', tannery: 'Garbarnia', sauna: 'Bania'
+};
+const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
+const spriteName = (nation, id) => `${nation}_${id}`;
+const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id];
+
+/* eksport katalogu do integracji z grą: id → sprite, obrys, wejście, kotwice dymu, rozmiar i kotwica sprite'a.
+   Współrzędne (wejście, drzwi, dym): pola względem środka obrysu (x w prawo-dół, y w lewo-dół, z w górę); sprite: w px logicznych, (ax, ay) = środek obrysu na ziemi.
+   `wejscie` = punkt na krawędzi obrysu, do którego dochodzą pracownicy (strona S: y = fh/2, strona E: x = fw/2); `drzwi` = faktyczne położenie pierwszych drzwi w bryle (null, gdy budynek ma wejście bez drzwi: wiata, sad, targ…).
+   Środek obrysu budynku z północnym rogiem (i, j) leży w polu (i + fw/2, j + fh/2); na ekranie (przy zoomie 1): ((x − y)·AX, (x + y)·AY). */
+function catalogJSON() {
+  const out = { wersja: 'v4-katalog', pole: { AX, AY, VH }, nacje: {} }, r2 = v => +v.toFixed(2), cl = (v, m) => Math.max(-m, Math.min(m, v));
+  for (const n of Object.keys(NATIONS)) {
+    out.nacje[n] = { nazwa: NATION_PL[n], budynki: {} };
+    for (const id of NATIONS[n]) {
+      const s = SPR[spriteName(n, id)]; if (!s) continue;
+      const d = (s.doors && s.doors[0]) || null, fw = s.fw, fh = s.fh;
+      const wejscie = d && d.side === 'E' ? { strona: 'E', x: r2(fw / 2), y: r2(cl(d.y, fh / 2 - 0.3)) } : { strona: 'S', x: r2(cl(d ? d.x : 0, fw / 2 - 0.3)), y: r2(fh / 2) };
+      out.nacje[n].budynki[id] = { sprite: spriteName(n, id), nazwa: nameOfBuilding(n, id), obrys: [fw, fh], wejscie, drzwi: d ? { strona: d.side, x: d.x, y: d.y } : null, dym: s.smoke || [], sprite_px: { w: Math.round(s.w), h: Math.round(s.h), ax: Math.round(s.ax), ay: Math.round(s.ay) } };
+    }
+  }
+  return out;
 }
 
 /* ---- 30_buildings.js ---- */
@@ -1359,6 +1419,7 @@ function door(sc, O, U, V, u0, w, h, o = {}) {
     if (o.lintel) { g.fillStyle = o.lintel; g.fillRect(u0 - 0.06, vb - h - (o.arch ? w / 2 : 0) - 0.06, w + 0.12, 0.05); }
   });
   const dir = [U[0] / lu, U[1] / lu, U[2] / lu], up = [-V[0] / lv, -V[1] / lv, -V[2] / lv];
+  if (sc.doors) sc.doors.push({ side: Math.abs(U[0]) > Math.abs(U[1]) ? 'S' : 'E', x: +(O[0] + dir[0] * (u0 + w / 2)).toFixed(3), y: +(O[1] + dir[1] * (u0 + w / 2)).toFixed(3), z: +(O[2] - vb).toFixed(3) });   // wejście do katalogu
   const base = [O[0] + dir[0] * u0 + V[0] / lv * vb, O[1] + dir[1] * u0 + V[1] / lv * vb, O[2] + dir[2] * u0 + V[2] / lv * vb];
   const topLeft = [base[0] + up[0] * h, base[1] + up[1] * h, base[2] + up[2] * h];
   sc.face(topLeft, [dir[0] * w, dir[1] * w, dir[2] * w], [-up[0] * h, -up[1] * h, -up[2] * h], 'plank', { shade: 1, pal: o.pal || '#6a4a2c', edge: 0.5, wear: 0.4, vgrad: [[0, 0.25], [0.5, 0], [1, 0.2]], clip: o.arch ? [[0, 1], [0, 0.18], [0.08, 0.1], [0.5, 0.0], [0.92, 0.1], [1, 0.18], [1, 1]] : undefined });
@@ -1582,590 +1643,8 @@ function minaret(sc, cx, cy, h, r = 0.11, pal = '#e4cf9e') {
   dome(sc, cx, cy, h + 0.18, r * 1.2, { onion: true });
 }
 
-/* ---- 31_slavs.js ---- */
-/* ====================== SŁOWIANIE: zrąb, strzecha, plecionka, drewniane bożki ====================== */
-
-/* „koniki" — skrzyżowane deski z końskimi łbami na końcu kalenicy */
-function konik(sc, x, y, z, d = 1) {
-  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
-  g.lineCap = 'round';
-  for (const s2 of [1, -1]) {
-    g.strokeStyle = '#2b1c10'; g.lineWidth = 6.4 * f; g.beginPath(); g.moveTo(px - 4 * s2 * f * d, py + 10 * f); g.lineTo(px + 12 * s2 * f * d, py - 26 * f); g.stroke();
-    g.strokeStyle = '#a07040'; g.lineWidth = 4 * f; g.stroke();
-    const hx = px + 12 * s2 * f * d, hy = py - 26 * f;
-    g.fillStyle = '#a07040'; g.strokeStyle = '#2b1c10'; g.lineWidth = 1.3 * f; g.beginPath(); g.moveTo(hx - 3 * f, hy + 3 * f); g.quadraticCurveTo(hx - 5 * f, hy - 6 * f, hx + 1 * f * s2, hy - 7 * f); g.lineTo(hx + 7 * f * s2, hy - 4 * f); g.lineTo(hx + 4 * f * s2, hy - 1 * f); g.quadraticCurveTo(hx + 3 * f * s2, hy + 3 * f, hx, hy + 4 * f); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = '#c0392b'; g.beginPath(); g.arc(hx + 2.4 * f * s2, hy - 3 * f, 0.9 * f, 0, TAU); g.fill();
-  }
-}
-/* sznur cebuli / czosnku / ziół zawieszony pod okapem (rysowany na ekranie) */
-function hangString(sc, x, y, z, n = 5, col = '#d8b060') {
-  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
-  g.strokeStyle = '#5a4020'; g.lineWidth = 1.2 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py + n * 7 * f); g.stroke();
-  for (let i = 0; i < n; i++) { g.fillStyle = col; g.strokeStyle = 'rgba(60,36,10,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(px + (i % 2 ? 2 : -2) * f, py + (i + 1) * 7 * f, 3.4 * f, 3 * f, 0, 0, TAU); g.fill(); g.stroke(); }
-}
-/* rzeźbiony słup z twarzą (bożek): twarz rysowana na ścianach południowej i wschodniej */
-function idolPost(sc, cx, cy, w, h, o = {}) {
-  const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - w / 2, y1 = cy + w / 2, z0 = o.z0 ?? 0.06;
-  sc.box(x0, y0, z0, x1, y1, z0 + h, 'plank', { ao: 0.25, pal: o.pal || '#7a4a26', wear: 0.8 });
-  const S = wallS(x0, x1, y1, z0 + h, z0), E = wallE(y0, y1, x1, z0 + h, z0), face = (W, side) => sc.local(W.O, W.U, W.V, (g, lu, lv) => {
-    const m = lu / 2, top = lv * 0.12, hh = lv * 0.32;
-    g.fillStyle = o.skin || '#d8b078'; g.beginPath(); g.ellipse(m, top + hh * 0.55, lu * 0.36, hh * 0.52, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = lu * 0.035; g.stroke();
-    g.fillStyle = '#1c1008'; g.beginPath(); g.ellipse(m - lu * 0.14, top + hh * 0.42, lu * 0.06, lu * 0.04, 0, 0, TAU); g.ellipse(m + lu * 0.14, top + hh * 0.42, lu * 0.06, lu * 0.04, 0, 0, TAU); g.fill();
-    g.strokeStyle = '#1c1008'; g.lineWidth = lu * 0.04; g.beginPath(); g.moveTo(m - lu * 0.2, top + hh * 0.3); g.lineTo(m - lu * 0.06, top + hh * 0.33); g.moveTo(m + lu * 0.2, top + hh * 0.3); g.lineTo(m + lu * 0.06, top + hh * 0.33); g.moveTo(m, top + hh * 0.45); g.lineTo(m - lu * 0.03, top + hh * 0.66); g.stroke();
-    g.fillStyle = '#2a1608'; g.beginPath(); g.moveTo(m - lu * 0.2, top + hh * 0.78); g.quadraticCurveTo(m, top + hh * 0.7, m + lu * 0.2, top + hh * 0.78); g.quadraticCurveTo(m, top + hh * 0.9, m - lu * 0.2, top + hh * 0.78); g.fill();
-    g.fillStyle = o.band || '#a8352b'; g.fillRect(0, lv * 0.5, lu, lv * 0.07); g.fillRect(0, lv * 0.7, lu, lv * 0.05);
-    g.fillStyle = '#e8d8a0'; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(m - lu * 0.3 + i * lu * 0.2, lv * 0.82); g.lineTo(m - lu * 0.2 + i * lu * 0.2, lv * 0.9); g.lineTo(m - lu * 0.3 + i * lu * 0.2 + lu * 0.2, lv * 0.82); g.fill(); }
-  });
-  face(S); face(E);
-  pyramidRoof(sc, { x0: x0 - 0.02, x1: x1 + 0.02, y0: y0 - 0.02, y1: y1 + 0.02, z: z0 + h, rise: w * 0.9, mat: 'thatch', pal: '#b89a48', ov: 0.01, ppu: 150 });
-}
-
-/* CHATA 2×2: wysoka chata ze zrębu z gankiem pod wspólnym dachem, koniki na kalenicy */
-BAKED.slavHut = function () {
-  const sc = sceneFor(2, 2, 2.5), x0 = -0.8, x1 = 0.8, y0 = -0.62, y1 = 0.42, yp = 0.86, zp = 0.1, zw = 1.15, rise = 0.74, ym = (y0 + yp) / 2;
-  sc.patch(0, 0.05, 1.3, 1.2, { seed: 3 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, yp, 0], [x0, yp, 0], [x0 - 0.14, y0 - 0.1, zw], [x1 + 0.14, y0 - 0.1, zw], [x1 + 0.14, yp + 0.1, zw - 0.1], [x0 - 0.14, yp + 0.1, zw - 0.1], [x0 - 0.14, ym, zw + rise], [x1 + 0.14, ym, zw + rise]]);
-  sc.contact(x0, y0, x1, yp);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'rubble', { ao: 0.3 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'log', { ao: 0.3, eave: 0.45 });
-  sc.box(x0, y1, 0, x1, yp, 0.07, 'plank', { ao: 0.3, pal: '#7a5a36' });
-  const S = wallS(x0, x1, y1, zw, zp), E = wallE(y0, y1, x1, zw, zp);
-  door(sc, S.O, S.U, S.V, 0.62, 0.4, 0.8, { vb: zw - zp, arch: false, frame: '#2b1c10', pal: '#6a4a2c', lintel: '#a8352b' });
-  windowAt(sc, S.O, S.U, S.V, 0.16, 0.34, 0.22, 0.28, { shutters: '#5d3f22' }); windowAt(sc, S.O, S.U, S.V, 1.2, 0.34, 0.22, 0.28, { shutters: '#5d3f22' });
-  windowAt(sc, E.O, E.U, E.V, 0.4, 0.34, 0.2, 0.26, { shutters: '#5d3f22' });
-  const g = sc.g, f = sc.F;
-  for (const [cx, cy] of [[x1, y1], [x0, y1]]) for (let i = 0; i < 9; i++) { const z = zp + 0.06 + i * 0.115, [px, py] = sc.P(cx, cy, z); g.fillStyle = i % 2 ? '#8a6238' : '#9a6f3e'; g.beginPath(); g.ellipse(px, py, 5.4 * f, 3.4 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = 1; g.stroke(); }
-  sc.box(x0 + 0.05, yp - 0.1, 0.07, x0 + 0.14, yp - 0.01, 1.0, 'log', { ao: 0.2, pal: '#8a6a40' }); sc.box(x1 - 0.14, yp - 0.1, 0.07, x1 - 0.05, yp - 0.01, 1.0, 'log', { ao: 0.2, pal: '#8a6a40' });
-  sc.box(-0.66, 0.66, 0.07, -0.16, 0.78, 0.3, 'plank', { ao: 0.2, pal: '#7a5a36' });
-  const R = gableRoof(sc, { x0, x1, y0, y1: yp, z: zw, rise, ov: 0.1, ovE: 0.14, mat: 'thatch', pal: '#c9a64c', gableMat: 'log', ridge: 'x' });
-  sc.face([x0 - 0.14, R.ySo, R.eaveZ], [x1 - x0 + 0.28, 0, 0], [0, 0, -0.1], 'thatch', { shade: 0.62, pal: '#a98b3e', edge: 0.4 });
-  const a = sc.P(x0 - 0.14, ym, zw + rise), b = sc.P(x1 + 0.14, ym, zw + rise);
-  g.lineCap = 'round'; g.strokeStyle = '#7d5f28'; g.lineWidth = 9 * f; g.beginPath(); g.moveTo(a[0], a[1] + 1); g.lineTo(b[0], b[1] + 1); g.stroke(); g.strokeStyle = '#d9bf6a'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.lineTo(b[0], b[1] - 1.5); g.stroke();
-  konik(sc, x1 + 0.14, ym, zw + rise, 1); konik(sc, x0 - 0.14, ym, zw + rise, -1);
-  sc.box(0.1, ym - 0.1, zw + rise - 0.04, 0.4, ym + 0.1, zw + rise + 0.2, 'plank', { ao: 0.2, pal: '#6a4a2c' }); pyramidRoof(sc, { x0: 0.06, x1: 0.44, y0: ym - 0.14, y1: ym + 0.14, z: zw + rise + 0.2, rise: 0.16, mat: 'thatch', pal: '#b89a48', ov: 0.01 });
-  soot(sc, 0.25, ym + 0.12, zw + rise - 0.1, 0.16, 0.4);
-  hangString(sc, -0.45, yp + 0.1, zw - 0.2, 5, '#e0b868'); hangString(sc, 0.2, yp + 0.1, zw - 0.2, 4, '#c8452e'); hangString(sc, 0.5, yp + 0.1, zw - 0.2, 6, '#d8c890');
-  sc.cyl(0.62, 0.7, 0.07, 0.3, 0.1, { color: [170, 100, 60], ao: 0 }); sc.cyl(0.78, 0.62, 0.07, 0.2, 0.07, { color: [150, 90, 50], ao: 0 });
-  logPile(sc, x1 + 0.3, 0.1); logPile(sc, x1 + 0.3, 0.3); logPile(sc, x1 + 0.3, -0.1); sc.cyl(0.95, 0.72, 0, 0.2, 0.1, { mat: 'log', pal: '#8a6a40', topMat: 'plank', ao: 0.3 });
-  return sc.finish();
-};
-
-/* SKŁAD 3×2: spichlerz na palach z szerokim okapem, schodkami, wciągarką i workami */
-BAKED.slavStore = function () {
-  const sc = sceneFor(3, 2, 2.7), x0 = -1.3, x1 = 1.3, y0 = -0.7, y1 = 0.7, zf = 0.42, zw = 1.6, rise = 0.78;
-  sc.shadowBox(x0, y0, x1, y1, zw + rise * 0.6, { alpha: 0.5, blur: 12 });
-  sc.patch(0, 0.1, 1.9, 1.3, { seed: 5, alpha: 0.7 });
-  sc.face([x0, y0, 0.02], [x1 - x0, 0, 0], [0, y1 - y0, 0], 'dirt', { pal: '#241c14', shade: 0.45, wear: 0, edge: 0 });
-  const posts = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) posts.push([x0 + 0.15 + i * (x1 - x0 - 0.3) / 4, y0 + 0.15 + j * (y1 - y0 - 0.3) / 2]);
-  posts.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  for (const [px, py] of posts) { sc.cyl(px, py, 0, zf, 0.075, { mat: 'log', pal: '#7a5a36', topMat: 'plank', ao: 0.3 }); sc.cyl(px, py, zf - 0.04, zf, 0.13, { color: [90, 70, 50], ao: 0, topMat: 'plank' }); }
-  sc.box(x0, y0, zf - 0.1, x1, y1, zf, 'log', { ao: 0.4, pal: '#6a4a2c', eave: 0.5 });
-  sc.box(x0 + 0.02, y0 + 0.02, zf, x1 - 0.02, y1 - 0.02, zw, 'plank', { ao: 0.3, pal: '#8a6a40', eave: 0.4 });
-  const S = wallS(x0 + 0.02, x1 - 0.02, y1 - 0.02, zw, zf), E = wallE(y0 + 0.02, y1 - 0.02, x1 - 0.02, zw, zf);
-  door(sc, S.O, S.U, S.V, 0.95, 0.7, 0.72, { vb: zw - zf, arch: false, frame: '#2b1c10', pal: '#6a4a2c', lintel: '#a8352b' });
-  sc.local(S.O, S.U, S.V, (gg) => { gg.fillStyle = '#17120e'; for (const u of [0.25, 0.5, 1.9, 2.15, 2.4]) gg.fillRect(u, 0.18, 0.04, 0.3); gg.strokeStyle = '#2b1c10'; gg.lineWidth = 0.02; gg.beginPath(); gg.moveTo(1.3, 0.08); gg.lineTo(1.3, 0.86); gg.stroke(); });
-  sc.local(E.O, E.U, E.V, (gg) => { gg.fillStyle = '#17120e'; for (const u of [0.35, 0.6, 0.85, 1.1]) gg.fillRect(u, 0.18, 0.04, 0.3); });
-  stairs(sc, -0.3, 0.4, y1 - 0.02, 3, zf, 'plank', 0.13, '#7a5a36');
-  sack(sc, 0.9, y1 + 0.18); sack(sc, 1.05, y1 + 0.26, '#cdbb88'); sack(sc, 1.15, y1 + 0.14, '#d8c898', 0.9); barrel(sc, -0.9, y1 + 0.22); barrel(sc, -1.08, y1 + 0.16, 0, 0.9); crate(sc, 1.45, 0.2, 0.22, 0.22);
-  const R = gableRoof(sc, { x0, x1, y0, y1, z: zw, rise, ov: 0.18, ovE: 0.2, mat: 'thatch', pal: '#b99c48', gableMat: 'plank', gablePal: '#8a6a40', ridge: 'x' });
-  sc.face([x0 - 0.2, R.ySo, R.eaveZ], [x1 - x0 + 0.4, 0, 0], [0, 0, -0.12], 'thatch', { shade: 0.62, pal: '#a08438', edge: 0.4 });
-  const g = sc.g, f = sc.F, a = sc.P(x0 - 0.2, 0, zw + rise), b = sc.P(x1 + 0.2, 0, zw + rise);
-  g.lineCap = 'round'; g.strokeStyle = '#7d5f28'; g.lineWidth = 9 * f; g.beginPath(); g.moveTo(a[0], a[1] + 1); g.lineTo(b[0], b[1] + 1); g.stroke(); g.strokeStyle = '#d9bf6a'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.lineTo(b[0], b[1] - 1.5); g.stroke();
-  konik(sc, x1 + 0.2, 0, zw + rise, 1); konik(sc, x0 - 0.2, 0, zw + rise, -1);
-  // wciągarka z blokiem i workiem przy szczycie
-  sc.box(x1 + 0.0, -0.03, zw + 0.2, x1 + 0.5, 0.03, zw + 0.27, 'log', { ao: 0.1, pal: '#6a4a2c' });
-  const [rx, ry] = sc.P(x1 + 0.46, 0, zw + 0.2); g.strokeStyle = '#3a2814'; g.lineWidth = 1.6 * f; g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx, ry + 30 * f); g.stroke(); g.fillStyle = '#3a2814'; g.beginPath(); g.arc(rx, ry, 3 * f, 0, TAU); g.fill();
-  const [sx, sy] = sc.P(x1 + 0.46, 0, zw - 0.15); g.fillStyle = '#d8c898'; g.strokeStyle = 'rgba(40,30,14,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(sx, sy, 8 * f, 10 * f, 0, 0, TAU); g.fill(); g.stroke();
-  return sc.finish();
-};
-
-/* WOSKARNIA 2×3: warsztat ze strzechą i okapem dymnym, ogrodzona pasieka, kocioł nad ogniem */
-BAKED.slavWaxery = function () {
-  const sc = sceneFor(2, 3, 2.4), x0 = -0.92, x1 = 0.92, y0 = -1.42, y1 = -0.12, zp = 0.1, zw = 1.0, rise = 0.66, ym = (y0 + y1) / 2;
-  sc.patch(0, 0.2, 1.3, 1.9, { seed: 7, alpha: 0.75 });
-  sc.flat([[[0.15, 0.45], [0.85, 0.45], [0.85, 1.0], [0.15, 1.0]]], 'rgba(255,140,50,0.2)', 14);
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0 - 0.1, y0 - 0.1, zw], [x1 + 0.1, y0 - 0.1, zw], [x1 + 0.1, y1 + 0.1, zw], [x0 - 0.1, y1 + 0.1, zw], [x0 - 0.1, ym, zw + rise], [x1 + 0.1, ym, zw + rise], [0.4, ym, zw + rise + 0.6]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'rubble', { ao: 0.3 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'log', { ao: 0.3, eave: 0.4 });
-  const S = wallS(x0, x1, y1, zw, zp), E = wallE(y0, y1, x1, zw, zp);
-  door(sc, S.O, S.U, S.V, 0.7, 0.4, 0.74, { vb: zw - zp, arch: false, frame: '#2b1c10', pal: '#6a4a2c', lintel: '#d8a830' });
-  windowAt(sc, S.O, S.U, S.V, 0.2, 0.3, 0.22, 0.26, { shutters: '#a8352b' }); windowAt(sc, S.O, S.U, S.V, 1.3, 0.3, 0.22, 0.26, { shutters: '#a8352b' });
-  windowAt(sc, E.O, E.U, E.V, 0.35, 0.3, 0.2, 0.26, { shutters: '#a8352b' }); windowAt(sc, E.O, E.U, E.V, 0.8, 0.3, 0.2, 0.26, { shutters: '#a8352b' });
-  const g = sc.g, f = sc.F;
-  for (const [cx, cy] of [[x1, y1], [x0, y1]]) for (let i = 0; i < 8; i++) { const z = zp + 0.06 + i * 0.11, [px, py] = sc.P(cx, cy, z); g.fillStyle = i % 2 ? '#8a6238' : '#9a6f3e'; g.beginPath(); g.ellipse(px, py, 5 * f, 3.2 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = 1; g.stroke(); }
-  const R = gableRoof(sc, { x0, x1, y0, y1, z: zw, rise, ov: 0.12, ovE: 0.14, mat: 'thatch', pal: '#cdaa50', gableMat: 'log', ridge: 'x' });
-  sc.face([x0 - 0.14, R.ySo, R.eaveZ], [x1 - x0 + 0.28, 0, 0], [0, 0, -0.1], 'thatch', { shade: 0.62, pal: '#a98b3e', edge: 0.4 });
-  const a = sc.P(x0 - 0.14, ym, zw + rise), b = sc.P(x1 + 0.14, ym, zw + rise);
-  g.lineCap = 'round'; g.strokeStyle = '#7d5f28'; g.lineWidth = 9 * f; g.beginPath(); g.moveTo(a[0], a[1] + 1); g.lineTo(b[0], b[1] + 1); g.stroke(); g.strokeStyle = '#d9bf6a'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.lineTo(b[0], b[1] - 1.5); g.stroke();
-  konik(sc, x1 + 0.14, ym, zw + rise, 1);
-  // okap dymny na kalenicy
-  sc.box(0.2, ym - 0.2, zw + rise - 0.06, 0.62, ym + 0.2, zw + rise + 0.3, 'plank', { ao: 0.2, pal: '#6a4a2c' }); pyramidRoof(sc, { x0: 0.14, x1: 0.68, y0: ym - 0.26, y1: ym + 0.26, z: zw + rise + 0.3, rise: 0.22, mat: 'thatch', pal: '#b89a48', ov: 0.01 });
-  soot(sc, 0.4, ym + 0.2, zw + rise - 0.1, 0.2, 0.45);
-  // pasieka: płot z plecionki z furtką i ule
-  wattle(sc, x0 + 0.02, 0.1, x0 + 0.02, 1.38, 0.42); wattle(sc, x1 - 0.02, 0.1, x1 - 0.02, 1.38, 0.42);
-  wattle(sc, x0 + 0.02, 1.38, -0.28, 1.38, 0.42); wattle(sc, 0.28, 1.38, x1 - 0.02, 1.38, 0.42);
-  sc.box(-0.33, 1.32, 0, -0.27, 1.44, 0.6, 'log', { pal: '#7a5632', ao: 0.1 }); sc.box(0.27, 1.32, 0, 0.33, 1.44, 0.6, 'log', { pal: '#7a5632', ao: 0.1 });
-  for (const [x, y] of [[-0.66, 0.5], [-0.66, 0.9]]) sc.box(x - 0.2, y - 0.08, 0.02, x + 0.2, y + 0.08, 0.2, 'log', { ao: 0.3, pal: '#7a5632' });
-  for (const [x, y] of [[-0.78, 0.5], [-0.55, 0.5], [-0.78, 0.9], [-0.55, 0.9]]) skep(sc, x, y, 1.15);
-  for (const [x, y] of [[-0.05, 1.05], [0.15, 0.95], [-0.3, 1.1]]) { sc.cyl(x, y, 0, 0.5, 0.1, { mat: 'log', pal: '#8a6a40', topMat: 'plank', ao: 0.3 }); cone(sc, x, y, 0.5, 0.14, 0.14, [150, 120, 60]); }
-  sc.cyl(0.5, 0.7, 0.04, 0.42, 0.22, { color: [196, 120, 60], ao: 0.3, mat: undefined, topMat: undefined });
-  const [cx, cy] = sc.P(0.5, 0.7, 0.42); g.fillStyle = '#d98a3a'; g.beginPath(); g.ellipse(cx, cy, 0.2 * AX * f * 1.4142, 0.2 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = '#f0d070'; g.beginPath(); g.ellipse(cx, cy, 0.15 * AX * f * 1.4142, 0.15 * AY * f * 1.4142, 0, 0, TAU); g.fill();
-  const [fx, fy] = sc.P(0.5, 0.7, 0.05); for (let i = 0; i < 5; i++) { const gr = g.createRadialGradient(fx + (i - 2) * 6 * f, fy - 2 * f, 0, fx + (i - 2) * 6 * f, fy - 2 * f, 10 * f); gr.addColorStop(0, 'rgba(255,230,120,0.9)'); gr.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(fx + (i - 2) * 6 * f, fy - 4 * f, 6 * f, 10 * f, 0, 0, TAU); g.fill(); }
-  sc.box(0.62, 0.15, 0.05, 0.9, 0.3, 0.12, 'plank', { ao: 0.2, pal: '#d8b050' }); sc.box(0.68, 0.18, 0.12, 0.84, 0.27, 0.2, 'plank', { ao: 0.1, pal: '#e8c870', wear: 0 });
-  barrel(sc, 0.78, 0.5, 0, 0.9); logPile(sc, -0.5, 1.6 - 0.18);
-  return sc.finish();
-};
-
-/* ŚWIĘTY KRĄG 3×3 (kapliczka): kopiec z kręgiem rzeźbionych bożków i ołtarzem z ogniem */
-BAKED.slavShrine = function () {
-  const sc = sceneFor(3, 3, 2.7);
-  sc.patch(0, 0.05, 2.0, 1.9, { seed: 11, alpha: 0.5, pal: '#6a5a3a', feather: 18 });
-  sc.shadow([[-1.1, -1.1, 0], [1.1, -1.1, 0], [1.1, 1.1, 0], [-1.1, 1.1, 0], [0, 0, 2.0]], { alpha: 0.45, blur: 12 });
-  sc.cyl(0, 0, 0, 0.16, 1.28, { mat: 'rubble', pal: '#8a877c', topMat: 'grass', topPal: 'green', ao: 0.4 });
-  sc.cyl(0, 0, 0.16, 0.2, 1.1, { mat: 'dirt', pal: '#6a5a3a', topMat: 'dirt', topPal: '#5a4a2e', ao: 0 });
-  const g = sc.g, f = sc.F, ring = [];
-  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + 0.2; ring.push([Math.cos(a) * 0.92, Math.sin(a) * 0.92, i]); }
-  ring.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  const front = [], back = []; for (const r of ring) (r[0] + r[1] < 0 ? back : front).push(r);
-  for (const [x, y, i] of back) idolPost(sc, x, y, 0.17, 1.0 + (i % 3) * 0.08, { z0: 0.2, pal: i % 2 ? '#7a4a26' : '#6a3e20', band: i % 2 ? '#a8352b' : '#2f5aa8' });
-  // ołtarz z paleniskiem
-  sc.box(-0.34, -0.3, 0.2, 0.34, 0.3, 0.38, 'stone', { ao: 0.3, pal: '#8f8a7e' }); sc.cyl(0, 0, 0.38, 0.5, 0.2, { color: [60, 56, 54], ao: 0.3 });
-  const [ax2, ay2] = sc.P(0, 0, 0.5);
-  for (let i = 0; i < 6; i++) { const gr = g.createRadialGradient(ax2 + (i - 2.5) * 6 * f, ay2 - 6 * f, 0, ax2 + (i - 2.5) * 6 * f, ay2 - 8 * f, 18 * f); gr.addColorStop(0, 'rgba(255,240,150,0.95)'); gr.addColorStop(0.5, 'rgba(255,140,30,0.7)'); gr.addColorStop(1, 'rgba(180,40,0,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(ax2 + (i - 2.5) * 6 * f, ay2 - 12 * f, 7 * f, 18 * f - Math.abs(i - 2.5) * 3 * f, 0, 0, TAU); g.fill(); }
-  // centralny bożek (cztery twarze) i dary
-  idolPost(sc, 0.0, -0.45, 0.3, 1.5, { z0: 0.2, pal: '#7a4a26', skin: '#e0c088', band: '#d8a830' });
-  barrel(sc, 0.3, 0.6, 0.2, 0.7); sack(sc, 0.5, 0.55, '#d8c898', 0.8); sc.cyl(-0.45, 0.6, 0.2, 0.34, 0.08, { color: [176, 106, 60], ao: 0 }); sc.cyl(-0.3, 0.7, 0.2, 0.3, 0.07, { color: [150, 90, 50], ao: 0 });
-  for (const [x, y, i] of front) idolPost(sc, x, y, 0.17, 1.0 + (i % 3) * 0.08, { z0: 0.2, pal: i % 2 ? '#7a4a26' : '#6a3e20', band: i % 2 ? '#a8352b' : '#2f5aa8' });
-  for (let i = 0; i < 14; i++) { const a = i / 14 * TAU, x = Math.cos(a) * 1.3, y = Math.sin(a) * 1.3; sc.box(x - 0.1, y - 0.08, 0, x + 0.1, y + 0.08, 0.14 + (i % 3) * 0.04, 'rubble', { ao: 0.2, pal: '#8a877c' }); }
-  return sc.finish();
-};
-
-/* ---- 32_franks.js ---- */
-/* ====================== FRANKOWIE: kamień, ryglówka, dachówka, łupek ====================== */
-
-/* DOM 2×2: parter z kamienia, piętro z ryglówki z nawisem, dach dachówkowy szczytem do ulicy, komin, szyld */
-BAKED.frankHouse = function () {
-  const sc = sceneFor(2, 2, 2.95), x0 = -0.82, x1 = 0.82, y0 = -0.8, y1 = 0.8, zp = 0.1, z1 = 0.95, z2 = 1.75, J = 0.1, rise = 0.85;
-  sc.patch(0, 0.05, 1.3, 1.2, { seed: 8, alpha: 0.7 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0 - J - 0.1, y1 + J, z2], [x1 + J + 0.1, y1 + J, z2], [x1 + J + 0.1, y0 - J, z2], [x0 - J - 0.1, y0 - J, z2], [0, y0 - 0.1, z2 + rise], [0, y1 + 0.1, z2 + rise]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'stone', { ao: 0.4 });
-  sc.box(x0, y0, zp, x1, y1, z1, 'stone', { ao: 0.3, eave: 0.55 });
-  const S1 = wallS(x0, x1, y1, z1, zp), E1 = wallE(y0, y1, x1, z1, zp);
-  door(sc, S1.O, S1.U, S1.V, 0.63, 0.38, 0.68, { vb: z1 - zp, arch: true, frame: '#241a10', pal: '#5a3e22' });
-  for (const u of [0.14, 1.28]) windowAt(sc, S1.O, S1.U, S1.V, u, 0.22, 0.2, 0.28, { shutters: '#7a2f22', frame: '#3b2616', sill: '#8d897d' });
-  for (const u of [0.3, 1.1]) windowAt(sc, E1.O, E1.U, E1.V, u, 0.22, 0.2, 0.28, { shutters: '#7a2f22', frame: '#3b2616', sill: '#8d897d' });
-  stairs(sc, -0.4, 0.4, y1, 3, 0.17, 'stone', 0.14);
-  sc.box(x0 - J, y0 - J, z1, x1 + J, y1 + J, z2, 'plaster', { ao: 0.15, eave: 0.3, pal: '#eadfc2' });
-  const S2 = wallS(x0 - J, x1 + J, y1 + J, z2, z1), E2 = wallE(y0 - J, y1 + J, x1 + J, z2, z1);
-  halfTimber(sc, S2.O, S2.U, S2.V, { nu: 4 }); halfTimber(sc, E2.O, E2.U, E2.V, { nu: 4 });
-  [0.13, 0.59, 1.05, 1.51].forEach((u, i) => { windowAt(sc, S2.O, S2.U, S2.V, u, 0.2, 0.2, 0.34, { shutters: i % 2 ? '#2f6a50' : '#7a2f22', frame: '#3b2616' }); if (i % 2 === 0) flowerBox(sc, S2.O, S2.U, S2.V, u, 0.57, 0.2); });
-  [0.125, 0.575, 1.025, 1.475].forEach((u, i) => windowAt(sc, E2.O, E2.U, E2.V, u, 0.2, 0.2, 0.34, { shutters: i % 2 ? '#2f6a50' : '#7a2f22', frame: '#3b2616' }));
-  for (let i = 0; i < 5; i++) { const u = 0.15 + i * 0.36; sc.local(S2.O, S2.U, S2.V, g => { g.fillStyle = '#3b2616'; g.beginPath(); g.moveTo(u, 0.86); g.lineTo(u + 0.05, 0.86); g.lineTo(u + 0.025, 0.95); g.closePath(); g.fill(); }); }   // konsole nawisu
-  const R = gableRoof(sc, { x0: x0 - J, x1: x1 + J, y0: y0 - J, y1: y1 + J, z: z2, rise, ov: 0.12, ovE: 0.1, mat: 'tiles', pal: '#b5532e', gableMat: 'plaster', gablePal: '#eadfc2', ridge: 'y' });
-  const G = { O: [x0 - J, y1 + J, z2 + rise], U: [x1 - x0 + 2 * J, 0, 0], V: [0, 0, -rise] };
-  sc.local(G.O, G.U, G.V, (g, lu, lv) => {
-    g.save(); g.beginPath(); g.moveTo(lu / 2, 0); g.lineTo(lu, lv); g.lineTo(0, lv); g.closePath(); g.clip();
-    g.fillStyle = '#3b2616'; g.fillRect(lu / 2 - 0.016, 0, 0.032, lv); g.fillRect(0, lv * 0.62, lu, 0.03);
-    g.strokeStyle = '#3b2616'; g.lineWidth = 0.03; g.beginPath(); g.moveTo(lu * 0.5, lv * 0.62); g.lineTo(lu * 0.12, lv); g.moveTo(lu * 0.5, lv * 0.62); g.lineTo(lu * 0.88, lv); g.stroke(); g.restore();
-  });
-  windowAt(sc, G.O, G.U, G.V, lu2(G.U) / 2 - 0.1, 0.22, 0.2, 0.26, { frame: '#3b2616', shutters: '#7a2f22' });
-  chimney(sc, 0.4, -0.3, 2.1, 2.9, 0.28); soot(sc, 0.4, -0.3, 2.15, 0.2, 0.45);
-  signBoard(sc, x0 - J + 0.05, y1 + J + 0.02, z1 + 0.42, 'loaf'); lantern(sc, 0.52, y1 + 0.05, 0.66);
-  barrel(sc, 0.66, y1 + 0.24); crate(sc, -0.66, y1 + 0.2, 0.2, 0.2); crate(sc, -0.62, y1 + 0.2, 0.14, 0.34 - 0.2 + 0.2); logPile(sc, x1 + 0.26, 0.15);
-  return sc.finish();
-};
-const lu2 = U => Math.hypot(...U);
-
-/* KOŚCIÓŁ 4×2: nawa z przyporami i witrażami, wieża z dzwonnicą i smukłą iglicą */
-BAKED.frankChurch = function () {
-  const sc = sceneFor(4, 2, 5.5), nx0 = -1.9, nx1 = 0.9, ny0 = -0.58, ny1 = 0.58, zp = 0.1, zw = 1.5;
-  sc.patch(0, 0.1, 2.3, 1.2, { seed: 61, alpha: 0.6 });
-  sc.shadow([[nx0, ny0, 0], [1.95, ny0, 0], [1.95, 0.55, 0], [nx0, ny1, 0], [nx0 - 0.1, ny0 - 0.1, zw + 0.8], [nx1, ny1 + 0.1, zw + 0.8], [1.5, 0, 4.9], [1.0, 0.5, 3.4], [1.9, 0.5, 3.4]]);
-  sc.contact(nx0, ny0, 1.95, ny1);
-  sc.box(nx0 - 0.03, ny0 - 0.03, 0, nx1 + 0.03, ny1 + 0.03, zp, 'stone', { ao: 0.4 });
-  sc.box(nx0, ny0, zp, nx1, ny1, zw, 'stone', { ao: 0.3, pal: '#b8b2a2', eave: 0.4 });
-  const S = wallS(nx0, nx1, ny1, zw, zp), len = nx1 - nx0, bays = 4, bw = len / bays;
-  for (let i = 0; i <= bays; i++) { const xb = nx0 + i * bw; sc.box(xb - 0.07, ny1, zp, xb + 0.07, ny1 + 0.17, zw - 0.14, 'stone', { ao: 0.25, pal: '#b0aa9a' }); sc.box(xb - 0.05, ny1, zw - 0.14, xb + 0.05, ny1 + 0.11, zw - 0.04, 'stone', { ao: 0.1, pal: '#b0aa9a' }); }
-  for (let i = 0; i < bays; i++) glassWin(sc, S.O, S.U, S.V, i * bw + bw / 2 - 0.12, 0.3, 0.24, 0.78, { frame: '#8d897d', glass: i % 2 ? ['#3c62a8', '#2f7a58', '#d8a830', '#4a7ac0'] : ['#a8342c', '#3c62a8', '#d8a830', '#7a3a8a'] });
-  gableRoof(sc, { x0: nx0, x1: nx1, y0: ny0, y1: ny1, z: zw, rise: 0.82, ov: 0.13, ovE: 0.07, mat: 'slate', pal: '#5e6a78', gableMat: 'stone', gablePal: '#b0aa9a', ridge: 'x' });
-  // wieża
-  const tx0 = 0.9, tx1 = 1.95, ty0 = -0.52, ty1 = 0.52, zt = 2.75, zb = 3.5;
-  sc.box(tx0, ty0, zp - 0.05, tx1 + 0.03, ty1 + 0.03, 0.2, 'stone', { ao: 0.4, pal: '#a8a292' });
-  sc.box(tx0 + 0.02, ty0 + 0.02, 0.2, tx1, ty1, zt, 'stone', { ao: 0.3, pal: '#aea898', eave: 0.2 });
-  sc.box(tx0 - 0.02, ty0 - 0.02, 1.6, tx1 + 0.03, ty1 + 0.03, 1.66, 'stone', { ao: 0, pal: '#9a9486' });          // gzyms
-  sc.box(tx0 - 0.02, ty0 - 0.02, zt - 0.06, tx1 + 0.04, ty1 + 0.04, zt + 0.03, 'stone', { ao: 0, pal: '#9a9486' });
-  const TS = wallS(tx0 + 0.02, tx1, ty1, zt, 0.2), TE = wallE(ty0 + 0.02, ty1, tx1, zt, 0.2);
-  door(sc, TE.O, TE.U, TE.V, 0.31, 0.4, 0.86, { vb: zt - 0.2, arch: true, frame: '#8d897d', pal: '#4a3420' });
-  sc.local(TE.O, TE.U, TE.V, (g) => { const cx = 0.5, cy = 1.05; g.fillStyle = '#8d897d'; g.beginPath(); g.arc(cx, cy, 0.2, 0, TAU); g.fill(); const cols = ['#a8342c', '#3c62a8', '#d8a830', '#2f7a58']; for (let i = 0; i < 8; i++) { g.fillStyle = cols[i % 4]; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 0.165, i * TAU / 8, (i + 1) * TAU / 8); g.closePath(); g.fill(); } g.strokeStyle = 'rgba(14,14,20,0.8)'; g.lineWidth = 0.01; for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(i * TAU / 8) * 0.165, cy + Math.sin(i * TAU / 8) * 0.165); g.stroke(); } g.beginPath(); g.arc(cx, cy, 0.165, 0, TAU); g.stroke(); });
-  for (const v0 of [0.55, 1.45]) glassWin(sc, TS.O, TS.U, TS.V, 0.4, v0, 0.2, 0.55, { frame: '#8d897d' });
-  sc.local(TS.O, TS.U, TS.V, (g) => { g.fillStyle = '#d8c890'; g.strokeStyle = '#2a2418'; g.lineWidth = 0.012; g.beginPath(); g.arc(0.82, 0.42, 0.12, 0, TAU); g.fill(); g.stroke(); g.lineWidth = 0.014; g.beginPath(); g.moveTo(0.82, 0.42); g.lineTo(0.82, 0.34); g.moveTo(0.82, 0.42); g.lineTo(0.88, 0.44); g.stroke(); });   // zegar
-  sc.box(tx0 + 0.07, ty0 + 0.07, zt, tx1 - 0.07, ty1 - 0.07, zb, 'stone', { ao: 0.2, pal: '#b6b0a0' });                // dzwonnica
-  const BS = wallS(tx0 + 0.07, tx1 - 0.07, ty1 - 0.07, zb, zt), BE = wallE(ty0 + 0.07, ty1 - 0.07, tx1 - 0.07, zb, zt);
-  for (const u of [0.1, 0.5]) { archWin(sc, BS.O, BS.U, BS.V, u, 0.12, 0.26, 0.52, { frame: '#8d897d', lit: '#17120d', lit2: '#0c0906' }); }
-  for (const u of [0.12, 0.5]) { archWin(sc, BE.O, BE.U, BE.V, u, 0.12, 0.26, 0.52, { frame: '#8d897d', lit: '#17120d', lit2: '#0c0906' }); }
-  for (const W of [BS, BE]) sc.local(W.O, W.U, W.V, (g) => { g.strokeStyle = 'rgba(120,96,64,0.8)'; g.lineWidth = 0.012; for (const u of W === BS ? [0.1, 0.5] : [0.12, 0.5]) for (let j = 0; j < 5; j++) { g.beginPath(); g.moveTo(u + 0.02, 0.22 + j * 0.095); g.lineTo(u + 0.24, 0.22 + j * 0.095 - 0.03); g.stroke(); } });
-  for (const [px, py] of [[tx0 + 0.04, ty0 + 0.04], [tx1 - 0.04, ty0 + 0.04], [tx0 + 0.04, ty1 - 0.04], [tx1 - 0.04, ty1 - 0.04]]) { sc.box(px - 0.05, py - 0.05, zb - 0.02, px + 0.05, py + 0.05, zb + 0.25, 'stone', { ao: 0.1 }); pyramidRoof(sc, { x0: px - 0.05, x1: px + 0.05, y0: py - 0.05, y1: py + 0.05, z: zb + 0.25, rise: 0.22, mat: 'slate', pal: '#5e6a78', ov: 0.01 }); }
-  pyramidRoof(sc, { x0: tx0 + 0.04, x1: tx1 - 0.04, y0: ty0 + 0.04, y1: ty1 - 0.04, z: zb, rise: 1.5, mat: 'slate', pal: '#586470', ov: 0.05 });
-  const g = sc.g, [cx, cy] = sc.P((tx0 + tx1) / 2, 0, zb + 1.5), f = sc.F;
-  g.strokeStyle = '#d8b44a'; g.lineWidth = 2.6 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy - 22 * f); g.moveTo(cx - 6 * f, cy - 15 * f); g.lineTo(cx + 6 * f, cy - 15 * f); g.stroke();
-  // dziedziniec z nagrobkami i niski mur
-  sc.box(-1.95, 0.9, 0, -0.35, 0.97, 0.26, 'stone', { ao: 0.25 }); sc.box(-0.05, 0.9, 0, 0.8, 0.97, 0.26, 'stone', { ao: 0.25 });
-  [[-1.5, 0.76], [-1.1, 0.8], [-0.7, 0.76], [-0.35, 0.8], [0.3, 0.78]].forEach(([x, y], i) => { sc.box(x - 0.05, y - 0.02, 0, x + 0.05, y + 0.02, 0.2 + (i % 2) * 0.06, 'stone', { ao: 0.2, pal: '#a8a292' }); });
-  return sc.finish();
-};
-
-/* MŁYN 3×3: kamienna wieża z czapą i skrzydłami + dom młynarza */
-BAKED.frankMill = function () {
-  const sc = sceneFor(3, 3, 3.9), cx = 0.4, cy = -0.5;
-  sc.patch(0, 0.1, 1.9, 1.7, { seed: 71, alpha: 0.7 });
-  sc.shadow([[cx - 0.6, cy - 0.6, 0], [cx + 0.6, cy - 0.6, 0], [cx + 0.6, cy + 0.6, 0], [cx - 0.6, cy + 0.6, 0], [cx - 0.5, cy - 0.5, 2.6], [cx + 0.5, cy + 0.5, 2.6], [cx + 0.5, cy - 0.5, 2.6], [cx - 0.5, cy + 0.5, 2.6]]);
-  sc.shadowBox(-1.4, 0.25, -0.2, 1.4, 1.0, { alpha: 0.4 });
-  sc.contact(cx - 0.8, cy - 0.8, cx + 0.8, cy + 0.8, { grow: 0.1 });
-  // dom młynarza
-  const hx0 = -1.4, hx1 = -0.25, hy0 = 0.25, hy1 = 1.4, zp = 0.1, zh = 1.05;
-  sc.box(hx0, hy0, 0, hx1, hy1, zp, 'stone', { ao: 0.4 }); sc.box(hx0, hy0, zp, hx1, hy1, zh, 'plaster', { ao: 0.25, eave: 0.4, pal: '#e6dbbf' });
-  const HS = wallS(hx0, hx1, hy1, zh, zp), HE = wallE(hy0, hy1, hx1, zh, zp);
-  halfTimber(sc, HS.O, HS.U, HS.V, { nu: 3 }); halfTimber(sc, HE.O, HE.U, HE.V, { nu: 3 });
-  door(sc, HS.O, HS.U, HS.V, 0.42, 0.3, 0.66, { vb: zh - zp, arch: false, frame: '#2b1c10', pal: '#5a3e22', lintel: '#3b2616' });
-  windowAt(sc, HS.O, HS.U, HS.V, 0.85, 0.28, 0.16, 0.24, { shutters: '#7a2f22', frame: '#3b2616' });
-  windowAt(sc, HE.O, HE.U, HE.V, 0.4, 0.28, 0.16, 0.24, { shutters: '#2f6a50', frame: '#3b2616' }); windowAt(sc, HE.O, HE.U, HE.V, 0.8, 0.28, 0.16, 0.24, { shutters: '#2f6a50', frame: '#3b2616' });
-  gableRoof(sc, { x0: hx0, x1: hx1, y0: hy0, y1: hy1, z: zh, rise: 0.62, ov: 0.1, ovE: 0.08, mat: 'tiles', pal: '#a8502c', gableMat: 'plaster', gablePal: '#e6dbbf', ridge: 'y' });
-  chimney(sc, -0.6, 0.55, 1.45, 1.95, 0.22); soot(sc, -0.6, 0.55, 1.5, 0.15, 0.4);
-  // wieża
-  sc.cyl(cx, cy, 0, 0.2, 0.9, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0.5 });
-  sc.cyl(cx, cy, 0.2, 1.85, 0.78, { mat: 'stone', pal: '#bdb7a6', topMat: 'stone', ao: 0.5 });
-  sc.cyl(cx, cy, 1.8, 1.92, 0.86, { mat: 'stone', pal: '#9a948a', ao: 0 });
-  cone(sc, cx, cy, 1.92, 0.88, 1.0, [112, 78, 48]);
-  const g = sc.g, f = sc.F, [fx, fy] = sc.P(cx + 0.55, cy + 0.55, 0);
-  g.fillStyle = '#2b1c10'; g.beginPath(); g.moveTo(fx - 12 * f, fy + 3 * f); g.lineTo(fx - 12 * f, fy - 26 * f); g.arc(fx, fy - 26 * f, 12 * f, Math.PI, 0); g.lineTo(fx + 12 * f, fy + 3 * f); g.closePath(); g.fill();
-  g.fillStyle = '#6a4a2c'; g.beginPath(); g.moveTo(fx - 9.5 * f, fy + 2 * f); g.lineTo(fx - 9.5 * f, fy - 25 * f); g.arc(fx, fy - 25 * f, 9.5 * f, Math.PI, 0); g.lineTo(fx + 9.5 * f, fy + 2 * f); g.closePath(); g.fill(); g.strokeStyle = 'rgba(20,12,6,0.7)'; g.lineWidth = f; for (const dx of [-3, 3]) { g.beginPath(); g.moveTo(fx + dx * f, fy + 2 * f); g.lineTo(fx + dx * f, fy - 34 * f); g.stroke(); }
-  for (const [zz, ww] of [[0.95, 8], [1.4, 7]]) { const [wx, wy] = sc.P(cx + 0.5, cy + 0.5, zz); g.fillStyle = '#17120e'; g.beginPath(); g.moveTo(wx - ww * f, wy + 9 * f); g.lineTo(wx - ww * f, wy - 3 * f); g.arc(wx, wy - 3 * f, ww * f, Math.PI, 0); g.lineTo(wx + ww * f, wy + 9 * f); g.closePath(); g.fill(); g.strokeStyle = '#7a766c'; g.lineWidth = 1.4 * f; g.stroke(); }
-  // worki, kamień młyński, wóz
-  sack(sc, -0.1, 0.55, '#d8c898'); sack(sc, 0.12, 0.62, '#cdbb88'); sack(sc, -0.02, 0.72, '#d8c898'); sack(sc, 0.2, 0.84, '#cdbb88', 0.9);
-  const [mx, my] = sc.P(0.75, 0.55, 0); g.fillStyle = '#9d9a90'; g.strokeStyle = 'rgba(14,12,10,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(mx, my - 14 * f, 15 * f, 17 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#3a3630'; g.beginPath(); g.ellipse(mx, my - 14 * f, 4.4 * f, 5.4 * f, 0, 0, TAU); g.fill();
-  sc.box(0.9, 0.7, 0.14, 1.45, 1.1, 0.2, 'plank', { pal: '#7a5632', ao: 0.4 });
-  for (const [wx, wy] of [[1.0, 1.14], [1.4, 1.14]]) { const [px, py] = sc.P(wx, wy, 0.16); g.fillStyle = '#4a3322'; g.beginPath(); g.ellipse(px, py, 8 * f, 15 * f, 0, 0, TAU); g.fill(); g.fillStyle = '#7a5632'; g.beginPath(); g.ellipse(px, py, 5.6 * f, 12 * f, 0, 0, TAU); g.fill(); g.strokeStyle = '#2b1c10'; g.lineWidth = f; g.stroke(); }
-  sack(sc, 1.0, 0.9, '#d8c898', 0.9); sack(sc, 1.26, 0.88, '#cdbb88', 0.9);
-  // skrzydła (statyczny wiatrak; w grze — animowana nakładka)
-  const [hx, hy] = sc.P(cx + 0.52, cy + 0.52, 1.7), L = 150 * f, a0 = 0.34;
-  for (let k = 0; k < 4; k++) {
-    g.save(); g.translate(hx, hy); g.rotate(a0 + k * Math.PI / 2);
-    g.fillStyle = '#4a3220'; g.strokeStyle = 'rgba(14,8,4,0.8)'; g.lineWidth = f; g.fillRect(0, -2.6 * f, L, 5.2 * f); g.strokeRect(0, -2.6 * f, L, 5.2 * f);
-    const w = 0.24 * L; g.fillStyle = 'rgba(238,230,206,0.94)'; g.fillRect(0.2 * L, 2.6 * f, 0.8 * L, w); g.strokeStyle = '#4a3220'; g.lineWidth = 1.6 * f; g.strokeRect(0.2 * L, 2.6 * f, 0.8 * L, w);
-    g.lineWidth = 1.1 * f; for (let i = 1; i < 8; i++) { g.beginPath(); g.moveTo(0.2 * L + i * 0.1 * L, 2.6 * f); g.lineTo(0.2 * L + i * 0.1 * L, 2.6 * f + w); g.stroke(); }
-    g.strokeStyle = 'rgba(90,70,40,0.5)'; g.lineWidth = f; g.beginPath(); g.moveTo(0.2 * L, 2.6 * f + w / 2); g.lineTo(L, 2.6 * f + w / 2); g.stroke(); g.restore();
-  }
-  g.fillStyle = '#3a2814'; g.strokeStyle = 'rgba(10,6,2,0.8)'; g.lineWidth = f; g.beginPath(); g.arc(hx, hy, 8 * f, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#c9a85a'; g.beginPath(); g.arc(hx, hy, 3 * f, 0, TAU); g.fill();
-  return sc.finish();
-};
-
-/* KOSZARY 3×3: długa hala z nawisem + skrzydło w kształcie L, dziedziniec ze stojakami na broń i manekinem */
-BAKED.frankBarracks = function () {
-  const sc = sceneFor(3, 3, 2.9), zp = 0.1, hx0 = -1.4, hx1 = 1.4, hy0 = -1.4, hy1 = -0.4, hz1 = 0.8, hz2 = 1.5, J = 0.08;
-  sc.paved(-1.45, -0.4, 0.55, 1.45, { mat: 'cobble', jit: 0.12, seed: 3, feather: 5 });
-  sc.patch(0, 0.05, 2.1, 1.9, { seed: 81, alpha: 0.5 });
-  sc.shadow([[hx0, hy0, 0], [hx1, hy0, 0], [hx1, 0.95, 0], [0.55, 0.95, 0], [0.55, hy1, 0], [hx0, hy1, 0], [hx0 - 0.1, hy0 - 0.1, hz2 + 0.7], [hx1 + 0.1, hy0 - 0.1, hz2 + 0.7], [hx1 + 0.1, 0.95, 1.5], [hx0 - 0.1, hy1 + 0.1, hz2 + 0.7]]);
-  sc.contact(hx0, hy0, hx1, hy1); sc.contact(0.55, hy1, hx1, 0.95);
-  // hala główna
-  sc.box(hx0, hy0, 0, hx1, hy1, zp, 'stone', { ao: 0.4 });
-  sc.box(hx0, hy0, zp, hx1, hy1, hz1, 'stone', { ao: 0.3, eave: 0.5 });
-  sc.box(hx0 - J, hy0 - J, hz1, hx1 + J, hy1 + J, hz2, 'plaster', { ao: 0.15, eave: 0.3, pal: '#e2d8bc' });
-  const HS = wallS(hx0, hx1, hy1, hz1, zp), HS2 = wallS(hx0 - J, hx1 + J, hy1 + J, hz2, hz1);
-  halfTimber(sc, HS2.O, HS2.U, HS2.V, { nu: 8 });
-  door(sc, HS.O, HS.U, HS.V, 1.0, 0.6, 0.62, { vb: hz1 - zp, arch: true, frame: '#241a10', pal: '#4a3420' });
-  for (const u of [0.3, 0.62, 1.88, 2.2]) windowAt(sc, HS.O, HS.U, HS.V, u, 0.2, 0.15, 0.24, { shutters: '#2f4f8a', frame: '#3b2616' });
-  for (const u of [0.26, 0.9, 1.54, 2.18]) windowAt(sc, HS2.O, HS2.U, HS2.V, u, 0.2, 0.2, 0.3, { shutters: '#2f4f8a', frame: '#3b2616' });
-  gableRoof(sc, { x0: hx0 - J, x1: hx1 + J, y0: hy0 - J, y1: hy1 + J, z: hz2, rise: 0.78, ov: 0.12, ovE: 0.1, mat: 'tiles', pal: '#9a4a2a', gableMat: 'plaster', gablePal: '#e2d8bc', ridge: 'x' });
-  chimney(sc, -0.7, -0.95, 2.0, 2.65, 0.26); chimney(sc, 0.7, -0.95, 2.0, 2.65, 0.26); soot(sc, -0.7, -0.95, 2.05, 0.18); soot(sc, 0.7, -0.95, 2.05, 0.18);
-  // skrzydło wschodnie
-  const wx0 = 0.55, wx1 = 1.4, wy0 = hy1, wy1 = 0.95, wz = 1.0;
-  sc.box(wx0, wy0, 0, wx1, wy1, zp, 'stone', { ao: 0.4 }); sc.box(wx0, wy0, zp, wx1, wy1, wz, 'stone', { ao: 0.3, eave: 0.4 });
-  const WS = wallS(wx0, wx1, wy1, wz, zp), WE = wallE(wy0, wy1, wx1, wz, zp);
-  door(sc, WS.O, WS.U, WS.V, 0.28, 0.3, 0.6, { vb: wz - zp, arch: false, frame: '#2b1c10', pal: '#5a3e22', lintel: '#8d897d' });
-  for (const u of [0.15, 0.55, 0.95]) windowAt(sc, WE.O, WE.U, WE.V, u, 0.22, 0.17, 0.3, { shutters: '#2f4f8a', frame: '#3b2616' });
-  gableRoof(sc, { x0: wx0, x1: wx1, y0: wy0, y1: wy1, z: wz, rise: 0.5, ov: 0.1, ovE: 0.09, mat: 'tiles', pal: '#9a4a2a', gableMat: 'stone', gablePal: '#b0aa9a', ridge: 'y' });
-  // dziedziniec: palisada, stojak na włócznie, manekin, tarcze, sztandary
-  const palisade = (xa, ya, xb, yb) => { const n = Math.round(Math.hypot(xb - xa, yb - ya) / 0.11); for (let i = 0; i <= n; i++) { const t = i / n, x = xa + (xb - xa) * t, y = ya + (yb - ya) * t; sc.box(x - 0.04, y - 0.04, 0, x + 0.04, y + 0.04, 0.52 + (i % 3) * 0.04, 'log', { ao: 0.2, pal: '#8a6a40' }); } };
-  palisade(-1.42, hy1 + 0.05, -1.42, 1.4);
-  palisade(-1.42, 1.4, -0.35, 1.4); palisade(0.12, 1.4, 0.55, 1.4);
-  sc.box(-0.36, 1.34, 0, -0.30, 1.46, 0.78, 'plank', { pal: '#6a4a2c', ao: 0.1 }); sc.box(0.06, 1.34, 0, 0.12, 1.46, 0.78, 'plank', { pal: '#6a4a2c', ao: 0.1 });
-  const g = sc.g, f = sc.F;
-  const [rx, ry] = sc.P(-0.95, 0.1, 0);
-  g.strokeStyle = '#3a2814'; g.lineWidth = 3 * f; g.beginPath(); g.moveTo(rx - 22 * f, ry); g.lineTo(rx - 22 * f, ry - 26 * f); g.moveTo(rx + 22 * f, ry); g.lineTo(rx + 22 * f, ry - 26 * f); g.moveTo(rx - 24 * f, ry - 22 * f); g.lineTo(rx + 24 * f, ry - 22 * f); g.stroke();
-  for (let i = 0; i < 6; i++) { const x = rx - 18 * f + i * 7.2 * f; g.strokeStyle = '#8a6a40'; g.lineWidth = 2 * f; g.beginPath(); g.moveTo(x, ry - 2 * f); g.lineTo(x + 3 * f, ry - 46 * f); g.stroke(); g.fillStyle = '#cfd4d8'; g.beginPath(); g.moveTo(x + 3 * f, ry - 54 * f); g.lineTo(x + 6 * f, ry - 45 * f); g.lineTo(x, ry - 45 * f); g.closePath(); g.fill(); }
-  const [dx, dy] = sc.P(-0.15, 0.7, 0);
-  g.strokeStyle = '#4a3220'; g.lineWidth = 4 * f; g.beginPath(); g.moveTo(dx, dy); g.lineTo(dx, dy - 48 * f); g.moveTo(dx - 16 * f, dy - 36 * f); g.lineTo(dx + 16 * f, dy - 36 * f); g.stroke();
-  g.fillStyle = '#d8c898'; g.strokeStyle = '#4a3220'; g.lineWidth = f; g.beginPath(); g.ellipse(dx, dy - 52 * f, 7 * f, 8 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#2f5aa8'; g.beginPath(); g.moveTo(dx - 5 * f, dy - 34 * f); g.lineTo(dx + 5 * f, dy - 34 * f); g.lineTo(dx + 4 * f, dy - 22 * f); g.lineTo(dx, dy - 18 * f); g.lineTo(dx - 4 * f, dy - 22 * f); g.closePath(); g.fill(); g.stroke();
-  barrel(sc, 0.3, -0.1); barrel(sc, 0.34, 0.12); crate(sc, -1.2, 1.1, 0.22, 0.22);
-  for (const [bx, by] of [[-1.28, -0.3], [0.38, -0.3]]) { const [px, py] = sc.P(bx, by, 0); g.strokeStyle = '#3a2814'; g.lineWidth = 2.4 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 120 * f); g.stroke(); g.fillStyle = '#2f5aa8'; g.strokeStyle = 'rgba(10,10,30,0.7)'; g.lineWidth = f; g.beginPath(); g.moveTo(px + 1 * f, py - 116 * f); g.lineTo(px + 24 * f, py - 116 * f); g.lineTo(px + 24 * f, py - 72 * f); g.lineTo(px + 12 * f, py - 64 * f); g.lineTo(px + 1 * f, py - 72 * f); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#e0c060'; g.fillRect(px + 11 * f, py - 108 * f, 3 * f, 30 * f); g.fillRect(px + 5 * f, py - 98 * f, 15 * f, 3.4 * f); }
-  return sc.finish();
-};
-
-/* KUŹNIA 2×3: kamienny warsztat z dachówką i otwartym zadaszeniem z paleniskiem, kowadłem i narzędziami */
-BAKED.frankSmithy = function () {
-  const sc = sceneFor(2, 3, 2.7), x0 = -0.92, x1 = 0.92, y0 = -1.42, y1 = 0.0, zp = 0.1, zw = 1.1;
-  sc.patch(0, 0.2, 1.3, 1.9, { seed: 91, alpha: 0.7, pal: '#6a5a3c' });
-  sc.flat([[[0.1, 0.2], [0.9, 0.2], [0.9, 1.0], [0.1, 1.0]]], 'rgba(255,150,60,0.22)', 16);
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, 1.4, 0], [x0, 1.4, 0], [x0 - 0.1, y0 - 0.1, zw + 0.7], [x1 + 0.1, 0.2, zw + 0.6], [x0 - 0.1, 0.2, zw + 0.6], [0.5, -0.4, 2.8]]);
-  sc.contact(x0, y0, x1, 1.35);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'stone', { ao: 0.4 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'stone', { ao: 0.25, pal: '#a39d90' });
-  const MS = wallS(x0, x1, y1, zw, zp), ME = wallE(y0, y1, x1, zw, zp);
-  for (const u of [0.35, 1.2]) windowAt(sc, ME.O, ME.U, ME.V, u, 0.25, 0.2, 0.28, { frame: '#3a2818', sill: '#8d897d', lit: '#ffb860' });
-  gableRoof(sc, { x0, x1, y0, y1, z: zw, rise: 0.62, ov: 0.1, ovE: 0.08, mat: 'tiles', pal: '#a24a28', gableMat: 'stone', gablePal: '#a39d90', ridge: 'x' });
-  // wnętrze zadaszenia: tylna ściana z narzędziami, palenisko, kowadło, miech
-  const g = sc.g, f = sc.F;
-  sc.local(MS.O, MS.U, MS.V, (gg) => { gg.fillStyle = 'rgba(16,10,6,0.35)'; gg.fillRect(0, 0, 1.84, 1.0);
-    gg.strokeStyle = '#2a2018'; gg.lineWidth = 0.014; for (const [u, v, k] of [[0.3, 0.35, 0], [0.5, 0.4, 1], [0.7, 0.34, 2], [1.0, 0.38, 0], [1.2, 0.35, 1]]) { gg.beginPath(); gg.moveTo(u, v - 0.12); gg.lineTo(u, v + 0.1); gg.stroke(); gg.fillStyle = '#9aa0a6'; if (k === 0) gg.fillRect(u - 0.05, v - 0.14, 0.1, 0.05); else if (k === 1) { gg.beginPath(); gg.moveTo(u, v - 0.12); gg.lineTo(u + 0.06, v - 0.2); gg.lineTo(u + 0.08, v - 0.12); gg.fill(); } else { gg.beginPath(); gg.arc(u, v + 0.1, 0.03, 0, TAU); gg.stroke(); } } });
-  sc.box(0.2, 0.2, zp, 0.88, 0.7, 0.55, 'stone', { ao: 0.3, pal: '#8f8a7e' });                              // palenisko
-  const [fx, fy] = sc.P(0.54, 0.45, 0.55), gl = g.createRadialGradient(fx, fy, 0, fx, fy, 30 * f); gl.addColorStop(0, 'rgba(255,230,140,0.95)'); gl.addColorStop(0.35, 'rgba(255,140,40,0.75)'); gl.addColorStop(1, 'rgba(180,40,0,0)');
-  g.fillStyle = gl; g.beginPath(); g.ellipse(fx, fy, 30 * f, 15 * f, 0, 0, TAU); g.fill();
-  sc.cyl(-0.3, 0.55, zp, 0.42, 0.15, { mat: 'log', pal: '#7a5632', topMat: 'plank', ao: 0.3 }); sc.box(-0.42, 0.47, 0.42, -0.18, 0.63, 0.5, 'stone', { pal: '#3a3a40', ao: 0, wear: 0 }); sc.box(-0.37, 0.49, 0.5, -0.23, 0.61, 0.57, 'stone', { pal: '#44444a', ao: 0, wear: 0 });
-  // dach zadaszenia (jednospadowy) + słupy
-  sc.face([x0 - 0.06, 0.02, 1.12], [x1 - x0 + 0.12, 0, 0], [0, 1.0, -0.24], 'tiles', { shade: 1.0, pal: '#8f4224', edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] });
-  for (const px of [x0 + 0.05, -0.3, 0.3, x1 - 0.05]) sc.box(px - 0.05, 0.96, 0, px + 0.05, 1.06, 0.88, 'log', { ao: 0.2, pal: '#7a5632' });
-  chimney(sc, 0.55, -0.35, 1.4, 2.45, 0.34); soot(sc, 0.55, -0.35, 1.45, 0.24, 0.5);
-  barrel(sc, -0.75, 0.82); barrel(sc, 0.72, 1.25, 0, 0.85); logPile(sc, 0.3, 1.32);
-  for (let i = 0; i < 5; i++) { const [px, py] = sc.P(-0.7 + i * 0.07, 0.4 + i * 0.02, zp + 0.03 * i); g.fillStyle = '#9aa0a6'; g.strokeStyle = 'rgba(14,14,18,0.8)'; g.lineWidth = f; g.fillRect(px - 9 * f, py - 3 * f, 18 * f, 3 * f); g.strokeRect(px - 9 * f, py - 3 * f, 18 * f, 3 * f); }
-  const [cx2, cy2] = sc.P(0.9, 0.95, 0); g.fillStyle = '#1c1a1c'; g.beginPath(); g.moveTo(cx2 - 16 * f, cy2); g.quadraticCurveTo(cx2 - 8 * f, cy2 - 20 * f, cx2, cy2 - 18 * f); g.quadraticCurveTo(cx2 + 8 * f, cy2 - 20 * f, cx2 + 16 * f, cy2); g.closePath(); g.fill();
-  return sc.finish();
-};
-
-/* ZAMEK 4×4: mur kurtynowy z dziedzińcem, cztery baszty, brama z kratą, donżon */
-BAKED.frankKeep = function () {
-  const sc = sceneFor(4, 4, 4.2), w = 1.86, t = 0.4, zp = 0.1, zc = 1.05, zd = 2.2;
-  sc.paved(-1.2, -1.2, 1.5, 1.5, { mat: 'cobble', jit: 0.1, seed: 4, feather: 4 });
-  sc.patch(0, 0.1, 2.5, 2.3, { seed: 51, alpha: 0.55, feather: 20 });
-  sc.shadow([[-w, -w, 0], [w, -w, 0], [w, w, 0], [-w, w, 0], [-w, -w, zc + 0.9], [w, -w, zc + 0.9], [w, w, zc + 0.9], [-w, w, zc + 0.9], [-0.7, -0.8, zd + 0.3], [0.5, 0.4, zd + 0.3], [0.5, -0.8, zd + 0.3], [-0.7, 0.4, zd + 0.3]], { alpha: 0.5, blur: 14 });
-  sc.contact(-w, -w, w, w, { grow: 0.1, alpha: 0.6, blur: 9 });
-  sc.box(-w - 0.04, -w - 0.04, 0, w + 0.04, w + 0.04, zp, 'stone', { ao: 0.4 });
-  const tower = (cx, cy, hgt = 1.95) => { sc.cyl(cx, cy, zp, hgt, 0.34, { mat: 'stone', pal: '#9d9a90', topMat: 'stone', ao: 0.45 }); sc.cyl(cx, cy, hgt - 0.04, hgt + 0.06, 0.4, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0, top: false }); cone(sc, cx, cy, hgt + 0.06, 0.4, 0.9, [168, 62, 40]); };
-  // mury tylne (północny i zachodni) — widoczne od środka
-  sc.box(-w, -w, zp, w, -w + t, zc, 'stone', { ao: 0.3 }); sc.box(-w, -w + t, zp, -w + t, w, zc, 'stone', { ao: 0.3 });
-  tower(-w + 0.05, -w + 0.05);
-  merlonLine(sc, -w + 0.4, -w + 0.06, w - 0.4, -w + 0.06, zc, 12, 0.1, 0.13); merlonLine(sc, -w + 0.06, -w + 0.4, -w + 0.06, w - 0.4, zc, 12, 0.1, 0.13);
-  // dziedziniec
-  sc.face([-w + t, -w + t, zp], [2 * w - 2 * t, 0, 0], [0, 2 * w - 2 * t, 0], 'cobble', { shade: 1, wear: 0.4, edge: 0 });
-  // zabudowa wewnętrzna: donżon, stajnia przy murze, studnia, skład
-  sc.shadowBox(-0.8, -0.95, 0.55, 0.45, zd, { alpha: 0.4 });
-  sc.box(-0.8, -0.95, zp, 0.55, 0.45, zd, 'stone', { ao: 0.3, pal: '#aaa497', eave: 0.2 });
-  const DS = wallS(-0.8, 0.55, 0.45, zd, zp), DE = wallE(-0.95, 0.45, 0.55, zd, zp);
-  glassWin(sc, DS.O, DS.U, DS.V, 0.25, 0.45, 0.2, 0.62, { frame: '#8d897d' }); glassWin(sc, DS.O, DS.U, DS.V, 0.95, 0.45, 0.2, 0.62, { frame: '#8d897d' });
-  door(sc, DS.O, DS.U, DS.V, 0.56, 0.3, 0.62, { vb: zd - zp, arch: true, frame: '#8d897d', pal: '#4a3420' });
-  for (const u of [0.3, 0.8]) archWin(sc, DE.O, DE.U, DE.V, u, 0.5, 0.18, 0.5, { frame: '#8d897d', lit: '#ffd078', lit2: '#c98a30' });
-  sc.box(-0.86, -1.01, zd - 0.06, 0.61, 0.51, zd + 0.03, 'stone', { ao: 0, pal: '#8f8a7e' });
-  merlonLine(sc, -0.8, -0.95, 0.55, -0.95, zd + 0.03, 8, 0.1, 0.13); merlonLine(sc, -0.8, -0.95, -0.8, 0.45, zd + 0.03, 8, 0.1, 0.13);
-  merlonLine(sc, -0.8, 0.45, 0.55, 0.45, zd + 0.03, 8, 0.1, 0.13); merlonLine(sc, 0.55, -0.95, 0.55, 0.45, zd + 0.03, 8, 0.1, 0.13);
-  sc.box(-0.55, -0.7, zd + 0.03, 0.3, 0.2, zd + 0.2, 'stone', { ao: 0.1, pal: '#a39d90' });
-  pennant(sc, 0.1, -0.2, zd + 0.2, 70, '#2f5aa8');
-  sc.box(-w + t, 0.55, zp, -0.95, 1.4, 0.75, 'plank', { ao: 0.3, pal: '#6a4a2c' });
-  gableRoof(sc, { x0: -w + t, x1: -0.95, y0: 0.55, y1: 1.4, z: 0.75, rise: 0.36, ov: 0.06, ovE: 0.05, mat: 'shingle', pal: '#5a4636', ridge: 'y' });
-  sc.cyl(0.95, 0.9, zp, 0.34, 0.17, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0.4 }); barrel(sc, 0.55, 1.05); barrel(sc, 0.72, 1.18); crate(sc, 1.2, 0.5, 0.24, 0.24); haystack(sc, 1.2, -0.55);
-  tower(w - 0.05, -w + 0.05); tower(-w + 0.05, w - 0.05);
-  // mury przednie (południowy z bramą, wschodni)
-  sc.box(-w, w - t, zp, -0.55, w, zc, 'stone', { ao: 0.3, eave: 0.3 }); sc.box(0.55, w - t, zp, w, w, zc, 'stone', { ao: 0.3, eave: 0.3 }); sc.box(-0.55, w - t, zc - 0.28, 0.55, w, zc, 'stone', { ao: 0.3, eave: 0.4 });
-  sc.box(w - t, -w + t, zp, w, w - t, zc, 'stone', { ao: 0.3, eave: 0.3 });
-  // brama: wieża bramna nad przejściem
-  const gx0 = -0.62, gx1 = 0.62, gy0 = w - 0.5, gy1 = w + 0.1, gz = 1.85;
-  sc.box(gx0, gy0, zc - 0.28, gx1, gy1, gz, 'stone', { ao: 0.25, pal: '#aaa497', eave: 0.3 });
-  const GS = wallS(gx0, gx1, gy1, gz, zp);
-  sc.local(GS.O, GS.U, GS.V, (g) => { const u0 = 0.37, ww = 0.5, vb = gz - zp; g.fillStyle = '#17120e'; g.beginPath(); g.moveTo(u0, vb); g.lineTo(u0, vb - 0.62); g.arc(u0 + ww / 2, vb - 0.62, ww / 2, Math.PI, 0); g.lineTo(u0 + ww, vb); g.closePath(); g.fill(); g.strokeStyle = '#8d897d'; g.lineWidth = 0.03; g.stroke(); g.strokeStyle = 'rgba(60,50,40,0.95)'; g.lineWidth = 0.018; for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(u0 + i * ww / 5, vb - 0.62 - 0.2); g.lineTo(u0 + i * ww / 5, vb - 0.05); g.stroke(); } for (let j = 0; j < 5; j++) { g.beginPath(); g.moveTo(u0, vb - 0.1 - j * 0.14); g.lineTo(u0 + ww, vb - 0.1 - j * 0.14); g.stroke(); }
-    for (const u of [0.1, 1.04]) { g.fillStyle = '#2f5aa8'; g.fillRect(u, 0.18, 0.16, 0.5); g.fillStyle = '#e0c060'; g.fillRect(u + 0.07, 0.24, 0.025, 0.36); g.fillRect(u + 0.04, 0.32, 0.08, 0.03); } g.fillStyle = '#15120d'; for (const u of [0.4, 0.6, 0.8]) g.fillRect(u, 0.12, 0.03, 0.14); });
-  merlonLine(sc, gx0 + 0.05, gy1 - 0.05, gx1 - 0.05, gy1 - 0.05, gz, 7, 0.1, 0.14); merlonLine(sc, gx1 - 0.05, gy0 + 0.05, gx1 - 0.05, gy1 - 0.05, gz, 3, 0.1, 0.14);
-  sc.box(-0.3, w + 0.1, 0, 0.3, 1.99, 0.07, 'plank', { ao: 0.3, pal: '#7a5632' });                                // pomost
-  merlonLine(sc, -w + 0.4, w - 0.06, -0.62, w - 0.06, zc, 5, 0.1, 0.13); merlonLine(sc, 0.62, w - 0.06, w - 0.4, w - 0.06, zc, 5, 0.1, 0.13); merlonLine(sc, w - 0.06, -w + 0.4, w - 0.06, w - 0.4, zc, 12, 0.1, 0.13);
-  tower(w - 0.05, w - 0.05, 2.05);
-  for (const [x, y] of [[-w + 0.05, -w + 0.05], [w - 0.05, -w + 0.05], [-w + 0.05, w - 0.05], [w - 0.05, w - 0.05]]) pennant(sc, x, y, 2.9, 40, '#b8352b');
-  return sc.finish();
-};
-
-/* ---- 34_vikings.js ---- */
-/* ====================== WIKINGOWIE: ciemne drewno, darń na dachach, tarcze, smocze łby ====================== */
-
-/* smocze zwieńczenie szczytu: skrzyżowane belki z rzeźbionymi łbami */
-function dragonEnd(sc, x, y, z, d = 1) {
-  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
-  g.lineCap = 'round';
-  for (const s2 of [1, -1]) {
-    g.strokeStyle = '#1c1008'; g.lineWidth = 7 * f; g.beginPath(); g.moveTo(px - 3 * s2 * f * d, py + 8 * f); g.lineTo(px + 14 * s2 * f * d, py - 30 * f); g.stroke();
-    g.strokeStyle = '#4a301a'; g.lineWidth = 4.6 * f; g.stroke();
-    const hx = px + 14 * s2 * f * d, hy = py - 30 * f;
-    g.fillStyle = '#4a301a'; g.strokeStyle = '#1c1008'; g.lineWidth = 1.3 * f; g.beginPath(); g.moveTo(hx - 2 * f, hy + 4 * f); g.quadraticCurveTo(hx - 5 * f, hy - 6 * f, hx + 1 * f * s2, hy - 8 * f); g.lineTo(hx + 9 * f * s2, hy - 5 * f); g.lineTo(hx + 6 * f * s2, hy - 2 * f); g.lineTo(hx + 9 * f * s2, hy + 1 * f); g.lineTo(hx + 3 * f * s2, hy + 1 * f); g.quadraticCurveTo(hx + 2 * f * s2, hy + 5 * f, hx, hy + 5 * f); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = '#e8d8a0'; g.beginPath(); g.arc(hx + 2.4 * f * s2, hy - 3 * f, 1.1 * f, 0, TAU); g.fill();
-  }
-}
-/* suszarnia ryb: ramka z poprzeczką i rybami */
-function fishRack(sc, x, y, n = 6) {
-  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, 0);
-  g.strokeStyle = '#2a1c0c'; g.lineWidth = 3 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px - 24 * f, py + 2 * f); g.lineTo(px - 24 * f, py - 34 * f); g.moveTo(px + 24 * f, py + 2 * f); g.lineTo(px + 24 * f, py - 34 * f); g.moveTo(px - 26 * f, py - 30 * f); g.lineTo(px + 26 * f, py - 30 * f); g.stroke();
-  for (let i = 0; i < n; i++) { const fx = px - 20 * f + i * 8 * f; g.fillStyle = i % 2 ? '#b8a890' : '#9a9a9c'; g.strokeStyle = 'rgba(20,14,8,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(fx, py - 20 * f, 2.6 * f, 8 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#d8d0c0'; g.beginPath(); g.moveTo(fx, py - 12 * f); g.lineTo(fx - 3 * f, py - 8 * f); g.lineTo(fx + 3 * f, py - 8 * f); g.closePath(); g.fill(); }
-}
-
-/* DŁUGI DOM 4×2: ciemne deski z tarczami, darniowy dach, smocze szczyty, otwór dymny */
-BAKED.vikingHall = function () {
-  const sc = sceneFor(4, 2, 2.7), x0 = -1.9, x1 = 1.9, y0 = -0.7, y1 = 0.7, zp = 0.1, zw = 1.3, rise = 0.82;
-  sc.patch(0, 0.05, 2.5, 1.2, { seed: 33, pal: '#7a6540', alpha: 0.8 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0 - 0.22, y0 - 0.2, zw], [x1 + 0.22, y0 - 0.2, zw], [x1 + 0.22, y1 + 0.2, zw], [x0 - 0.22, y1 + 0.2, zw], [x0 - 0.22, 0, zw + rise], [x1 + 0.22, 0, zw + rise]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'rubble', { ao: 0.3 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'plank', { pal: '#52402c', ao: 0.3, eave: 0.45 });
-  const S = wallS(x0, x1, y1, zw, zp), E = wallE(y0, y1, x1, zw, zp);
-  door(sc, S.O, S.U, S.V, 1.65, 0.5, 0.8, { vb: zw - zp, arch: true, frame: '#1f1308', pal: '#3a2816', lintel: '#a8352b' });
-  sc.local(S.O, S.U, S.V, (g) => { const cols = ['#b8352b', '#e8d8a0', '#2f5aa8', '#d8a830']; for (let i = 0; i < 12; i++) { const u = 0.2 + i * 0.3 + (i >= 6 ? 0.5 : 0); if (Math.abs(u - 1.9) < 0.45) continue; shield(g, u, 0.28, 0.07, cols[i % 4]); } g.fillStyle = '#c9a85a'; g.fillRect(1.52, 0.04, 0.03, 0.9); g.fillRect(2.15, 0.04, 0.03, 0.9); });
-  sc.local(E.O, E.U, E.V, (g) => { const cols = ['#b8352b', '#e8d8a0', '#2f5aa8', '#d8a830']; for (let i = 0; i < 4; i++) shield(g, 0.2 + i * 0.3, 0.28, 0.07, cols[i % 4]); });
-  for (const px of [1.55, 2.2]) sc.box(x0 + px - 0.05, y1, zp, x0 + px + 0.05, y1 + 0.1, zw, 'plank', { pal: '#6a3a1c', ao: 0.1, wear: 0.4 });
-  const R = gableRoof(sc, { x0, x1, y0, y1, z: zw, rise, ov: 0.16, ovE: 0.2, mat: 'grass', pal: 'green', gableMat: 'plank', gablePal: '#52402c', ridge: 'x' });
-  sc.face([x0 - 0.2, R.ySo, R.eaveZ], [x1 - x0 + 0.4, 0, 0], [0, 0, -0.1], 'dirt', { shade: 0.7, pal: '#4a3a22', edge: 0.45 });
-  const g = sc.g, f = sc.F, a = sc.P(x0 - 0.2, 0, zw + rise), b = sc.P(x1 + 0.2, 0, zw + rise);
-  g.lineCap = 'round'; g.strokeStyle = '#1c1008'; g.lineWidth = 8 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.strokeStyle = '#4a301a'; g.lineWidth = 4.6 * f; g.stroke();
-  dragonEnd(sc, x1 + 0.2, 0, zw + rise, 1); dragonEnd(sc, x0 - 0.2, 0, zw + rise, -1);
-  sc.box(-0.3, -0.18, zw + rise - 0.06, 0.3, 0.18, zw + rise + 0.24, 'plank', { ao: 0.2, pal: '#3a2a18' }); pyramidRoof(sc, { x0: -0.36, x1: 0.36, y0: -0.24, y1: 0.24, z: zw + rise + 0.24, rise: 0.2, mat: 'shingle', pal: '#3a2e24', ov: 0.01 });
-  soot(sc, 0, 0.15, zw + rise - 0.15, 0.22, 0.45);
-  logPile(sc, x1 + 0.3, 0.1); logPile(sc, x1 + 0.3, 0.3); logPile(sc, x1 + 0.3, -0.1); barrel(sc, -1.5, y1 + 0.2); barrel(sc, -1.3, y1 + 0.26, 0, 0.9); fishRack(sc, -0.5, y1 + 0.25, 7);
-  const [rx, ry] = sc.P(0.5, y1 + 0.28, 0); g.strokeStyle = '#3a2814'; g.lineWidth = 2.6 * f; for (const dx of [-12, 0, 12]) { g.beginPath(); g.moveTo(rx + dx * f, ry); g.lineTo(rx + dx * f + 4 * f, ry - 40 * f); g.stroke(); g.fillStyle = '#cfd4d8'; g.beginPath(); g.moveTo(rx + dx * f + 4 * f, ry - 50 * f); g.lineTo(rx + dx * f + 8 * f, ry - 39 * f); g.lineTo(rx + dx * f, ry - 39 * f); g.closePath(); g.fill(); }
-  return sc.finish();
-};
-
-/* CHATA 2×2: mały dom ze zrębu z darnią, suszarnią ryb i skórami */
-BAKED.vikingHut = function () {
-  const sc = sceneFor(2, 2, 2.5), x0 = -0.8, x1 = 0.8, y0 = -0.62, y1 = 0.5, zp = 0.1, zw = 1.2, rise = 0.78;
-  sc.patch(0, 0.05, 1.3, 1.2, { seed: 36, pal: '#7a6540', alpha: 0.8 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0 - 0.18, y0 - 0.1, zw], [x1 + 0.18, y0 - 0.1, zw], [x1 + 0.18, y1 + 0.1, zw], [x0 - 0.18, y1 + 0.1, zw], [x0 - 0.18, 0, zw + rise], [x1 + 0.18, 0, zw + rise]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'rubble', { ao: 0.3 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'log', { pal: '#7a5632', ao: 0.3, eave: 0.45 });
-  const S = wallS(x0, x1, y1, zw, zp), E = wallE(y0, y1, x1, zw, zp);
-  door(sc, S.O, S.U, S.V, 0.6, 0.42, 0.8, { vb: zw - zp, arch: false, frame: '#1f1308', pal: '#3a2816', lintel: '#a8352b' });
-  windowAt(sc, S.O, S.U, S.V, 0.18, 0.34, 0.2, 0.22, { shutters: '#3a2816', dark: true }); windowAt(sc, E.O, E.U, E.V, 0.35, 0.3, 0.2, 0.22, { shutters: '#3a2816', dark: true });
-  sc.local(S.O, S.U, S.V, (g) => { shield(g, 1.3, 0.2, 0.08, '#b8352b'); });
-  const g = sc.g, f = sc.F;
-  for (const [cx, cy] of [[x1, y1], [x0, y1]]) for (let i = 0; i < 8; i++) { const z = zp + 0.06 + i * 0.108, [px, py] = sc.P(cx, cy, z); g.fillStyle = i % 2 ? '#6a4a2a' : '#7a5632'; g.beginPath(); g.ellipse(px, py, 5 * f, 3.2 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = 1; g.stroke(); }
-  const R = gableRoof(sc, { x0, x1, y0, y1, z: zw, rise, ov: 0.16, ovE: 0.18, mat: 'grass', pal: 'green', gableMat: 'log', gablePal: '#7a5632', ridge: 'x' });
-  sc.face([x0 - 0.18, R.ySo, R.eaveZ], [x1 - x0 + 0.36, 0, 0], [0, 0, -0.09], 'dirt', { shade: 0.7, pal: '#4a3a22', edge: 0.45 });
-  const a = sc.P(x0 - 0.18, 0, zw + rise), b = sc.P(x1 + 0.18, 0, zw + rise);
-  g.lineCap = 'round'; g.strokeStyle = '#1c1008'; g.lineWidth = 7.5 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.strokeStyle = '#4a301a'; g.lineWidth = 4 * f; g.stroke();
-  dragonEnd(sc, x1 + 0.18, 0, zw + rise, 1); dragonEnd(sc, x0 - 0.18, 0, zw + rise, -1);
-  sc.box(0.1, -0.12, zw + rise - 0.05, 0.4, 0.12, zw + rise + 0.2, 'plank', { ao: 0.2, pal: '#3a2a18' }); soot(sc, 0.25, 0.1, zw + rise - 0.1, 0.16, 0.4);
-  fishRack(sc, 0.5, y1 + 0.3, 6);
-  const [hx, hy] = sc.P(-0.55, y1 + 0.3, 0); g.strokeStyle = '#2a1c0c'; g.lineWidth = 3 * f; g.beginPath(); g.moveTo(hx - 14 * f, hy); g.lineTo(hx - 14 * f, hy - 34 * f); g.moveTo(hx + 14 * f, hy); g.lineTo(hx + 14 * f, hy - 34 * f); g.moveTo(hx - 16 * f, hy - 32 * f); g.lineTo(hx + 16 * f, hy - 32 * f); g.moveTo(hx - 16 * f, hy - 6 * f); g.lineTo(hx + 16 * f, hy - 6 * f); g.stroke();
-  g.fillStyle = '#c8a878'; g.strokeStyle = 'rgba(40,24,10,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(hx - 12 * f, hy - 30 * f); g.lineTo(hx + 12 * f, hy - 30 * f); g.lineTo(hx + 10 * f, hy - 8 * f); g.lineTo(hx - 10 * f, hy - 8 * f); g.closePath(); g.fill(); g.stroke();
-  logPile(sc, x1 + 0.3, 0.0); logPile(sc, x1 + 0.3, 0.2); barrel(sc, -0.1, y1 + 0.22);
-  return sc.finish();
-};
-
-/* PRZYSTAŃ 4×2: pomost na palach z szopą na łodzie, polerami, sieciami i żurawikiem */
-BAKED.vikingDock = function () {
-  const sc = sceneFor(4, 2, 2.2), px0 = -0.75, px1 = 1.95, py0 = -0.42, py1 = 0.42, zd = 0.34;
-  sc.shadow([[px0, py0, 0], [px1, py0, 0], [px1, py1, 0], [px0, py1, 0], [px1, 0, 1.2]], { alpha: 0.35, blur: 8 });
-  // szopa na łodzie na brzegu (zachodni koniec)
-  const bx0 = -1.9, bx1 = -0.85, by0 = -0.8, by1 = 0.8, zp = 0.1, zw = 0.9, rise = 0.7;
-  sc.patch(-1.3, 0, 1.1, 1.3, { seed: 44, pal: '#7a6540', alpha: 0.8 });
-  sc.shadow([[bx0, by0, 0], [bx1, by0, 0], [bx1, by1, 0], [bx0, by1, 0], [bx0 - 0.1, by0 - 0.1, zw + 0.4], [bx1 + 0.2, by1 + 0.1, zw + 0.4], [bx0 - 0.1, 0, zw + rise]]);
-  sc.box(bx0, by0, zp, bx1, by1, zw, 'plank', { pal: '#52402c', ao: 0.3, eave: 0.4 });
-  const BS = wallS(bx0, bx1, by1, zw, zp), BE = wallE(by0, by1, bx1, zw, zp);
-  door(sc, BE.O, BE.U, BE.V, 0.3, 1.0, 0.72, { vb: zw - zp, arch: false, frame: '#1f1308', pal: '#3a2816', lintel: '#a8352b' });
-  door(sc, BS.O, BS.U, BS.V, 0.25, 0.5, 0.62, { vb: zw - zp, arch: false, frame: '#1f1308', pal: '#3a2816' });
-  sc.local(BS.O, BS.U, BS.V, (g) => { shield(g, 0.9, 0.2, 0.07, '#2f5aa8'); });
-  const R = gableRoof(sc, { x0: bx0, x1: bx1, y0: by0, y1: by1, z: zw, rise, ov: 0.14, ovE: 0.14, mat: 'grass', pal: 'green', gableMat: 'plank', gablePal: '#52402c', ridge: 'y' });
-  dragonEnd(sc, (bx0 + bx1) / 2, by1 + 0.14, zw + rise, 1);
-  // pomost: pale, deski, poręcz z polerów
-  const posts = []; for (let i = 0; i < 6; i++) for (const y of [py0 + 0.08, py1 - 0.08]) posts.push([px0 + 0.15 + i * (px1 - px0 - 0.3) / 5, y]);
-  posts.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  for (const [x, y] of posts) sc.cyl(x, y, -0.2, zd + 0.02, 0.07, { mat: 'log', pal: '#4a3826', topMat: 'plank', ao: 0.3 });
-  sc.box(px0, py0, zd - 0.05, px1, py1, zd, 'plank', { pal: '#8a6a40', ao: 0.4, eave: 0.4 });
-  const g = sc.g, f = sc.F;
-  for (let i = 0; i < 4; i++) sc.cyl(px0 + 0.3 + i * 0.85, py1 - 0.06, zd, zd + 0.22, 0.06, { mat: 'log', pal: '#3a2a18', topMat: 'plank', ao: 0.2 });
-  const [rx, ry] = sc.P(px0 + 0.7, py1 - 0.1, zd + 0.02); g.strokeStyle = '#d8c090'; g.lineWidth = 2.6 * f; g.beginPath(); g.ellipse(rx, ry, 9 * f, 4 * f, 0, 0, TAU); g.stroke(); g.beginPath(); g.ellipse(rx, ry - 1.4 * f, 7 * f, 3 * f, 0, 0, TAU); g.stroke();
-  barrel(sc, px0 + 1.2, -0.05, zd, 0.8); barrel(sc, px0 + 1.4, 0.1, zd, 0.8); crate(sc, px0 + 1.9, -0.1, 0.22, 0.22); sc.box(px0 + 1.86, -0.12, zd + 0.22, px0 + 2.1, 0.12, zd + 0.38, 'plank', { pal: '#7a5a36', ao: 0.2 });
-  // żurawik z liną i beczką, latarnia
-  sc.box(px1 - 0.2, -0.04, zd, px1 - 0.12, 0.04, zd + 1.15, 'log', { pal: '#4a3826', ao: 0.1 }); sc.box(px1 - 0.55, -0.04, zd + 1.05, px1 - 0.12, 0.04, zd + 1.15, 'log', { pal: '#4a3826', ao: 0.1 });
-  const [cx, cy] = sc.P(px1 - 0.55, 0, zd + 1.05); g.strokeStyle = '#d8c090'; g.lineWidth = 1.6 * f; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + 40 * f); g.stroke();
-  barrel(sc, px1 - 0.55, 0, zd + 0.1, 0.6); lantern(sc, px1 - 0.16, 0, zd + 1.1);
-  // sieć rozpięta na ramie
-  const [nx, ny] = sc.P(0.7, py1 - 0.02, zd); g.strokeStyle = '#2a1c0c'; g.lineWidth = 2.6 * f; g.beginPath(); g.moveTo(nx - 30 * f, ny); g.lineTo(nx - 30 * f, ny - 40 * f); g.moveTo(nx + 30 * f, ny); g.lineTo(nx + 30 * f, ny - 40 * f); g.moveTo(nx - 32 * f, ny - 38 * f); g.lineTo(nx + 32 * f, ny - 38 * f); g.stroke();
-  g.strokeStyle = 'rgba(214,200,160,0.7)'; g.lineWidth = f; for (let i = 0; i <= 10; i++) { g.beginPath(); g.moveTo(nx - 30 * f + i * 6 * f, ny - 38 * f); g.lineTo(nx - 30 * f + i * 6 * f + (i % 2 ? 2 : -2) * f, ny - 6 * f); g.stroke(); } for (let j = 1; j < 6; j++) { g.beginPath(); g.moveTo(nx - 30 * f, ny - 38 * f + j * 6 * f); g.lineTo(nx + 30 * f, ny - 38 * f + j * 6 * f); g.stroke(); }
-  return sc.finish();
-};
-
-/* MIODOSYTNIA 2×3: warzelnia z szopą i podwórzem z beczkami, kadziami i kotłem */
-BAKED.vikingMead = function () {
-  const sc = sceneFor(2, 3, 2.4), x0 = -0.92, x1 = 0.92, y0 = -1.42, y1 = -0.1, zp = 0.1, zw = 0.98, rise = 0.62, ym = (y0 + y1) / 2;
-  sc.patch(0, 0.2, 1.3, 1.9, { seed: 55, pal: '#7a6540', alpha: 0.8 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0 - 0.12, y0 - 0.1, zw], [x1 + 0.12, y1 + 0.1, zw], [x0 - 0.12, ym, zw + rise], [x1 + 0.12, ym, zw + rise]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'rubble', { ao: 0.3 });
-  sc.box(x0, y0, zp, x1, y1, zw, 'plank', { pal: '#52402c', ao: 0.3, eave: 0.45 });
-  const S = wallS(x0, x1, y1, zw, zp), E = wallE(y0, y1, x1, zw, zp);
-  door(sc, S.O, S.U, S.V, 0.7, 0.44, 0.74, { vb: zw - zp, arch: false, frame: '#1f1308', pal: '#3a2816', lintel: '#d8a830' });
-  windowAt(sc, S.O, S.U, S.V, 0.2, 0.3, 0.2, 0.22, { shutters: '#3a2816', dark: true }); windowAt(sc, S.O, S.U, S.V, 1.4, 0.3, 0.2, 0.22, { shutters: '#3a2816', dark: true });
-  sc.local(E.O, E.U, E.V, (g) => { shield(g, 0.3, 0.25, 0.07, '#d8a830'); shield(g, 0.6, 0.25, 0.07, '#b8352b'); shield(g, 0.9, 0.25, 0.07, '#e8d8a0'); });
-  const R = gableRoof(sc, { x0, x1, y0, y1, z: zw, rise, ov: 0.14, ovE: 0.16, mat: 'shingle', pal: '#4a3a2e', gableMat: 'plank', gablePal: '#52402c', ridge: 'x' });
-  const g = sc.g, f = sc.F;
-  dragonEnd(sc, x1 + 0.16, ym, zw + rise, 1);
-  sc.box(0.2, ym - 0.16, zw + rise - 0.05, 0.6, ym + 0.16, zw + rise + 0.26, 'plank', { ao: 0.2, pal: '#3a2a18' }); pyramidRoof(sc, { x0: 0.14, x1: 0.66, y0: ym - 0.22, y1: ym + 0.22, z: zw + rise + 0.26, rise: 0.2, mat: 'shingle', pal: '#3a2e24', ov: 0.01 }); soot(sc, 0.4, ym + 0.16, zw + rise - 0.1, 0.2, 0.45);
-  // kadzie i beczki na podwórzu
-  const vat = (x, y, r, h) => { sc.cyl(x, y, 0.04, h, r, { mat: 'plank', pal: '#7a5632', topMat: 'plank', topPal: '#6a4626', ao: 0.4 }); const [px, py] = sc.P(x, y, 0.04 + h * 0.25), [, py2] = sc.P(x, y, 0.04 + h * 0.75), rx = r * AX * f * 1.4142; g.strokeStyle = '#2a2420'; g.lineWidth = 2.4 * f; for (const yy of [py, py2]) { g.beginPath(); g.ellipse(px, yy, rx, rx / 2, 0, 0, Math.PI); g.stroke(); } const [tx, ty] = sc.P(x, y, 0.04 + h); g.fillStyle = 'rgba(214,160,60,0.9)'; g.beginPath(); g.ellipse(tx, ty, rx * 0.8, rx * 0.4, 0, 0, TAU); g.fill(); };
-  vat(-0.6, 0.35, 0.3, 0.6); vat(0.05, 0.6, 0.27, 0.52); vat(0.65, 0.35, 0.3, 0.6);
-  const cask = (x, y) => { const [px, py] = sc.P(x, y, 0); g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(px + 3 * f, py + 1 * f, 16 * f, 5 * f, 0, 0, TAU); g.fill(); g.fillStyle = '#84603a'; g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = 1.2 * f; g.beginPath(); g.ellipse(px, py - 10 * f, 14 * f, 10 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#6a4626'; g.beginPath(); g.ellipse(px + 11 * f, py - 10 * f, 3.4 * f, 8.6 * f, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = '#2a2420'; g.lineWidth = 2 * f; for (const dx of [-5, 3]) { g.beginPath(); g.ellipse(px + dx * f, py - 10 * f, 3 * f, 9.6 * f, 0, 0, TAU); g.stroke(); } };
-  cask(-0.7, 1.2); cask(-0.3, 1.3); cask(0.4, 1.25);
-  sc.cyl(0.7, 1.0, 0.04, 0.34, 0.2, { color: [190, 112, 56], ao: 0.3 }); const [kx, ky] = sc.P(0.7, 1.0, 0.34); g.fillStyle = '#d98a3a'; g.beginPath(); g.ellipse(kx, ky, 0.18 * AX * f * 1.4142, 0.18 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,240,200,0.5)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(kx + (i - 1.5) * 6 * f, ky - (8 + i * 6) * f, (5 + i * 2) * f, 4 * f, 0, 0, TAU); g.fill(); }
-  const [fx, fy] = sc.P(0.7, 1.0, 0.04); for (let i = 0; i < 4; i++) { const gr = g.createRadialGradient(fx + (i - 1.5) * 6 * f, fy - 2 * f, 0, fx + (i - 1.5) * 6 * f, fy - 2 * f, 10 * f); gr.addColorStop(0, 'rgba(255,230,120,0.9)'); gr.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(fx + (i - 1.5) * 6 * f, fy - 4 * f, 6 * f, 10 * f, 0, 0, TAU); g.fill(); }
-  for (let i = 0; i < 6; i++) sc.cyl(-0.85 + i * 0.1, 1.38, 0, 0.14, 0.04, { color: [196, 150, 70], ao: 0 });
-  // szyld z rogiem do picia nad drzwiami
-  const [sx, sy] = sc.P(0.9, y1 + 0.04, zw - 0.15); g.strokeStyle = '#2a2018'; g.lineWidth = 2 * f; g.beginPath(); g.moveTo(sx - 14 * f, sy); g.lineTo(sx + 8 * f, sy); g.stroke(); g.fillStyle = '#e8d8a0'; g.strokeStyle = '#2a2018'; g.lineWidth = 1.2 * f; g.beginPath(); g.moveTo(sx - 4 * f, sy + 4 * f); g.quadraticCurveTo(sx + 4 * f, sy + 4 * f, sx + 8 * f, sy + 16 * f); g.lineTo(sx + 4 * f, sy + 16 * f); g.quadraticCurveTo(sx - 2 * f, sy + 10 * f, sx - 4 * f, sy + 4 * f); g.closePath(); g.fill(); g.stroke();
-  return sc.finish();
-};
-
-/* OKRĘT: smoczy okręt (jednostka, bez obrysu w polach) — kołysze się na wodzie */
-BAKED.longship = function () {
-  const sc = new Scene(460, 300, 230, 205, { F: 1.3 }), g = sc.g, f = sc.F, H = 0.92, W = 0.2, N = 30;
-  const hw = x => W * (1 - Math.pow(Math.abs(x) / H, 2.6)) + 0.012, zt = x => 0.15 + 0.22 * Math.pow(Math.abs(x) / H, 3.2), zb = x => 0.0 + 0.1 * Math.pow(Math.abs(x) / H, 1.4);
-  const xs = Array.from({ length: N + 1 }, (_, i) => -H + 2 * H * i / N), rev = xs.slice().reverse();
-  const poly = pts => { g.beginPath(); pts.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.closePath(); };
-  softFill(sc.gu, gg => { xs.forEach((x, i) => { const p = sc.P(x, hw(x) + 0.06, 0); i ? gg.lineTo(p[0], p[1]) : gg.moveTo(p[0], p[1]); }); rev.forEach(x => { const p = sc.P(x, -hw(x) - 0.06, 0); gg.lineTo(p[0], p[1]); }); gg.closePath(); }, 'rgba(238,252,255,0.6)', 9);
-  softFill(sc.gu, gg => { xs.forEach((x, i) => { const p = sc.P(x + 0.22, hw(x) + 0.1, 0); i ? gg.lineTo(p[0], p[1]) : gg.moveTo(p[0], p[1]); }); rev.forEach(x => { const p = sc.P(x + 0.22, -hw(x) + 0.1, 0); gg.lineTo(p[0], p[1]); }); gg.closePath(); }, 'rgba(6,34,52,0.42)', 10);
-  poly([...xs.map(x => sc.P(x, -hw(x), zt(x))), ...rev.map(x => sc.P(x, -hw(x) * 0.78, zt(x) - 0.13))]); g.fillStyle = '#4a3220'; g.fill(); g.strokeStyle = 'rgba(20,10,4,0.7)'; g.stroke();
-  poly([...xs.map(x => sc.P(x, -hw(x) * 0.8, zt(x) - 0.1)), ...rev.map(x => sc.P(x, hw(x) * 0.8, zt(x) - 0.1))]);
-  const dg = g.createLinearGradient(...sc.P(0, -0.2, 0.1), ...sc.P(0, 0.2, 0.1)); dg.addColorStop(0, '#7a5a34'); dg.addColorStop(1, '#a98450'); g.fillStyle = dg; g.fill(); g.stroke();
-  g.strokeStyle = 'rgba(40,24,10,0.55)'; g.lineWidth = 1; for (let i = -7; i <= 7; i++) { const x = i * 0.11; g.beginPath(); g.moveTo(...sc.P(x, -hw(x) * 0.78, zt(x) - 0.1)); g.lineTo(...sc.P(x, hw(x) * 0.78, zt(x) - 0.1)); g.stroke(); }
-  g.lineCap = 'round'; g.strokeStyle = '#4a301a'; g.lineWidth = 4 * f; g.beginPath(); g.moveTo(...sc.P(0, 0, zt(0) - 0.1)); g.lineTo(...sc.P(0, 0, 1.0)); g.stroke();
-  const sails = 8, sy0 = 0.93, sy1 = 0.36, swd = 0.34;
-  for (let i = 0; i < sails; i++) {
-    const a = -swd + 2 * swd * i / sails, b = -swd + 2 * swd * (i + 1) / sails, bulge = t => 0.04 * Math.sin(Math.PI * (t + 1) / 2);
-    poly([sc.P(bulge(a / swd), a, sy0), sc.P(bulge(b / swd), b, sy0), sc.P(bulge(b / swd) * 0.7, b, sy1), sc.P(bulge(a / swd) * 0.7, a, sy1)]);
-    g.fillStyle = i % 2 ? '#efe4c6' : '#b8352b'; g.fill(); g.strokeStyle = 'rgba(40,20,10,0.4)'; g.lineWidth = 0.8; g.stroke();
-  }
-  const shade = g.createLinearGradient(...sc.P(0, -swd, 0.9), ...sc.P(0, swd, 0.4)); shade.addColorStop(0, 'rgba(255,240,200,0.16)'); shade.addColorStop(1, 'rgba(0,0,30,0.3)');
-  poly([sc.P(0, -swd, sy0), sc.P(0, swd, sy0), sc.P(0, swd, sy1), sc.P(0, -swd, sy1)]); g.fillStyle = shade; g.fill();
-  g.strokeStyle = '#3a2614'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(...sc.P(0, -swd - 0.03, sy0 + 0.01)); g.lineTo(...sc.P(0, swd + 0.03, sy0 + 0.01)); g.stroke();
-  const strakes = 6;
-  for (let k = 0; k < strakes; k++) {
-    const a = k / strakes, b = (k + 1) / strakes;
-    poly([...xs.map(x => sc.P(x, hw(x) * (1 - a * 0.28), lerp(zt(x), zb(x), a))), ...rev.map(x => sc.P(x, hw(x) * (1 - b * 0.28), lerp(zt(x), zb(x), b)))]);
-    const gr = g.createLinearGradient(...sc.P(0, 0, zt(0)), ...sc.P(0, 0, zb(0)));
-    const base = k === 0 ? [184, 53, 43] : (k % 2 ? [112, 78, 46] : [138, 98, 56]); gr.addColorStop(0, css(scaleC(base, 1.2))); gr.addColorStop(1, css(scaleC(base, 0.72)));
-    g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(20,10,4,0.75)'; g.lineWidth = 1; g.stroke();
-  }
-  const cols = ['#b8352b', '#e8d8a0', '#2f5aa8', '#d8a830'];
-  for (let i = 0; i < 11; i++) { const x = -0.62 + i * 0.124, [px, py] = sc.P(x, hw(x), zt(x) - 0.045); g.fillStyle = cols[i % 4]; g.beginPath(); g.ellipse(px, py, 8 * f, 7.5 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = 1.2; g.stroke(); g.fillStyle = '#c8ccd0'; g.beginPath(); g.arc(px, py, 2.4 * f, 0, TAU); g.fill(); }
-  const stem = (x, d, hgt, head) => {
-    const a = sc.P(x, 0, zt(x) - 0.04), b = sc.P(x + 0.07 * d, 0, zt(x) + hgt * 0.55), c = sc.P(x + 0.02 * d, 0, zt(x) + hgt);
-    g.strokeStyle = '#3a2614'; g.lineWidth = 6 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(b[0], b[1], c[0], c[1]); g.stroke();
-    g.strokeStyle = '#8a6238'; g.lineWidth = 2.6 * f; g.stroke();
-    g.save(); g.translate(c[0], c[1]); g.scale(f, f);
-    if (head) { g.fillStyle = '#7a5230'; g.strokeStyle = 'rgba(20,10,4,0.85)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-5, 4); g.quadraticCurveTo(-4, -12, 4, -14); g.lineTo(16, -8); g.lineTo(8, -4); g.lineTo(12, 2); g.lineTo(2, 4); g.closePath(); g.fill(); g.stroke();
-      g.fillStyle = '#f0e8c8'; g.beginPath(); g.arc(5, -7, 1.8, 0, TAU); g.fill(); g.fillStyle = '#b8352b'; g.beginPath(); g.arc(5, -7, 0.8, 0, TAU); g.fill(); }
-    else { g.strokeStyle = '#3a2614'; g.lineWidth = 3; g.beginPath(); g.arc(-3, -1, 4, 0, Math.PI * 1.5); g.stroke(); }
-    g.restore();
-  };
-  stem(-H, -1, 0.28, false); stem(H, 1, 0.34, true);
-  return sc.finish({ grain: 0.5 });
-};
-
 /* ---- 35_props.js ---- */
-/* ====================== REKWIZYTY 1×1: stóg, drewno, studnia ====================== */
+/* ====================== REKWIZYTY 1×1: stóg, drewno ====================== */
 BAKED.hay = function () {
   const sc = new Scene(130, 120, 65, 96, { F: 1.5, wear: 0 });
   sc.shadow([[-0.2, -0.2, 0], [0.2, -0.2, 0], [0.2, 0.2, 0], [-0.2, 0.2, 0], [0, 0, 0.5]], { alpha: 0.42, blur: 6 });
@@ -2179,19 +1658,6 @@ BAKED.logs = function () {
   sc.contact(-0.2, -0.08, 0.2, 0.08, { alpha: 0.4 });
   logPile(sc, 0, 0);
   const o = sc.finish({ grain: 0.4 }); o.fw = 1; o.fh = 1; return o;
-};
-BAKED.well = function () {
-  const sc = sceneFor(1, 1, 1.5);
-  sc.patch(0, 0, 0.6, 0.6, { seed: 12, alpha: 0.6 });
-  sc.shadow([[-0.3, -0.3, 0], [0.3, -0.3, 0], [0.3, 0.3, 0], [-0.3, 0.3, 0], [-0.32, 0, 0.95], [0.32, 0, 0.95]], { alpha: 0.42, blur: 6 });
-  sc.contact(-0.32, -0.32, 0.32, 0.32, { alpha: 0.5 });
-  sc.cyl(0, 0, 0, 0.26, 0.3, { mat: 'stone', pal: '#9a978c', topMat: 'stone', topPal: '#8c8a80', ao: 0.4 });
-  const g = sc.g, f = sc.F, [px, py] = sc.P(0, 0, 0.26), rx = 0.22 * AX * f * 1.4142;
-  g.fillStyle = '#0f1e28'; g.beginPath(); g.ellipse(px, py, rx, rx / 2, 0, 0, TAU); g.fill();
-  g.fillStyle = 'rgba(80,140,170,0.45)'; g.beginPath(); g.ellipse(px, py + 2 * f, rx * 0.7, rx * 0.3, 0, 0, TAU); g.fill();
-  sc.box(-0.3, -0.025, 0.26, -0.24, 0.03, 0.95, 'plank', { pal: '#6a4a2c', ao: 0 }); sc.box(0.24, -0.025, 0.26, 0.3, 0.03, 0.95, 'plank', { pal: '#6a4a2c', ao: 0 });
-  gableRoof(sc, { x0: -0.38, x1: 0.38, y0: -0.22, y1: 0.22, z: 0.95, rise: 0.3, ov: 0.08, ovE: 0.06, mat: 'shingle', pal: '#6a4a34', ridge: 'x' });
-  return sc.finish();
 };
 
 /* ---- 40_nature.js ---- */
@@ -3143,7 +2609,7 @@ BAKED.saracens_market = function () {
   B.part(-0.3, -0.4, 0.26, 0.3, 0.2, 0.3, () => { const g = sc.g, f = sc.F, [wx, wy] = sc.P(0, -0.1, 0.26); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.27 * AX * f * 1.4142, 0.27 * AY * f * 1.4142, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
   for (const [px, py] of [[-0.3, -0.4], [0.24, -0.4], [-0.3, 0.14], [0.24, 0.14]]) B.box(px, py, 0.26, px + 0.06, py + 0.06, 1.0, 'bark', { ao: 0.1, pal: '#6a4a2c' });
   B.pyramid({ x0: -0.34, x1: 0.34, y0: -0.44, y1: 0.24, z: 1.0, rise: 0.4, mat: 'thatch', pal: '#9a8a4a', ov: 0.1 });
-  B.crate(1.2, 1.2, 0.2, 0.2); B.crate(1.2, 1.0, 0.2, 0.34); B.barrel(-1.3, 1.25); B.sack(1.0, 1.25); B.sack(1.15, 1.3, '#c9b27a', 0.9); B.jar(-1.1, 1.05);
+  B.crate(1.2, 1.2, 0.2, 0.2); B.crate(1.2, 1.0, 0.2, 0.34); B.barrel(-1.3, 1.25); B.sack(0.85, 1.25); B.sack(0.98, 1.36, '#c9b27a', 0.9); B.jar(-1.1, 1.05);
   return B.flush();
 };
 
@@ -3259,7 +2725,7 @@ BAKED.saracens_pottery = function () {
   const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
   sc.patch(0, 0.2, 1.2, 1.7, { seed: 32, pal: '#b79a62', alpha: 0.75 });
   flatHouse(B, { x0: -0.85, x1: 0.35, y0: -1.4, y1: -0.35, h: 0.88, S: { door: sarDoor(0.3, 0.34, 0.52), win: { n: 1, ...arcWin(0.2, 0.34, 0.24) } }, E: { win: { n: 1, ...arcWin(0.18, 0.32, 0.24, { frame: SR.wood }) } } });
-  B.box(0.5, -1.0, 0, 0.98, -0.52, 0.25, 'sandstone', { pal: '#b88a52', ao: 0.3 }); B.dome(0.74, -0.76, 0.25, 0.26, { cols: ['#e8c898', '#c8946a', '#9a6a44', '#5a3c24'], finial: false });
+  B.box(0.5, -1.0, 0, 0.98, -0.52, 0.25, 'sandstone', { pal: '#b88a52', ao: 0.3 }); B.dome(0.74, -0.76, 0.25, 0.26, { cols: ['#e8c898', '#c8946a', '#9a6a44', '#5a3c24'], finial: false }); B.smoke(0.74, -0.76, 0.62);
   B.part(0.6, -0.55, 0.25, 0.88, -0.45, 0.45, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.74, -0.5, 0.33); g.fillStyle = '#1c120c'; g.beginPath(); g.ellipse(px, py, 8 * f, 6 * f, 0, 0, TAU); g.fill(); const gl = g.createRadialGradient(px, py, 0, px, py, 8 * f); gl.addColorStop(0, 'rgba(255,220,120,0.9)'); gl.addColorStop(1, 'rgba(255,100,20,0.5)'); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py + 1 * f, 5.4 * f, 3.8 * f, 0, 0, TAU); g.fill(); }, { tag: 'otwór pieca', shadow: false, nest: true });
   for (const [x, y, s] of [[-0.7, 0.2, 1], [-0.52, 0.3, 0.9], [-0.7, 0.42, 1.1], [-0.4, 0.5, 0.9], [0.0, 0.2, 1], [0.18, 0.3, 0.9]]) B.jar(x, y, s);
   B.disc(0.4, 0.55, 0, 0.18, 0.06, [196, 140, 90]); B.heap(0.85, 0.5, 0.25, 0.18, 'clay');
@@ -3350,6 +2816,786 @@ BAKED.saracens_guardpost = function () {
   return B.flush();
 };
 
+/* ---- 53_vikings.js ---- */
+/* ====================== WIKINGOWIE: ciemne drewno, darń na dachach, tarcze, smocze łby ======================
+   Ściany ze zrębu (log) albo ciemnych desek (plank), dachy darniowe (grass) albo z gontu, nad kalenicą smocze łby, tarcze na ścianach.
+   Okna są małe i ciemne (1 na ścianę), tarcze nie nachodzą na drzwi i okna (omijają je według wyniku facade()). */
+const VK = { wall: '#52402c', wallL: '#64503a', tar: '#3b2a1a', log: '#7a5632', logD: '#5a3e22', plank: '#7a5a36', dark: '#2a1c10', door: '#3a2816', doorF: '#1f1308', red: '#a8352b', blue: '#2f5aa8', gold: '#d8a830', cream: '#e8d8a0', shingle: '#4a3a2e', shingleD: '#3a2e24', bog: '#7a6540' };
+const VK_SH = ['#b8352b', '#e8d8a0', '#2f5aa8', '#d8a830'];
+/* smocze zwieńczenie szczytu: skrzyżowane belki z rzeźbionymi łbami. Zasada: łby ZAWSZE patrzą od siebie, na zewnątrz budynku —
+   lewy łeb w lewo, prawy w prawo, na przednim i na tylnym końcu kalenicy (d = ±1 odwraca tylko położenie ramion, więc dziób liczymy z faktycznej strony: side = s2·d). */
+function dragonEnd(sc, x, y, z, d = 1) {
+  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
+  g.lineCap = 'round';
+  for (const s2 of [1, -1]) {
+    const side = s2 * d, hx = px + 14 * side * f, hy = py - 30 * f, X = v => hx + v * side * f;                              // X(v): przesunięcie wzdłuż kierunku, w którym patrzy łeb (v > 0 — przód)
+    g.strokeStyle = '#1c1008'; g.lineWidth = 7 * f; g.beginPath(); g.moveTo(px - 3 * side * f, py + 8 * f); g.lineTo(hx, hy); g.stroke();
+    g.strokeStyle = '#4a301a'; g.lineWidth = 4.6 * f; g.stroke();
+    g.fillStyle = '#4a301a'; g.strokeStyle = '#1c1008'; g.lineWidth = 1.3 * f; g.beginPath(); g.moveTo(X(-2), hy + 4 * f); g.quadraticCurveTo(X(-5), hy - 6 * f, X(1), hy - 8 * f); g.lineTo(X(9), hy - 5 * f); g.lineTo(X(6), hy - 2 * f); g.lineTo(X(9), hy + 1 * f); g.lineTo(X(3), hy + 1 * f); g.quadraticCurveTo(X(2), hy + 5 * f, hx, hy + 5 * f); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#e8d8a0'; g.beginPath(); g.arc(X(2.4), hy - 3 * f, 1.1 * f, 0, TAU); g.fill();
+  }
+}
+
+/* przedziały ściany zajęte przez drzwi i okna (wynik facade()) */
+const avoidOf = (res, m = 0.07) => res ? [...res.win.map(w => [w.u0 - m, w.u0 + w.w + m]), ...(res.door ? [[res.door.u0 - m - 0.03, res.door.u0 + res.door.w + m + 0.03]] : [])] : [];
+/* rząd okrągłych tarcz na ścianie: n tarcz między a i b na wysokości v; omija zajęte przedziały */
+function vkShields(sc, W, o = {}) {
+  const lu = Math.hypot(...W.U), r = o.r ?? 0.065, a = o.a ?? 0.2, b = o.b ?? lu - 0.2, n = o.n ?? 7, avoid = o.avoid || [], cols = o.cols || VK_SH;
+  sc.local(W.O, W.U, W.V, (g) => { for (let i = 0; i < n; i++) { const u = a + (b - a) * (i + 0.5) / n; if (avoid.some(([p, q]) => u + r > p && u - r < q)) continue; shield(g, u, o.v ?? 0.2, r, cols[i % cols.length]); } });
+}
+/* wystające końce bali na narożniku zrębu */
+function logEnds(sc, x, y, z0, z1, pal = ['#6a4a2a', '#7a5632']) {
+  const g = sc.g, f = sc.F, n = Math.max(2, Math.round((z1 - z0) / 0.108));
+  for (let i = 0; i < n; i++) { const [px, py] = sc.P(x, y, z0 + (i + 0.5) * (z1 - z0) / n); g.fillStyle = pal[i % 2]; g.beginPath(); g.ellipse(px, py, 5 * f, 3.2 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = f; g.stroke(); }
+}
+/* narożniki zrębu na trzech widocznych narożnikach bryły V */
+const logCorners = (sc, V) => { logEnds(sc, V.x1, V.y1, V.z0, V.z1); logEnds(sc, V.x0, V.y1, V.z0, V.z1); logEnds(sc, V.x1, V.y0, V.z0, V.z1); };
+
+/* kalenica z belką, smoczymi łbami na obu końcach i (opcjonalnie) otworem dymnym; roof — wynik cottage().roof */
+function vkRoof(B, roof, o = {}) {
+  const sc = B.sc, top = roof.z + roof.rise, ovE = roof.ovE ?? 0.1, xm = (roof.x0 + roof.x1) / 2, ym = (roof.y0 + roof.y1) / 2, ry = roof.ridge === 'y';
+  const A = ry ? [xm, roof.y1 + ovE] : [roof.x1 + ovE, ym], Z = ry ? [xm, roof.y0 - ovE] : [roof.x0 - ovE, ym];
+  if (o.beam !== false) B.part(Math.min(A[0], Z[0]) - 0.05, Math.min(A[1], Z[1]) - 0.05, top, Math.max(A[0], Z[0]) + 0.05, Math.max(A[1], Z[1]) + 0.05, top + 0.08, () => {
+    const g = sc.g, f = sc.F, a = sc.P(A[0], A[1], top), b = sc.P(Z[0], Z[1], top); g.lineCap = 'round'; g.strokeStyle = '#1c1008'; g.lineWidth = 7 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.strokeStyle = '#4a301a'; g.lineWidth = 4 * f; g.stroke(); }, { tag: 'kalenica', shadow: false, nest: true });
+  if (o.dragons) for (const [e, d] of [[A, 1], [Z, -1]].filter(([, d]) => !o.ends || d === o.ends)) B.part(e[0] - 0.13, e[1] - 0.13, top + 0.04, e[0] + 0.13, e[1] + 0.13, top + 0.55, () => dragonEnd(sc, e[0], e[1], top, d), { tag: 'smok', shadow: false, nest: true });
+  if (o.smoke != null) {
+    const t = o.smoke, sw = o.smokeW ?? 0.5, cx = ry ? xm : roof.x0 + (roof.x1 - roof.x0) * t, cy = ry ? roof.y0 + (roof.y1 - roof.y0) * t : ym, dx = ry ? 0.17 : sw / 2, dy = ry ? sw / 2 : 0.17;
+    B.box(cx - dx, cy - dy, top - 0.25, cx + dx, cy + dy, top + 0.14, 'plank', { ao: 0.2, pal: '#3a2a18', nest: true, tag: 'dymnik' });
+    B.pyramid({ x0: cx - dx - 0.03, x1: cx + dx + 0.03, y0: cy - dy - 0.03, y1: cy + dy + 0.03, z: top + 0.14, rise: 0.12, mat: 'shingle', pal: VK.shingleD, ov: 0.01, nest: true });
+    B.smoke(cx, cy, top + 0.3);
+  }
+}
+/* dom wikinga: cottage z domyślnym zrębem/deskami, darnią i smoczymi łbami */
+function vkHouse(B, o) {
+  const r = Object.assign({ mat: 'grass', pal: 'green', rise: 0.7, ov: 0.14, ovE: 0.16, gableMat: 'plank', gablePal: VK.wall, sod: true }, o.roof);
+  const h = cottage(B, Object.assign({ h1: 0.85, low: ['plank', VK.wall], plinth: ['rubble', null], ridge: 'x' }, o, { roof: r }));
+  vkRoof(B, h.roof, o);
+  return h;
+}
+const vkWin = (o = {}) => ({ n: 1, w: 0.16, h: 0.2, v: 0.18, frame: VK.dark, dark: true, ...o });
+const vkDoor = (at, w = 0.3, h = 0.5, o = {}) => ({ at, w, h, lintel: VK.red, frame: VK.doorF, pal: VK.door, ...o });
+
+/* CHATA 2×2: dom ze zrębu z darnią, tarcza nad wejściem, suszarnia ryb i beczka */
+BAKED.vikings_hut = function () {
+  const sc = sceneFor(2, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.05, 1.3, 1.2, { seed: 36, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -0.8, x1: 0.8, y0: -0.62, y1: 0.4, low: ['log', VK.log], S: { door: vkDoor(0.3, 0.3, 0.5), win: vkWin() }, E: { win: vkWin() }, smoke: 0.35, smokeW: 0.4,
+    deco1: (S, E, rS, rE, V) => { logCorners(sc, V); vkShields(sc, S, { v: 0.2, n: 3, a: 0.95, b: 1.55, r: 0.07, avoid: avoidOf(rS) }); } });
+  B.rack(-0.92, 0.72, -0.5, 0.72, 'fish', 0.7); B.barrel(0.55, 0.75); B.barrel(0.72, 0.68, 0, 0.9);
+  return B.flush();
+};
+
+/* CHATA DRWALA 2×2: zrąb z darnią, stosy kłód, pień do rąbania z siekierą i deski */
+BAKED.vikings_woodcutter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 37, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -0.75, x1: 0.6, y0: -0.85, y1: 0.0, h1: 0.72, low: ['log', VK.log], S: { door: vkDoor(0.3, 0.28, 0.46), win: vkWin({ w: 0.15 }) }, E: { win: vkWin() }, roof: { rise: 0.6 }, smoke: 0.3, smokeW: 0.36,
+    deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  B.logs(-0.58, 0.42); B.logs(-0.58, 0.64); B.logs(-0.2, 0.7); B.stump(0.42, 0.45); B.planks(0.55, 0.78, 0.95, 0.92, 0.24);
+  return B.flush();
+};
+
+/* LEŚNICZÓWKA 2×2: chatka i ogrodzona grządka z młodymi sosnami */
+BAKED.vikings_forester = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 38, pal: VK.bog, alpha: 0.8 });
+  sc.decal('dirt', '#3e2c18', [[[-0.86, 0.3], [0.86, 0.3], [0.86, 0.96], [-0.86, 0.96]]], { feather: 5, alpha: 0.92 });
+  vkHouse(B, { x0: -0.85, x1: 0.35, y0: -0.85, y1: -0.08, h1: 0.72, low: ['log', VK.log], S: { door: vkDoor(0.3, 0.28, 0.46), win: vkWin({ w: 0.15 }) }, E: { win: vkWin() }, roof: { rise: 0.55 }, smoke: 0.3, smokeW: 0.36,
+    deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  B.fenceRect(-0.9, 0.3, 0.9, 0.98, { kind: 'wattle', gap: { S: [-0.2, 0.2] } });
+  for (const [x, y, s] of [[-0.6, 0.55, 0.3], [-0.2, 0.62, 0.34], [0.2, 0.55, 0.3], [0.6, 0.62, 0.34], [-0.45, 0.85, 0.32], [0.45, 0.85, 0.3]]) B.tree('pine', 7 + Math.round(x * 9), x, y, s);
+  B.bucket(0.55, 0.1); B.logs(0.62, -0.12);
+  return B.flush();
+};
+
+/* CHATA MYŚLIWEGO 2×2: zrąb z poroży nad drzwiami, skóra niedźwiedzia, suszarka ze skórami */
+BAKED.vikings_hunter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 39, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -0.9, x1: 0.4, y0: -0.85, y1: 0.05, h1: 0.72, low: ['log', VK.logD], S: { door: vkDoor(0.4, 0.28, 0.46), win: vkWin({ w: 0.15 }) }, E: { win: vkWin() }, roof: { rise: 0.58 }, smoke: 0.3, smokeW: 0.36,
+    deco1: (S, E, rS, rE, V) => { logCorners(sc, V); sc.local(S.O, S.U, S.V, (g) => { const cx = 0.88; g.fillStyle = '#d8cfb8'; g.strokeStyle = '#2a2018'; g.lineWidth = 0.012; g.beginPath(); g.ellipse(cx, 0.15, 0.045, 0.035, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = '#d8cfb8'; g.lineWidth = 0.02; g.lineCap = 'round'; for (const s2 of [-1, 1]) { g.beginPath(); g.moveTo(cx + s2 * 0.03, 0.13); g.quadraticCurveTo(cx + s2 * 0.12, 0.05, cx + s2 * 0.13, 0.02); g.moveTo(cx + s2 * 0.08, 0.09); g.lineTo(cx + s2 * 0.13, 0.1); g.stroke(); } }); } });
+  B.rack(0.78, -0.6, 0.78, 0.25, 'pelts', 0.78); B.barrel(-0.7, 0.4); B.stump(-0.3, 0.55);
+  return B.flush();
+};
+
+/* TARTAK 3×2: otwarta wiata na słupach pod gontem, piła ramowa na kobyłkach, stosy kłód i desek */
+BAKED.vikings_sawmill = function () {
+  const sc = sceneFor(3, 2, 2.4), B = new Build(sc), zr = 1.0;
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 40, pal: VK.bog, alpha: 0.8 });
+  B.box(-1.3, -0.75, 0, 0.55, 0.45, 0.08, 'plank', { pal: '#6a4a2c', ao: 0.3, shadow: false });
+  B.box(-1.3, -0.75, 0.08, 0.45, -0.67, zr, 'plank', { pal: VK.wall, ao: 0.3 }); B.box(-1.3, -0.67, 0.08, -1.22, 0.35, zr, 'plank', { pal: VK.wall, ao: 0.3 });
+  for (const [px, py] of [[-1.3, 0.35], [-0.4, 0.35], [0.45, 0.35], [0.45, -0.75]]) B.box(px, py, 0.08, px + 0.1, py + 0.1, zr - 0.08, 'bark', { pal: '#5a3e22', ao: 0.2 });
+  B.box(-1.3, 0.35, zr - 0.08, 0.55, 0.45, zr, 'log', { pal: VK.logD, ao: 0.2 });
+  B.gable({ x0: -1.3, x1: 0.55, y0: -0.75, y1: 0.45, z: zr, rise: 0.45, ov: 0.12, ovE: 0.1, mat: 'shingle', pal: VK.shingle, gableMat: 'plank', gablePal: VK.wall, ridge: 'x' });
+  B.sawRig(-1.1, -0.15, 0.0);
+  B.logs(-1.1, 0.7); B.logs(-0.75, 0.72); B.planks(0.7, -0.3, 1.2, 0.0, 0.34, '#a88a58'); B.planks(0.72, 0.15, 1.15, 0.4, 0.26, '#b89a68');
+  return B.flush();
+};
+
+/* MLECZARNIA 2×3: długi zrąb z darnią szczytem do ulicy, bańki, stół z serami, siano i płotek */
+BAKED.vikings_dairy = function () {
+  const sc = sceneFor(2, 3, 2.8), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.7, { seed: 41, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -0.8, x1: 0.8, y0: -1.4, y1: -0.2, h1: 0.82, ridge: 'y', low: ['log', VK.log], S: { door: vkDoor(0.5, 0.32, 0.54), win: vkWin({ n: 2, w: 0.15 }) }, E: { win: vkWin({ n: 2 }) }, roof: { rise: 0.72 }, smoke: 0.4, smokeW: 0.5,
+    deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  B.churn(-0.6, 0.35); B.churn(-0.4, 0.42); B.churn(-0.62, 0.58);
+  B.box(0.3, 0.4, 0, 0.8, 0.62, 0.32, 'plank', { pal: '#7a5a36', ao: 0.3, tag: 'stół' });
+  B.disc(0.42, 0.5, 0.32, 0.07, 0.05, [236, 206, 120]); B.disc(0.62, 0.5, 0.32, 0.07, 0.05, [230, 196, 104]); B.disc(0.52, 0.5, 0.37, 0.07, 0.05, [240, 212, 130]);
+  B.bucket(-0.05, 0.85); B.hay(-0.55, 1.1); B.fence(0.1, 1.3, 0.9, 1.3, { kind: 'rail' });
+  return B.flush();
+};
+
+/* SAD 3×3: wiklinowy płot, sześć jabłoni, dwa ule, skrzynki z jabłkami */
+BAKED.vikings_orchard = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc);
+  sc.decal('grass', 'tundra', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.55 });
+  B.fenceRect(-1.38, -1.3, 1.38, 1.3, { kind: 'wattle', h: 0.3, gap: { S: [-0.3, 0.3] } });
+  [[-0.85, -0.65], [0.0, -0.72], [0.85, -0.65], [-0.8, 0.22], [0.05, 0.15], [0.85, 0.2]].forEach(([x, y], i) => B.tree('apple', 31 + i, x, y, 0.78));
+  B.skep(1.1, 0.85); B.skep(1.0, 1.05, 0.9);
+  B.crate(-1.0, 0.95, 0.24, 0.2); B.crate(-0.7, 1.0, 0.24, 0.2); B.heap(-1.0, 0.95, 0.13, 0.1, ['#e05a48', '#b02a22', '#6a1812'], 0.2); B.heap(-0.7, 1.0, 0.13, 0.1, ['#e05a48', '#b02a22', '#6a1812'], 0.2);
+  return B.flush();
+};
+
+/* CHATA NOSIWODY 2×2: kamienna studnia z daszkiem i wiadrem, obok szopa z beczkami */
+BAKED.vikings_watercarrier = function () {
+  const sc = sceneFor(2, 2, 2.2), B = new Build(sc), wx = -0.38, wy = 0.15;
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 42, pal: VK.bog, alpha: 0.8 });
+  B.cyl(wx, wy, 0, 0.42, 0.3, { mat: 'rubble', pal: '#7a766c', topMat: 'rubble', ao: 0.4 });
+  B.part(wx - 0.3, wy - 0.3, 0.42, wx + 0.3, wy + 0.3, 0.46, () => { const g = sc.g, [px, py] = sc.P(wx, wy, 0.42), rx = 0.24 * AX * sc.F * 1.4142; const gr = g.createRadialGradient(px - rx * 0.3, py - rx * 0.1, 1, px, py, rx); gr.addColorStop(0, '#5aa0c0'); gr.addColorStop(1, '#123a54'); g.fillStyle = gr; g.strokeStyle = 'rgba(10,8,6,0.7)'; g.lineWidth = sc.F; g.beginPath(); g.ellipse(px, py, rx, rx / 2, 0, 0, TAU); g.fill(); g.stroke(); }, { tag: 'woda', shadow: false, nest: true });
+  for (const px of [wx - 0.42, wx + 0.42]) B.box(px - 0.04, wy - 0.04, 0, px + 0.04, wy + 0.04, 0.95, 'bark', { pal: '#5a3e22', ao: 0.2 });
+  B.box(wx - 0.5, wy - 0.04, 0.95, wx + 0.5, wy + 0.04, 1.03, 'log', { pal: '#5a3e22', ao: 0.2 });
+  B.gable({ x0: wx - 0.55, x1: wx + 0.55, y0: wy - 0.24, y1: wy + 0.24, z: 1.03, rise: 0.3, ov: 0.08, ovE: 0.06, mat: 'shingle', pal: VK.shingle, gableMat: 'plank', gablePal: VK.wall, ridge: 'x' });
+  B.part(wx - 0.05, wy - 0.05, 0.4, wx + 0.05, wy + 0.05, 1.0, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(wx, wy, 0.95), [, pb] = sc.P(wx, wy, 0.58); g.strokeStyle = '#d8c090'; g.lineWidth = 1.3 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, pb); g.stroke(); sc.cyl(wx, wy, 0.46, 0.58, 0.06, { mat: 'plank', pal: '#8a6a3c', topMat: 'plank', ao: 0.1 }); }, { tag: 'wiadro', shadow: false, nest: true });
+  vkHouse(B, { x0: 0.3, x1: 0.92, y0: -0.9, y1: -0.2, h1: 0.62, ridge: 'y', plinth: false, low: ['plank', VK.wall], S: { door: vkDoor(0.5, 0.26, 0.42) }, E: { win: vkWin({ w: 0.14, h: 0.16 }) }, roof: { rise: 0.4, ov: 0.1, ovE: 0.1 } });
+  B.barrel(0.45, 0.1, 0, 1.1); B.barrel(0.7, 0.2, 0, 1.1); B.barrel(0.62, 0.45, 0, 1.1); B.bucket(0.2, 0.2); B.bucket(0.2, 0.42);
+  return B.flush();
+};
+
+/* kamień runiczny: pionowa płyta z runami na podstawie */
+function runeStone(B, x, y, h = 0.9, w = 0.26) {
+  B.box(x - w / 2 - 0.04, y - 0.1, 0, x + w / 2 + 0.04, y + 0.1, 0.07, 'rubble', { pal: '#8a867c', ao: 0.3 });
+  return B.box(x - w / 2, y - 0.06, 0.07, x + w / 2, y + 0.06, h, 'rubble', { pal: '#9a968c', ao: 0.25, wear: 0.5, tag: 'runy' }, (S) => sc_runes(B.sc, S, h - 0.07));
+}
+function sc_runes(sc, S, hgt) {
+  sc.local(S.O, S.U, S.V, (g, lu, lv) => { g.strokeStyle = 'rgba(40,34,26,0.85)'; g.lineWidth = 0.014; g.lineCap = 'round'; const n = Math.max(3, Math.floor(hgt / 0.16)), r = rng(Math.round(lu * 1000 + hgt * 100));
+    for (let i = 0; i < n; i++) { const v = 0.12 + i * (lv - 0.2) / n, u = lu / 2; g.beginPath(); g.moveTo(u, v); g.lineTo(u, v + 0.09); const k = (r() * 4) | 0; if (k === 0) { g.moveTo(u, v + 0.02); g.lineTo(u + 0.05, v + 0.05); g.lineTo(u, v + 0.08); } else if (k === 1) { g.moveTo(u - 0.04, v + 0.03); g.lineTo(u + 0.04, v + 0.06); } else if (k === 2) { g.moveTo(u - 0.04, v + 0.07); g.lineTo(u, v + 0.02); g.lineTo(u + 0.04, v + 0.07); } else { g.moveTo(u + 0.04, v + 0.01); g.lineTo(u, v + 0.05); g.lineTo(u + 0.04, v + 0.09); } g.stroke(); } });
+}
+
+/* TARG 3×3: bruk, trzy stragany z pasiastymi płachtami (ryby, futra, chleb), kamień runiczny pośrodku */
+BAKED.vikings_market = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc), pals = ['#a8352b|#e8d8a0', '#2f5aa8|#e8d8a0', '#d8a830|#e8d8a0'];
+  sc.paved(-1.45, -1.45, 1.45, 1.45, { mat: 'cobble', jit: 0.1, seed: 12, feather: 4 }); sc.patch(0, 0, 2.2, 2.2, { seed: 43, pal: VK.bog, alpha: 0.4, feather: 16 });
+  [-0.95, 0, 0.95].forEach((cx, i) => B.stall(cx, -1.35, { pal: pals[i], kind: ['fish', 'fur', 'bread'][i], counter: '#6a4a2c' }));
+  runeStone(B, 0, 0.15, 1.0, 0.3);
+  B.crate(-1.15, 0.85, 0.24, 0.24); B.crate(-0.85, 0.95, 0.22, 0.2); B.sack(0.95, 0.9, '#d8c898'); B.sack(1.12, 0.78, '#cdbb88'); B.barrel(1.15, 0.25); B.barrel(-1.2, 0.3, 0, 0.9);
+  return B.flush();
+};
+
+/* SKŁAD 3×2: długi skład z ciemnych desek pod darnią, szeroka dwuskrzydłowa brama, okienko strychu, worki i beczki */
+BAKED.vikings_store = function () {
+  const sc = sceneFor(3, 2, 2.8), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 44, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -1.3, x1: 1.3, y0: -0.8, y1: 0.35, h1: 0.85, low: ['plank', VK.wall], S: { door: vkDoor(0.5, 0.56, 0.5, { arch: false }), win: vkWin({ n: 2, w: 0.14, h: 0.16 }) }, E: { win: vkWin({ w: 0.14, h: 0.16 }) },
+    roof: { rise: 0.72, gwin: { w: 0.18, h: 0.2, frame: VK.dark } }, deco1: (S, E, rS) => vkShields(sc, S, { v: 0.2, n: 8, a: 0.2, b: 2.4, r: 0.06, avoid: avoidOf(rS, 0.1) }) });
+  B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'rubble', 0.14);
+  B.sack(-0.95, 0.62, '#d8c898'); B.sack(-0.75, 0.7, '#cdbb88'); B.sack(-0.9, 0.82, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85);
+  return B.flush();
+};
+
+/* pojedynczy smoczy łeb w profilu (słup bramy) */
+function prow(sc, x, y, z, d = 1) {
+  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
+  g.save(); g.translate(px, py); g.scale(f * d, f);
+  g.fillStyle = '#4a301a'; g.strokeStyle = '#1c1008'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(-4, 2); g.quadraticCurveTo(-5, -14, 3, -18); g.lineTo(14, -13); g.lineTo(7, -9); g.lineTo(12, -4); g.lineTo(2, 2); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#e8d8a0'; g.beginPath(); g.arc(5, -12, 1.6, 0, TAU); g.fill(); g.fillStyle = '#b8352b'; g.beginPath(); g.arc(5, -12, 0.7, 0, TAU); g.fill(); g.restore();
+}
+
+/* KOŚCIÓŁ SŁUPOWY 3×3 (Świątynia): wysoka nawa pod gontem ze smoczymi łbami, niższe nawy boczne z pulpitowymi dachami,
+   prezbiterium, wieża z portalem od wschodu i kamienie runiczne */
+BAKED.vikings_temple = function () {
+  const sc = sceneFor(3, 3, 4.4), B = new Build(sc), zp = 0.1, nx0 = -1.05, nx1 = 0.55, nz = 1.35, az = 0.7, aw = 0.4, hw = 0.35, lz = 1.0, ld = 0.32, tx1 = 1.2, tz = 1.35, bz = 1.85;
+  sc.patch(0, 0.1, 2.0, 1.9, { seed: 62, pal: VK.bog, alpha: 0.7 });
+  const nave = cottage(B, { x0: nx0, x1: nx1, y0: -hw, y1: hw, zp, h1: nz - zp, ridge: 'x', low: ['plank', VK.tar], plinth: ['rubble', null],
+    S: { marg: 0.2, win: { n: 3, kind: 'arch', w: 0.1, h: 0.14, v: 0.08, frame: VK.dark, lit: '#120c06', lit2: '#0a0704' } },
+    roof: { mat: 'shingle', pal: VK.shingleD, rise: 0.7, ov: 0.12, ovE: 0.04, gableMat: 'plank', gablePal: VK.tar } });
+  vkRoof(B, nave.roof, { dragons: true, ends: -1 });
+  for (const sgn of [1, -1]) {
+    const y0 = sgn > 0 ? hw : -hw - aw, y1 = sgn > 0 ? hw + aw : -hw;
+    B.box(nx0 - 0.02, y0 - 0.015, 0, nx1 + 0.02, y1 + 0.015, zp, 'rubble', { ao: 0.4 });
+    B.box(nx0, y0, zp, nx1, y1, az, 'plank', { ao: 0.3, pal: VK.tar, eave: 0.35 }, sgn > 0 ? (S) => facade(sc, S, { marg: 0.2, win: { n: 3, kind: 'arch', w: 0.1, h: 0.22, v: 0.08, frame: VK.dark, lit: '#120c06', lit2: '#0a0704' } }) : null);
+    B.lean(sgn > 0 ? { x0: nx0 - 0.08, x1: nx1 + 0.04, y0: hw, y1: hw + aw + 0.08, z: lz, drop: ld, mat: 'shingle', pal: VK.shingleD } : { x0: nx0 - 0.08, x1: nx1 + 0.04, y0: -hw - aw - 0.08, y1: -hw, z: lz, drop: ld, dir: 'N', mat: 'shingle', pal: VK.shingleD });
+    const outer = lz - ld * (aw / (aw + 0.08)), v1 = (lz - outer) / (lz - zp);                                           // trapez ściany szczytowej nawy bocznej (wschód)
+    B.part(nx1, Math.min(y0, y1), zp, nx1 + 0.01, Math.max(y0, y1), lz, () => sc.face([nx1, sgn > 0 ? y1 : -hw, lz], [0, -aw, 0], [0, 0, -(lz - zp)], 'plank', { shade: LIGHT.east, pal: VK.tar, clip: sgn > 0 ? [[0, v1], [1, 0], [1, 1], [0, 1]] : [[0, 0], [1, v1], [1, 1], [0, 1]], edge: 0.4 }), { tag: 'czoło nawy bocznej', shadow: false });
+  }
+  const chancel = cottage(B, { x0: -1.45, x1: nx0, y0: -0.28, y1: 0.28, zp, h1: 0.65, ridge: 'x', low: ['plank', VK.tar], plinth: ['rubble', null], roof: { mat: 'shingle', pal: VK.shingleD, rise: 0.34, ov: 0.08, ovE: 0.04, gableMat: 'plank', gablePal: VK.tar } });
+  vkRoof(B, chancel.roof, { dragons: true, ends: -1 });
+  // wieża wschodnia: dolna kondygnacja z portalem, dzwonnica z żaluzjami, ostry dach, wiatrowskaz
+  B.box(nx1 - 0.02, -hw - 0.02, 0, tx1 + 0.02, hw + 0.02, zp, 'rubble', { ao: 0.4, nest: true });
+  B.box(nx1, -hw, zp, tx1, hw, tz, 'plank', { ao: 0.3, pal: VK.tar, eave: 0.3 }, (S, E) => {
+    facade(sc, E, { door: { at: 0.5, w: 0.3, h: 0.52, arch: true, frame: VK.gold, pal: VK.door } });
+    facade(sc, S, { marg: 0.2, win: { n: 1, w: 0.08, h: 0.2, v: 0.25, frame: VK.dark, dark: true } });
+  });
+  B.box(nx1 + 0.05, -hw + 0.05, tz, tx1 - 0.05, hw - 0.05, bz, 'plank', { ao: 0.2, pal: VK.wall }, (S, E) => { for (const W of [S, E]) facade(sc, W, { marg: 0.06, win: { n: 1, kind: 'arch', w: 0.12, h: 0.26, v: 0.1, frame: VK.dark, lit: '#120c06', lit2: '#0a0704', louver: true } }); });
+  B.pyramid({ x0: nx1 + 0.06, x1: tx1 - 0.02, y0: -hw + 0.02, y1: hw - 0.02, z: bz, rise: 0.8, mat: 'shingle', pal: VK.shingleD, ov: 0.04 });
+  B.part((nx1 + tx1) / 2 - 0.03, -0.03, bz + 0.8, (nx1 + tx1) / 2 + 0.03, 0.03, bz + 1.25, () => { const g = sc.g, f = sc.F, [px, py] = sc.P((nx1 + tx1) / 2, 0, bz + 0.8); g.strokeStyle = '#2a1c10'; g.lineWidth = 2.2 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 30 * f); g.stroke(); g.fillStyle = VK.gold; g.beginPath(); g.moveTo(px, py - 30 * f); g.lineTo(px + 15 * f, py - 26 * f); g.lineTo(px, py - 21 * f); g.closePath(); g.fill(); g.strokeStyle = 'rgba(40,24,6,0.8)'; g.lineWidth = f; g.stroke(); }, { tag: 'wiatrowskaz', shadow: false, nest: true });
+  runeStone(B, -0.55, 1.2, 0.85, 0.26); runeStone(B, 0.25, 1.3, 0.7, 0.24);
+  return B.flush();
+};
+
+/* DWÓR JARLA 4×4: niska palisada z bramą ze smoczymi słupami, wielka hala ze smoczymi łbami i tarczami, dom gościnny, spichlerz na palach, drzewce z proporcem */
+BAKED.vikings_keep = function () {
+  const sc = sceneFor(4, 4, 4.0), B = new Build(sc), w = 1.82;
+  sc.patch(0, 0.1, 2.6, 2.4, { seed: 63, pal: VK.bog, alpha: 0.75, feather: 20 });
+  sc.decal('dirt', '#6a5230', [[[-w + 0.1, -w + 0.1], [w - 0.1, -w + 0.1], [w - 0.1, w - 0.1], [-w + 0.1, w - 0.1]]], { feather: 12, alpha: 0.5 });
+  B.palisade(-w, -w, w, -w, 0.75); B.palisade(-w, -w, -w, w, 0.75); B.palisade(w, -w, w, w, 0.4); B.palisade(-w, w, -0.8, w, 0.4); B.palisade(0.8, w, w, w, 0.4);
+  for (const sx of [-1, 1]) { const gx = sx * 0.6; B.box(gx - 0.07, w - 0.07, 0, gx + 0.07, w + 0.07, 1.0, 'bark', { pal: '#4a301a', ao: 0.2, tag: 'brama' }); B.part(gx - 0.12, w - 0.1, 1.0, gx + 0.12, w + 0.1, 1.4, () => prow(sc, gx, w, 1.0, sx), { tag: 'smok', shadow: false, nest: true }); }
+  B.box(-0.53, w - 0.05, 0.84, 0.53, w + 0.05, 0.94, 'log', { pal: '#3a2a18', ao: 0.2, tag: 'brama' });
+  // hala
+  vkHouse(B, { x0: -1.6, x1: 0.6, y0: -1.5, y1: -0.5, h1: 0.95, low: ['plank', VK.wall], S: { door: vkDoor(0.62, 0.4, 0.7, { arch: false }), win: vkWin({ n: 2, h: 0.22 }) }, E: { win: vkWin({ n: 1, h: 0.22 }) }, roof: { rise: 0.78, ov: 0.18, ovE: 0.18 }, dragons: true, smoke: 0.4, smokeW: 0.6,
+    deco1: (S, E, rS, rE) => { vkShields(sc, S, { v: 0.3, n: 9, a: 0.2, b: 2.0, avoid: avoidOf(rS, 0.1) }); vkShields(sc, E, { v: 0.3, n: 3, a: 0.2, b: 0.8, avoid: avoidOf(rE, 0.1) }); } });
+  // dom gościnny
+  vkHouse(B, { x0: -1.6, x1: -0.8, y0: 0.2, y1: 0.9, h1: 0.7, ridge: 'y', low: ['log', VK.log], S: { door: vkDoor(0.5, 0.26, 0.44) }, E: { win: vkWin({ w: 0.14 }) }, roof: { rise: 0.55, ov: 0.1, ovE: 0.1 }, deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  // spichlerz na palach
+  for (const [px, py] of [[0.82, 0.32], [1.38, 0.32], [0.82, 0.88], [1.38, 0.88]]) B.box(px, py, 0, px + 0.12, py + 0.12, 0.3, 'bark', { pal: '#4a301a', ao: 0.2 });
+  vkHouse(B, { x0: 0.8, x1: 1.5, y0: 0.3, y1: 1.0, zp: 0.3, h1: 0.6, ridge: 'y', plinth: false, low: ['plank', VK.wall], S: { door: vkDoor(0.5, 0.24, 0.4) }, E: { win: vkWin({ w: 0.12, h: 0.16 }) }, roof: { rise: 0.5, ov: 0.1, ovE: 0.1, mat: 'shingle', pal: VK.shingle, sod: false } });
+  B.stairs(1.0, 1.25, 1.02, 2, 0.28, 'plank', 0.14, '#6a4a2c');
+  // dziedziniec
+  B.part(-0.06, 0.62, 0, 0.3, 0.78, 1.7, () => pennant(sc, 0, 0.7, 0, 120, '#a8352b'), { tag: 'proporzec', shadow: false });
+  B.weaponRack(-0.55, 0.6, -0.15, 0.6, 'spears'); B.shieldRack(0.3, 0.0, 0.65, 0.0, ['#b8352b', '#2f5aa8', '#d8a830']);
+  runeStone(B, -1.3, 1.35, 0.8, 0.26); B.barrel(0.55, 1.2); B.barrel(0.75, 1.3, 0, 0.9); B.crate(1.55, 1.4, 0.22, 0.22); B.logs(-0.4, 1.4);
+  return B.flush({ shadow: { alpha: 0.5, blur: 12 } });
+};
+
+/* nieregularna plama wody (wielokąt 18-kątny z szumem promienia), do dekali pod pomostem i okrętem */
+function waterBlob(cx, cy, rx, ry, seed = 1) {
+  const r = rng(seed), pts = []; for (let i = 0; i < 18; i++) { const a = i * TAU / 18, k = 0.9 + r() * 0.12; pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); } return [pts];
+}
+/* okręt wikingów rysowany w płaszczyźnie sceny: kadłub klepkowy, tarcze na burcie, żagiel w pasy, smocza głowa na dziobie.
+   (ox, oy) — środek na ziemi, k — skala (1 = kadłub 1.84 pola) wzdłuż osi x; o.sail / o.shields / o.heads / o.plain — wersje uproszczone (łódź rybacka) */
+function drawLongship(sc, ox, oy, k, o = {}) {
+  const g = sc.g, sf = sc.F, f = sf * Math.max(k, 0.55), P = (x, y, z) => sc.P(ox + x * k, oy + y * k, z * k), H = 0.92, W = 0.2, N = 30;
+  g.lineWidth = 0.75 * sf; g.lineJoin = 'round';
+  const hw = x => W * (1 - Math.pow(Math.abs(x) / H, 2.6)) + 0.012, zt = x => 0.19 + 0.22 * Math.pow(Math.abs(x) / H, 3.2), zb = x => 0.0 + 0.1 * Math.pow(Math.abs(x) / H, 1.4);
+  const xs = Array.from({ length: N + 1 }, (_, i) => -H + 2 * H * i / N), rev = xs.slice().reverse();
+  const poly = pts => { g.beginPath(); pts.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.closePath(); };
+  softFill(sc.gu, gg => { xs.forEach((x, i) => { const p = P(x, hw(x) + 0.06, 0); i ? gg.lineTo(p[0], p[1]) : gg.moveTo(p[0], p[1]); }); rev.forEach(x => { const p = P(x, -hw(x) - 0.06, 0); gg.lineTo(p[0], p[1]); }); gg.closePath(); }, 'rgba(238,252,255,0.6)', 9 * sf);
+  softFill(sc.gu, gg => { xs.forEach((x, i) => { const p = P(x + 0.22, hw(x) + 0.1, 0); i ? gg.lineTo(p[0], p[1]) : gg.moveTo(p[0], p[1]); }); rev.forEach(x => { const p = P(x + 0.22, -hw(x) + 0.1, 0); gg.lineTo(p[0], p[1]); }); gg.closePath(); }, 'rgba(6,34,52,0.42)', 10 * sf);
+  poly([...xs.map(x => P(x, -hw(x), zt(x))), ...rev.map(x => P(x, -hw(x) * 0.78, zt(x) - 0.13))]); g.fillStyle = '#4a3220'; g.fill(); g.strokeStyle = 'rgba(20,10,4,0.7)'; g.stroke();
+  poly([...xs.map(x => P(x, -hw(x) * 0.8, zt(x) - 0.1)), ...rev.map(x => P(x, hw(x) * 0.8, zt(x) - 0.1))]);
+  const dg = g.createLinearGradient(...P(0, -0.2, 0.1), ...P(0, 0.2, 0.1)); dg.addColorStop(0, '#7a5a34'); dg.addColorStop(1, '#a98450'); g.fillStyle = dg; g.fill(); g.stroke();
+  g.strokeStyle = 'rgba(40,24,10,0.55)'; g.lineWidth = 0.75 * sf; for (let i = -7; i <= 7; i++) { const x = i * 0.11; g.beginPath(); g.moveTo(...P(x, -hw(x) * 0.78, zt(x) - 0.1)); g.lineTo(...P(x, hw(x) * 0.78, zt(x) - 0.1)); g.stroke(); }
+  if (o.sail !== false) {
+  g.lineCap = 'round'; g.strokeStyle = '#4a301a'; g.lineWidth = 4 * f; g.beginPath(); g.moveTo(...P(0, 0, zt(0) - 0.1)); g.lineTo(...P(0, 0, 1.0)); g.stroke();
+  const sails = 8, sy0 = 0.93, sy1 = 0.36, swd = 0.34;
+  for (let i = 0; i < sails; i++) {
+    const a = -swd + 2 * swd * i / sails, b = -swd + 2 * swd * (i + 1) / sails, bulge = t => 0.04 * Math.sin(Math.PI * (t + 1) / 2);
+    poly([P(bulge(a / swd), a, sy0), P(bulge(b / swd), b, sy0), P(bulge(b / swd) * 0.7, b, sy1), P(bulge(a / swd) * 0.7, a, sy1)]);
+    g.fillStyle = i % 2 ? '#efe4c6' : '#b8352b'; g.fill(); g.strokeStyle = 'rgba(40,20,10,0.4)'; g.lineWidth = 0.6 * sf; g.stroke();
+  }
+  const shade = g.createLinearGradient(...P(0, -swd, 0.9), ...P(0, swd, 0.4)); shade.addColorStop(0, 'rgba(255,240,200,0.16)'); shade.addColorStop(1, 'rgba(0,0,30,0.3)');
+  poly([P(0, -swd, sy0), P(0, swd, sy0), P(0, swd, sy1), P(0, -swd, sy1)]); g.fillStyle = shade; g.fill();
+  g.strokeStyle = '#3a2614'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(...P(0, -swd - 0.03, sy0 + 0.01)); g.lineTo(...P(0, swd + 0.03, sy0 + 0.01)); g.stroke();
+  }
+  const strakes = 6;
+  for (let k = 0; k < strakes; k++) {
+    const a = k / strakes, b = (k + 1) / strakes;
+    poly([...xs.map(x => P(x, hw(x) * (1 - a * 0.28), lerp(zt(x), zb(x), a))), ...rev.map(x => P(x, hw(x) * (1 - b * 0.28), lerp(zt(x), zb(x), b)))]);
+    const gr = g.createLinearGradient(...P(0, 0, zt(0)), ...P(0, 0, zb(0)));
+    const base = k === 0 && !o.plain ? [184, 53, 43] : (k % 2 ? [112, 78, 46] : [138, 98, 56]); gr.addColorStop(0, css(scaleC(base, 1.2))); gr.addColorStop(1, css(scaleC(base, 0.72)));
+    g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(20,10,4,0.75)'; g.lineWidth = 0.75 * sf; g.stroke();
+  }
+  const cols = ['#b8352b', '#e8d8a0', '#2f5aa8', '#d8a830'];
+  if (o.shields !== false) for (let i = 0; i < 11; i++) { const x = -0.62 + i * 0.124, [px, py] = P(x, hw(x), zt(x) - 0.07); g.fillStyle = cols[i % 4]; g.beginPath(); g.ellipse(px, py, 6.6 * f, 6.2 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = 0.9 * sf; g.stroke(); g.fillStyle = '#c8ccd0'; g.beginPath(); g.arc(px, py, 2 * f, 0, TAU); g.fill(); }
+  const stem = (x, d, hgt, head) => {
+    const a = P(x, 0, zt(x) - 0.04), b = P(x + 0.07 * d, 0, zt(x) + hgt * 0.55), c = P(x + 0.02 * d, 0, zt(x) + hgt);
+    g.strokeStyle = '#3a2614'; g.lineWidth = 6 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(b[0], b[1], c[0], c[1]); g.stroke();
+    g.strokeStyle = '#8a6238'; g.lineWidth = 2.6 * f; g.stroke();
+    g.save(); g.translate(c[0], c[1]); g.scale(f, f);
+    if (head) { g.fillStyle = '#7a5230'; g.strokeStyle = 'rgba(20,10,4,0.85)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-5, 4); g.quadraticCurveTo(-4, -12, 4, -14); g.lineTo(16, -8); g.lineTo(8, -4); g.lineTo(12, 2); g.lineTo(2, 4); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#f0e8c8'; g.beginPath(); g.arc(5, -7, 1.8, 0, TAU); g.fill(); g.fillStyle = '#b8352b'; g.beginPath(); g.arc(5, -7, 0.8, 0, TAU); g.fill(); }
+    else { g.strokeStyle = '#3a2614'; g.lineWidth = 3; g.beginPath(); g.arc(-3, -1, 4, 0, Math.PI * 1.5); g.stroke(); }
+    g.restore();
+  };
+  stem(-H, -1, 0.28, false); stem(H, 1, 0.34, o.heads !== false);
+}
+
+/* stos torfu do suszenia: kratownica z ciemnych cegieł (poziomy naprzemiennie przesunięte) */
+Build.prototype.peatStack = function (x, y, nx, ny, lv) {
+  const w = 0.2, d = 0.1, h = 0.07, gx = 0.26, gy = 0.14;
+  return this.part(x, y, 0, x + (nx - 1) * gx + w + 0.03, y + (ny - 1) * gy + d, lv * h + 0.01, () => { const sc = this.sc; for (let l = 0; l < lv; l++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const ox = x + i * gx + (l % 2 ? 0.03 : 0), oy = y + j * gy; sc.box(ox, oy, l * h, ox + w, oy + d, l * h + h - 0.005, 'dirt', { pal: '#4a3220', ao: 0.25, wear: 0.4 }); } }, { tag: 'torf', shadow: true });
+};
+/* łopata wbita w ziemię */
+Build.prototype.spade = function (x, y) {
+  return this.part(x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, 0.62, () => { const g = this.sc.g, f = this.sc.F, [px, py] = this.sc.P(x, y, 0); g.lineCap = 'round'; g.strokeStyle = '#5a3e22'; g.lineWidth = 2.4 * f; g.beginPath(); g.moveTo(px, py - 4 * f); g.lineTo(px, py - 46 * f); g.stroke(); g.fillStyle = '#b8bec6'; g.strokeStyle = 'rgba(14,12,10,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(px - 4.5 * f, py - 1 * f); g.lineTo(px + 4.5 * f, py - 1 * f); g.lineTo(px + 3.5 * f, py - 11 * f); g.lineTo(px - 3.5 * f, py - 11 * f); g.closePath(); g.fill(); g.stroke(); }, { tag: 'łopata', shadow: false });
+};
+
+/* CHATA RYBAKA 2×2: zrąb z darnią, suszarnia ryb, sieć na palach, łódź wyciągnięta na brzeg */
+BAKED.vikings_fisherhut = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.3, 1.2, { seed: 45, pal: '#8a7a54', alpha: 0.85 });
+  vkHouse(B, { x0: -0.85, x1: 0.3, y0: -0.9, y1: -0.15, h1: 0.72, low: ['log', VK.log], S: { door: vkDoor(0.3, 0.28, 0.46), win: vkWin({ w: 0.15 }) }, E: { win: vkWin() }, roof: { rise: 0.58 }, smoke: 0.3, smokeW: 0.34,
+    deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  B.part(0.35, 0.58, 0, 1.0, 0.82, 0.3, () => drawLongship(sc, 0.68, 0.7, 0.36, { sail: false, shields: false, heads: false, plain: true }), { tag: 'łódź', shadow: false });
+  B.rack(-0.9, 0.35, -0.3, 0.35, 'fish', 0.75); B.rack(0.62, -0.7, 0.62, -0.2, 'fish', 0.75); B.barrel(-0.1, 0.6); B.barrel(0.05, 0.75, 0, 0.9);
+  return B.flush();
+};
+
+/* KOPALNIA DARNIOWA 3×3: torfowisko z wyciętymi rowami i wodą, stosy torfu do suszenia, wózek, łopaty i szałas z darni */
+BAKED.vikings_peatmine = function () {
+  const sc = sceneFor(3, 3, 2.2, { pRes: RES }), B = new Build(sc);
+  sc.decal('dirt', '#33261a', [[[-1.45, -1.0], [1.45, -1.0], [1.45, 1.45], [-1.45, 1.45]]], { feather: 18, alpha: 0.95 });
+  for (const [x0, y0, x1, y1] of [[-1.1, -0.7, 0.2, -0.2], [-1.1, 0.0, 0.2, 0.5]]) { sc.decal('dirt', '#1c140c', [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]], { feather: 3, alpha: 0.95 }); sc.decal('water', null, [[[x0 + 0.1, y0 + 0.08], [x1 - 0.1, y0 + 0.08], [x1 - 0.1, y1 - 0.08], [x0 + 0.1, y1 - 0.08]]], { feather: 2.5 }); }
+  vkHouse(B, { x0: 0.75, x1: 1.4, y0: -1.35, y1: -0.7, h1: 0.62, ridge: 'y', plinth: false, low: ['dirt', '#5a4428'], S: { door: vkDoor(0.5, 0.24, 0.4) }, E: {}, roof: { rise: 0.42, ov: 0.1, ovE: 0.1 } });
+  B.peatStack(0.45, 0.2, 4, 3, 5); B.peatStack(-1.3, 0.85, 3, 2, 4); B.peatStack(0.0, 1.0, 3, 2, 3);
+  B.heap(1.05, 0.15, 0.32, 0.26, 'peat'); B.cart(1.1, 0.85, 'peat'); B.spade(-0.7, 0.62); B.spade(-0.4, -0.05);
+  return B.flush();
+};
+
+/* WYPALARKA WĘGLA 3×3: dymiąca mielerz pod ziemną pokrywą, drabina, żar przy podstawie, stosy drewna, worki z węglem i szałas */
+BAKED.vikings_charburner = function () {
+  const sc = sceneFor(3, 3, 3.0), B = new Build(sc), cx = 0.0, cy = 0.15;
+  sc.patch(0, 0.1, 2.0, 1.9, { seed: 46, pal: '#3a2c1c', alpha: 0.9 });
+  sc.decal('dirt', '#1e1610', [[[-1.0, -0.7], [1.1, -0.7], [1.1, 1.1], [-1.0, 1.1]]], { feather: 12, alpha: 0.85 });
+  vkHouse(B, { x0: 0.9, x1: 1.45, y0: -1.4, y1: -0.8, h1: 0.6, ridge: 'y', plinth: false, low: ['log', VK.logD], S: { door: vkDoor(0.5, 0.24, 0.4) }, E: {}, roof: { rise: 0.4, ov: 0.1, ovE: 0.1 } });
+  B.part(cx - 0.85, cy - 0.85, 0, cx + 0.85, cy + 0.85, 1.9, () => {
+    const g = sc.g, f = sc.F; drawHeap(sc, cx, cy, 0.82, 0.78, HEAP.earth);
+    const [tx, ty] = sc.P(cx, cy, 0.78); g.fillStyle = '#120c06'; g.beginPath(); g.ellipse(tx, ty + 1 * f, 7 * f, 3.4 * f, 0, 0, TAU); g.fill();
+    for (const [a, b] of [[-0.55, 0.36], [0.05, 0.62], [0.55, 0.3], [-0.2, 0.55], [0.4, 0.5]]) { const [px, py] = sc.P(cx + a, cy + b, 0.05), gl = g.createRadialGradient(px, py, 0, px, py, 7 * f); gl.addColorStop(0, 'rgba(255,200,90,0.95)'); gl.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py, 7 * f, 4 * f, 0, 0, TAU); g.fill(); }
+  }, { tag: 'mielerz', shadow: true, pts: (() => { const pp = []; for (let k = 0; k < 8; k++) pp.push([cx + Math.cos(k * TAU / 8) * 0.82, cy + Math.sin(k * TAU / 8) * 0.82, 0]); pp.push([cx, cy, 0.8]); return pp; })() });
+  B.smoke(cx, cy, 0.85);
+  B.part(cx - 0.3, cy + 0.72, 0, cx + 0.05, cy + 0.9, 0.7, () => { const g = sc.g, f = sc.F, a = sc.P(cx - 0.2, cy + 0.82, 0), b = sc.P(cx - 0.12, cy + 0.5, 0.6); g.strokeStyle = '#6a4a2c'; g.lineWidth = 2 * f; g.lineCap = 'round'; for (const d of [-4, 4]) { g.beginPath(); g.moveTo(a[0] + d * f, a[1]); g.lineTo(b[0] + d * f, b[1]); g.stroke(); } g.lineWidth = 1.4 * f; for (let i = 1; i < 6; i++) { const t = i / 6; g.beginPath(); g.moveTo(lerp(a[0], b[0], t) - 4 * f, lerp(a[1], b[1], t)); g.lineTo(lerp(a[0], b[0], t) + 4 * f, lerp(a[1], b[1], t)); g.stroke(); } }, { tag: 'drabina', shadow: false, nest: true });
+  B.logs(-1.2, 0.35); B.logs(-1.2, 0.58); B.logs(-1.2, 0.81); B.logs(-0.8, 1.2); B.logs(-0.45, 1.25);
+  B.sack(1.05, 0.85, '#2a2a2e'); B.sack(1.22, 0.78, '#25252a', 0.95); B.sack(1.1, 1.02, '#2a2a2e'); B.barrel(0.7, 1.25); B.stump(1.2, 0.2);
+  return B.flush();
+};
+
+/* MIODOSYTNIA 2×3: warzelnia z szopą pod gontem ze smoczym łbem, kadzie, beczki i kocioł na ogniu */
+BAKED.vikings_mead = function () {
+  const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
+  sc.patch(0, 0.2, 1.3, 1.9, { seed: 55, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -0.92, x1: 0.92, y0: -1.42, y1: -0.3, h1: 0.88, low: ['plank', VK.wall], S: { door: vkDoor(0.7, 0.3, 0.52, { lintel: VK.gold }), win: vkWin({ n: 1 }) }, E: { win: vkWin() }, roof: { mat: 'shingle', pal: VK.shingle, rise: 0.62, sod: false }, dragons: true, ends: 1, smoke: 0.55, smokeW: 0.4,
+    deco1: (S, E, rS, rE) => vkShields(sc, E, { v: 0.22, n: 3, a: 0.2, b: 0.9, r: 0.07, cols: [VK.gold, '#b8352b', VK.cream], avoid: avoidOf(rE) }) });
+  const vat = (x, y, r, h) => { B.cyl(x, y, 0.04, h, r, { mat: 'plank', pal: '#7a5632', topMat: 'plank', topPal: '#6a4626', ao: 0.4 }); B.part(x - r, y - r, 0.04, x + r, y + r, h + 0.02, () => { const g = sc.g, f = sc.F, rx = r * AX * f * 1.4142; for (const zz of [0.04 + h * 0.25, 0.04 + h * 0.75]) { const [px, py] = sc.P(x, y, zz); g.strokeStyle = '#2a2420'; g.lineWidth = 2.4 * f; g.beginPath(); g.ellipse(px, py, rx, rx / 2, 0, 0, Math.PI); g.stroke(); } }, { tag: 'obręcze', shadow: false, nest: true }); };
+  vat(-0.55, 0.15, 0.28, 0.6); vat(0.05, 0.4, 0.25, 0.52); vat(0.6, 0.1, 0.28, 0.6);
+  B.barrel(-0.7, 1.1, 0, 1.2); B.barrel(-0.4, 1.2, 0, 1.2); B.barrel(0.35, 1.15, 0, 1.2);
+  B.cyl(0.65, 0.85, 0.04, 0.34, 0.2, { color: [190, 112, 56], ao: 0.3 });
+  B.part(0.43, 0.63, 0.34, 0.87, 1.07, 0.7, () => { const g = sc.g, f = sc.F, [kx, ky] = sc.P(0.65, 0.85, 0.34); g.fillStyle = '#d98a3a'; g.beginPath(); g.ellipse(kx, ky, 0.18 * AX * f * 1.4142, 0.18 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,240,200,0.5)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(kx + (i - 1.5) * 6 * f, ky - (8 + i * 6) * f, (5 + i * 2) * f, 4 * f, 0, 0, TAU); g.fill(); } }, { tag: 'kocioł', shadow: false, nest: true });
+  return B.flush();
+};
+
+/* PRZYSTAŃ 4×2: szopa na łodzie na brzegu, pomost na palach nad wodą z polerami, beczkami, żurawikiem i siecią */
+BAKED.vikings_dock = function () {
+  const sc = sceneFor(4, 2, 2.6), B = new Build(sc), px0 = -0.75, px1 = 1.95, py0 = -0.42, py1 = 0.42, zd = 0.34;
+  sc.patch(-1.3, 0, 1.1, 1.3, { seed: 44, pal: '#8a7a54', alpha: 0.85 });
+  sc.decal('water', null, waterBlob(0.55, 0.02, 1.45, 0.82, 5), { feather: 20 });
+  vkHouse(B, { x0: -1.9, x1: -0.9, y0: -0.8, y1: 0.8, h1: 0.8, ridge: 'y', low: ['plank', VK.wall], S: { door: vkDoor(0.3, 0.26, 0.5) }, E: { door: vkDoor(0.5, 0.7, 0.62, { at: 0.5 }) }, roof: { rise: 0.62, ov: 0.12, ovE: 0.12 }, dragons: true, ends: 1,
+    deco1: (S, E, rS) => vkShields(sc, S, { v: 0.22, n: 2, a: 0.62, b: 0.96, r: 0.07, cols: [VK.blue, VK.cream], avoid: avoidOf(rS) }) });
+  const posts = []; for (let i = 0; i < 6; i++) for (const y of [py0 + 0.08, py1 - 0.08]) posts.push([px0 + 0.15 + i * (px1 - px0 - 0.3) / 5, y]);
+  for (const [x, y] of posts) B.cyl(x, y, 0, zd - 0.05, 0.07, { mat: 'log', pal: '#4a3826', topMat: 'plank', ao: 0.3, shadow: false });
+  B.box(px0, py0, zd - 0.05, px1, py1, zd, 'plank', { pal: '#8a6a40', ao: 0.4, eave: 0.4 });
+  for (let i = 0; i < 4; i++) B.cyl(px0 + 0.3 + i * 0.75, py1 - 0.06, zd, zd + 0.22, 0.06, { mat: 'log', pal: '#3a2a18', topMat: 'plank', ao: 0.2 });
+  B.part(px0 + 0.5, py1 - 0.2, zd, px0 + 0.9, py1 - 0.02, zd + 0.06, () => { const g = sc.g, f = sc.F, [rx, ry] = sc.P(px0 + 0.7, py1 - 0.1, zd + 0.02); g.strokeStyle = '#d8c090'; g.lineWidth = 2.6 * f; g.beginPath(); g.ellipse(rx, ry, 9 * f, 4 * f, 0, 0, TAU); g.stroke(); g.beginPath(); g.ellipse(rx, ry - 1.4 * f, 7 * f, 3 * f, 0, 0, TAU); g.stroke(); }, { tag: 'lina', shadow: false });
+  B.barrel(px0 + 1.2, -0.05, zd, 0.8); B.barrel(px0 + 1.4, 0.1, zd, 0.8); B.box(px0 + 1.86, -0.12, zd, px0 + 2.1, 0.12, zd + 0.2, 'plank', { pal: '#7a5a36', ao: 0.3, tag: 'skrzynia' });
+  B.box(px1 - 0.2, -0.04, zd, px1 - 0.12, 0.04, zd + 1.1, 'log', { pal: '#4a3826', ao: 0.1, tag: 'żuraw' }); B.box(px1 - 0.55, -0.04, zd + 1.0, px1 - 0.12, 0.04, zd + 1.1, 'log', { pal: '#4a3826', ao: 0.1, tag: 'żuraw', nest: true });
+  B.part(px1 - 0.6, -0.06, zd + 0.1, px1 - 0.5, 0.06, zd + 1.0, () => { const g = sc.g, f = sc.F, [cx, cy] = sc.P(px1 - 0.55, 0, zd + 1.0); g.strokeStyle = '#d8c090'; g.lineWidth = 1.6 * f; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + 36 * f); g.stroke(); barrel(sc, px1 - 0.55, 0, zd + 0.1, 0.6); }, { tag: 'lina', shadow: false, nest: true });
+  B.part(px1 - 0.2, -0.04, zd + 1.1, px1 - 0.12, 0.04, zd + 1.3, () => lantern(sc, px1 - 0.16, 0, zd + 1.1), { tag: 'latarnia', shadow: false, nest: true });
+  B.part(0.35, py1 - 0.1, zd, 1.05, py1, zd + 0.7, () => { const g = sc.g, f = sc.F, [nx, ny] = sc.P(0.7, py1 - 0.02, zd); g.strokeStyle = '#2a1c0c'; g.lineWidth = 2.6 * f; g.beginPath(); g.moveTo(nx - 30 * f, ny); g.lineTo(nx - 30 * f, ny - 40 * f); g.moveTo(nx + 30 * f, ny); g.lineTo(nx + 30 * f, ny - 40 * f); g.moveTo(nx - 32 * f, ny - 38 * f); g.lineTo(nx + 32 * f, ny - 38 * f); g.stroke();
+    g.strokeStyle = 'rgba(214,200,160,0.7)'; g.lineWidth = f; for (let i = 0; i <= 10; i++) { g.beginPath(); g.moveTo(nx - 30 * f + i * 6 * f, ny - 38 * f); g.lineTo(nx - 30 * f + i * 6 * f + (i % 2 ? 2 : -2) * f, ny - 6 * f); g.stroke(); } for (let j = 1; j < 6; j++) { g.beginPath(); g.moveTo(nx - 30 * f, ny - 38 * f + j * 6 * f); g.lineTo(nx + 30 * f, ny - 38 * f + j * 6 * f); g.stroke(); } }, { tag: 'sieć', shadow: false, nest: true });
+  return B.flush({ shadow: { alpha: 0.4, blur: 8 } });
+};
+
+/* HUTA 3×3: zrąb z darnią i kamiennym kominem, szybowy piec dymarski z żarem, miech, hałdy rudy, węgla i żużlu, sztabki */
+BAKED.vikings_smelter = function () {
+  const sc = sceneFor(3, 3, 3.4), B = new Build(sc);
+  sc.patch(0, 0.2, 1.5, 1.4, { seed: 64, pal: '#4a3a28', alpha: 0.8 });
+  sc.flat([[[0.45, 0.0], [1.45, 0.0], [1.45, 0.95], [0.45, 0.95]]], 'rgba(255,150,60,0.2)', 16);
+  vkHouse(B, { x0: -1.3, x1: 0.5, y0: -1.3, y1: -0.2, h1: 0.9, low: ['log', VK.logD], S: { door: vkDoor(0.3, 0.4, 0.55), win: vkWin({ w: 0.15 }) }, E: { win: vkWin({ glow: true, dark: false, lit: '#ffd078' }) }, roof: { rise: 0.55 }, chim: [-0.55, -0.75, 1.05, 0.42, 'stone', '#8a867c'],
+    deco1: (S, E, rS, rE, V) => logCorners(sc, V) });
+  B.cyl(0.95, 0.3, 0, 0.9, 0.3, { mat: 'sandstone', pal: '#a07850', topMat: 'sandstone', ao: 0.45 }); B.smoke(0.95, 0.3, 1.05);
+  B.part(0.6, 0.6, 0.15, 1.3, 0.62, 0.7, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.95, 0.58, 0.32), gl = g.createRadialGradient(px, py, 0, px, py, 15 * f); g.fillStyle = '#17100a'; g.beginPath(); g.ellipse(px, py, 8 * f, 10 * f, 0, 0, TAU); g.fill(); gl.addColorStop(0, 'rgba(255,235,150,0.95)'); gl.addColorStop(0.5, 'rgba(255,130,30,0.8)'); gl.addColorStop(1, 'rgba(160,30,0,0)'); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py, 15 * f, 17 * f, 0, 0, TAU); g.fill(); }, { tag: 'żar', shadow: false, nest: true });
+  B.part(0.3, 0.1, 0, 0.62, 0.55, 0.4, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.46, 0.34, 0.12); g.fillStyle = '#7a5a36'; g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = f; g.beginPath(); g.moveTo(px - 12 * f, py - 4 * f); g.lineTo(px + 6 * f, py - 14 * f); g.lineTo(px + 14 * f, py + 1 * f); g.lineTo(px - 3 * f, py + 8 * f); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#4a3220'; g.beginPath(); g.moveTo(px - 12 * f, py - 4 * f); g.lineTo(px - 3 * f, py + 8 * f); g.lineTo(px - 3 * f, py + 14 * f); g.lineTo(px - 12 * f, py + 4 * f); g.closePath(); g.fill(); g.stroke(); }, { tag: 'miech', shadow: false });
+  B.heap(-1.1, 0.5, 0.4, 0.34, 'ore'); B.heap(-0.4, 0.95, 0.34, 0.28, 'coal'); B.heap(1.2, -0.75, 0.28, 0.24, 'slag');
+  B.part(-0.2, 0.35, 0, 0.3, 0.6, 0.2, () => { let i = 0; for (let l = 0; l < 3; l++) for (let k = 0; k < 3 - l; k++) { const x = -0.1 + k * 0.17 + l * 0.085; sc.box(x - 0.08, 0.4, l * 0.07, x + 0.08, 0.5, l * 0.07 + 0.065, 'stone', { pal: '#8a8e94', ao: 0.1, wear: 0 }); i++; } }, { tag: 'sztabki', shadow: false });
+  B.barrel(1.15, 1.2); B.crate(-0.8, 1.2, 0.22, 0.2);
+  return B.flush();
+};
+
+/* KUŹNIA NARZĘDZI 2×3: zrąb z darnią, otwarta kuźnia pod pulpitowym daszkiem z paleniskiem, kowadłem, korytem i szlifierką */
+BAKED.vikings_toolforge = function () {
+  const sc = sceneFor(2, 3, 2.9), B = new Build(sc);
+  sc.patch(0, 0.2, 1.3, 1.9, { seed: 65, pal: '#4a3a28', alpha: 0.8 });
+  sc.flat([[[0.1, 0.2], [0.9, 0.2], [0.9, 1.0], [0.1, 1.0]]], 'rgba(255,150,60,0.22)', 16);
+  vkHouse(B, { x0: -0.92, x1: 0.92, y0: -1.4, y1: 0.0, h1: 0.95, low: ['log', VK.logD], E: { win: vkWin({ n: 2, glow: true, dark: false, lit: '#ffd078' }) }, roof: { rise: 0.6 }, chim: [0.55, -0.7, 0.85, 0.36, 'stone', '#8a867c'],
+    deco1: (S, E, rS, rE, V) => { logCorners(sc, V); sc.local(S.O, S.U, S.V, (g, lu, lv) => { g.fillStyle = 'rgba(16,10,6,0.45)'; g.fillRect(0.05, 0.05, lu - 0.1, lv - 0.1); g.strokeStyle = '#2a2018'; g.lineWidth = 0.014; for (const [u, v, k] of [[0.3, 0.3, 0], [0.55, 0.34, 1], [0.8, 0.3, 2], [1.1, 0.34, 0], [1.4, 0.3, 1]]) { g.beginPath(); g.moveTo(u, v - 0.1); g.lineTo(u, v + 0.1); g.stroke(); g.fillStyle = '#9aa0a6'; if (k === 0) g.fillRect(u - 0.05, v - 0.12, 0.1, 0.05); else if (k === 1) { g.beginPath(); g.moveTo(u, v - 0.1); g.lineTo(u + 0.06, v - 0.18); g.lineTo(u + 0.08, v - 0.1); g.fill(); } else { g.beginPath(); g.arc(u, v + 0.1, 0.03, 0, TAU); g.stroke(); } } }); } });
+  B.lean({ x0: -0.98, x1: 0.98, y0: 0.02, y1: 1.02, z: 1.12, drop: 0.26, mat: 'shingle', pal: VK.shingle });
+  for (const px of [-0.87, -0.3, 0.3, 0.87]) B.box(px - 0.05, 0.96, 0, px + 0.05, 1.06, 0.86, 'bark', { ao: 0.2, pal: '#4a301a' });
+  B.box(0.2, 0.2, 0.1, 0.88, 0.7, 0.55, 'rubble', { ao: 0.3, pal: '#7a766c' });
+  B.part(0.3, 0.3, 0.55, 0.8, 0.62, 0.62, () => { const g = sc.g, f = sc.F, [fx, fy] = sc.P(0.54, 0.45, 0.55), gl = g.createRadialGradient(fx, fy, 0, fx, fy, 30 * f); gl.addColorStop(0, 'rgba(255,230,140,0.95)'); gl.addColorStop(0.35, 'rgba(255,140,40,0.75)'); gl.addColorStop(1, 'rgba(180,40,0,0)'); g.fillStyle = gl; g.beginPath(); g.ellipse(fx, fy, 30 * f, 15 * f, 0, 0, TAU); g.fill(); }, { tag: 'żar', shadow: false, nest: true });
+  B.anvil(-0.35, 0.55); B.barrel(-0.75, 0.82); B.barrel(0.72, 1.25, 0, 0.85); B.logs(0.3, 1.32); B.bucket(-0.1, 0.9);
+  return B.flush();
+};
+
+/* ZBROJOWNIA 3×2: długi warsztat z desek pod darnią ze smoczymi łbami, rzędy tarcz na ścianie, stojaki z włóczniami i tarczami, kowadło */
+BAKED.vikings_armory = function () {
+  const sc = sceneFor(3, 2, 2.9), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 66, pal: VK.bog, alpha: 0.8 });
+  vkHouse(B, { x0: -1.35, x1: 0.6, y0: -0.9, y1: -0.05, h1: 0.88, low: ['plank', VK.wall], S: { door: vkDoor(0.45, 0.42, 0.56), win: vkWin({ n: 1 }) }, E: { win: vkWin() }, roof: { rise: 0.62, ov: 0.14, ovE: 0.16 }, dragons: true, smoke: 0.7, smokeW: 0.4, chim: null,
+    deco1: (S, E, rS, rE) => { vkShields(sc, S, { v: 0.22, n: 8, a: 0.15, b: 1.9, r: 0.065, avoid: avoidOf(rS, 0.1) }); vkShields(sc, E, { v: 0.22, n: 2, a: 0.2, b: 0.7, r: 0.065, avoid: avoidOf(rE, 0.1) }); } });
+  B.weaponRack(-1.25, 0.55, -0.8, 0.55, 'spears'); B.shieldRack(0.4, 0.3, 1.0, 0.3, ['#b8352b', '#2f5aa8', '#e8d8a0']); B.anvil(1.2, 0.7); B.barrel(-0.3, 0.7); B.crate(0.1, 0.8, 0.22, 0.2);
+  return B.flush();
+};
+
+/* OKRĘT: smoczy okręt przy brzegu — kadłub klepkowy, tarcze na burtach, żagiel w pasy, głowa smoka na dziobie */
+BAKED.vikings_ship = function () {
+  const sc = sceneFor(4, 2, 3.4), B = new Build(sc);
+  sc.decal('water', null, waterBlob(0, 0, 1.95, 0.9, 7), { feather: 22 });
+  B.part(-1.95, -0.7, 0, 1.95, 0.7, 2.0, () => drawLongship(sc, 0, 0, 1.95), { tag: 'okręt', shadow: false });
+  return B.flush({ shadow: false, finish: { grain: 0.5 } });
+};
+
+/* ---- 54_slavs.js ---- */
+/* ====================== SŁOWIANIE: zrąb, strzecha, plecionka, drewniane bożki ======================
+   Ściany z bali (log), dachy ze strzechy z grubą krawędzią (kalenica z samym wałkiem — bez żadnych głów ani rzeźbionych zwieńczeń), okna z okiennicami (1–2 na ścianę), ganki i spichlerze na palach. */
+const SL = { log: '#8a6238', logD: '#6a4a2c', logL: '#a07040', thatch: '#c9a64c', thatchD: '#b99c48', thatchE: '#a98b3e', door: '#6a4a2c', doorF: '#2b1c10', red: '#a8352b', blue: '#2f5aa8', shut: '#5d3f22', plank: '#8a6a40' };
+
+/* sznur cebuli / czosnku / ziół zawieszony pod okapem (rysowany na ekranie) */
+function hangString(sc, x, y, z, n = 5, col = '#d8b060') {
+  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
+  g.strokeStyle = '#5a4020'; g.lineWidth = 1.2 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py + n * 7 * f); g.stroke();
+  for (let i = 0; i < n; i++) { g.fillStyle = col; g.strokeStyle = 'rgba(60,36,10,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(px + (i % 2 ? 2 : -2) * f, py + (i + 1) * 7 * f, 3.4 * f, 3 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+}
+/* rzeźbiony słup z twarzą (bożek): twarz na ścianach południowej i wschodniej, nad nią strzecha */
+function idolPost(sc, cx, cy, w, h, o = {}) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - w / 2, y1 = cy + w / 2, z0 = o.z0 ?? 0.06;
+  sc.box(x0, y0, z0, x1, y1, z0 + h, 'plank', { ao: 0.25, pal: o.pal || '#7a4a26', wear: 0.8 });
+  const S = wallS(x0, x1, y1, z0 + h, z0), E = wallE(y0, y1, x1, z0 + h, z0), face = (W) => sc.local(W.O, W.U, W.V, (g, lu, lv) => {
+    const m = lu / 2, top = lv * 0.12, hh = lv * 0.32;
+    g.fillStyle = o.skin || '#d8b078'; g.beginPath(); g.ellipse(m, top + hh * 0.55, lu * 0.36, hh * 0.52, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(30,16,6,0.8)'; g.lineWidth = lu * 0.035; g.stroke();
+    g.fillStyle = '#1c1008'; g.beginPath(); g.ellipse(m - lu * 0.14, top + hh * 0.42, lu * 0.06, lu * 0.04, 0, 0, TAU); g.ellipse(m + lu * 0.14, top + hh * 0.42, lu * 0.06, lu * 0.04, 0, 0, TAU); g.fill();
+    g.strokeStyle = '#1c1008'; g.lineWidth = lu * 0.04; g.beginPath(); g.moveTo(m - lu * 0.2, top + hh * 0.3); g.lineTo(m - lu * 0.06, top + hh * 0.33); g.moveTo(m + lu * 0.2, top + hh * 0.3); g.lineTo(m + lu * 0.06, top + hh * 0.33); g.moveTo(m, top + hh * 0.45); g.lineTo(m - lu * 0.03, top + hh * 0.65); g.lineTo(m + lu * 0.04, top + hh * 0.65); g.stroke();
+    g.fillStyle = '#2a1608'; g.beginPath(); g.moveTo(m - lu * 0.2, top + hh * 0.78); g.quadraticCurveTo(m, top + hh * 0.7, m + lu * 0.2, top + hh * 0.78); g.quadraticCurveTo(m, top + hh * 0.9, m - lu * 0.2, top + hh * 0.78); g.fill();
+    g.fillStyle = o.band || '#a8352b'; g.fillRect(0, lv * 0.5, lu, lv * 0.07); g.fillRect(0, lv * 0.7, lu, lv * 0.05);
+    g.fillStyle = '#e8d8a0'; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(m - lu * 0.3 + i * lu * 0.2, lv * 0.82); g.lineTo(m - lu * 0.2 + i * lu * 0.2, lv * 0.9); g.lineTo(m - lu * 0.3 + i * lu * 0.2 + lu * 0.2, lv * 0.82); g.fill(); }
+  });
+  face(S); face(E);
+  pyramidRoof(sc, { x0: x0 - 0.02, x1: x1 + 0.02, y0: y0 - 0.02, y1: y1 + 0.02, z: z0 + h, rise: w * 0.9, mat: 'thatch', pal: '#b89a48', ov: 0.01, ppu: 150 });
+}
+Build.prototype.idol = function (cx, cy, w, h, o = {}) {
+  const z0 = o.z0 ?? 0.06;
+  return this.part(cx - w / 2 - 0.03, cy - w / 2 - 0.03, z0, cx + w / 2 + 0.03, cy + w / 2 + 0.03, z0 + h + w * 0.9, () => idolPost(this.sc, cx, cy, w, h, o), { tag: 'bożek' });
+};
+
+/* grzbiet strzechy: gruby wałek na kalenicy, (opcjonalnie) okap dymny; roof — wynik cottage().roof */
+function slRoof(B, roof, o = {}) {
+  const sc = B.sc, top = roof.z + roof.rise, ovE = roof.ovE ?? 0.1, xm = (roof.x0 + roof.x1) / 2, ym = (roof.y0 + roof.y1) / 2, ry = roof.ridge === 'y';
+  const A = ry ? [xm, roof.y1 + ovE] : [roof.x1 + ovE, ym], Z = ry ? [xm, roof.y0 - ovE] : [roof.x0 - ovE, ym];
+  if (o.beam !== false) B.part(Math.min(A[0], Z[0]) - 0.05, Math.min(A[1], Z[1]) - 0.05, top, Math.max(A[0], Z[0]) + 0.05, Math.max(A[1], Z[1]) + 0.05, top + 0.08, () => {
+    const g = sc.g, f = sc.F, a = sc.P(A[0], A[1], top), b = sc.P(Z[0], Z[1], top); g.lineCap = 'round'; g.strokeStyle = '#7d5f28'; g.lineWidth = 9 * f; g.beginPath(); g.moveTo(a[0], a[1] + 1); g.lineTo(b[0], b[1] + 1); g.stroke(); g.strokeStyle = '#d9bf6a'; g.lineWidth = 3.4 * f; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.lineTo(b[0], b[1] - 1.5); g.stroke(); }, { tag: 'kalenica', shadow: false, nest: true });
+  if (o.smoke != null) {
+    const t = o.smoke, sw = o.smokeW ?? 0.4, cx = ry ? xm : roof.x0 + (roof.x1 - roof.x0) * t, cy = ry ? roof.y0 + (roof.y1 - roof.y0) * t : ym, dx = ry ? 0.15 : sw / 2, dy = ry ? sw / 2 : 0.15;
+    B.box(cx - dx, cy - dy, top - 0.25, cx + dx, cy + dy, top + 0.14, 'plank', { ao: 0.2, pal: SL.logD, nest: true, tag: 'dymnik' });
+    B.pyramid({ x0: cx - dx - 0.03, x1: cx + dx + 0.03, y0: cy - dy - 0.03, y1: cy + dy + 0.03, z: top + 0.14, rise: 0.13, mat: 'thatch', pal: SL.thatchD, ov: 0.01, nest: true });
+    B.smoke(cx, cy, top + 0.3);
+  }
+}
+/* chata słowiańska: cottage z bali, strzechą z grubą krawędzią i narożniki zrębu */
+function slHouse(B, o) {
+  const r = Object.assign({ mat: 'thatch', pal: SL.thatch, rise: 0.72, ov: 0.12, ovE: 0.14, gableMat: 'log', gablePal: SL.log, sod: true, sodMat: 'thatch', sodPal: SL.thatchE, sodShade: 0.62 }, o.roof);
+  const user = o.deco1, h = cottage(B, Object.assign({ h1: 0.9, low: ['log', SL.log], plinth: ['rubble', null], ridge: 'x' }, o, { roof: r, deco1: (S, E, rS, rE, V) => { if (o.corners !== false) logCorners(B.sc, V); if (user) user(S, E, rS, rE, V); } }));
+  slRoof(B, h.roof, o);
+  return h;
+}
+const slWin = (o = {}) => ({ n: 1, w: 0.17, h: 0.22, v: 0.2, frame: '#3a2818', shut: SL.shut, ...o });
+const slDoor = (at, w = 0.3, h = 0.5, o = {}) => ({ at, w, h, lintel: SL.red, frame: SL.doorF, pal: SL.door, ...o });
+
+/* CHATA 2×2: wysoka chata z bali pod strzechą, ganek pod pulpitowym daszkiem, sznury cebuli i ziół */
+BAKED.slavs_hut = function () {
+  const sc = sceneFor(2, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.05, 1.3, 1.2, { seed: 3 });
+  slHouse(B, { x0: -0.8, x1: 0.8, y0: -0.62, y1: 0.4, h1: 1.0, S: { door: slDoor(0.62, 0.38, 0.7), win: slWin({ w: 0.2, h: 0.26 }) }, E: { win: slWin({ w: 0.2, h: 0.26 }) }, roof: { rise: 0.74 }, smoke: 0.3, smokeW: 0.36 });
+  B.box(-0.18, 0.4, 0, 0.58, 0.86, 0.07, 'plank', { ao: 0.3, pal: SL.plank });
+  for (const px of [-0.14, 0.52]) B.box(px, 0.78, 0.07, px + 0.08, 0.86, 0.9, 'log', { ao: 0.2, pal: SL.plank });
+  B.lean({ x0: -0.25, x1: 0.65, y0: 0.4, y1: 0.92, z: 1.0, drop: 0.22, mat: 'thatch', pal: SL.thatchD });
+  B.part(-0.1, 0.72, 0.5, 0.5, 0.8, 0.9, () => { hangString(sc, 0.0, 0.8, 0.88, 4, '#e0b868'); hangString(sc, 0.2, 0.8, 0.88, 3, '#c8452e'); hangString(sc, 0.4, 0.8, 0.88, 5, '#d8c890'); }, { tag: 'sznury', shadow: false, nest: true });
+  B.box(-0.66, 0.5, 0.07, -0.3, 0.64, 0.3, 'plank', { ao: 0.2, pal: SL.plank, tag: 'ława' }); B.jar(-0.5, 0.82, 1, 0, [170, 100, 60]); B.barrel(0.78, 0.85, 0, 0.9);
+  B.logs(0.8, 0.58); B.stump(-0.75, 0.85);
+  return B.flush();
+};
+
+/* CHATA DRWALA 2×2: zrąb pod strzechą, stosy kłód, pień z siekierą, kobyłka i deski */
+BAKED.slavs_woodcutter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 13 });
+  slHouse(B, { x0: -0.75, x1: 0.6, y0: -0.85, y1: 0.0, h1: 0.78, S: { door: slDoor(0.3, 0.28, 0.46), win: slWin({ w: 0.15, h: 0.2 }) }, E: { win: slWin({ w: 0.15, h: 0.2 }) }, roof: { rise: 0.6 }, smoke: 0.3, smokeW: 0.3 });
+  B.logs(-0.58, 0.42); B.logs(-0.58, 0.64); B.logs(-0.2, 0.7); B.stump(0.42, 0.45); B.planks(0.55, 0.78, 0.95, 0.92, 0.24, '#b89a68');
+  return B.flush();
+};
+
+/* LEŚNICZÓWKA 2×2: chatka z bali i ogrodzony wiklinowym płotem szkółkowy zagon młodych świerków */
+BAKED.slavs_forester = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 14 });
+  sc.decal('dirt', '#3e2c18', [[[-0.86, 0.3], [0.86, 0.3], [0.86, 0.96], [-0.86, 0.96]]], { feather: 5, alpha: 0.92 });
+  slHouse(B, { x0: -0.85, x1: 0.35, y0: -0.85, y1: -0.08, h1: 0.78, S: { door: slDoor(0.3, 0.28, 0.46), win: slWin({ w: 0.15, h: 0.2 }) }, E: { win: slWin({ w: 0.15, h: 0.2 }) }, roof: { rise: 0.58 }, smoke: 0.3, smokeW: 0.3 });
+  B.fenceRect(-0.9, 0.3, 0.9, 0.98, { kind: 'wattle', gap: { S: [-0.2, 0.2] } });
+  for (const [x, y, s] of [[-0.6, 0.55, 0.3], [-0.2, 0.62, 0.34], [0.2, 0.55, 0.3], [0.6, 0.62, 0.34], [-0.45, 0.85, 0.32], [0.45, 0.85, 0.3]]) B.tree('pine', 17 + Math.round(x * 9), x, y, s);
+  B.bucket(0.55, 0.1); B.logs(0.62, -0.12);
+  return B.flush();
+};
+
+/* CHATA MYŚLIWEGO 2×2: zrąb z porożem nad drzwiami, suszarka ze skórami, pień i beczka */
+BAKED.slavs_hunter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 15 });
+  slHouse(B, { x0: -0.9, x1: 0.4, y0: -0.85, y1: 0.05, h1: 0.78, low: ['log', SL.logD], S: { door: slDoor(0.4, 0.28, 0.46), win: slWin({ w: 0.15, h: 0.2 }) }, E: { win: slWin({ w: 0.15, h: 0.2 }) }, roof: { rise: 0.6 }, smoke: 0.3, smokeW: 0.3,
+    deco1: (S) => sc.local(S.O, S.U, S.V, (g) => { const cx = 0.95; g.fillStyle = '#d8cfb8'; g.strokeStyle = '#2a2018'; g.lineWidth = 0.012; g.beginPath(); g.ellipse(cx, 0.15, 0.045, 0.035, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = '#d8cfb8'; g.lineWidth = 0.02; g.lineCap = 'round'; for (const s2 of [-1, 1]) { g.beginPath(); g.moveTo(cx + s2 * 0.03, 0.13); g.quadraticCurveTo(cx + s2 * 0.12, 0.05, cx + s2 * 0.13, 0.02); g.moveTo(cx + s2 * 0.08, 0.09); g.lineTo(cx + s2 * 0.13, 0.1); g.stroke(); } }) });
+  B.rack(0.78, -0.6, 0.78, 0.25, 'pelts', 0.78); B.barrel(-0.7, 0.4); B.stump(-0.3, 0.55);
+  return B.flush();
+};
+
+/* TARTAK 3×2: otwarta wiata na słupach pod strzechą, piła ramowa na kobyłkach, stosy kłód i desek */
+BAKED.slavs_sawmill = function () {
+  const sc = sceneFor(3, 2, 2.4), B = new Build(sc), zr = 1.0;
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 16 });
+  B.box(-1.3, -0.75, 0, 0.55, 0.45, 0.08, 'plank', { pal: SL.plank, ao: 0.3, shadow: false });
+  B.box(-1.3, -0.75, 0.08, 0.45, -0.67, zr, 'log', { pal: SL.logD, ao: 0.3 }); B.box(-1.3, -0.67, 0.08, -1.22, 0.35, zr, 'log', { pal: SL.logD, ao: 0.3 });
+  for (const [px, py] of [[-1.3, 0.35], [-0.4, 0.35], [0.45, 0.35], [0.45, -0.75]]) B.box(px, py, 0.08, px + 0.1, py + 0.1, zr - 0.08, 'bark', { pal: SL.logD, ao: 0.2 });
+  B.box(-1.3, 0.35, zr - 0.08, 0.55, 0.45, zr, 'log', { pal: SL.logD, ao: 0.2 });
+  B.gable({ x0: -1.3, x1: 0.55, y0: -0.75, y1: 0.45, z: zr, rise: 0.5, ov: 0.14, ovE: 0.12, mat: 'thatch', pal: SL.thatch, gableMat: 'log', gablePal: SL.log, ridge: 'x' });
+  B.sawRig(-1.1, -0.15, 0.0);
+  B.logs(-1.1, 0.7); B.logs(-0.75, 0.72); B.planks(0.7, -0.3, 1.2, 0.0, 0.34); B.planks(0.72, 0.15, 1.15, 0.4, 0.26, '#d0b07a');
+  return B.flush();
+};
+
+/* MLECZARNIA 2×3: długa chata szczytem do ulicy, bańki, stół z serami, siano i płotek */
+BAKED.slavs_dairy = function () {
+  const sc = sceneFor(2, 3, 2.8), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.7, { seed: 17 });
+  slHouse(B, { x0: -0.8, x1: 0.8, y0: -1.4, y1: -0.2, h1: 0.85, ridge: 'y', S: { door: slDoor(0.5, 0.32, 0.54), win: slWin({ n: 2, w: 0.15, h: 0.2 }) }, E: { win: slWin({ n: 1, w: 0.16 }) }, roof: { rise: 0.72 }, smoke: 0.4, smokeW: 0.4 });
+  B.churn(-0.6, 0.35); B.churn(-0.4, 0.42); B.churn(-0.62, 0.58);
+  B.box(0.3, 0.4, 0, 0.8, 0.62, 0.32, 'plank', { pal: SL.plank, ao: 0.3, tag: 'stół' });
+  B.disc(0.42, 0.5, 0.32, 0.07, 0.05, [236, 206, 120]); B.disc(0.62, 0.5, 0.32, 0.07, 0.05, [230, 196, 104]); B.disc(0.52, 0.5, 0.37, 0.07, 0.05, [240, 212, 130]);
+  B.bucket(-0.05, 0.85); B.hay(-0.55, 1.1); B.fence(0.1, 1.3, 0.9, 1.3, { kind: 'rail' });
+  return B.flush();
+};
+
+/* ---------- drobne części słowiańskie ---------- */
+Object.assign(Build.prototype, {
+  /* kosz z wikliny z owocami / grzybami / jagodami */
+  basket(x, y, kind = 'apple', s = 1) {
+    return this.part(x - 0.1 * s, y - 0.1 * s, 0, x + 0.1 * s, y + 0.1 * s, 0.2 * s, () => { const g = this.sc.g, f = this.sc.F * s, [px, py] = this.sc.P(x, y, 0), cols = { apple: ['#c4302a', '#e05a48'], mushroom: ['#c89a5a', '#e8d4a8'], berry: ['#3a2a6a', '#5a4a9a'], pear: ['#b8c850', '#d8e07a'] }[kind] || ['#c4302a', '#e05a48'];
+      g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(px + 2 * f, py + 1 * f, 11 * f, 4.4 * f, 0, 0, TAU); g.fill();
+      g.fillStyle = '#a07a40'; g.strokeStyle = 'rgba(40,24,6,0.85)'; g.lineWidth = f; g.beginPath(); g.moveTo(px - 10 * f, py - 8 * f); g.lineTo(px - 8 * f, py); g.quadraticCurveTo(px, py + 5 * f, px + 8 * f, py); g.lineTo(px + 10 * f, py - 8 * f); g.closePath(); g.fill(); g.stroke();
+      g.strokeStyle = 'rgba(60,36,10,0.6)'; for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(px - 9 * f + i * 0.4 * f, py - 8 * f + i * 2.2 * f); g.lineTo(px + 9 * f - i * 0.4 * f, py - 8 * f + i * 2.2 * f); g.stroke(); }
+      for (let i = 0; i < 6; i++) { g.fillStyle = cols[i % 2]; g.strokeStyle = 'rgba(30,10,6,0.7)'; g.beginPath(); g.arc(px - 7 * f + i * 2.8 * f, py - 10 * f - (i % 2) * 2 * f, 3 * f, 0, TAU); g.fill(); g.stroke(); } }, { tag: 'kosz', shadow: false });
+  },
+  /* strach na wróble z dzbanem na głowie */
+  scarecrow(x, y) {
+    return this.part(x - 0.15, y - 0.06, 0, x + 0.15, y + 0.06, 0.9, () => { const g = this.sc.g, f = this.sc.F, [px, py] = this.sc.P(x, y, 0); g.strokeStyle = '#4a3220'; g.lineWidth = 2.6 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 56 * f); g.moveTo(px - 17 * f, py - 40 * f); g.lineTo(px + 17 * f, py - 40 * f); g.stroke(); g.fillStyle = '#c8b070'; g.beginPath(); g.moveTo(px - 10 * f, py - 40 * f); g.lineTo(px + 10 * f, py - 40 * f); g.lineTo(px + 8 * f, py - 24 * f); g.lineTo(px - 8 * f, py - 24 * f); g.closePath(); g.fill(); g.strokeStyle = 'rgba(40,24,8,0.7)'; g.lineWidth = f; g.stroke(); g.fillStyle = '#d8c898'; g.beginPath(); g.arc(px, py - 60 * f, 5.4 * f, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#9a5a30'; g.beginPath(); g.ellipse(px, py - 67 * f, 5 * f, 6 * f, 0, 0, TAU); g.fill(); g.stroke(); }, { tag: 'strach', shadow: false });
+  },
+  /* kłoda bartna: wydrążony pień z daszkiem i otworem wlotowym */
+  beeLog(x, y, h = 0.9) {
+    return this.part(x - 0.13, y - 0.13, 0, x + 0.13, y + 0.13, h + 0.12, () => { const sc = this.sc, g = sc.g, f = sc.F; sc.cyl(x, y, 0, h, 0.1, { mat: 'bark', pal: '#7a5632', topMat: 'plank', ao: 0.3 }); const [px, py] = sc.P(x, y + 0.1, h * 0.55); g.fillStyle = '#17100a'; g.beginPath(); g.ellipse(px, py, 1.6 * f, 4.4 * f, 0, 0, TAU); g.fill(); g.strokeStyle = '#d8a830'; g.lineWidth = 1.2 * f; g.beginPath(); g.ellipse(px, py, 2.8 * f, 5.4 * f, 0, 0, TAU); g.stroke(); const [tx, ty] = sc.P(x, y, h); g.fillStyle = '#b99c48'; g.strokeStyle = 'rgba(40,26,6,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(tx - 12 * f, ty + 2 * f); g.lineTo(tx, ty - 11 * f); g.lineTo(tx + 12 * f, ty + 2 * f); g.quadraticCurveTo(tx, ty + 8 * f, tx - 12 * f, ty + 2 * f); g.closePath(); g.fill(); g.stroke(); }, { tag: 'kłoda bartna', shadow: false });
+  },
+  /* rama do naciągania skór ze skórą */
+  furFrame(x, y, alongX = true) {
+    return this.part(x - 0.25, y - 0.25, 0, x + 0.25, y + 0.25, 0.7, () => { const sc = this.sc, g = sc.g, f = sc.F, w = 0.22, [a0, a1] = alongX ? [sc.P(x - w, y, 0), sc.P(x + w, y, 0)] : [sc.P(x, y - w, 0), sc.P(x, y + w, 0)];
+      g.strokeStyle = '#4a3220'; g.lineWidth = 2.6 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(a0[0], a0[1]); g.lineTo(a0[0], a0[1] - 44 * f); g.lineTo(a1[0], a1[1] - 44 * f); g.lineTo(a1[0], a1[1]); g.stroke(); g.beginPath(); g.moveTo(a0[0], a0[1] - 6 * f); g.lineTo(a1[0], a1[1] - 6 * f); g.stroke();
+      g.fillStyle = '#a0764a'; g.strokeStyle = 'rgba(20,14,10,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(a0[0] + 2 * f, a0[1] - 41 * f); g.lineTo(a1[0] - 2 * f, a1[1] - 41 * f); g.lineTo(a1[0] - 3 * f, a1[1] - 9 * f); g.lineTo(a0[0] + 3 * f, a0[1] - 9 * f); g.closePath(); g.fill(); g.stroke(); g.strokeStyle = 'rgba(40,24,10,0.5)'; g.beginPath(); g.moveTo((a0[0] + a1[0]) / 2, (a0[1] + a1[1]) / 2 - 38 * f); g.lineTo((a0[0] + a1[0]) / 2 + 2 * f, (a0[1] + a1[1]) / 2 - 12 * f); g.stroke(); }, { tag: 'rama', shadow: false });
+  }
+});
+/* studnia żuraw: cembrowina z bali, słup z kołyską i bucket; (wx, wy) — środek cembrowiny */
+function sweepWell(B, wx, wy, o = {}) {
+  const sc = B.sc, px = wx + 0.5, py = wy - 0.1;
+  B.box(wx - 0.25, wy - 0.25, 0, wx + 0.25, wy + 0.25, 0.34, { east: 'log', south: 'log', top: 'water' }, { pal: SL.logD, ao: 0.4, tag: 'cembrowina' });
+  B.box(px - 0.05, py - 0.05, 0, px + 0.05, py + 0.05, 1.1, 'bark', { pal: '#5a3e22', ao: 0.2 });
+  return B.part(wx - 0.55, py - 0.04, 0.4, px + 0.3, py + 0.04, 1.4, () => {
+    const g = sc.g, f = sc.F, a = sc.P(px + 0.28, py, 0.96), b = sc.P(wx - 0.5, py, 1.34), c = sc.P(wx - 0.5, py, 0.55);
+    g.lineCap = 'round'; g.strokeStyle = '#2a1c10'; g.lineWidth = 5.4 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.strokeStyle = '#8a6a40'; g.lineWidth = 3 * f; g.stroke();
+    g.strokeStyle = '#d8c090'; g.lineWidth = 1.2 * f; g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.stroke(); g.fillStyle = '#7a5a32'; g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = f; g.beginPath(); g.moveTo(c[0] - 5 * f, c[1]); g.lineTo(c[0] + 5 * f, c[1]); g.lineTo(c[0] + 4 * f, c[1] + 8 * f); g.lineTo(c[0] - 4 * f, c[1] + 8 * f); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#8a867c'; g.strokeStyle = 'rgba(20,18,14,0.85)'; g.beginPath(); g.ellipse(a[0] + 2 * f, a[1] + 5 * f, 6 * f, 7 * f, 0, 0, TAU); g.fill(); g.stroke(); }, { tag: 'żuraw', shadow: false, nest: true });
+}
+
+/* SAD 3×3: wiklinowy płot z furtką, sześć drzew owocowych, kosze z owocami i drabina */
+BAKED.slavs_orchard = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc);
+  sc.decal('grass', 'tundra', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.55 });
+  B.fenceRect(-1.38, -1.3, 1.38, 1.3, { kind: 'wattle', h: 0.34, gap: { S: [-0.3, 0.3] } });
+  [[-0.85, -0.65], [0.0, -0.72], [0.85, -0.65], [-0.8, 0.22], [0.05, 0.15], [0.85, 0.2]].forEach(([x, y], i) => B.tree('apple', 41 + i, x, y, 0.78));
+  B.basket(-1.0, 0.95, 'apple'); B.basket(-0.75, 1.0, 'pear'); B.basket(-0.9, 0.78, 'apple', 0.9); B.heap(1.0, 0.95, 0.2, 0.14, ['#e05a48', '#b02a22', '#6a1812']); B.crate(1.0, 0.95, 0.3, 0.1);
+  return B.flush();
+};
+
+/* CHATA NOSIWODY 2×2: studnia-żuraw z cembrowiną z bali, obok szopa z beczkami i wiadrami */
+BAKED.slavs_watercarrier = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 19 });
+  sweepWell(B, -0.4, 0.2);
+  slHouse(B, { x0: 0.3, x1: 0.92, y0: -0.9, y1: -0.2, h1: 0.62, ridge: 'y', plinth: false, low: ['log', SL.logD], S: { door: slDoor(0.5, 0.26, 0.42) }, E: { win: slWin({ w: 0.14, h: 0.16, shut: undefined }) }, roof: { rise: 0.42, ov: 0.1, ovE: 0.1 }, smoke: undefined });
+  B.barrel(0.45, 0.1, 0, 1.1); B.barrel(0.7, 0.2, 0, 1.1); B.barrel(0.62, 0.45, 0, 1.1); B.bucket(0.2, 0.62); B.bucket(0.0, 0.8);
+  return B.flush();
+};
+
+/* TARG 3×3: deski na ziemi, trzy stragany z pasiastymi płachtami i rzeźbiony bożek na kamiennej podstawie */
+BAKED.slavs_market = function () {
+  const sc = sceneFor(3, 3, 2.6), B = new Build(sc), pals = ['#a8352b|#e8d8a0', '#2f5aa8|#e8d8a0', '#3f7a3a|#e8d8a0'];
+  sc.patch(0, 0, 2.2, 2.2, { seed: 20, alpha: 0.85, feather: 14 });
+  sc.paved(-1.45, -1.45, 1.45, 1.45, { mat: 'plank', pal: '#7a5a36', jit: 0.04, seed: 21, feather: 5 });
+  [-0.95, 0, 0.95].forEach((cx, i) => B.stall(cx, -1.35, { pal: pals[i], kind: ['bread', 'pot', 'fur'][i], counter: SL.logD }));
+  B.box(-0.3, -0.05, 0, 0.3, 0.45, 0.1, 'rubble', { pal: '#8a867c', ao: 0.3 }); B.idol(0, 0.2, 0.26, 1.0, { z0: 0.1, pal: '#7a4a26', band: '#2f5aa8' });
+  B.crate(-1.15, 0.85, 0.24, 0.24); B.crate(-0.85, 0.95, 0.22, 0.2); B.sack(0.95, 0.9, '#d8c898'); B.sack(1.12, 0.78, '#cdbb88'); B.basket(1.15, 0.3, 'apple'); B.barrel(-1.2, 0.3, 0, 0.9);
+  return B.flush();
+};
+
+/* SKŁAD 3×2: spichlerz na palach z szerokim okapem, schodkami, wentylacyjnymi szczelinami, wciągarką i workami */
+BAKED.slavs_store = function () {
+  const sc = sceneFor(3, 2, 2.9), B = new Build(sc), zf = 0.42;
+  sc.patch(0, 0.1, 1.9, 1.3, { seed: 22, alpha: 0.7 });
+  for (const x of [-1.15, 0, 1.15]) for (const y of [-0.5, 0.5]) B.cyl(x, y, 0, zf - 0.1, 0.08, { mat: 'log', pal: '#7a5a36', topMat: 'plank', ao: 0.3, shadow: false });
+  B.box(-1.3, -0.7, zf - 0.1, 1.3, 0.7, zf, 'log', { pal: SL.logD, ao: 0.4, eave: 0.5 });
+  slHouse(B, { x0: -1.28, x1: 1.28, y0: -0.68, y1: 0.68, zp: zf, h1: 0.9, plinth: false, low: ['plank', SL.plank], corners: false, S: { door: slDoor(0.5, 0.6, 0.62, { lintel: SL.red }) }, roof: { rise: 0.78, ov: 0.18, ovE: 0.16, gableMat: 'plank', gablePal: SL.plank },
+    deco1: (S, E) => { sc.local(S.O, S.U, S.V, (g) => { g.fillStyle = '#17120e'; for (const u of [0.25, 0.5, 1.9, 2.15, 2.4]) g.fillRect(u, 0.18, 0.04, 0.3); }); sc.local(E.O, E.U, E.V, (g) => { g.fillStyle = '#17120e'; for (const u of [0.35, 0.6, 0.85, 1.1]) g.fillRect(u, 0.18, 0.04, 0.3); }); } });
+  B.stairs(-0.3, 0.3, 0.7, 2, zf, 'plank', 0.13, SL.plank);
+  B.sack(0.9, 0.88, '#d8c898'); B.sack(1.06, 0.86, '#cdbb88'); B.barrel(-0.95, 0.88); B.barrel(-1.12, 0.82, 0, 0.9);
+  return B.flush();
+};
+
+/* ŚWIĘTY KRĄG 3×3 (Kapliczka): kopiec z kręgiem rzeźbionych bożków, kamienny ołtarz z ogniem, wielki bożek i dary */
+BAKED.slavs_temple = function () {
+  const sc = sceneFor(3, 3, 2.9), B = new Build(sc);
+  sc.patch(0, 0.05, 2.0, 1.9, { seed: 11, alpha: 0.5, pal: '#6a5a3a', feather: 18 });
+  B.cyl(0, 0, 0, 0.16, 1.28, { mat: 'rubble', pal: '#8a877c', topMat: 'grass', topPal: 'green', ao: 0.4 });
+  B.cyl(0, 0, 0.16, 0.2, 1.1, { mat: 'dirt', pal: '#6a5a3a', topMat: 'dirt', topPal: '#5a4a2e', ao: 0 });
+  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + 0.2; B.idol(Math.cos(a) * 0.92, Math.sin(a) * 0.92, 0.17, 1.0 + (i % 3) * 0.08, { z0: 0.2, pal: i % 2 ? '#7a4a26' : '#6a3e20', band: i % 2 ? '#a8352b' : '#2f5aa8' }); }
+  B.box(-0.34, -0.3, 0.2, 0.34, 0.3, 0.38, 'stone', { ao: 0.3, pal: '#8f8a7e' }); B.cyl(0, 0, 0.38, 0.5, 0.2, { color: [60, 56, 54], ao: 0.3 });
+  B.part(-0.2, -0.2, 0.5, 0.2, 0.2, 0.9, () => { const g = sc.g, f = sc.F, [ax, ay] = sc.P(0, 0, 0.5); for (let i = 0; i < 6; i++) { const gr = g.createRadialGradient(ax + (i - 2.5) * 6 * f, ay - 6 * f, 0, ax + (i - 2.5) * 6 * f, ay - 8 * f, 18 * f); gr.addColorStop(0, 'rgba(255,240,150,0.95)'); gr.addColorStop(0.5, 'rgba(255,130,30,0.7)'); gr.addColorStop(1, 'rgba(255,60,0,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(ax + (i - 2.5) * 6 * f, ay - 12 * f, 8 * f, 18 * f - Math.abs(i - 2.5) * 3 * f, 0, 0, TAU); g.fill(); } }, { tag: 'ogień', shadow: false, nest: true });
+  B.idol(0.0, -0.58, 0.28, 1.5, { z0: 0.2, pal: '#7a4a26', skin: '#e0c088', band: '#d8a830' });
+  B.barrel(0.3, 0.6, 0.2, 0.7); B.sack(0.55, 0.55, '#d8c898', 0.8, 0.2); B.jar(-0.45, 0.6, 0.8, 0.2); B.jar(-0.3, 0.7, 0.7, 0.2, [150, 90, 50]);
+  for (let i = 0; i < 14; i++) { const a = i / 14 * TAU, x = Math.cos(a) * 1.3, y = Math.sin(a) * 1.3; B.box(x - 0.1, y - 0.08, 0, x + 0.1, y + 0.08, 0.14 + (i % 3) * 0.04, 'rubble', { ao: 0.2, pal: '#8a867c', tag: 'kamień', nest: true, shadow: false }); }
+  return B.flush({ shadow: { alpha: 0.45, blur: 12 } });
+};
+
+/* GRÓD 4×4 (Dwór): wał z bali z częstokołem, niska brama z nadbudówką, dwupiętrowy dwór pod strzechą, dom gościnny, studnia-żuraw i bożek */
+BAKED.slavs_keep = function () {
+  const sc = sceneFor(4, 4, 4.0), B = new Build(sc), w = 1.82, wt = 0.3, wh = 0.7;
+  sc.patch(0, 0.1, 2.6, 2.4, { seed: 18, feather: 20 });
+  sc.decal('dirt', '#6a5230', [[[-w + 0.1, -w + 0.1], [w - 0.1, -w + 0.1], [w - 0.1, w - 0.1], [-w + 0.1, w - 0.1]]], { feather: 12, alpha: 0.5 });
+  B.box(-w, -w, 0, w, -w + wt, wh, 'log', { pal: SL.logD, ao: 0.3, tag: 'mur' }); B.box(-w, -w + wt, 0, -w + wt, w, wh, 'log', { pal: SL.logD, ao: 0.3, tag: 'mur' });
+  B.palisade(-w + 0.05, -w + wt / 2, w - 0.05, -w + wt / 2, 0.32, wh); B.palisade(-w + wt / 2, -w + wt, -w + wt / 2, w - 0.05, 0.32, wh);
+  B.palisade(w, -w, w, w, 0.45); B.palisade(-w, w, -0.85, w, 0.45); B.palisade(0.85, w, w, w, 0.45);
+  for (const gx of [-0.6, 0.6]) B.box(gx - 0.1, w - 0.1, 0, gx + 0.1, w + 0.1, 0.95, 'log', { pal: SL.logD, ao: 0.3 });
+  B.box(-0.75, w - 0.3, 0.95, 0.75, w + 0.15, 1.4, 'log', { pal: SL.log, ao: 0.3, eave: 0.3 }, (S) => facade(sc, S, { win: slWin({ n: 1, w: 0.2, h: 0.2, v: 0.14 }), marg: 0.3 }));
+  B.pyramid({ x0: -0.77, x1: 0.77, y0: w - 0.32, y1: w + 0.17, z: 1.4, rise: 0.42, mat: 'thatch', pal: SL.thatch, ov: 0.06 });
+  slHouse(B, { x0: -1.5, x1: 0.4, y0: -1.45, y1: -0.5, floors: 2, h1: 0.7, h2: 0.6, J: 0.06, low: ['log', SL.log], up: ['log', SL.logL], S: { door: slDoor(0.62, 0.34, 0.56), win: slWin({ w: 0.15, h: 0.22 }) }, E: { win: slWin({ w: 0.15, h: 0.22 }) }, S2: { win: slWin({ n: 2, w: 0.16, h: 0.24, v: 0.14 }) }, E2: { win: slWin({ w: 0.16, h: 0.24, v: 0.14 }) },
+    roof: { rise: 0.78, ov: 0.14, ovE: 0.16 }, smoke: 0.4, smokeW: 0.5 });
+  slHouse(B, { x0: 0.8, x1: 1.5, y0: -0.3, y1: 0.4, h1: 0.7, ridge: 'x', low: ['log', SL.log], S: { door: slDoor(0.3, 0.26, 0.44) }, E: { win: slWin({ w: 0.14, h: 0.18, shut: undefined }) }, roof: { rise: 0.5, ov: 0.1, ovE: 0.1 } });
+  sweepWell(B, -0.85, 0.45);
+  B.idol(0.2, 0.45, 0.26, 1.0, { z0: 0.06, pal: '#7a4a26', band: '#2f5aa8' });
+  B.barrel(0.85, 0.95); B.barrel(1.02, 1.05, 0, 0.9); B.crate(1.5, 1.2, 0.22, 0.22); B.logs(-0.55, 1.2); B.basket(-0.2, 1.1, 'apple'); B.stump(0.5, 1.2);
+  return B.flush({ shadow: { alpha: 0.5, blur: 12 } });
+};
+
+/* smużka dymu / pary: półprzezroczyste obłoki unoszące się nad punktem */
+function puffs(sc, x, y, z, n = 6, h = 80, col = '150,150,156') {
+  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z);
+  for (let i = 0; i < n; i++) { const t = i / (n - 1), cx = px + Math.sin(t * 3.2) * 8 * f * (0.4 + t), cy = py - 8 * f - t * h * f, rr = (5 + t * 15) * f, gr = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gr.addColorStop(0, `rgba(${col},${0.6 - t * 0.35})`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.fill(); }
+}
+
+/* CHATA ZBIERACZA 2×2: chata z bali, sznury grzybów i ziół pod okapem, kosze z grzybami i jagodami, krzewy */
+BAKED.slavs_gatherer = function () {
+  const sc = sceneFor(2, 2, 2.5), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 23 });
+  const h = slHouse(B, { x0: -0.85, x1: 0.5, y0: -0.85, y1: 0.0, h1: 0.75, S: { door: slDoor(0.3, 0.28, 0.46), win: slWin({ w: 0.15, h: 0.2 }) }, E: { win: slWin({ w: 0.15, h: 0.2 }) }, roof: { rise: 0.6 }, smoke: 0.3, smokeW: 0.3 });
+  B.part(-0.55, 0.0, h.zt - 0.55, 0.45, 0.12, h.zt - 0.02, () => { hangString(sc, -0.45, 0.07, h.zt - 0.05, 4, '#c89a5a'); hangString(sc, -0.15, 0.07, h.zt - 0.05, 5, '#8aa04a'); hangString(sc, 0.15, 0.07, h.zt - 0.05, 4, '#e8d4a8'); hangString(sc, 0.38, 0.07, h.zt - 0.05, 3, '#c8452e'); }, { tag: 'sznury', shadow: false, nest: true });
+  B.basket(-0.6, 0.55, 'mushroom'); B.basket(-0.35, 0.65, 'berry'); B.basket(-0.5, 0.82, 'mushroom', 0.9); B.sapling(0.55, 0.6, 1.1); B.sapling(0.8, 0.45, 0.9);
+  B.stump(0.3, 0.4); B.bucket(0.05, 0.62);
+  return B.flush();
+};
+
+/* POLE STAŁE 3×3: zagony zboża i ugoru w wiklinowym płocie, snopki w kopach, strach na wróble */
+BAKED.slavs_field = function () {
+  const sc = sceneFor(3, 3, 2.0, { pRes: RES }), B = new Build(sc), fp = (y0, y1) => [[-1.4, y0], [1.4, y0], [1.4, y1], [-1.4, y1]];
+  sc.decal('dirt', '#6a4e2c', [[[-1.45, -1.45], [1.45, -1.45], [1.45, 1.45], [-1.45, 1.45]]], { feather: 6, alpha: 0.9 });
+  sc.decal('field', 'wheat', [fp(-1.4, -0.55)], { feather: 0 }); sc.decal('field', 'wheat', [fp(-0.45, 0.4)], { feather: 0 }); sc.decal('field', 'plow', [fp(0.5, 1.4)], { feather: 0 });
+  B.fenceRect(-1.45, -1.45, 1.45, 1.45, { kind: 'wattle', h: 0.28, gap: { S: [-0.3, 0.3] } });
+  for (const [x, y] of [[-0.9, -0.25], [-0.3, -0.2], [0.35, -0.25], [0.95, -0.2], [-0.6, -0.95], [0.5, -0.95]]) B.cone(x, y, 0, 0.13, 0.34, [206, 168, 70]);
+  B.scarecrow(0.85, 0.75); B.heap(-1.0, 1.1, 0.2, 0.12, 'grain'); B.sack(-0.7, 1.15, '#d8c898'); B.barrel(1.1, 1.15);
+  return B.flush();
+};
+
+/* KASZARNIA 2×3: chata z bali, stępa — drewniany moździerz z dźwignią-tłuczkiem, worki ziarna, kopiec ziarna i garnek */
+BAKED.slavs_kasha = function () {
+  const sc = sceneFor(2, 3, 2.7), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 24 });
+  slHouse(B, { x0: -0.85, x1: 0.85, y0: -1.4, y1: -0.35, h1: 0.82, S: { door: slDoor(0.28, 0.32, 0.52), win: slWin({ w: 0.16, h: 0.22 }) }, E: { win: slWin({ w: 0.16, h: 0.22 }) }, roof: { rise: 0.66 }, smoke: 0.5, smokeW: 0.36 });
+  B.cyl(-0.45, 0.45, 0, 0.32, 0.17, { mat: 'log', pal: SL.logD, topMat: 'plank', topPal: '#3a2a18', ao: 0.4 });
+  B.box(0.05, 0.4, 0, 0.17, 0.52, 0.62, 'bark', { pal: '#5a3e22', ao: 0.2 });
+  B.part(-0.55, 0.38, 0.34, 0.2, 0.52, 0.9, () => { const g = sc.g, f = sc.F, a = sc.P(0.38, 0.46, 0.34), b = sc.P(-0.45, 0.46, 0.84), c = sc.P(-0.45, 0.46, 0.34); g.lineCap = 'round'; g.strokeStyle = '#2a1c10'; g.lineWidth = 5.2 * f; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.strokeStyle = '#8a6a40'; g.lineWidth = 3 * f; g.stroke(); g.strokeStyle = '#6a4a2c'; g.lineWidth = 5 * f; g.beginPath(); g.moveTo(b[0], b[1] + 4 * f); g.lineTo(c[0], c[1] - 2 * f); g.stroke(); }, { tag: 'tłuczek', shadow: false, nest: true });
+  B.heap(0.6, 0.55, 0.3, 0.22, 'grain'); B.sack(0.2, 0.9, '#d8c898'); B.sack(0.38, 0.98, '#cdbb88'); B.sack(-0.7, 0.95, '#d8c898', 0.9); B.jar(-0.35, 1.05, 1, 0, [176, 112, 62]); B.jar(-0.18, 1.12, 0.9);
+  return B.flush();
+};
+
+/* BARĆ 3×3: leśna polana z sosnami i kłodami bartnymi na stojakach, szałas bartnika, dzbany z miodem, kosze i dymnik */
+BAKED.slavs_bartnik = function () {
+  const sc = sceneFor(3, 3, 3.0), B = new Build(sc);
+  sc.decal('grass', 'tundra', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 14, alpha: 0.6 });
+  [[-1.05, -1.0, 0.9], [0.2, -1.15, 1.0], [1.1, -0.75, 0.85], [-1.15, 0.0, 0.8]].forEach(([x, y, k], i) => B.tree('pine', 31 + i, x, y, k));
+  [[-0.3, -0.3, 1.0], [0.45, -0.3, 0.9], [0.0, 0.3, 1.1], [0.95, 0.35, 0.95]].forEach(([x, y, h]) => B.beeLog(x, y, h));
+  slHouse(B, { x0: -0.2, x1: 0.55, y0: 0.8, y1: 1.4, h1: 0.5, ridge: 'y', plinth: false, low: ['log', SL.logD], S: { door: slDoor(0.5, 0.24, 0.38) }, roof: { rise: 0.45, ov: 0.1, ovE: 0.1 } });
+  B.jar(-0.6, 0.9, 1, 0, [210, 150, 50]); B.jar(-0.45, 1.0, 0.9, 0, [200, 140, 46]); B.jar(-0.7, 1.1, 0.8, 0, [210, 150, 50]); B.basket(0.9, 1.0, 'apple', 0.9);
+  B.cyl(-0.72, 0.4, 0, 0.14, 0.09, { color: [130, 90, 60], ao: 0.2 }); B.smoke(-0.72, 0.4, 0.3);
+  return B.flush();
+};
+
+/* WOSKARNIA 2×3: warsztat z bali pod strzechą z okapem dymnym, ogrodzona pasieka z ulami, kocioł nad ogniem i bloki wosku */
+BAKED.slavs_waxery = function () {
+  const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
+  sc.patch(0, 0.2, 1.3, 1.9, { seed: 7, alpha: 0.75 });
+  sc.flat([[[0.15, 0.45], [0.85, 0.45], [0.85, 1.0], [0.15, 1.0]]], 'rgba(255,140,50,0.2)', 14);
+  slHouse(B, { x0: -0.92, x1: 0.92, y0: -1.42, y1: -0.3, h1: 0.9, S: { door: slDoor(0.7, 0.3, 0.52, { lintel: SL.red }), win: slWin({ w: 0.16, h: 0.22, shut: SL.red }) }, E: { win: slWin({ w: 0.16, h: 0.22, shut: SL.red }) }, roof: { rise: 0.66, ov: 0.12, ovE: 0.14 }, smoke: 0.55, smokeW: 0.44 });
+  B.fenceRect(-0.92, 0.05, 0.92, 1.4, { kind: 'wattle', h: 0.42, gap: { S: [-0.28, 0.28] } });
+  for (const [x, y] of [[-0.66, 0.42], [-0.66, 0.82]]) B.box(x - 0.22, y - 0.1, 0, x + 0.22, y + 0.1, 0.03, 'log', { pal: SL.logD, ao: 0.3 });
+  for (const [x, y] of [[-0.78, 0.42], [-0.55, 0.42], [-0.78, 0.82], [-0.55, 0.82]]) B.skep(x, y, 1.15);
+  B.cyl(-0.05, 1.05, 0, 0.5, 0.1, { mat: 'log', pal: '#8a6a40', topMat: 'plank', ao: 0.3 }); B.cone(-0.05, 1.05, 0.5, 0.14, 0.14, [150, 120, 60]);
+  B.cyl(0.5, 0.7, 0.04, 0.42, 0.22, { color: [196, 120, 60], ao: 0.3 });
+  B.part(0.28, 0.48, 0.42, 0.72, 0.92, 0.8, () => { const g = sc.g, f = sc.F, [cx, cy] = sc.P(0.5, 0.7, 0.42); g.fillStyle = '#d98a3a'; g.beginPath(); g.ellipse(cx, cy, 0.2 * AX * f * 1.4142, 0.2 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = '#f0d070'; for (let i = 0; i < 3; i++) { g.beginPath(); g.ellipse(cx + (i - 1) * 6 * f, cy - (8 + i * 6) * f, (5 + i * 2) * f, 4 * f, 0, 0, TAU); g.fillStyle = `rgba(255,240,200,${0.5 - i * 0.1})`; g.fill(); } }, { tag: 'kocioł', shadow: false, nest: true });
+  B.box(0.62, 0.15, 0.05, 0.9, 0.3, 0.12, 'plank', { ao: 0.2, pal: '#d8b050' }); B.box(0.68, 0.18, 0.12, 0.84, 0.27, 0.2, 'plank', { ao: 0.1, pal: '#e8c870', wear: 0 });
+  B.barrel(0.78, 1.15, 0, 0.9); B.logs(-0.5, 1.25);
+  return B.flush();
+};
+
+/* CHATA ŁOWCY FUTER 2×2: zrąb z ramami do naciągania skór, pęk skór, pułapka, pień z siekierą */
+BAKED.slavs_trapper = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 25 });
+  slHouse(B, { x0: -0.9, x1: 0.4, y0: -0.85, y1: 0.0, h1: 0.75, low: ['log', SL.logD], S: { door: slDoor(0.35, 0.28, 0.46), win: slWin({ w: 0.15, h: 0.2 }) }, E: { win: slWin({ w: 0.15, h: 0.2 }) }, roof: { rise: 0.6 }, smoke: 0.3, smokeW: 0.3 });
+  B.furFrame(-0.55, 0.55, true); B.furFrame(-0.05, 0.62, true); B.furFrame(0.72, -0.3, false);
+  B.heap(0.62, 0.55, 0.22, 0.14, ['#a0764a', '#7a5a38', '#4a3220']); B.stump(0.25, 0.82); B.barrel(-0.85, 0.85);
+  return B.flush();
+};
+
+/* GARBARNIA 2×3: warsztat z bali, kadzie garbarskie z brunatnym ługiem, ramy ze skórami, kopiec skór i beczki */
+BAKED.slavs_tannery = function () {
+  const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 26 });
+  slHouse(B, { x0: -0.9, x1: 0.5, y0: -1.4, y1: -0.5, h1: 0.8, low: ['log', SL.logD], S: { door: slDoor(0.3, 0.3, 0.5), win: slWin({ w: 0.16, h: 0.2 }) }, E: { win: slWin({ w: 0.16, h: 0.2 }) }, roof: { rise: 0.64 }, smoke: 0.5, smokeW: 0.3 });
+  const vat = (x0, y0, x1, y1) => { B.box(x0, y0, 0, x1, y1, 0.3, 'plank', { pal: '#6a4a2c', ao: 0.4, tag: 'kadź' }); B.part(x0 + 0.03, y0 + 0.03, 0.3, x1 - 0.03, y1 - 0.03, 0.33, () => sc.face([x0 + 0.03, y0 + 0.03, 0.31], [x1 - x0 - 0.06, 0, 0], [0, y1 - y0 - 0.06, 0], 'dirt', { shade: 0.85, pal: '#4a3a1a', edge: 0, wear: 0 }), { tag: 'ług', kind: 'flat', shadow: false, nest: true }); };
+  vat(-0.85, 0.0, -0.3, 0.5); vat(-0.2, 0.0, 0.35, 0.5); vat(-0.85, 0.65, -0.3, 1.15);
+  B.furFrame(0.7, 0.2, false); B.furFrame(0.7, 0.8, false); B.heap(0.15, 0.95, 0.25, 0.16, ['#a0764a', '#7a5a38', '#4a3220']); B.barrel(-0.1, 1.2); B.barrel(0.1, 1.28, 0, 0.9); B.bucket(0.55, -0.15);
+  return B.flush();
+};
+
+/* BANIA 2×2: niska łaźnia z bali, kamienny stos pod ścianą, para z drzwi i dym z otworu, miotły z brzozy, beczka z wodą i drewno */
+BAKED.slavs_sauna = function () {
+  const sc = sceneFor(2, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 27 });
+  const h = slHouse(B, { x0: -0.8, x1: 0.5, y0: -0.8, y1: 0.05, h1: 0.7, low: ['log', SL.logD], S: { door: slDoor(0.35, 0.26, 0.4), win: slWin({ w: 0.12, h: 0.14, shut: undefined }) }, E: { win: slWin({ w: 0.12, h: 0.14, shut: undefined }) }, roof: { rise: 0.52 }, smoke: 0.55, smokeW: 0.3 });
+  B.part(-0.45, 0.0, 0.2, 0.0, 0.5, 1.0, () => puffs(sc, -0.1, 0.18, 0.5, 5, 40, '236,238,242'), { tag: 'para', shadow: false, nest: true });
+  B.part(0.1, 0.05, h.zt - 0.55, 0.65, 0.18, h.zt - 0.02, () => { hangString(sc, 0.2, 0.12, h.zt - 0.05, 3, '#5a8a3a'); hangString(sc, 0.35, 0.12, h.zt - 0.05, 4, '#6a9a44'); hangString(sc, 0.5, 0.12, h.zt - 0.05, 3, '#5a8a3a'); }, { tag: 'miotły', shadow: false, nest: true });
+  B.heap(0.72, -0.2, 0.28, 0.24, 'stone'); B.barrel(0.7, 0.45); B.bucket(0.45, 0.62); B.logs(-0.6, 0.62); B.logs(-0.6, 0.84);
+  return B.flush();
+};
+
 /* ---- 90_main.js ---- */
 /* ====================== SCENA POKAZOWA (v2) ======================
    Układ na siatce pól (każdy budynek = 1 pole, wszystko w skali jednego pola), teren w kaflach wypiekanych na żądanie,
@@ -3418,7 +3664,7 @@ const tileRect = (i, j, w, h, e = 0.05) => [[i + e, j + e], [i + w - e, j + e], 
 const LAKE = [blob(27.0, 3.6, 3.7, 2.3, 3, 64, 0.2), blob(24.0, 4.6, 1.7, 1.3, 5, 40, 0.22), blob(30.2, 4.8, 1.8, 1.3, 8, 40, 0.22)];
 const SAND = [blob(27.0, 21.0, 7.0, 4.6, 12, 64, 0.2), blob(31.5, 18.0, 3.0, 2.6, 14, 40, 0.2), blob(24.0, 26.0, 4.0, 2.4, 15, 40, 0.2)];
 const FLOOR = [blob(4.0, 4.0, 4.6, 3.6, 20), blob(13.0, 1.0, 4.0, 1.4, 22), blob(1.2, 14.0, 2.0, 3.4, 23)];
-const FIELDS = [['wheat', tileRect(2, 24, 5, 3)], ['green', tileRect(7, 24, 4, 3)], ['plow', tileRect(2, 27, 4, 2)]];
+const FIELDS = [];                                                  // pola uprawne to teraz budynki (franks_farm, slavs_field)
 const ROADS = [
   [[0.5, 9.5], [10.5, 9.5], [21.5, 9.5], [33.5, 9.5]],                       // główna ulica (Frankowie → Wikingowie)
   [[10.5, 9.5], [10.5, 17.5], [10.5, 28.5]],                                // na południe, do Słowian
@@ -3435,14 +3681,16 @@ const FOOT = [];                                                    // ślady bu
 /* plan budynków: [nazwa sprite'a, i, j] — (i,j) to północny róg obrysu; środek = (i+fw/2, j+fh/2). Brakujące sprite'y są pomijane. */
 const PLAN = [
   // Frankowie
-  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['franks_temple', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
-  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11],
+  ['franks_keep', 12, 4], ['franks_barracks', 17, 5], ['franks_temple', 5, 6], ['franks_toolforge', 10, 5], ['franks_mill', 17, 1], ['franks_armory', 1, 6],
+  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11], ['franks_bakery', 7, 11], ['franks_market', 3, 11],
   // Słowianie
-  ['slavHut', 2, 15], ['slavHut', 5, 15], ['slavStore', 7, 15], ['slavWaxery', 2, 19], ['slavShrine', 5, 19], ['slavHut', 8, 20], ['well', 9, 18],
+  ['slavs_hut', 2, 15], ['slavs_hut', 4, 15], ['slavs_store', 6, 15], ['slavs_waxery', 2, 19], ['slavs_temple', 5, 19], ['slavs_sauna', 8, 19],
+  ['slavs_keep', 3, 23], ['slavs_field', 7, 23], ['slavs_gatherer', 0, 23], ['slavs_bartnik', 7, 26],
   // Wikingowie
-  ['vikingDock', 20, 3], ['vikingHall', 25, 7], ['vikingHut', 30, 7], ['vikingMead', 22, 6], ['vikingHut', 30, 11],
+  ['vikings_dock', 20, 3], ['vikings_ship', 25, 3, { bob: 1 }], ['vikings_temple', 23, 11], ['vikings_keep', 26, 11], ['vikings_mead', 30, 11],
   // Saraceni
-  ['saracenMarket', 22, 15], ['saracenMosque', 28, 15], ['saracenSerai', 24, 18], ['saracenHouse', 22, 23], ['saracenHouse', 25, 23], ['saracenHouse', 29, 23], ['saracenHouse', 28, 19]
+  ['saracens_market', 23, 15], ['saracens_temple', 28, 15], ['saracens_caravanserai', 24, 18], ['saracens_bathhouse', 28, 18], ['saracens_dategrove', 31, 18],
+  ['saracens_keep', 23, 23], ['saracens_hut', 28, 23], ['saracens_hut', 30, 23], ['saracens_guardpost', 32, 23]
 ];
 
 /* ---------- teren: kafle wypiekane na żądanie ---------- */
@@ -3501,11 +3749,19 @@ async function step(label, fn) {
   if (performance.now() - (step.last ?? 0) > 40) { await nextPaint(); step.last = performance.now(); }      // oddajemy sterowanie najwyżej co ~40 ms
   const v = fn(); DONE++; return v;
 }
+/* które sprite'y wypiekać: do kontroli jakości i arkuszy — wszystkie lub wskazane; do widoku mapy — tylko te z PLAN (w grze: tylko budynki wybranej nacji) */
+function wantedSprites() {
+  const all = Object.keys(BAKED), h = location.hash;
+  if (LINT || QS.has('all') || /^#sheet-b/.test(h) || h === '#sheet-r' || h === '#sheet') return all;
+  if (QS.get('sprite')) return QS.get('sprite').split(',').filter(n => BAKED[n]);
+  const m = h.match(/^#sheet-r-([a-z]+)/); if (m && NATIONS[m[1]]) return NATIONS[m[1]].map(id => spriteName(m[1], id)).filter(n => BAKED[n]);
+  const need = new Set(PLAN.map(p => p[0])); need.add('hay'); need.add('logs'); return all.filter(n => need.has(n));
+}
 async function bakeAll() {
   let t0 = performance.now();
-  const names = Object.keys(BAKED), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
+  const names = wantedSprites(), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
   TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12;
-  for (const n of names) { LINT_NAME = n; SPR[n] = await step('Budynki', BAKED[n]); }
+  for (const n of names) { LINT_NAME = n; try { SPR[n] = await step('Budynki', BAKED[n]); } catch (e) { e.message = `[${n}] ${e.message}`; throw e; } }
   window.__lint = LINT_LOG;
   tmark('budynki', t0); t0 = performance.now();
   const oaks = await many('Drzewa', 5, i => TREES.oak(100 + i)), pines = await many('Drzewa', 4, i => TREES.pine(200 + i)), palms = await many('Drzewa', 3, i => TREES.palm(300 + i));
@@ -3519,14 +3775,13 @@ async function bakeAll() {
 function layoutWorld() {
   const { oaks, pines, palms, rocks, tufts, sandTufts, cast } = SETS;
   const objs = [], R0 = [];                                          // R0: obrysy budynków (do omijania i do sortowania)
-  const add = (spr, x, y, o = {}) => { const ob = { spr, x, y, k: o.k ?? 1, sway: o.sway || 0, ph: o.ph ?? 0, bob: o.bob || 0, smoke: o.smoke && o.smoke.map(v => v * spr.F), rect: o.rect }; objs.push(ob); return ob; };
+  const add = (spr, x, y, o = {}) => { const ob = { spr, x, y, k: o.k ?? 1, sway: o.sway || 0, ph: o.ph ?? 0, bob: o.bob || 0, smoke: o.smoke || spr.smoke, rect: o.rect }; objs.push(ob); return ob; };
   const bld = (name, i, j, o = {}) => {
     const spr = SPR[name]; if (!spr) return null; const fw = spr.fw, fh = spr.fh;
     R0.push({ x0: i, y0: j, x1: i + fw, y1: j + fh }); FOOT.push([i, j, fw, fh]);
     return add(spr, i + fw / 2, j + fh / 2, Object.assign({ rect: { x0: i, y0: j, x1: i + fw, y1: j + fh, big: true } }, o));
   };
   for (const [n, i, j, o] of PLAN) bld(n, i, j, o);
-  if (SPR.longship) add(SPR.longship, 27.2, 3.6, { bob: 1 });
   if (SPR.hay) { add(SPR.hay, 12, 22.5); add(SPR.hay, 13, 23); add(SPR.logs, 1.5, 14.5); add(SPR.hay, 9.5, 25); }
 
   const lakeNear = (x, y) => LAKE.some(p => inPoly(x, y, growPoly(p, 0.55)));
@@ -3670,10 +3925,10 @@ function drawFrame(t, dt) {
     }
   }
 
-  // dym z kominów
-  for (const o of WORLD.objs) if (o.smoke) {
-    o.nextPuff = (o.nextPuff ?? Math.random() * 0.6) - dt;
-    if (o.nextPuff < 0) { o.nextPuff += 0.45 + Math.random() * 0.2; smoke.push({ x: o.x + o.smoke[0], y: o.y + o.smoke[1], z: o.smoke[2], a: 0, ph: Math.random() * TAU }); }
+  // dym z kominów i otworów dymnych: kotwice zapisane w sprite'ie (spr.smoke), emisja tylko dla widocznych budynków
+  for (const it of list) if (it.o && it.o.smoke && it.o.smoke.length) {
+    const o = it.o; o.nextPuff = o.nextPuff || o.smoke.map(() => Math.random() * 0.8);
+    o.smoke.forEach((a, n) => { o.nextPuff[n] -= dt; if (o.nextPuff[n] < 0) { o.nextPuff[n] += 0.5 + Math.random() * 0.25; smoke.push({ x: o.x + a[0], y: o.y + a[1], z: a[2], a: 0, ph: Math.random() * TAU }); } });
   }
   for (let i = smoke.length - 1; i >= 0; i--) {
     const p = smoke[i]; p.a += dt; p.z += dt * 0.3; p.x += dt * 0.12; p.y -= dt * 0.05;
@@ -3748,7 +4003,7 @@ function sheetFrame() {
     if (!rows.length) return;
     const z = Math.min(Z, (W * 0.98) / Math.max(...rows.map(r => r.w)), (H - rows.length * lab - 12 * dpr) / rows.reduce((a, r) => a + r.up + r.down, 0));
     const text = (t, x, y, px, bold, al = 'center') => { ctx.textAlign = al; ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
-    let y = 8 * dpr;
+    let y = 8 * dpr + 24 * z;
     for (const r of rows) {
       const base = y + r.up * z; let x = (W - (r.w * z)) / 2 + GAP * z;
       if (r.title) text(r.title, 14 * dpr, y + 20 * dpr, 17, true, 'left');
@@ -3794,7 +4049,7 @@ async function boot() {
   BAKE_MS = performance.now() - t0; window.__bakeMs = BAKE_MS; window.__parts = PARTS;
   document.getElementById('bake').textContent = `Wypiek: ${BAKE_MS.toFixed(0)} ms · rozdzielczość ×${RES} · ${innerWidth}×${innerHeight} @${dpr}`;
   const ld = document.getElementById('load'); if (ld) ld.style.display = 'none';
-  if (sheet) { sheetFrame(); window.__ready = true; return; }
+  if (sheet) { sheetFrame(); window.__catalog = catalogJSON; window.__ready = true; return; }
   addEventListener('resize', () => { const r = zoom / ZDEF; resize(); zoom = clamp(ZDEF * r, ZMIN, ZMAX); clampCam(); updateUI(); });
   // sterowanie: przeciąganie, kółko, pinch, przyciski, klawisze
   const ptrs = new Map(); let pinch0 = null;
@@ -3821,31 +4076,8 @@ async function boot() {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-  window.__setZoom = z => setZoom(z); window.__ready = true;
+  window.__setZoom = z => setZoom(z); window.__catalog = catalogJSON; window.__ready = true;
 }
 boot().catch(e => { const t = document.getElementById('ltxt'); if (t) t.textContent = 'Błąd: ' + e.message; console.error(e); });
-
-/* ---- 95_catalog.js ---- */
-/* ====================== KATALOG BUDYNKÓW: id z gry → sprite, obrys, nazwa ======================
-   Sprite budynku `id` nacji `n` nazywa się `${n}_${id}` (np. franks_mill). Obrys (fw×fh w polach) pochodzi z wypieczonego sprite'a.
-   Lista id odpowiada Data.BUILDINGS z Nova_Roma.html: 12 budynków wspólnych + budynki specyficzne dla nacji. */
-const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple'];
-const NATIONS = {
-  franks: COMMON_IDS.concat(['quarry', 'farm', 'mill', 'bakery', 'ironmine', 'coalmine', 'smelter', 'toolforge', 'armory', 'vineyard', 'winery', 'barracks']),
-  saracens: COMMON_IDS.concat(['claypit', 'dategrove', 'incensewood', 'incense', 'cotton', 'weaver', 'pottery', 'qanat', 'bathhouse', 'caravanserai', 'guardpost']),
-  vikings: COMMON_IDS.concat(['fisherhut', 'peatmine', 'charburner', 'mead', 'dock', 'smelter', 'toolforge', 'armory', 'ship']),
-  slavs: COMMON_IDS.concat(['gatherer', 'field', 'kasha', 'bartnik', 'waxery', 'trapper', 'tannery', 'sauna'])
-};
-const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
-const NAMES = {
-  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia',
-  quarry: 'Kamieniołom', farm: 'Farma', mill: 'Młyn', bakery: 'Piekarnia', ironmine: 'Kopalnia żelaza', coalmine: 'Kopalnia węgla', smelter: 'Huta', toolforge: 'Kuźnia narzędzi', armory: 'Zbrojownia', vineyard: 'Winnica', winery: 'Winiarz', barracks: 'Koszary',
-  claypit: 'Glinianka', dategrove: 'Gaj daktylowy', incensewood: 'Las kadzidlany', incense: 'Wytwórnia kadzidła', cotton: 'Plantacja bawełny', weaver: 'Tkalnia', pottery: 'Garncarnia', qanat: 'Qanat', bathhouse: 'Łaźnia', caravanserai: 'Karawanseraj', guardpost: 'Strażnica',
-  fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
-  gatherer: 'Chata zbieracza', field: 'Pole stałe', kasha: 'Kaszarnia', bartnik: 'Barć', waxery: 'Woskarnia', trapper: 'Chata łowcy futer', tannery: 'Garbarnia', sauna: 'Bania'
-};
-const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
-const spriteName = (nation, id) => `${nation}_${id}`;
-const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id];
 
 </script></body></html>
