@@ -45,6 +45,25 @@ GEN.log = (base = '#a0723f') => {
   return { c, ppu: 112 };
 };
 
+/* --- kora / okrąglak stojący: pionowe usłojenie, bruzdy i sęki (słupki, pnie, pale, beczki z kłód) --- */
+GEN.bark = (base = '#6a4a2c') => {
+  const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(17), b = hex(base);
+  g.fillStyle = css(b); g.fillRect(0, 0, N, N);
+  for (let i = 0; i < 16; i++) {   // pasma o różnym odcieniu
+    const x = i * N / 16, k = 0.8 + r() * 0.4, gr = g.createLinearGradient(x, 0, x + N / 16, 0);
+    gr.addColorStop(0, css(scaleC(b, 0.8 * k))); gr.addColorStop(0.5, css(scaleC(b, 1.18 * k))); gr.addColorStop(1, css(scaleC(b, 0.7 * k)));
+    g.fillStyle = gr; g.fillRect(x, 0, N / 16 + 0.5, N);
+  }
+  for (let i = 0; i < 46; i++) {   // bruzdy: falujące pionowe linie, okresowe w pionie i poziomie
+    const x = r() * N, ph = r() * TAU, amp = 0.6 + r() * 1.4, f = 1 + ((r() * 2) | 0), len = 30 + r() * 70, y0 = r() * N;
+    g.strokeStyle = `rgba(20,10,4,${0.2 + r() * 0.34})`; g.lineWidth = 0.7 + r() * 1.1;
+    for (const oy of [-N, 0]) { g.beginPath(); for (let y = 0; y <= len; y += 4) { const v = x + Math.sin((y + y0) / N * TAU * f + ph) * amp; y ? g.lineTo(v, y0 + y + oy) : g.moveTo(v, y0 + y + oy); } g.stroke(); }
+  }
+  for (let i = 0; i < 5; i++) { const kx = r() * N, ky = r() * N, kr = 2.4 + r() * 2; wrapDraw(N, kx - 9, ky - 7, 18, 14, (ox, oy) => { g.fillStyle = 'rgba(24,12,4,0.55)'; g.beginPath(); g.ellipse(kx + ox, ky + oy, kr * 0.7, kr, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(24,12,4,0.28)'; g.lineWidth = 1; g.beginPath(); g.ellipse(kx + ox, ky + oy, kr * 1.5, kr * 2.2, 0, 0, TAU); g.stroke(); }); }
+  addGrain(g, N, N, 15, 2);
+  return { c, ppu: 120 };
+};
+
 /* --- deski pionowe --- */
 GEN.plank = (base = '#7b5a36') => {
   const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(13), b = hex(base), cols = 8, cw = N / cols;

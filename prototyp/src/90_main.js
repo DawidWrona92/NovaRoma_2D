@@ -82,8 +82,8 @@ const FOOT = [];                                                    // ślady bu
 /* plan budynków: [nazwa sprite'a, i, j] — (i,j) to północny róg obrysu; środek = (i+fw/2, j+fh/2). Brakujące sprite'y są pomijane. */
 const PLAN = [
   // Frankowie
-  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['frankChurch', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
-  ['frankHouse', 12, 11], ['frankHouse', 15, 11], ['frankHouse', 18, 11],
+  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['franks_temple', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
+  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11],
   // Słowianie
   ['slavHut', 2, 15], ['slavHut', 5, 15], ['slavStore', 7, 15], ['slavWaxery', 2, 19], ['slavShrine', 5, 19], ['slavHut', 8, 20], ['well', 9, 18],
   // Wikingowie
@@ -152,7 +152,8 @@ async function bakeAll() {
   let t0 = performance.now();
   const names = Object.keys(BAKED), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
   TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12;
-  for (const n of names) SPR[n] = await step('Budynki', BAKED[n]);
+  for (const n of names) { LINT_NAME = n; SPR[n] = await step('Budynki', BAKED[n]); }
+  window.__lint = LINT_LOG;
   tmark('budynki', t0); t0 = performance.now();
   const oaks = await many('Drzewa', 5, i => TREES.oak(100 + i)), pines = await many('Drzewa', 4, i => TREES.pine(200 + i)), palms = await many('Drzewa', 3, i => TREES.palm(300 + i));
   const rocks = await many('Skały', 4, i => bakeRock(400 + i)), tufts = await many('Roślinność', 4, i => bakeTuft(500 + i, 'green')), sandTufts = await many('Roślinność', 3, i => bakeTuft(600 + i, 'sand'));
@@ -381,18 +382,23 @@ function sheetFrame() {
     names.forEach((n, i) => { const spr = SPR[n]; if (spr) draw(spr, (i + 0.5) * cw, H * (parseFloat(QS.get('y') || '0.82')), zs, ['p', 'u', 'c']); });
     return;
   }
-  if (mode === 'r') {                                                  // porównanie rozmiarów: wszystkie budynki w tej samej skali, z obrysem w polach i podpisem
-    const LAB = { frankHouse: 'Dom ryglowy', frankChurch: 'Kościół', frankMill: 'Młyn', frankBarracks: 'Koszary', frankSmithy: 'Kuźnia', frankKeep: 'Zamek', slavHut: 'Chata', slavStore: 'Spichlerz', slavWaxery: 'Woskarnia', slavShrine: 'Święty krąg', well: 'Studnia', saracenHouse: 'Dom', saracenMosque: 'Meczet', saracenMarket: 'Targ', saracenSerai: 'Karawanseraj', vikingHut: 'Chata', vikingMead: 'Miodosytnia', vikingHall: 'Długi dom', vikingDock: 'Przystań', longship: 'Okręt' };
-    const ROWS = [['FRANKOWIE', ['frankHouse', 'frankSmithy', 'frankMill', 'frankBarracks', 'frankChurch', 'frankKeep']], ['SŁOWIANIE', ['well', 'slavHut', 'slavWaxery', 'slavStore', 'slavShrine']], ['SARACENI', ['saracenHouse', 'saracenMarket', 'saracenMosque', 'saracenSerai']], ['WIKINGOWIE', ['vikingHut', 'vikingMead', 'vikingHall', 'vikingDock', 'longship']]];
+  if (mode === 'r') {                                                  // porównanie rozmiarów: budynki nacji (katalog z gry) w jednej skali, z obrysem w polach i podpisem; #sheet-r-franks = jedna nacja
     for (const id of ['cap', 'leg', 'st', 'ui']) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
-    const GAP = 30, lab = 36 * dpr, lay = ROWS.map(([nm, ks]) => { const it = ks.filter(k => SPR[k]).map(k => { const s = SPR[k]; return { k, s, w: s.fw ? (s.fw + s.fh) * AX + 40 : s.w * 0.8, up: s.ay - 20, down: s.fw ? (s.fw + s.fh) / 2 * AY + 14 : s.h - s.ay }; }); return { nm, it, w: it.reduce((a, o) => a + o.w + GAP, GAP), up: Math.max(...it.map(o => o.up)), down: Math.max(...it.map(o => o.down)) }; });
-    const z = Math.min(Z, (W * 0.98) / Math.max(...lay.map(r => r.w)), (H - lay.length * lab - 12 * dpr) / lay.reduce((a, r) => a + r.up + r.down, 0));
-    ctx.textAlign = 'center'; ctx.lineJoin = 'round';
-    const text = (t, x, y, px, bold) => { ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
+    const only = (location.hash.match(/sheet-r-([a-z]+)/) || [])[1], COLS = parseInt(QS.get('cols') || '6', 10), GAP = 34, lab = 34 * dpr, rows = [];
+    for (const n of only ? [only] : Object.keys(NATIONS)) {
+      const items = NATIONS[n].map(id => ({ id, k: spriteName(n, id), s: SPR[spriteName(n, id)], n })).filter(o => o.s);
+      for (let i = 0; i < items.length; i += COLS) {
+        const it = items.slice(i, i + COLS).map(o => ({ ...o, w: o.s.fw ? (o.s.fw + o.s.fh) * AX + 40 : o.s.w * 0.8, up: o.s.ay - 20, down: o.s.fw ? (o.s.fw + o.s.fh) / 2 * AY + 14 : o.s.h - o.s.ay }));
+        rows.push({ title: i === 0 ? NATION_PL[n] : '', it, w: it.reduce((a, o) => a + o.w + GAP, GAP), up: Math.max(...it.map(o => o.up)), down: Math.max(...it.map(o => o.down)) });
+      }
+    }
+    if (!rows.length) return;
+    const z = Math.min(Z, (W * 0.98) / Math.max(...rows.map(r => r.w)), (H - rows.length * lab - 12 * dpr) / rows.reduce((a, r) => a + r.up + r.down, 0));
+    const text = (t, x, y, px, bold, al = 'center') => { ctx.textAlign = al; ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
     let y = 8 * dpr;
-    for (const r of lay) {
+    for (const r of rows) {
       const base = y + r.up * z; let x = (W - (r.w * z)) / 2 + GAP * z;
-      ctx.textAlign = 'left'; text(r.nm, 14 * dpr, y + 20 * dpr, 17, true); ctx.textAlign = 'center';
+      if (r.title) text(r.title, 14 * dpr, y + 20 * dpr, 17, true, 'left');
       for (const o of r.it) {
         const cx = x + o.w * z / 2, s = o.s, fw = s.fw || 0, fh = s.fh || 0;
         for (const l of ['p', 'u']) if (s[l]) ctx.drawImage(lodPick(s[l], layerR(s, l) / z), cx - s.ax * z, base - s.ay * z, s.w * z, s.h * z);
@@ -401,7 +407,7 @@ function sheetFrame() {
           ctx.beginPath(); c.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.closePath(); ctx.fillStyle = 'rgba(255,214,70,0.13)'; ctx.fill(); ctx.lineWidth = 2 * dpr; ctx.strokeStyle = 'rgba(255,214,70,0.9)'; ctx.stroke();
         }
         if (s.c) ctx.drawImage(lodPick(s.c, layerR(s, 'c') / z), cx - s.ax * z, base - s.ay * z, s.w * z, s.h * z);
-        text(LAB[o.k] + (fw ? ' · ' + fw + '×' + fh : ''), cx, base + r.down * z + 22 * dpr, 15, false);
+        text(nameOfBuilding(o.n, o.id) + (fw ? ' · ' + fw + '×' + fh : ''), cx, base + r.down * z + 22 * dpr, 15, false);
         x += (o.w + GAP) * z;
       }
       y += (r.up + r.down) * z + lab;

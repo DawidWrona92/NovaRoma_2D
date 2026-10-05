@@ -153,6 +153,25 @@ GEN.log = (base = '#a0723f') => {
   return { c, ppu: 112 };
 };
 
+/* --- kora / okrąglak stojący: pionowe usłojenie, bruzdy i sęki (słupki, pnie, pale, beczki z kłód) --- */
+GEN.bark = (base = '#6a4a2c') => {
+  const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(17), b = hex(base);
+  g.fillStyle = css(b); g.fillRect(0, 0, N, N);
+  for (let i = 0; i < 16; i++) {   // pasma o różnym odcieniu
+    const x = i * N / 16, k = 0.8 + r() * 0.4, gr = g.createLinearGradient(x, 0, x + N / 16, 0);
+    gr.addColorStop(0, css(scaleC(b, 0.8 * k))); gr.addColorStop(0.5, css(scaleC(b, 1.18 * k))); gr.addColorStop(1, css(scaleC(b, 0.7 * k)));
+    g.fillStyle = gr; g.fillRect(x, 0, N / 16 + 0.5, N);
+  }
+  for (let i = 0; i < 46; i++) {   // bruzdy: falujące pionowe linie, okresowe w pionie i poziomie
+    const x = r() * N, ph = r() * TAU, amp = 0.6 + r() * 1.4, f = 1 + ((r() * 2) | 0), len = 30 + r() * 70, y0 = r() * N;
+    g.strokeStyle = `rgba(20,10,4,${0.2 + r() * 0.34})`; g.lineWidth = 0.7 + r() * 1.1;
+    for (const oy of [-N, 0]) { g.beginPath(); for (let y = 0; y <= len; y += 4) { const v = x + Math.sin((y + y0) / N * TAU * f + ph) * amp; y ? g.lineTo(v, y0 + y + oy) : g.moveTo(v, y0 + y + oy); } g.stroke(); }
+  }
+  for (let i = 0; i < 5; i++) { const kx = r() * N, ky = r() * N, kr = 2.4 + r() * 2; wrapDraw(N, kx - 9, ky - 7, 18, 14, (ox, oy) => { g.fillStyle = 'rgba(24,12,4,0.55)'; g.beginPath(); g.ellipse(kx + ox, ky + oy, kr * 0.7, kr, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(24,12,4,0.28)'; g.lineWidth = 1; g.beginPath(); g.ellipse(kx + ox, ky + oy, kr * 1.5, kr * 2.2, 0, 0, TAU); g.stroke(); }); }
+  addGrain(g, N, N, 15, 2);
+  return { c, ppu: 120 };
+};
+
 /* --- deski pionowe --- */
 GEN.plank = (base = '#7b5a36') => {
   const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(13), b = hex(base), cols = 8, cw = N / cols;
@@ -393,6 +412,9 @@ const VH = 39 * S;                 // px na jednostkę wysokości (rzut dimetryc
 const LIGHT = { top: 1.0, south: 0.86, east: 0.6, roofS: 1.02, roofN: 0.78, roofE: 0.8, roofW: 1.0 };
 const SHADOW_DIR = [0.62, 0.1];    // długość cienia (x,y) na jednostkę wysokości — pada w prawo-dół
 let RES = 1;                       // ustawiane przy starcie (zależnie od DPR / parametru ?q=)
+/* kontrola jakości (?lint=1): każdy sprite rejestruje bryły i elementy ścian; po wypieku powstaje lista ostrzeżeń (window.__lint):
+   przenikanie brył, zła kolejność rysowania, okna poza ścianą / nachodzące na siebie / zbyt gęste, sprite obcięty przy krawędzi płótna */
+const LINT = /[?&]lint=1/.test(location.search), LINT_LOG = []; let LINT_NAME = '';
 
 function convexHull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -403,17 +425,77 @@ function convexHull(pts) {
   lo.pop(); up.pop(); return lo.concat(up);
 }
 
+/* głębokość zachodzenia dwóch otoczek wypukłych (listy punktów ekranu) w px — 0, gdy się nie stykają (test osi rozdzielających) */
+function hullDepth(p, q, tol = 2) {
+  let best = 1e9;
+  for (const poly of [p, q]) for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], nx = b[1] - a[1], ny = a[0] - b[0], l = Math.hypot(nx, ny) || 1;
+    let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+    for (const t of p) { const d = (t[0] * nx + t[1] * ny) / l; if (d < a0) a0 = d; if (d > a1) a1 = d; }
+    for (const t of q) { const d = (t[0] * nx + t[1] * ny) / l; if (d < b0) b0 = d; if (d > b1) b1 = d; }
+    const ov = Math.min(a1, b1) - Math.max(a0, b0);
+    if (ov <= tol) return 0;
+    if (ov < best) best = ov;
+  }
+  return best;
+}
+const hullsOverlap = (p, q, tol = 2) => hullDepth(p, q, tol) > 0;
+
 class Scene {
   /* w,h,ax,ay — wymiary i punkt zaczepienia w px logicznych przy F=1; o.F — skala geometrii; o.R — rozdzielczość; o.ground — tylko warstwa terenu */
   constructor(w, h, ax, ay, o = {}) {
     const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
-    this.Rp = o.ground ? R : Math.min(R, 1); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
+    this.Rp = o.pRes ?? (o.ground ? R : Math.min(R, 1)); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
     this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
     this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh;
     const mk = res => { const c = newCanvas(Math.ceil(this.w * res), Math.ceil(this.h * res)), g = c.getContext('2d'); g.setTransform(res, 0, 0, res, 0, 0); return [c, g]; };
     [this.pcv, this.pg] = mk(this.Rp);                                                               // warstwa 1: plac / decale terenu
     if (!o.ground) { [this.ucv, this.gu] = mk(this.Ru); [this.c, this.g] = mk(R); }                  // warstwa 2: cień rzucony; warstwa 3: obiekty
-    this.pats = {}; this.wear = o.wear ?? 1; this._wn = 0;                                           // natężenie zużycia (0 = czysto)
+    this.pats = {}; this.wear = /[?&]nowear=1/.test(location.search) ? 0 : (o.wear ?? 1); this._wn = 0;                                           // natężenie zużycia (0 = czysto)
+    this.vols = []; this.walls = new Map();                                                          // rejestry kontroli jakości (tylko przy ?lint=1)
+  }
+  /* ---------- kontrola jakości ---------- */
+  regVol(kind, x0, y0, z0, x1, y1, z1, tag, nest) { if (LINT) this.vols.push({ kind, x0, y0, z0, x1, y1, z1, tag: tag || this.grpTag || '', nest: !!nest, i: this.vols.length, grp: this.grp ?? -1 }); }
+  regRect(O, U, V, kind, u0, u1, v0, v1) {
+    if (!LINT) return;
+    const key = [...O, ...U, ...V].map(n => n.toFixed(3)).join(','); let w = this.walls.get(key);
+    if (!w) { w = { O, lu: Math.hypot(...U), lv: Math.hypot(...V), it: [] }; this.walls.set(key, w); }
+    w.it.push({ kind, u0, u1, v0, v1 });
+  }
+  lint(name, out) {
+    const push = (kind, msg) => LINT_LOG.push({ b: name, kind, msg }), f = x => +x.toFixed(2), v = this.vols;
+    const lbl = a => `${a.kind}#${a.i}${a.tag ? '[' + a.tag + ']' : ''}(${f(a.x0)},${f(a.y0)},${f(a.z0)}→${f(a.x1)},${f(a.y1)},${f(a.z1)})`;
+    const hull = a => convexHull([a.x0, a.x1].flatMap(x => [a.y0, a.y1].flatMap(y => [a.z0, a.z1].map(z => this.P(x, y, z)))));
+    v.forEach(a => { a.h = hull(a); });
+    const allowed = (a, b) => { const k = [a.kind, b.kind].sort().join('+'); return k === 'box+roof' && (a.tag === 'komin' || b.tag === 'komin') || a.tag === 'ok' || b.tag === 'ok'; };
+    for (let i = 0; i < v.length; i++) for (let j = i + 1; j < v.length; j++) {
+      const a = v[i], b = v[j]; if (a.nest || b.nest || (a.grp >= 0 && a.grp === b.grp)) continue;                  // części jednego węzła (słupki płotu, ramy) — budowa wewnętrzna
+      const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0), oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0), eps = 0.015, thick = 0.045;                                                                 // przenikanie < 4,5 cm = złącze, nie błąd
+      if (a.tag === b.tag && (a.tag === 'płot' || a.tag === 'palisada' || a.tag === 'mur')) continue;
+      if (ox > thick && oy > thick && oz > thick) { if (!allowed(a, b)) push('przenikanie', `${lbl(a)} × ${lbl(b)} (${f(ox)}×${f(oy)}×${f(oz)})`); continue; }
+      if (ox > eps && oy > eps && oz > eps) continue;                                                              // cienkie zachodzenie (złącze) — bez kontroli kolejności
+      const front = (p, q) => p.x0 >= q.x1 - eps || p.y0 >= q.y1 - eps || p.z0 >= q.z1 - eps;                    // p bliżej widza niż q
+      if (front(a, b) && !front(b, a) && hullsOverlap(a.h, b.h)) push('kolejność', `${lbl(a)} narysowane PRZED ${lbl(b)}, a stoi bliżej widza`);
+    }
+    if (this.fw && this.fh) for (const a of v) {                                                  // bryły poza obrysem budynku (kolidowałyby z sąsiadami)
+      const hx = this.fw / 2, hy = this.fh / 2, t = a.kind === 'roof' ? 0.12 : 0.06;
+      if (a.x0 < -hx - t || a.x1 > hx + t || a.y0 < -hy - t || a.y1 > hy + t) push('obrys', `${lbl(a)} wystaje poza obrys ${this.fw}×${this.fh}`);
+    }
+    for (const w of this.walls.values()) {
+      const wins = w.it.filter(t => t.kind === 'okno'), tag = `ściana(${w.O.map(f).join(',')}; ${f(w.lu)}×${f(w.lv)})`;
+      for (const t of w.it) if (t.u0 < -0.01 || t.u1 > w.lu + 0.01 || t.v0 < -0.01 || t.v1 > w.lv + 0.01) push('okna', `${tag}: ${t.kind} poza ścianą u ${f(t.u0)}…${f(t.u1)} v ${f(t.v0)}…${f(t.v1)}`);
+      for (let i = 0; i < w.it.length; i++) for (let j = i + 1; j < w.it.length; j++) {
+        const a = w.it[i], b = w.it[j]; if ((a.kind === 'kwiaty' && b.kind === 'okno') || (b.kind === 'kwiaty' && a.kind === 'okno')) continue;
+        const ou = Math.min(a.u1, b.u1) - Math.max(a.u0, b.u0), ov = Math.min(a.v1, b.v1) - Math.max(a.v0, b.v0);
+        if (ou > 0.01 && ov > 0.01) push('okna', `${tag}: ${a.kind} nachodzi na ${b.kind} (u ${f(Math.max(a.u0, b.u0))}…${f(Math.min(a.u1, b.u1))})`);
+      }
+      const occ = wins.reduce((s, t) => s + (t.u1 - t.u0), 0) / w.lu;
+      if (wins.length > Math.max(2, Math.floor(w.lu / 0.5)) || occ > 0.5) push('gęstość', `${tag}: ${wins.length} okien, zajmują ${Math.round(occ * 100)}% szerokości ściany`);
+    }
+    if (out) {
+      const g = out.getContext('2d'), W = out.width, H = out.height;
+      for (const [nm, x, y, w, h] of [['góra', 0, 0, W, 2], ['dół', 0, H - 2, W, 2], ['lewa', 0, 0, 2, H], ['prawa', W - 2, 0, 2, H]]) { const d = g.getImageData(x, y, w, h).data; for (let k = 3; k < d.length; k += 4) if (d[k] > 24) { push('obcięcie', `sprite dotyka krawędzi płótna: ${nm}`); break; } }
+    }
   }
   P(x, y, z = 0) { const F = this.F; return [(x - y) * AX * F + this.ax, (x + y) * AY * F - z * VH * F + this.ay]; }
   pat(name, pal, ctx) {
@@ -430,12 +512,11 @@ class Scene {
     const sc = Math.hypot(a, b) || 1;
     g.save();
     g.setTransform(R * a, R * b, R * c, R * d, R * p0[0], R * p0[1]);
-    g.beginPath();
-    if (o.clip) o.clip.forEach(([s, t], i) => g[i ? 'lineTo' : 'moveTo'](s * lu * K, t * lv * K)); else g.rect(0, 0, lu * K, lv * K);
-    g.closePath();
+    const path = () => { g.beginPath(); if (o.clip) o.clip.forEach(([s, t], i) => g[i ? 'lineTo' : 'moveTo'](s * lu * K, t * lv * K)); else g.rect(0, 0, lu * K, lv * K); g.closePath(); };
+    path();
     g.fillStyle = m.pat; g.fill();
     g.strokeStyle = m.pat; g.lineWidth = 1.1 / sc; g.stroke();        // zakładka — brak szwów między ścianami
-    if (o.wear !== 0 && this.wear > 0) wearFace(this, mat, o, lu * K, lv * K, K, sc, (++this._wn) * 7919 + Math.round(O[0] * 173 + O[1] * 379 + O[2] * 571) + 1000);
+    if (o.wear !== 0 && this.wear > 0) { wearFace(this, mat, o, lu * K, lv * K, K, sc, (++this._wn) * 7919 + Math.round(O[0] * 173 + O[1] * 379 + O[2] * 571) + 1000); path(); }   // zużycie zmienia bieżącą ścieżkę — odtwarzamy ścianę przed cieniowaniem
     const sh = o.shade ?? 1;
     if (sh < 1) { g.globalCompositeOperation = 'multiply'; g.fillStyle = `rgb(${255 * sh * 0.97 | 0},${255 * sh * 0.98 | 0},${255 * Math.min(1, sh * 1.03) | 0})`; g.fill(); }
     else if (sh > 1) { g.globalCompositeOperation = 'soft-light'; g.globalAlpha = Math.min(1, (sh - 1) * 2.4); g.fillStyle = '#fff1c4'; g.fill(); }
@@ -464,6 +545,7 @@ class Scene {
 
   /* prostopadłościan: ściana wschodnia (prawa), południowa (lewa) i wierzch */
   box(x0, y0, z0, x1, y1, z1, m, o = {}) {
+    if (LINT) this.regVol('box', x0, y0, z0, x1, y1, z1, o.tag, o.nest);
     const h = z1 - z0, me = m.east || m, ms = m.south || m, mt = m.top || m.south || m;
     const ao = o.ao ?? 0.4, vg = [[0, o.eave ?? 0], [0.15, 0], [0.78, 0], [1, ao]];
     this.face([x1, y1, z1], [0, -(y1 - y0), 0], [0, 0, -h], me, { shade: LIGHT.east, vgrad: vg, pal: o.pal, ugrad: [[0, 0.16], [0.2, 0]] });
@@ -532,6 +614,7 @@ class Scene {
 
   /* walec pionowy (wieża, minaret, beczka): gradient poziomy, elipsy góry i dołu */
   cyl(cx, cy, z0, z1, r, o = {}) {
+    if (LINT) this.regVol('cyl', cx - r, cy - r, z0, cx + r, cy + r, z1, o.tag, o.nest);
     const g = this.g, R = this.R, F = this.F, [px, pyb] = this.P(cx, cy, z0), [, pyt] = this.P(cx, cy, z1), rx = r * AX * F * 1.4142, ry = r * AY * F * 1.4142;
     const col = o.color || [150, 140, 125];
     g.save();
@@ -539,7 +622,8 @@ class Scene {
     g.clip();
     if (o.mat) {
       const m = this.pat(o.mat, o.pal), K = m.ppu, sc = o.texScale || (VH / K);
-      g.save(); g.setTransform(R * sc, 0, 0, R * sc, R * (px - rx), R * (pyt - ry)); g.fillStyle = m.pat; g.fillRect(0, 0, (rx * 2) / sc + 2, ((pyb - pyt) + ry * 2) / sc + 2); g.restore();
+      g.save(); g.setTransform(R * sc, 0, 0, R * sc, R * (px - rx), R * (pyt - ry)); g.fillStyle = m.pat; g.fillRect(0, 0, (rx * 2) / sc + 2, ((pyb - pyt) + ry * 2) / sc + 2); g.restore();   // podkład (pokrywa też obszar wierzchu)
+      if (o.flat !== true) cylTexture(g, R, tex(o.mat, o.pal), F, px, pyt, pyb, rx, ry, r, o.phase ?? Math.round(cx * 53 + cy * 29));   // zakrzywione rzędy cegieł / klepki wokół walca
     } else { g.fillStyle = css(col); g.fillRect(px - rx, pyt - ry, rx * 2, pyb - pyt + ry * 2); }
     const gr = g.createLinearGradient(px - rx, 0, px + rx, 0);   // zaokrąglenie: światło z lewej, cień z prawej
     gr.addColorStop(0, 'rgba(255,240,200,0.16)'); gr.addColorStop(0.28, 'rgba(255,240,200,0.04)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
@@ -565,14 +649,53 @@ class Scene {
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]) g.drawImage(t, dx * ow, dy * ow);
     g.drawImage(this.c, 0, 0);
     if (o.grain !== 0) addSpriteGrain(g, this.pw, this.ph, R, o.grain ?? 1);
-    return { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh };
+    if (LINT) this.lint(LINT_NAME, out);
+    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh };
+    return o.crop === false ? spr : cropSprite(spr);
   }
+}
+
+/* tekstura walcowa: pionowe paski o szerokości 1 piksela urządzenia; pasek na odległości X od osi leży na kącie φ = asin(X/rx), więc
+   tekstura jest próbkowana wzdłuż długości łuku (cegły kurczą się ku krawędziom), a poziome rzędy zataczają dół elipsy (ry·cos φ) —
+   dokładnie tak, jak widać okrągłą wieżę z góry pod kątem 2:1. Wzór jest wywoływany po płaskim podkładzie, więc szczeliny nie prześwitują. */
+function cylTexture(g, R, t, F, px, pyt, pyb, rx, ry, r, phase = 0) {
+  const pat = g.createPattern(t.c, 'repeat'), K = t.ppu, sy = VH / K, sx0 = Math.SQRT2 * AX / K, step = 1 / R, H = pyb - pyt;
+  for (let X = -rx; X < rx; X += step) {
+    const xc = Math.min(rx - 1e-6, X + step / 2), phi = Math.asin(Math.max(-1, Math.min(1, xc / rx))), cs = Math.cos(phi), dy = ry * cs;
+    const sx = sx0 * Math.max(cs, 0.04), u = (r * phi * F + phase * 0.173) * K;
+    pat.setTransform(new DOMMatrix([sx, 0, 0, sy, px + xc - sx * u, pyt + dy]));
+    g.fillStyle = pat; g.fillRect(px + X - 0.25 / R, pyt + dy - 1.5, step + 0.5 / R, H + 3);
+  }
+}
+
+/* przycięcie warstw sprite'a do zawartości (oszczędza pamięć i czas rysowania): obwiednia niepustych pikseli wszystkich warstw, w px logicznych */
+function cropSprite(s) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [l, res] of [['c', s.R], ['u', s.Ru], ['p', s.Rp]]) {
+    const im = s[l]; if (!im) continue;
+    const k = 4, sw = Math.max(1, Math.ceil(im.width / k)), sh = Math.max(1, Math.ceil(im.height / k)), t = newCanvas(sw, sh), g = t.getContext('2d');
+    g.drawImage(im, 0, 0, sw, sh); const d = g.getImageData(0, 0, sw, sh).data;
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (d[(y * sw + x) * 4 + 3] > 3) {
+      const X0 = x * k / res, X1 = (x + 1) * k / res, Y0 = y * k / res, Y1 = (y + 1) * k / res;
+      if (X0 < x0) x0 = X0; if (X1 > x1) x1 = X1; if (Y0 < y0) y0 = Y0; if (Y1 > y1) y1 = Y1;
+    }
+  }
+  if (x1 < x0) return s;
+  x0 = Math.max(0, Math.floor(x0) - 2); y0 = Math.max(0, Math.floor(y0) - 2); x1 = Math.min(s.w, Math.ceil(x1) + 2); y1 = Math.min(s.h, Math.ceil(y1) + 2);
+  const w = x1 - x0, h = y1 - y0, out = { ...s, ax: s.ax - x0, ay: s.ay - y0, w, h };
+  for (const [l, res] of [['c', s.R], ['u', s.Ru], ['p', s.Rp]]) {
+    const im = s[l]; if (!im) continue;
+    const c = newCanvas(Math.ceil(w * res), Math.ceil(h * res)); c.getContext('2d').drawImage(im, Math.round(x0 * res), Math.round(y0 * res), c.width, c.height, 0, 0, c.width, c.height);
+    out[l] = c;
+  }
+  return out;
 }
 
 /* ---------- połacie dachowe ---------- */
 /* dach dwuspadowy; o.ridge 'x' (kalenica wzdłuż x, szczyty po bokach ±x) albo 'y'.
    o: x0,y0,x1,y1 — obrys ścian, z — wysokość ścian, rise — wzniesienie kalenicy, ov — okap, ovE — wysunięcie szczytu */
 function gableRoof(sc, o) {
+  if (LINT) { const oe = o.ovE ?? 0.05, ov = o.ov ?? 0.07, ex = o.ridge === 'y' ? ov : oe, ey = o.ridge === 'y' ? oe : ov; sc.regVol('roof', o.x0 - ex, o.y0 - ey, o.z, o.x1 + ex, o.y1 + ey, o.z + o.rise, o.tag, o.nest); }
   const { x0, y0, x1, y1, z, rise } = o, ov = o.ov ?? 0.07, ovE = o.ovE ?? 0.05, mat = o.mat, pal = o.pal, gm = o.gableMat || o.wallMat, gpal = o.gablePal || o.wallPal;
   if ((o.ridge || 'x') === 'x') {
     const ym = (y0 + y1) / 2, hs = (y1 - y0) / 2, dz = rise * ov / hs, zE = z - dz, L = x1 - x0 + 2 * ovE;
@@ -592,6 +715,7 @@ function gableRoof(sc, o) {
 
 /* dach czterospadowy / ostrosłup (wieże, kapliczki) */
 function pyramidRoof(sc, o) {
+  if (LINT) { const ov = o.ov ?? 0.05; sc.regVol('roof', o.x0 - ov, o.y0 - ov, o.z, o.x1 + ov, o.y1 + ov, o.z + o.rise, o.tag, o.nest); }
   const { x0, y0, x1, y1, z, rise, mat, pal } = o, ov = o.ov ?? 0.05, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2, top = z + rise;
   const a = [x0 - ov, y0 - ov, z - rise * ov / ((x1 - x0) / 2)], b = [x1 + ov, y0 - ov, a[2]], c = [x1 + ov, y1 + ov, a[2]], d = [x0 - ov, y1 + ov, a[2]];
   const quadTri = (p, q, shade) => {
@@ -615,8 +739,8 @@ const WEAR = {
   stone:     { streak: 0.5, grime: 0.9, patch: ['stone', '#bdb9ac', 'rect'], patchN: 0.8, moss: 0.5, crack: 1.0, chip: 0.8, tone: 1 },
   rubble:    { streak: 0.4, grime: 0.9, patch: ['rubble', '#a49f93', 'rect'], patchN: 0.5, moss: 0.7, crack: 0.8, chip: 0.6, tone: 1 },
   sandstone: { streak: 0.45, grime: 0.7, patch: ['sandstone', '#ecd8a6', 'rect'], patchN: 0.8, crack: 0.9, chip: 0.8, salt: 0.6, tone: 1 },
-  plaster:   { streak: 0.8, grime: 0.8, patch: ['plaster', '#d8ccae', 'blob'], patchN: 0.6, moss: 0.15, crack: 1.1, peel: 0.9, tone: 1 },
-  whitewash: { streak: 0.7, grime: 0.7, patch: ['whitewash', '#e4dcc4', 'blob'], patchN: 0.5, crack: 0.8, peel: 0.7, tone: 1 }
+  plaster:   { streak: 0.8, grime: 0.8, patch: ['plaster', '#d8ccae', 'blob'], patchN: 0.6, moss: 0.15, crack: 0.6, peel: 0.7, tone: 1 },
+  whitewash: { streak: 0.7, grime: 0.7, patch: ['whitewash', '#e4dcc4', 'blob'], patchN: 0.5, crack: 0.5, peel: 0.6, tone: 1 }
 };
 
 function wearBlob(g, r, cx, cy, rad, n = 9, jit = 0.38) {
@@ -625,11 +749,11 @@ function wearBlob(g, r, cx, cy, rad, n = 9, jit = 0.38) {
   g.closePath();
 }
 function wearCrack(g, r, W, H, K, px, long = 1) {
-  let x = r() * W, y = r() * H * 0.75, ang = Math.PI / 2 + (r() - 0.5) * 1.1;
-  const pts = [[x, y]], steps = Math.round((5 + r() * 9) * long), br = [];
+  let x = r() * W, y = r() * H * 0.75, ang = Math.PI / 2 + (r() - 0.5) * 0.9;
+  const pts = [[x, y]], steps = Math.round((4 + r() * 6) * long), br = [];
   for (let s = 0; s < steps; s++) {
-    ang += (r() - 0.5) * 0.95; const l = (0.012 + r() * 0.024) * K; x += Math.cos(ang) * l; y += Math.sin(ang) * l; pts.push([x, y]);
-    if (r() < 0.2) br.push([x, y, ang + (r() < 0.5 ? 0.9 : -0.9), 2 + (r() * 4 | 0)]);
+    ang += (r() - 0.5) * 0.6; const l = (0.012 + r() * 0.022) * K; x += Math.cos(ang) * l; y += Math.sin(ang) * l; pts.push([x, y]);
+    if (r() < 0.1) br.push([x, y, ang + (r() < 0.5 ? 0.8 : -0.8), 2 + (r() * 3 | 0)]);
   }
   const draw = (p, off) => { g.beginPath(); p.forEach(([a, b], i) => i ? g.lineTo(a + off, b + off) : g.moveTo(a + off, b + off)); g.stroke(); };
   const all = [pts];
@@ -716,10 +840,10 @@ function wearFace(sc, mat, o, W, H, K, px, seed) {
     g.fillStyle = bone(0.5 + r() * 0.25); g.fill(); g.strokeStyle = ink(0.55); g.lineWidth = 0.9 / px; g.stroke();
   }
   // 7) brakujące dachówki / gonty
-  if (P.missing) for (let i = cnt(P.missing * k * A * 0.9); i > 0; i--) {
-    const gu = 16, x = Math.floor(r() * (W / gu - 1)) * gu + (r() < 0.5 ? 8 : 0), y = Math.floor(r() * (H / gu - 1)) * gu;
-    g.fillStyle = 'rgba(18,9,5,0.78)'; g.fillRect(x, y + 2, gu - 2, gu - 3);
-    g.fillStyle = bone(0.12); g.fillRect(x, y + 2, gu - 2, 1.2 / px);
+  if (P.missing) for (let i = cnt(P.missing * k * A * 1.4); i > 0; i--) {
+    const gu = 16, x = Math.floor(r() * (W / gu - 1)) * gu + (r() < 0.5 ? 8 : 0), y = Math.floor(r() * (H / gu - 1)) * gu, fresh = r() < 0.55;
+    g.fillStyle = fresh ? 'rgba(255,196,140,0.30)' : 'rgba(36,44,30,0.34)'; g.fillRect(x, y + 2, gu - 2, gu - 3);          // wymieniona (jaśniejsza) albo zmurszała (ciemna) dachówka
+    g.strokeStyle = ink(0.35); g.lineWidth = 0.9 / px; g.strokeRect(x, y + 2, gu - 2, gu - 3);
   }
   // 8) przybrudzenie u podstawy i bryzgi
   if (P.grime && !roof) {
@@ -756,6 +880,462 @@ function addSpriteGrain(g, w, h, R, amount = 1) {
   g.restore();
 }
 
+/* ---- 26_build.js ---- */
+/* ====================== BUDOWA Z BRYŁ: automatyczna kolejność rysowania, cienie, układ okien ======================
+   Zamiast ręcznie ustawiać kolejność wywołań (źródło „ścian przechodzących przez siebie") budynek składa się z węzłów:
+   każdy węzeł to bryła (prostopadłościan AABB) + funkcja rysująca. flush() ustala kolejność z relacji „bliżej / dalej od widza"
+   (przy rzucie dimetrycznym bryła A jest bliżej, gdy leży dalej w +x, +y albo wyżej), rzuca cienie z sumy brył
+   i dopiero potem rysuje. Okna i drzwi układa facade() w równych odstępach — nie nachodzą na siebie i nie wychodzą poza ścianę. */
+
+/* wysokość połaci dwuspadowej w punkcie (x, y) — do osadzania kominów */
+const gableZ = (o, x, y) => { const half = o.ridge === 'y' ? (o.x1 - o.x0) / 2 : (o.y1 - o.y0) / 2, d = o.ridge === 'y' ? Math.abs(x - (o.x0 + o.x1) / 2) : Math.abs(y - (o.y0 + o.y1) / 2); return o.z + o.rise * Math.max(0, 1 - d / half); };
+
+class Build {
+  constructor(sc) { this.sc = sc; this.nodes = []; }
+  /* dodaje węzeł; pts — punkty 3D do cienia (domyślnie narożniki bryły), o.shadow:false — bez cienia, o.nest — dozwolone przenikanie */
+  add(kind, x0, y0, z0, x1, y1, z1, draw, o = {}) {
+    const n = { kind, x0, y0, z0, x1, y1, z1, draw, tag: o.tag || '', nest: !!o.nest, shadow: o.shadow !== false, pts: o.pts, contact: o.contact, i: this.nodes.length };
+    this.nodes.push(n); return n;
+  }
+  /* prostopadłościan; deco(S, E, V) — dekoracje ścian południowej (+y) i wschodniej (+x): S, E = {O,U,V}, V = {x0,y0,x1,y1,z0,z1} */
+  box(x0, y0, z0, x1, y1, z1, m, o = {}, deco) {
+    return this.add('box', x0, y0, z0, x1, y1, z1, () => { this.sc.box(x0, y0, z0, x1, y1, z1, m, o); if (deco) deco(wallS(x0, x1, y1, z1, z0), wallE(y0, y1, x1, z1, z0), { x0, y0, x1, y1, z0, z1 }); }, { tag: o.tag, nest: o.nest, shadow: o.shadow, contact: o.contact ?? z0 < 0.14 });
+  }
+  cyl(cx, cy, z0, z1, r, o = {}, deco) {
+    const pts = []; for (let k = 0; k < 8; k++) for (const z of [z0, z1]) pts.push([cx + Math.cos(k * TAU / 8) * r, cy + Math.sin(k * TAU / 8) * r, z]);
+    return this.add('cyl', cx - r, cy - r, z0, cx + r, cy + r, z1, () => { this.sc.cyl(cx, cy, z0, z1, r, o); if (deco) deco(); }, { tag: o.tag, nest: o.nest, shadow: o.shadow, contact: o.contact ?? z0 < 0.14, pts });
+  }
+  /* dach dwuspadowy na prostokącie ścian; deco(R) po narysowaniu; zwraca węzeł z polem .info */
+  gable(o, deco) {
+    const oe = o.ovE ?? 0.05, ov = o.ov ?? 0.07, ex = o.ridge === 'y' ? ov : oe, ey = o.ridge === 'y' ? oe : ov, z = o.z, top = z + o.rise;
+    const pts = [[o.x0 - ex, o.y0 - ey, z], [o.x1 + ex, o.y0 - ey, z], [o.x1 + ex, o.y1 + ey, z], [o.x0 - ex, o.y1 + ey, z]];
+    pts.push(o.ridge === 'y' ? [(o.x0 + o.x1) / 2, o.y0 - ey, top] : [o.x0 - ex, (o.y0 + o.y1) / 2, top], o.ridge === 'y' ? [(o.x0 + o.x1) / 2, o.y1 + ey, top] : [o.x1 + ex, (o.y0 + o.y1) / 2, top]);
+    const n = this.add('roof', o.x0 - ex, o.y0 - ey, z, o.x1 + ex, o.y1 + ey, top, () => { n.info = gableRoof(this.sc, o); if (deco) deco(n.info); }, { tag: o.tag, nest: o.nest, pts, contact: false });
+    return n;
+  }
+  pyramid(o) {
+    const ov = o.ov ?? 0.05, z = o.z, top = z + o.rise, xm = (o.x0 + o.x1) / 2, ym = (o.y0 + o.y1) / 2;
+    const pts = [[o.x0 - ov, o.y0 - ov, z], [o.x1 + ov, o.y0 - ov, z], [o.x1 + ov, o.y1 + ov, z], [o.x0 - ov, o.y1 + ov, z], [xm, ym, top]];
+    return this.add('roof', o.x0 - ov, o.y0 - ov, z, o.x1 + ov, o.y1 + ov, top, () => pyramidRoof(this.sc, o), { tag: o.tag, nest: o.nest, pts, contact: false });
+  }
+  /* dach jednospadowy: pochyła płaszczyzna od krawędzi północnej (wyżej) do południowej (niżej) o spadek drop */
+  lean(o) {
+    const { x0, y0, x1, y1, z, drop } = o, pts = [[x0, y0, z], [x1, y0, z], [x1, y1, z - drop], [x0, y1, z - drop]];
+    return this.add('roof', x0, y0, z - drop, x1, y1, z, () => this.sc.face([x0, y0, z], [x1 - x0, 0, 0], [0, y1 - y0, -drop], o.mat, { shade: 1.0, pal: o.pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.88, 0], [1, 0.25]] }), { tag: o.tag, nest: o.nest, pts, contact: false });
+  }
+  cone(cx, cy, z0, r, h, col, o = {}) {
+    const pts = []; for (let k = 0; k < 8; k++) pts.push([cx + Math.cos(k * TAU / 8) * r, cy + Math.sin(k * TAU / 8) * r, z0]); pts.push([cx, cy, z0 + h]);
+    return this.add('cone', cx - r, cy - r, z0, cx + r, cy + r, z0 + h, () => cone(this.sc, cx, cy, z0, r, h, col), { tag: o.tag, nest: o.nest, pts, contact: false });
+  }
+  dome(cx, cy, z, r, o = {}) {
+    const h = r * 1.16 * (o.onion ? 1.75 : 1), pts = []; for (let k = 0; k < 8; k++) pts.push([cx + Math.cos(k * TAU / 8) * r, cy + Math.sin(k * TAU / 8) * r, z]); pts.push([cx, cy, z + h * 0.7]);
+    return this.add('dome', cx - r, cy - r, z, cx + r, cy + r, z + h, () => dome(this.sc, cx, cy, z, r, o), { tag: o.tag, nest: o.nest, pts, contact: false });
+  }
+  /* dowolny element o zadanej bryle (rekwizyty, kominy, słupy): draw rysuje go na scenie */
+  part(x0, y0, z0, x1, y1, z1, draw, o = {}) { return this.add(o.kind || 'prop', x0, y0, z0, x1, y1, z1, draw, o); }
+  /* typowe rekwizyty z gotową bryłą (rozmiary w polach) */
+  barrel(x, y, z = 0, s = 1) { return this.part(x - 0.09 * s, y - 0.09 * s, z, x + 0.09 * s, y + 0.09 * s, z + 0.2 * s, () => barrel(this.sc, x, y, z, s), { tag: 'beczka' }); }
+  crate(x, y, s = 0.16, h = 0.16) { return this.part(x - s / 2, y - s / 2, 0, x + s / 2, y + s / 2, h, () => crate(this.sc, x, y, s, h), { tag: 'skrzynia' }); }
+  sack(x, y, col, s = 1, z = 0) { return this.part(x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 0.22, () => sack(this.sc, x, y, col, s, z), { tag: 'worek', shadow: false }); }
+  logs(x, y) { return this.part(x - 0.18, y - 0.08, 0, x + 0.18, y + 0.08, 0.25, () => logPile(this.sc, x, y), { tag: 'stos', shadow: false }); }
+  hay(x, y) { return this.part(x - 0.22, y - 0.22, 0, x + 0.22, y + 0.22, 0.5, () => haystack(this.sc, x, y), { tag: 'stóg' }); }
+  skep(x, y, s = 1) { return this.part(x - 0.08 * s, y - 0.08 * s, 0, x + 0.08 * s, y + 0.08 * s, 0.2 * s, () => skep(this.sc, x, y, s), { tag: 'ul', shadow: false }); }
+  stairs(xa, xb, y, n, h, mat = 'stone', d = 0.14, pal) { return this.part(xa, y, 0, xb, y + n * d, h, () => stairs(this.sc, xa, xb, y, n, h, mat, d, pal), { tag: 'schody', kind: 'box', shadow: false }); }
+  chimney(cx, cy, zb, zt, w = 0.26, mat = 'stone', pal) { return this.part(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zb, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, () => chimney(this.sc, cx, cy, zb, zt, w, mat, pal), { tag: 'komin', kind: 'box', shadow: false }); }
+
+  /* komin osadzony w połaci dwuspadowej roof (te same opcje co w gable()), w punkcie (x,y); h — wysokość nad połacią */
+  chim(roof, x, y, h = 0.7, w = 0.26, mat = 'stone', pal) {
+    const zb = gableZ(roof, x, y) - 0.1;
+    return this.part(x - w / 2 - 0.035, y - w / 2 - 0.035, zb, x + w / 2 + 0.035, y + w / 2 + 0.035, zb + h + 0.17, () => { chimney(this.sc, x, y, zb, zb + h + 0.1, w, mat, pal); soot(this.sc, x, y, zb + 0.05, w * 0.8, 0.45); }, { tag: 'komin', kind: 'box' });
+  }
+
+  /* ---------- cienie i kontakt z ziemią: jedna suma kształtów, więc zakładki nie ciemnieją podwójnie ---------- */
+  shadows(o = {}) {
+    const sc = this.sc, sd = o.dir || SHADOW_DIR, polys = [], cont = [];
+    for (const n of this.nodes) {
+      if (n.shadow && n.z1 - Math.max(0, n.z0) > 0.1) {
+        const pts = n.pts || [[n.x0, n.y0, n.z0], [n.x1, n.y0, n.z0], [n.x1, n.y1, n.z0], [n.x0, n.y1, n.z0], [n.x0, n.y0, n.z1], [n.x1, n.y0, n.z1], [n.x1, n.y1, n.z1], [n.x0, n.y1, n.z1]];
+        const gnd = n.z0 > 0.3 ? [] : [];                                                                                        // bryły oderwane od ziemi (okapy) rzucają cień tak samo
+        polys.push(convexHull(pts.concat(gnd).map(([x, y, z]) => sc.P(x + z * sd[0], y + z * sd[1], 0))));
+      }
+      if (n.contact) cont.push([n.x0, n.y0, n.x1, n.y1]);
+    }
+    if (polys.length) softFill(sc.gu, g => { for (const h of polys) { h.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); } }, `rgba(14,22,8,${o.alpha ?? 0.5})`, (o.blur ?? 9) * sc.F);
+    if (cont.length) { const e = 0.05, P = (x, y) => sc.P(x, y, 0); softFill(sc.gu, g => { for (const [x0, y0, x1, y1] of cont) { [[x0 - e, y0 - e], [x1 + e, y0 - e], [x1 + e, y1 + e], [x0 - e, y1 + e]].forEach(([x, y], i) => { const p = P(x, y); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }); g.closePath(); } }, `rgba(10,12,4,${o.contact ?? 0.5})`, (o.cblur ?? 6) * sc.F); }
+  }
+
+  /* ---------- kolejność rysowania ---------- */
+  sort() {
+    const sc = this.sc, N = this.nodes, n = N.length, eps = 0.015;
+    N.forEach(a => { a.h = convexHull([a.x0, a.x1].flatMap(x => [a.y0, a.y1].flatMap(y => [a.z0, a.z1].map(z => sc.P(x, y, z))))); });
+    const pred = N.map(() => []), succ = N.map(() => []);
+    const link = (a, b, w) => { succ[a.i].push(b.i); pred[b.i].push([a.i, w]); };                                           // a przed b; w — głębokość zachodzenia (siła ograniczenia)
+    const front = (p, q) => p.x0 >= q.x1 - eps || p.y0 >= q.y1 - eps || p.z0 >= q.z1 - eps;                                   // p bliżej widza niż q
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = N[i], b = N[j], w = hullDepth(a.h, b.h); if (!w) continue;
+      const af = front(a, b), bf = front(b, a);
+      if (af && !bf) link(b, a, w); else if (bf && !af) link(a, b, w); else link(a, b, 0.5);                                 // przenikanie / brak relacji → kolejność autora (słabe ograniczenie)
+    }
+    const out = [], done = new Array(n).fill(false), deg = pred.map(p => p.length);
+    for (let k = 0; k < n; k++) {
+      let pick = -1; for (let i = 0; i < n; i++) if (!done[i] && deg[i] === 0) { pick = i; break; }
+      if (pick < 0) {                                                                                                          // cykl → bierzemy węzeł z najsłabszymi niespełnionymi ograniczeniami
+        let bw = 1e18; for (let i = 0; i < n; i++) if (!done[i]) { const w = pred[i].reduce((s, [q, ww]) => s + (done[q] ? 0 : ww), 0); if (w < bw) { bw = w; pick = i; } }
+        if (LINT && bw > 1) LINT_LOG.push({ b: LINT_NAME, kind: 'cykl', msg: `cykl w kolejności rysowania przy ${N[pick].kind}#${pick}${N[pick].tag ? '[' + N[pick].tag + ']' : ''} (siła pominiętych ograniczeń ${bw.toFixed(1)} px)` });
+      }
+      done[pick] = true; out.push(N[pick]); for (const j of succ[pick]) deg[j]--;
+    }
+    return out;
+  }
+  /* kończy budowę: cienie, kolejność, rysowanie, sprite */
+  flush(o = {}) {
+    if (o.shadow !== false) this.shadows(o.shadow || {});
+    for (const n of this.sort()) { this.sc.grp = n.i; this.sc.grpTag = n.tag; n.draw(); }
+    this.sc.grp = -1; this.sc.grpTag = '';
+    return this.sc.finish(o.finish || {});
+  }
+}
+
+/* ---------- układ elewacji: drzwi + równo rozmieszczone okna ----------
+   W — ściana {O,U,V}; s.door = {at (0..1 środek drzwi), w, h, vb (podstawa), arch, frame, pal, lintel};
+   s.win = {n, w, h, v (górna krawędź od góry ściany), kind: 'rect' | 'arch' | 'glass', shut, frame, sill, lit, lit2, grille};
+   s.marg — minimalny odstęp od narożników, s.gap — od drzwi i między oknami (liczone z okiennicami). Zwraca {win:[{u0,w,h,v0}], door:{u0,w}} */
+function facade(sc, W, s = {}) {
+  const lu = Math.hypot(...W.U), lv = Math.hypot(...W.V), marg = s.marg ?? 0.16, gap = s.gap ?? 0.12, res = { win: [], door: null };
+  let spans = [[marg, lu - marg]];
+  if (s.door) {
+    const d = s.door, dw = d.w ?? 0.36, u0 = (d.at ?? 0.5) * lu - dw / 2, dh = d.h ?? 0.66, vb = d.vb ?? lv;
+    door(sc, W.O, W.U, W.V, u0, dw, dh, { vb, arch: d.arch, frame: d.frame, pal: d.pal, lintel: d.lintel });
+    res.door = { u0, w: dw, h: dh };
+    spans = [[marg, u0 - gap - (d.arch || d.lintel ? 0.04 : 0)], [u0 + dw + gap + (d.arch || d.lintel ? 0.04 : 0), lu - marg]].filter(([a, b]) => b - a > 0.08);
+  }
+  const w = s.win; if (w && w.over) spans = [[marg, lu - marg]];                                                          // okna nad drzwiami (np. wieża): przęsło całej ściany
+  if (!w || !(w.n > 0) || !spans.length) return res;
+  const kind = w.kind || 'rect', ww = w.w ?? 0.2, hh = w.h ?? 0.3, occ = kind === 'rect' && w.shut ? ww * 1.84 + 0.024 : ww + 0.03;     // zajęta szerokość z okiennicami
+  // przydział okien do przęseł: proporcjonalnie do szerokości, nie więcej niż się mieści
+  const cap = spans.map(([a, b]) => Math.max(0, Math.floor((b - a + gap) / (occ + gap)))), tot = spans.reduce((q, [a, b]) => q + (b - a), 0);
+  let left = Math.min(w.n, cap.reduce((q, c) => q + c, 0));
+  if (LINT && left < w.n) LINT_LOG.push({ b: LINT_NAME, kind: 'okna', msg: `elewacja ${lu.toFixed(2)}×${lv.toFixed(2)}: miejsce tylko na ${left} z ${w.n} okien` });
+  let alloc = spans.map(([a, b], i) => Math.min(cap[i], Math.round(w.n * (b - a) / tot)));
+  let sum = alloc.reduce((q, c) => q + c, 0);
+  for (let i = 0; sum > left && i < 99; i++) { const k = alloc.indexOf(Math.max(...alloc)); alloc[k]--; sum--; }
+  for (let i = 0; sum < left && i < 99; i++) { const k = alloc.findIndex((c, q) => c < cap[q]); if (k < 0) break; alloc[k]++; sum++; }
+  spans.forEach(([a, b], si) => {
+    const k = alloc[si]; for (let i = 0; i < k; i++) {
+      const uc = a + (b - a) * (i + 0.5) / k, u0 = uc - ww / 2, idx = res.win.length, o = { ...w, glow: typeof w.glow === 'function' ? w.glow(idx) : w.glow, shutters: kind === 'rect' ? (typeof w.shut === 'function' ? w.shut(idx) : w.shut) : undefined };
+      if (kind === 'arch') archWin(sc, W.O, W.U, W.V, u0, w.v ?? 0.2, ww, hh, o); else if (kind === 'glass') glassWin(sc, W.O, W.U, W.V, u0, w.v ?? 0.3, ww, hh, o); else windowAt(sc, W.O, W.U, W.V, u0, w.v ?? 0.2, ww, hh, o);
+      res.win.push({ u0, w: ww, h: hh, v0: w.v ?? 0.2, idx });
+      if (w.each) w.each(res.win[idx], idx);
+    }
+  });
+  return res;
+}
+
+/* ---- 27_kit.js ---- */
+/* ====================== ZESTAW CZĘŚCI I REKWIZYTÓW (metody Build) ======================
+   Każda część to węzeł z bryłą AABB, więc kolejność rysowania i cienie ustala Build.flush(). Rozmiary w polach. */
+const KIT = {};
+/* drzewa i skały wypiekane raz i rysowane w sprite'ach budynków (sady, kamieniołomy, kopalnie) */
+function treeSpr(kind, seed) {
+  const key = kind + seed; if (KIT[key]) return KIT[key];
+  let s;
+  if (kind === 'apple') {                                              // mała jabłoń: korona dębu ×0.6 z czerwonymi owocami
+    s = TREES.oak(seed, 0.6); const g = s.c.getContext('2d'), r = rng(seed * 7 + 3); g.save(); g.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < 26; i++) { const a = r() * TAU, d = Math.sqrt(r()), x = 105 + Math.cos(a) * d * 50, y = 98 + Math.sin(a) * d * 32; g.fillStyle = '#c4302a'; g.beginPath(); g.arc(x, y, 3.4, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,222,200,0.65)'; g.beginPath(); g.arc(x - 1, y - 1.1, 1.1, 0, TAU); g.fill(); }
+    g.restore();
+  } else if (kind === 'olive') {                                       // oliwka / drzewko owocowe Saracenów: jaśniejsza, szarawa korona
+    s = TREES.oak(seed, 0.6); const g = s.c.getContext('2d'); g.save(); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(190,200,150,0.30)'; g.fillRect(0, 0, 400, 400); g.restore();
+  } else s = TREES[kind](seed, 0.8);
+  return (KIT[key] = s);
+}
+function rockSpr(seed, col) { const key = 'rock' + seed + col; return KIT[key] || (KIT[key] = bakeRock(seed, col, 0.8)); }
+function blitSpr(sc, spr, x, y, k = 1, z = 0) {
+  const [px, py] = sc.P(x, y, z);
+  if (spr.u) sc.gu.drawImage(spr.u, px - spr.ax * k, py - spr.ay * k, spr.w * k, spr.h * k);
+  sc.g.drawImage(spr.c, px - spr.ax * k, py - spr.ay * k, spr.w * k, spr.h * k);
+}
+/* kopiec sypkiego materiału (ruda, węgiel, glina, ziarno…): 2D z gradientem i ziarnistością */
+function drawHeap(sc, x, y, r, h, cols, z = 0) {
+  const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z), R = r * AX * f * 1.4142, H = h * VH * f, rr = rng(Math.round(x * 131 + y * 73 + r * 17) + 5);
+  g.save(); g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.8, py - H * 1.15, px, py - H); g.quadraticCurveTo(px + R * 0.8, py - H * 1.15, px + R, py); g.ellipse(px, py, R, R / 2, 0, 0, Math.PI); g.closePath(); g.clip();
+  const gr = g.createLinearGradient(px - R, 0, px + R, 0); gr.addColorStop(0, cols[0]); gr.addColorStop(0.5, cols[1]); gr.addColorStop(1, cols[2]);
+  g.fillStyle = gr; g.fillRect(px - R, py - H * 1.2, R * 2, H * 1.2 + R);
+  for (let i = 0; i < 150; i++) { g.fillStyle = rr() < 0.5 ? 'rgba(255,240,210,0.22)' : 'rgba(10,6,2,0.28)'; g.fillRect(px - R + rr() * R * 2, py - rr() * H * 1.05, (1 + rr() * 1.6) * f, (0.9 + rr() * 1.2) * f); }
+  g.restore(); g.strokeStyle = 'rgba(20,12,6,0.55)'; g.lineWidth = 1.1 * f; g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.8, py - H * 1.15, px, py - H); g.quadraticCurveTo(px + R * 0.8, py - H * 1.15, px + R, py); g.ellipse(px, py, R, R / 2, 0, 0, Math.PI); g.stroke();
+}
+const HEAP = { ore: ['#b4743e', '#7e4a28', '#4a2a18'], coal: ['#585860', '#2c2c32', '#101012'], clay: ['#d8a468', '#b4803e', '#6a4622'], grain: ['#f2d476', '#d2aa44', '#8a6a24'], stone: ['#b8b4a8', '#8e8a80', '#58554c'], sand: ['#ecd8a4', '#d0b676', '#8c7440'], earth: ['#7a5a34', '#52391f', '#2a1c0e'], peat: ['#5a4228', '#3a2a18', '#1c130a'], slag: ['#6a6460', '#3e3a38', '#1c1a1a'] };
+
+Object.assign(Build.prototype, {
+  tree(kind, seed, x, y, k = 1) { const spr = treeSpr(kind, seed), r = 0.24 * k; return this.part(x - r, y - r, 0, x + r, y + r, 1.0 * k, () => blitSpr(this.sc, spr, x, y, k), { tag: 'drzewo', shadow: false }); },
+  rock(seed, x, y, k = 1, col = '#8e8c84') { const spr = rockSpr(seed, col), r = 0.3 * k; return this.part(x - r, y - r, 0, x + r, y + r, 0.4 * k, () => blitSpr(this.sc, spr, x, y, k), { tag: 'skała', shadow: false }); },
+  heap(x, y, r, h, kind = 'ore', z = 0) { return this.part(x - r, y - r, z, x + r, y + r, z + h, () => drawHeap(this.sc, x, y, r, h, typeof kind === 'string' ? HEAP[kind] : kind, z), { tag: 'kopiec', shadow: false }); },
+  /* stos ciosanych bloków kamienia: nx×ny bloków w poziomach (lv), każdy 0.22×0.16×0.14 */
+  blocks(x, y, nx, ny, lv, pal = '#cfcabb') {
+    return this.part(x, y, 0, x + nx * 0.24, y + ny * 0.18, lv * 0.14, () => { const sc = this.sc; for (let l = 0; l < lv; l++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) sc.box(x + i * 0.24 + 0.01, y + j * 0.18 + 0.01, l * 0.14, x + i * 0.24 + 0.23, y + j * 0.18 + 0.17, l * 0.14 + 0.13, 'stone', { pal, ao: 0.2, wear: 0.3 }); }, { tag: 'bloki', shadow: true });
+  },
+  /* stos desek: prostopadłościan z poziomym podziałem na deski */
+  planks(x0, y0, x1, y1, h, pal = '#c8a870') {
+    return this.box(x0, y0, 0.02, x1, y1, h, 'plank', { pal, ao: 0.2, wear: 0.4, tag: 'deski', shadow: false }, (S, E) => { for (const W of [S, E]) this.sc.local(W.O, W.U, W.V, (g, lu, lv) => { g.strokeStyle = 'rgba(46,30,12,0.55)'; g.lineWidth = 0.012; const n = Math.max(2, Math.round(lv / 0.05)); for (let i = 1; i < n; i++) { g.beginPath(); g.moveTo(0, lv * i / n); g.lineTo(lu, lv * i / n); g.stroke(); } }); });
+  },
+  /* niski płot: 'wattle' (plecionka) albo 'rail' (słupki i dwie poprzeczki) wzdłuż x lub y */
+  fence(x0, y0, x1, y1, o = {}) {
+    const h = o.h ?? 0.32, th = o.th ?? 0.05, kind = o.kind || 'wattle';
+    if (kind === 'wattle') return this.box(Math.min(x0, x1) - th / 2, Math.min(y0, y1) - th / 2, 0, Math.max(x0, x1) + th / 2, Math.max(y0, y1) + th / 2, h, { east: 'wattle', south: 'wattle', top: 'plank' }, { ao: 0.25, pal: o.pal || '#8a6a3c', wear: 0.5, tag: 'płot', shadow: false });
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.4)), alongX = Math.abs(x1 - x0) >= Math.abs(y1 - y0), skipA = !!o.skipStart, skipB = !!o.skipEnd;
+    return this.part(Math.min(x0, x1) - 0.04, Math.min(y0, y1) - 0.04, 0, Math.max(x0, x1) + 0.04, Math.max(y0, y1) + 0.04, h, () => {
+      const sc = this.sc, pts = []; for (let i = 0; i <= n; i++) pts.push([x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n]);
+      for (const zr of [h * 0.38, h * 0.78]) sc.box(Math.min(x0, x1) - (alongX ? 0 : 0.015), Math.min(y0, y1) - (alongX ? 0.015 : 0), zr, Math.max(x0, x1) + (alongX ? 0 : 0.015), Math.max(y0, y1) + (alongX ? 0.015 : 0), zr + 0.035, 'plank', { pal: o.pal || '#7a5a36', ao: 0.1, wear: 0.4 });
+      pts.forEach(([x, y], i) => { if ((i === 0 && skipA) || (i === n && skipB)) return; sc.box(x - 0.03, y - 0.03, 0, x + 0.03, y + 0.03, h, 'bark', { pal: o.pal || '#6a4a2c', ao: 0.1, wear: 0.4 }); });
+    }, { tag: 'płot', shadow: false });
+  },
+  /* ogrodzenie prostokątne z bramą: o.gap = { S: [xa, xb], N: [...], W: [ya, yb], E: [...] } — przerwy w płocie (zakresy współrzędnej wzdłuż boku) */
+  fenceRect(x0, y0, x1, y1, o = {}) {
+    const gap = o.gap || {}, seg = (xa, ya, xb, yb, g, alongX, extra) => { const a = alongX ? xa : ya, b = alongX ? xb : yb; if (!g) this.fence(xa, ya, xb, yb, { ...o, ...extra }); else { if (g[0] - a > 0.1) this.fence(xa, ya, alongX ? g[0] : xb, alongX ? yb : g[0], { ...o, ...extra, skipEnd: false }); if (b - g[1] > 0.1) this.fence(alongX ? g[1] : xa, alongX ? ya : g[1], xb, yb, { ...o, ...extra, skipStart: false }); } };
+    seg(x0, y0, x1, y0, gap.N, true, {}); seg(x1, y0, x1, y1, gap.E, false, { skipStart: true }); seg(x0, y1, x1, y1, gap.S, true, { skipStart: true }); seg(x0, y0, x0, y1, gap.W, false, { skipStart: true, skipEnd: true });
+  },
+  /* pień do rąbania z siekierą */
+  stump(x, y) {
+    return this.part(x - 0.11, y - 0.11, 0, x + 0.11, y + 0.11, 0.3, () => {
+      const sc = this.sc, g = sc.g, f = sc.F; sc.cyl(x, y, 0, 0.18, 0.1, { mat: 'bark', pal: '#7a5632', topMat: 'plank', topPal: '#c4a06a', ao: 0.3 });
+      const [px, py] = sc.P(x, y, 0.18); g.strokeStyle = '#4a3220'; g.lineWidth = 2.4 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px + 3 * f, py - 1 * f); g.lineTo(px + 11 * f, py - 18 * f); g.stroke();
+      g.fillStyle = '#b8bec6'; g.strokeStyle = 'rgba(14,12,10,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(px + 9 * f, py - 19 * f); g.lineTo(px + 17 * f, py - 14 * f); g.lineTo(px + 11 * f, py - 11 * f); g.closePath(); g.fill(); g.stroke();
+    }, { tag: 'pień', shadow: false });
+  },
+  anvil(x, y) {
+    return this.part(x - 0.14, y - 0.12, 0, x + 0.14, y + 0.12, 0.42, () => { const sc = this.sc; sc.cyl(x, y, 0, 0.26, 0.11, { mat: 'log', pal: '#7a5632', topMat: 'plank', ao: 0.3 }); sc.box(x - 0.12, y - 0.07, 0.26, x + 0.12, y + 0.07, 0.33, 'stone', { pal: '#3a3a40', ao: 0, wear: 0 }); sc.box(x - 0.07, y - 0.05, 0.33, x + 0.07, y + 0.05, 0.4, 'stone', { pal: '#47474e', ao: 0, wear: 0 }); }, { tag: 'kowadło', shadow: false });
+  },
+  bucket(x, y) { return this.part(x - 0.07, y - 0.07, 0, x + 0.07, y + 0.07, 0.2, () => { const sc = this.sc, g = sc.g, f = sc.F; sc.cyl(x, y, 0, 0.14, 0.06, { mat: 'plank', pal: '#8a6a3c', topMat: 'plank', ao: 0.1 }); const [px, py] = sc.P(x, y, 0.14); g.strokeStyle = '#2a2018'; g.lineWidth = 1.2 * f; g.beginPath(); g.arc(px, py - 1 * f, 6.5 * f, Math.PI, 0); g.stroke(); }, { tag: 'wiadro', shadow: false }); },
+  /* bańka na mleko */
+  churn(x, y) { return this.part(x - 0.08, y - 0.08, 0, x + 0.08, y + 0.08, 0.34, () => { const sc = this.sc; sc.cyl(x, y, 0, 0.27, 0.065, { color: [176, 182, 190], ao: 0.1 }); sc.cyl(x, y, 0.27, 0.31, 0.075, { color: [150, 156, 164], ao: 0 }); }, { tag: 'bańka', shadow: false }); },
+  /* koło sera / chleba itp. na ziemi lub półce: mały walec */
+  disc(x, y, z, r, h, col) { return this.part(x - r, y - r, z, x + r, y + r, z + h, () => this.sc.cyl(x, y, z, z + h, r, { color: col, ao: 0.1 }), { tag: 'krążek', shadow: false }); }
+});
+
+/* ---------- drobne części 2D wpasowane w bryły ---------- */
+Object.assign(Build.prototype, {
+  /* sadzonka: cienki pień i kilka listków */
+  sapling(x, y, k = 1) {
+    return this.part(x - 0.06, y - 0.06, 0, x + 0.06, y + 0.06, 0.26 * k, () => {
+      const g = this.sc.g, f = this.sc.F * k, [px, py] = this.sc.P(x, y, 0), r = rng(Math.round(x * 97 + y * 53) + 3);
+      g.fillStyle = 'rgba(40,24,8,0.35)'; g.beginPath(); g.ellipse(px + 2 * f, py, 6 * f, 2.4 * f, 0, 0, TAU); g.fill();
+      g.strokeStyle = '#4a3220'; g.lineWidth = 2 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px + 0.5 * f, py - 12 * f); g.stroke();
+      for (const [dx, dy, rr] of [[-4, -13, 4.6], [4, -14, 4.4], [0, -19, 5], [-1, -10, 3.6], [3, -10, 3.4]]) { const gr = g.createRadialGradient(px + (dx - 1) * f, py + (dy - 1.4) * f, 0.5, px + dx * f, py + dy * f, rr * f); gr.addColorStop(0, '#9bd25a'); gr.addColorStop(1, '#3f7d2b'); g.fillStyle = gr; g.strokeStyle = 'rgba(14,40,14,0.6)'; g.lineWidth = 0.9 * f; g.beginPath(); g.arc(px + dx * f, py + dy * f, rr * f, 0, TAU); g.fill(); g.stroke(); }
+    }, { tag: 'sadzonka', shadow: false });
+  },
+  /* suszarka: dwa słupy i belka wzdłuż x albo y, na niej zwisają skóry ('pelts'), ryby ('fish') albo tkanina ('cloth') */
+  rack(x0, y0, x1, y1, kind = 'pelts', h = 0.8) {
+    const alongX = Math.abs(x1 - x0) >= Math.abs(y1 - y0);
+    return this.part(Math.min(x0, x1) - 0.06, Math.min(y0, y1) - 0.06, 0, Math.max(x0, x1) + 0.06, Math.max(y0, y1) + 0.06, h + 0.1, () => {
+      const sc = this.sc, g = sc.g, f = sc.F, n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.24)), r = rng(Math.round(x0 * 71 + y0 * 37) + 9);
+      sc.box(x0 - 0.04, y0 - 0.04, 0, x0 + 0.04, y0 + 0.04, h, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+      sc.box(Math.min(x0, x1) - 0.03, Math.min(y0, y1) - 0.03, h - 0.04, Math.max(x0, x1) + 0.03, Math.max(y0, y1) + 0.03, h + 0.03, 'log', { pal: '#6a4a2c', ao: 0.1 });
+      sc.box(x1 - 0.04, y1 - 0.04, 0, x1 + 0.04, y1 + 0.04, h, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, [px, py] = sc.P(x, y, h - 0.02), s = 0.85 + r() * 0.3;
+        if (kind === 'fish') { g.fillStyle = i % 2 ? '#c9ccd0' : '#aab0b8'; g.strokeStyle = 'rgba(20,24,30,0.8)'; g.lineWidth = 0.9 * f; g.beginPath(); g.moveTo(px, py + 2 * f); g.quadraticCurveTo(px + 4.4 * f * s, py + 12 * f, px, py + 24 * f * s); g.quadraticCurveTo(px - 4.4 * f * s, py + 12 * f, px, py + 2 * f); g.fill(); g.stroke(); g.fillStyle = 'rgba(30,40,50,0.6)'; g.beginPath(); g.moveTo(px, py + 24 * f * s); g.lineTo(px + 3 * f, py + 28 * f * s); g.lineTo(px - 3 * f, py + 28 * f * s); g.closePath(); g.fill(); }
+        else if (kind === 'cloth') { const cols = ['#b8352b', '#2f6ea8', '#e8d8a0', '#2f7a58']; g.fillStyle = cols[i % cols.length]; g.strokeStyle = 'rgba(20,14,10,0.7)'; g.lineWidth = 0.9 * f; g.fillRect(px - 5.5 * f, py, 11 * f, 24 * f * s); g.strokeRect(px - 5.5 * f, py, 11 * f, 24 * f * s); g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(px - 5.5 * f, py + 7 * f, 11 * f, 2 * f); }
+        else { const cols = ['#a0764a', '#6a4a30', '#c8b090', '#8a6a48']; g.fillStyle = cols[(i + (r() * 2 | 0)) % cols.length]; g.strokeStyle = 'rgba(20,14,10,0.8)'; g.lineWidth = 1 * f; g.beginPath(); g.moveTo(px - 5 * f, py); g.lineTo(px + 5 * f, py); g.lineTo(px + 6.6 * f, py + 8 * f); g.lineTo(px + 4 * f, py + 16 * f * s); g.lineTo(px + 6 * f, py + 24 * f * s); g.lineTo(px - 1 * f, py + 21 * f * s); g.lineTo(px - 5.6 * f, py + 25 * f * s); g.lineTo(px - 4 * f, py + 14 * f); g.lineTo(px - 6.4 * f, py + 7 * f); g.closePath(); g.fill(); g.stroke(); }
+      }
+    }, { tag: 'suszarka', shadow: false });
+  }
+});
+
+/* ---------- elementy wojskowe, górnicze i winiarskie ---------- */
+Object.assign(Build.prototype, {
+  /* palisada: rząd zaostrzonych pali wzdłuż odcinka */
+  palisade(x0, y0, x1, y1, h = 0.55) {
+    const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.11));
+    return this.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, 0, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, h + 0.1, () => { for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; this.sc.box(x - 0.04, y - 0.04, 0, x + 0.04, y + 0.04, h + (i % 3) * 0.04, 'bark', { ao: 0.2, pal: '#8a6a40' }); } }, { tag: 'palisada', shadow: false });
+  },
+  /* sztandar na wysokim drzewcu (kolor + złoty krzyż) */
+  banner(x, y, h = 1.5, col = '#2f5aa8') {
+    return this.part(x - 0.04, y - 0.04, 0, x + 0.3, y + 0.04, h + 0.1, () => {
+      const g = this.sc.g, f = this.sc.F, [px, py] = this.sc.P(x, y, 0), top = py - h * VH * f;
+      g.strokeStyle = '#3a2814'; g.lineWidth = 2.4 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, top); g.stroke();
+      g.fillStyle = col; g.strokeStyle = 'rgba(10,10,30,0.7)'; g.lineWidth = f; g.beginPath(); g.moveTo(px + 1 * f, top + 4 * f); g.lineTo(px + 24 * f, top + 4 * f); g.lineTo(px + 24 * f, top + 48 * f); g.lineTo(px + 12 * f, top + 56 * f); g.lineTo(px + 1 * f, top + 48 * f); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#e0c060'; g.fillRect(px + 11 * f, top + 12 * f, 3 * f, 30 * f); g.fillRect(px + 5 * f, top + 22 * f, 15 * f, 3.4 * f);
+    }, { tag: 'sztandar', shadow: false });
+  },
+  /* stojak z włóczniami / mieczami (opiera się o ramę) */
+  weaponRack(x0, y0, x1, y1, kind = 'spears') {
+    return this.part(Math.min(x0, x1) - 0.06, Math.min(y0, y1) - 0.06, 0, Math.max(x0, x1) + 0.06, Math.max(y0, y1) + 0.06, 0.95, () => {
+      const sc = this.sc, g = sc.g, f = sc.F, n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 0.11));
+      sc.box(x0 - 0.03, y0 - 0.03, 0, x0 + 0.03, y0 + 0.03, 0.34, 'bark', { pal: '#6a4a2c', ao: 0.1 }); sc.box(x1 - 0.03, y1 - 0.03, 0, x1 + 0.03, y1 + 0.03, 0.34, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+      sc.box(Math.min(x0, x1) - 0.03, Math.min(y0, y1) - 0.03, 0.26, Math.max(x0, x1) + 0.03, Math.max(y0, y1) + 0.03, 0.32, 'log', { pal: '#6a4a2c', ao: 0.1 });
+      for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, [px, py] = sc.P(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0.3);
+        if (kind === 'spears') { g.strokeStyle = '#9a7240'; g.lineWidth = 2 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py + 2 * f); g.lineTo(px + 4 * f, py - 58 * f); g.stroke(); g.fillStyle = '#cfd4d8'; g.strokeStyle = 'rgba(20,20,24,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(px + 4 * f, py - 70 * f); g.lineTo(px + 7.4 * f, py - 57 * f); g.lineTo(px + 0.6 * f, py - 57 * f); g.closePath(); g.fill(); g.stroke(); }
+        else { g.strokeStyle = '#3a2a1c'; g.lineWidth = 2.6 * f; g.beginPath(); g.moveTo(px, py - 6 * f); g.lineTo(px + 2 * f, py - 14 * f); g.stroke(); g.strokeStyle = '#c8ced4'; g.lineWidth = 2.2 * f; g.beginPath(); g.moveTo(px + 2 * f, py - 14 * f); g.lineTo(px + 6 * f, py - 44 * f); g.stroke(); }
+      }
+    }, { tag: 'stojak', shadow: false });
+  },
+  /* stojak z tarczami (okrągłe, w kolorach) */
+  shieldRack(x0, y0, x1, y1, cols = ['#2f5aa8', '#b8352b', '#e0c060']) {
+    return this.part(Math.min(x0, x1) - 0.06, Math.min(y0, y1) - 0.06, 0, Math.max(x0, x1) + 0.06, Math.max(y0, y1) + 0.06, 0.9, () => {
+      const sc = this.sc, g = sc.g, f = sc.F, n = cols.length;
+      for (const [x, y] of [[x0, y0], [x1, y1]]) sc.box(x - 0.03, y - 0.03, 0, x + 0.03, y + 0.03, 0.78, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+      sc.box(Math.min(x0, x1) - 0.03, Math.min(y0, y1) - 0.03, 0.72, Math.max(x0, x1) + 0.03, Math.max(y0, y1) + 0.03, 0.78, 'log', { pal: '#6a4a2c', ao: 0.1 });
+      for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, [px, py] = sc.P(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0.5); g.fillStyle = cols[i]; g.strokeStyle = 'rgba(20,12,6,0.85)'; g.lineWidth = 1.3 * f; g.beginPath(); g.arc(px, py, 11 * f, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#c8ccd0'; g.beginPath(); g.arc(px, py, 3.2 * f, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = f; g.beginPath(); g.arc(px, py, 8 * f, Math.PI * 1.1, Math.PI * 1.6); g.stroke(); }
+    }, { tag: 'tarcze', shadow: false });
+  },
+  /* manekin treningowy */
+  dummy(x, y) {
+    return this.part(x - 0.15, y - 0.06, 0, x + 0.15, y + 0.06, 0.9, () => { const g = this.sc.g, f = this.sc.F, [px, py] = this.sc.P(x, y, 0);
+      g.strokeStyle = '#4a3220'; g.lineWidth = 4 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 48 * f); g.moveTo(px - 16 * f, py - 36 * f); g.lineTo(px + 16 * f, py - 36 * f); g.stroke();
+      g.fillStyle = '#d8c898'; g.strokeStyle = '#4a3220'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py - 52 * f, 7 * f, 8 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#2f5aa8'; g.beginPath(); g.moveTo(px - 5 * f, py - 34 * f); g.lineTo(px + 5 * f, py - 34 * f); g.lineTo(px + 4 * f, py - 22 * f); g.lineTo(px, py - 18 * f); g.lineTo(px - 4 * f, py - 22 * f); g.closePath(); g.fill(); g.stroke(); }, { tag: 'manekin', shadow: false });
+  },
+  /* wejście do kopalni: ramy z bali i ciemny otwór w skale; kierunek +y (południe) */
+  mineMouth(x, y, w = 0.7, h = 0.78) {
+    const hw = w / 2;
+    this.box(x - hw - 0.1, y - 0.06, 0, x - hw, y + 0.06, h, 'bark', { pal: '#6a4a2c', ao: 0.2 }); this.box(x + hw, y - 0.06, 0, x + hw + 0.1, y + 0.06, h, 'bark', { pal: '#6a4a2c', ao: 0.2 });
+    this.box(x - hw - 0.14, y - 0.06, h - 0.02, x + hw + 0.14, y + 0.06, h + 0.1, 'log', { pal: '#6a4a2c', ao: 0.2, nest: true });
+    return this.part(x - hw, y - 0.05, 0, x + hw, y + 0.07, h, () => this.sc.local([x - hw, y + 0.07, h], [w, 0, 0], [0, 0, -h], (g, lu, lv) => {
+      const gr = g.createLinearGradient(0, 0, 0, lv); gr.addColorStop(0, '#0c0806'); gr.addColorStop(1, '#241a12'); g.fillStyle = gr; g.fillRect(0, 0, lu, lv);
+      g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(0, 0, lu * 0.14, lv); g.fillRect(lu * 0.86, 0, lu * 0.14, lv);
+      g.strokeStyle = '#5a3e22'; g.lineWidth = 0.035; g.beginPath(); g.moveTo(0, lv * 0.3); g.lineTo(lu * 0.2, 0); g.moveTo(lu, lv * 0.3); g.lineTo(lu * 0.8, 0); g.stroke();
+    }), { tag: 'otwór', shadow: false, nest: true });
+  },
+  /* tory z podkładami od (x, y0) do (x, y1) i wózek z ładunkiem */
+  rails(x, y0, y1) {
+    return this.part(x - 0.2, y0, 0, x + 0.2, y1, 0.02, () => { const sc = this.sc, g = sc.g, f = sc.F; const n = Math.round((y1 - y0) / 0.14);
+      for (let i = 0; i <= n; i++) { const y = y0 + (y1 - y0) * i / n, [ax, ay] = sc.P(x - 0.17, y, 0), [bx, by] = sc.P(x + 0.17, y, 0); g.strokeStyle = '#4a3220'; g.lineWidth = 2.2 * f; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
+      for (const dx of [-0.12, 0.12]) { const [ax, ay] = sc.P(x + dx, y0, 0), [bx, by] = sc.P(x + dx, y1, 0); g.strokeStyle = '#8a8e94'; g.lineWidth = 1.6 * f; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); g.strokeStyle = 'rgba(20,20,24,0.8)'; g.lineWidth = 0.7 * f; g.stroke(); } }, { tag: 'tory', kind: 'flat', shadow: false });
+  },
+  cart(x, y, kind = 'ore') {
+    this.box(x - 0.17, y - 0.15, 0.1, x + 0.17, y + 0.15, 0.3, 'plank', { pal: '#6a4a2c', ao: 0.3 });
+    this.part(x - 0.2, y - 0.15, 0, x + 0.2, y + 0.15, 0.12, () => { const g = this.sc.g, f = this.sc.F; for (const dx of [-0.17, 0.17]) for (const dy of [-0.08, 0.08]) { const [px, py] = this.sc.P(x + dx, y + dy, 0.07); g.fillStyle = '#2a2420'; g.strokeStyle = '#8a8e94'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py, 4.4 * f, 6 * f, 0, 0, TAU); g.fill(); g.stroke(); } }, { tag: 'koła', shadow: false, nest: true });
+    return this.heap(x, y, 0.16, 0.16, kind, 0.3);
+  },
+  /* rząd winorośli wzdłuż x: słupki, drut i listowie z gronami */
+  vineRow(x0, x1, y) {
+    return this.part(x0 - 0.05, y - 0.12, 0, x1 + 0.05, y + 0.12, 0.62, () => { const sc = this.sc, g = sc.g, f = sc.F, n = Math.max(2, Math.round((x1 - x0) / 0.4)), r = rng(Math.round(y * 91) + 17);
+      const lf = (x) => { const [px, py] = sc.P(x, y, 0.2); for (let k = 0; k < 4; k++) { const dx = (r() - 0.5) * 20 * f, dy = -r() * 22 * f; const gr = g.createRadialGradient(px + dx - 1.2 * f, py + dy - 1.4 * f, 0.5, px + dx, py + dy, 7 * f); gr.addColorStop(0, '#9bd25a'); gr.addColorStop(1, '#2f6a22'); g.fillStyle = gr; g.strokeStyle = 'rgba(14,40,14,0.55)'; g.lineWidth = 0.8 * f; g.beginPath(); g.arc(px + dx, py + dy, (5 + r() * 2.5) * f, 0, TAU); g.fill(); g.stroke(); }
+        if (r() < 0.8) { g.fillStyle = '#5a2a6a'; g.strokeStyle = 'rgba(20,6,30,0.8)'; g.lineWidth = 0.8 * f; for (let q = 0; q < 4; q++) { g.beginPath(); g.arc(px - 3 * f + (q % 2) * 4 * f, py - 4 * f + q * 2.6 * f, 2.2 * f, 0, TAU); g.fill(); g.stroke(); } } };
+      for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; sc.box(x - 0.025, y - 0.025, 0, x + 0.025, y + 0.025, 0.55, 'bark', { pal: '#6a4a2c', ao: 0.1, wear: 0.3 }); if (i < n) { lf(x + (x1 - x0) / n / 2); } } }, { tag: 'winorośl', shadow: false });
+  }
+});
+
+/* ---------- wspólne części rzemieślnicze ---------- */
+Object.assign(Build.prototype, {
+  /* belka na kobyłkach + piła ramowa (wnętrze tartaku); belka wzdłuż x od x0 do x1 na linii y */
+  sawRig(x0, x1, y) {
+    for (const x of [x0 + 0.1, x1 - 0.2]) this.box(x, y - 0.09, 0.08, x + 0.1, y + 0.09, 0.3, 'log', { pal: '#6a4a2c', ao: 0.2 });
+    this.box(x0, y - 0.07, 0.3, x1, y + 0.07, 0.42, 'log', { pal: '#8a6a40', ao: 0.2, nest: false });
+    const xm = (x0 + x1) / 2;
+    return this.part(xm - 0.12, y - 0.1, 0.3, xm + 0.12, y + 0.12, 0.95, () => this.sc.local([xm - 0.12, y + 0.12, 0.95], [0.24, 0, 0], [0, 0, -0.65], (g) => { g.strokeStyle = '#5a3e22'; g.lineWidth = 0.035; g.strokeRect(0.01, 0.01, 0.22, 0.63); g.strokeStyle = 'rgba(190,196,204,0.9)'; g.lineWidth = 0.012; for (const u of [0.08, 0.12, 0.16]) { g.beginPath(); g.moveTo(u, 0.05); g.lineTo(u, 0.6); g.stroke(); } }), { tag: 'piła', shadow: false });
+  },
+  /* pergola / zadaszenie z liści palmowych: cztery słupy i płaska połać (z = wysokość połaci) */
+  pergola(x0, y0, x1, y1, z, pal = '#9a8a4a') {
+    for (const [px, py] of [[x0, y0], [x1 - 0.06, y0], [x0, y1 - 0.06], [x1 - 0.06, y1 - 0.06]]) this.box(px, py, 0, px + 0.06, py + 0.06, z, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+    return this.part(x0 - 0.04, y0 - 0.04, z, x1 + 0.04, y1 + 0.04, z + 0.04, () => this.sc.face([x0 - 0.04, y0 - 0.04, z], [x1 - x0 + 0.08, 0, 0], [0, y1 - y0 + 0.08, 0], 'thatch', { shade: 1, pal, wear: 0.4, edge: 0.4 }), { tag: 'daszek', kind: 'roof' });
+  },
+  /* attyka: niski murek wokół dachu płaskiego (z = poziom dachu) */
+  parapet(x0, y0, x1, y1, z, h = 0.13, th = 0.07, pal = '#e6d1a0', mat = 'sandstone', gapS = null) {
+    const o = { ao: 0, pal, wear: 0.4 };
+    this.box(x0, y0, z, x1, y0 + th, z + h, mat, o); this.box(x0, y0 + th, z, x0 + th, y1 - th, z + h, mat, o);
+    if (gapS) { if (gapS[0] - x0 > 0.1) this.box(x0, y1 - th, z, gapS[0], y1, z + h, mat, o); if (x1 - gapS[1] > 0.1) this.box(gapS[1], y1 - th, z, x1, y1, z + h, mat, o); } else this.box(x0, y1 - th, z, x1, y1, z + h, mat, o);
+    this.box(x1 - th, y0 + th, z, x1, y1 - th, z + h, mat, o);
+  },
+  /* dzban / amfora z gliny */
+  jar(x, y, s = 1, z = 0, col = [176, 112, 62]) {
+    return this.part(x - 0.08 * s, y - 0.08 * s, z, x + 0.08 * s, y + 0.08 * s, z + 0.3 * s, () => { const sc = this.sc; sc.cyl(x, y, z, z + 0.2 * s, 0.075 * s, { color: col, ao: 0 }); sc.cyl(x, y, z + 0.2 * s, z + 0.29 * s, 0.04 * s, { color: scaleC(col, 0.85), ao: 0 }); const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, z + 0.1 * s); g.strokeStyle = 'rgba(70,36,14,0.6)'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py, 0.075 * s * AX * f * 1.4142, 0.075 * s * AY * f * 1.4142, 0, 0, Math.PI); g.stroke(); }, { tag: 'dzban', shadow: false });
+  },
+  /* niski mur z cegły mułowej (zagroda, ogród) */
+  mudWall(x0, y0, x1, y1, h = 0.22, th = 0.1) { return this.box(Math.min(x0, x1) - th / 2, Math.min(y0, y1) - th / 2, 0, Math.max(x0, x1) + th / 2, Math.max(y0, y1) + th / 2, h, 'sandstone', { pal: '#cfb27c', ao: 0.2, wear: 0.7, tag: 'mur', shadow: false }); },
+  /* kanał nawadniający: pas wody w płaszczyźnie ziemi (dekal) z kamiennymi brzegami */
+  channel(x0, y0, x1, y1) { this.sc.decal('water', null, [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]], { feather: 1.5 }); this.sc.flat([[[x0 - 0.04, y0 - 0.04], [x1 + 0.04, y0 - 0.04], [x1 + 0.04, y1 + 0.04], [x0 - 0.04, y1 + 0.04]]], 'rgba(90,70,40,0.35)', 3); },
+  /* kadzielnica z dymkiem na trójnogu */
+  censer(x, y) {
+    return this.part(x - 0.1, y - 0.1, 0, x + 0.1, y + 0.1, 0.55, () => { const g = this.sc.g, f = this.sc.F, [px, py] = this.sc.P(x, y, 0);
+      g.strokeStyle = '#3a2a1c'; g.lineWidth = 2 * f; g.lineCap = 'round'; for (const dx of [-5, 0, 5]) { g.beginPath(); g.moveTo(px + dx * f, py - 12 * f); g.lineTo(px + dx * 1.6 * f, py + 1 * f); g.stroke(); }
+      g.fillStyle = '#c89a3a'; g.strokeStyle = 'rgba(40,24,6,0.85)'; g.lineWidth = f; g.beginPath(); g.moveTo(px - 8 * f, py - 14 * f); g.quadraticCurveTo(px, py - 4 * f, px + 8 * f, py - 14 * f); g.closePath(); g.fill(); g.stroke();
+      g.strokeStyle = 'rgba(230,230,235,0.55)'; g.lineWidth = 2.4 * f; for (const dx of [-3, 2]) { g.beginPath(); g.moveTo(px + dx * f, py - 15 * f); g.bezierCurveTo(px + (dx - 6) * f, py - 26 * f, px + (dx + 7) * f, py - 34 * f, px + (dx - 2) * f, py - 46 * f); g.stroke(); } }, { tag: 'kadzielnica', shadow: false });
+  },
+  /* dywan na ziemi */
+  rug(x, y, w, d, pal = '#a8352b|#d8a830') { return this.part(x, y, 0, x + w, y + d, 0.012, () => this.sc.face([x, y, 0.012], [w, 0, 0], [0, d, 0], 'stripes', { shade: 1, pal, ppu: 190, wear: 0.3, edge: 0.5 }), { tag: 'dywan', kind: 'flat', shadow: false }); }
+});
+
+/* ---------- stragany targowe ---------- */
+Object.assign(Build.prototype, {
+  /* straganik: cztery słupki, lada z towarem 2D i pasiasta markiza; cx — środek, y — tylna krawędź; kind: fruit | spice | cloth | pot | fish | fur | bread */
+  stall(cx, y, o = {}) {
+    const pal = o.pal || '#b8352b|#f1e6c8', kind = o.kind || 'fruit', sc = this.sc;
+    for (const px of [cx - 0.38, cx + 0.38]) { this.box(px - 0.03, y + 0.03, 0, px + 0.03, y + 0.09, 0.9, 'bark', { pal: '#6a4a2c', ao: 0.1 }); this.box(px - 0.03, y + 0.55, 0, px + 0.03, y + 0.61, 0.7, 'bark', { pal: '#6a4a2c', ao: 0.1 }); }
+    this.part(cx - 0.44, y, 0.7, cx + 0.44, y + 0.72, 0.92, () => awning(sc, cx - 0.44, y, 0.92, 0.88, 0.68, 0.2, pal), { tag: 'płachta', kind: 'roof' });
+    this.box(cx - 0.36, y + 0.35, 0, cx + 0.36, y + 0.5, 0.32, 'plank', { pal: o.counter || '#8a6a40', ao: 0.3 });
+    return this.part(cx - 0.3, y + 0.37, 0.32, cx + 0.3, y + 0.46, 0.46, () => {
+      const g = sc.g, f = sc.F, r = rng(Math.round(cx * 100 + y * 37) + 3);
+      for (let k = 0; k < 6; k++) {
+        const [px, py] = sc.P(cx - 0.27 + k * 0.108, y + 0.42, 0.32);
+        g.strokeStyle = 'rgba(20,12,6,0.7)'; g.lineWidth = 0.9 * f;
+        if (kind === 'fruit') { g.fillStyle = ['#c4302a', '#e8a030', '#8ab04a'][k % 3]; g.beginPath(); g.ellipse(px, py - (3 + r() * 3) * f, 5 * f, 4.4 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+        else if (kind === 'spice') { g.fillStyle = ['#c0392b', '#e8b030', '#8a5a2a', '#d8a860', '#6a8a3a'][k % 5]; g.beginPath(); g.moveTo(px - 5 * f, py); g.lineTo(px, py - 11 * f); g.lineTo(px + 5 * f, py); g.closePath(); g.fill(); g.stroke(); }
+        else if (kind === 'cloth') { g.fillStyle = ['#2f6ea8', '#a8352b', '#d8a830', '#2f7a58', '#7a3a8a'][k % 5]; g.fillRect(px - 4.5 * f, py - 9 * f, 9 * f, 9 * f); g.strokeRect(px - 4.5 * f, py - 9 * f, 9 * f, 9 * f); }
+        else if (kind === 'fish') { g.fillStyle = k % 2 ? '#c9ccd0' : '#aab0b8'; g.beginPath(); g.ellipse(px, py - 3 * f, 6 * f, 2.6 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+        else if (kind === 'fur') { g.fillStyle = ['#a0764a', '#6a4a30', '#c8b090', '#8a6a48'][k % 4]; g.beginPath(); g.ellipse(px, py - 3 * f, 6 * f, 3 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+        else if (kind === 'bread') { g.fillStyle = k % 2 ? '#c88a3a' : '#b87a2e'; g.beginPath(); g.ellipse(px, py - 3 * f, 6 * f, 3.6 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+        else { g.fillStyle = ['#b4693a', '#a85a30', '#c8844a'][k % 3]; g.beginPath(); g.ellipse(px, py - 5 * f, 4.4 * f, 6 * f, 0, 0, TAU); g.fill(); g.stroke(); }
+      }
+    }, { tag: 'towar', shadow: false });
+  }
+});
+
+/* ---------- uprawy i rzemiosło wschodnie ---------- */
+Object.assign(Build.prototype, {
+  /* rząd krzewów bawełny: zielone kępy z białymi torebkami */
+  cottonRow(x0, x1, y) {
+    return this.part(x0 - 0.05, y - 0.12, 0, x1 + 0.05, y + 0.12, 0.4, () => { const sc = this.sc, g = sc.g, f = sc.F, n = Math.max(3, Math.round((x1 - x0) / 0.28)), r = rng(Math.round(y * 91) + 41);
+      for (let i = 0; i < n; i++) { const [px, py] = sc.P(x0 + (x1 - x0) * (i + 0.5) / n, y, 0);
+        g.fillStyle = 'rgba(30,24,8,0.28)'; g.beginPath(); g.ellipse(px + 2 * f, py, 11 * f, 4 * f, 0, 0, TAU); g.fill();
+        for (let k = 0; k < 4; k++) { const dx = (r() - 0.5) * 16 * f, dy = -r() * 12 * f - 2 * f, gr = g.createRadialGradient(px + dx - 1 * f, py + dy - 1.4 * f, 0.5, px + dx, py + dy, 7 * f); gr.addColorStop(0, '#8cc060'); gr.addColorStop(1, '#2f6a28'); g.fillStyle = gr; g.strokeStyle = 'rgba(14,40,14,0.5)'; g.lineWidth = 0.8 * f; g.beginPath(); g.arc(px + dx, py + dy, (5 + r() * 2) * f, 0, TAU); g.fill(); g.stroke(); }
+        g.fillStyle = '#f6f2e6'; g.strokeStyle = 'rgba(80,70,50,0.7)'; g.lineWidth = 0.7 * f; for (let q = 0; q < 6; q++) { g.beginPath(); g.arc(px + (r() - 0.5) * 18 * f, py - (3 + r() * 14) * f, (1.8 + r() * 1.2) * f, 0, TAU); g.fill(); g.stroke(); } }
+    }, { tag: 'bawełna', shadow: false });
+  },
+  /* krosno tkackie: rama, napięta osnowa w kolorach i gotowa tkanina u dołu */
+  loom(x, y, w = 0.6) {
+    return this.part(x - 0.04, y - 0.06, 0, x + w + 0.04, y + 0.06, 0.95, () => {
+      const sc = this.sc, g = sc.g, f = sc.F;
+      sc.box(x - 0.04, y - 0.04, 0, x + 0.02, y + 0.04, 0.9, 'bark', { pal: '#6a4a2c', ao: 0.1 }); sc.box(x + w - 0.02, y - 0.04, 0, x + w + 0.04, y + 0.04, 0.9, 'bark', { pal: '#6a4a2c', ao: 0.1 });
+      sc.box(x - 0.04, y - 0.04, 0.84, x + w + 0.04, y + 0.04, 0.92, 'plank', { pal: '#6a4a2c', ao: 0.1 }); sc.box(x - 0.04, y - 0.04, 0.2, x + w + 0.04, y + 0.04, 0.26, 'plank', { pal: '#6a4a2c', ao: 0.1 });
+      const cols = ['#a8352b', '#2f6ea8', '#d8a830', '#2f7a58'], n = 14;
+      for (let i = 0; i < n; i++) { const [ax, ay] = sc.P(x + 0.04 + (w - 0.08) * i / (n - 1), y + 0.05, 0.84), [bx, by] = sc.P(x + 0.04 + (w - 0.08) * i / (n - 1), y + 0.05, 0.3); g.strokeStyle = i % 5 === 0 ? cols[(i / 5) | 0] : 'rgba(236,228,206,0.75)'; g.lineWidth = f; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
+      const [cx0, cy0] = sc.P(x + 0.04, y + 0.05, 0.5), [cx1, cy1] = sc.P(x + w - 0.04, y + 0.05, 0.3); g.fillStyle = 'rgba(168,53,43,0.85)'; g.strokeStyle = 'rgba(30,14,8,0.8)'; g.lineWidth = f; g.beginPath(); g.moveTo(cx0, cy0); g.lineTo(cx1, cy1 - 0.2 * VH * f); g.lineTo(cx1, cy1); g.lineTo(cx0, cy0 + 0.2 * VH * f); g.closePath(); g.fill(); g.stroke();
+    }, { tag: 'krosno', shadow: false });
+  },
+  /* rząd cegieł schnących na słońcu */
+  bricksRow(x, y, n, col = '#c8844a') { return this.part(x, y, 0, x + n * 0.26, y + 0.16, 0.12, () => { for (let i = 0; i < n; i++) this.sc.box(x + i * 0.26 + 0.01, y, 0, x + i * 0.26 + 0.25, y + 0.15, 0.1, 'sandstone', { pal: col, ao: 0.15, wear: 0.6 }); }, { tag: 'cegły', shadow: false }); }
+});
+
+/* ---- 28_house.js ---- */
+/* ====================== DOM: wspólny szkielet małych budynków ======================
+   Prostokątny budynek z dachem dwuspadowym (jedno- albo dwukondygnacyjny, z nawisem piętra). Okna i drzwi układa facade(),
+   komin osadza chim() na połaci. Zwraca opis (roof, zTop…), z którego korzystają rekwizyty.
+   o: x0,x1,y0,y1 — ściany parteru; h1 — wysokość parteru nad cokołem zp; floors: 1|2, h2, J (nawis piętra);
+      low: [mat, pal, kolor ryglówki?]; up: [mat, pal, kolor ryglówki?]; plinth: [mat, pal] | false;
+      S, E — elewacje parteru (opcje facade); S2, E2 — piętra; nu — liczba pól ryglówki;
+      roof: { mat, pal, rise, ov, ovE, ridge, gableMat, gablePal, gwin }; chim: [x, y, h, w] | null; wear */
+function cottage(B, o) {
+  const sc = B.sc, zp = o.zp ?? 0.1, { x0, x1, y0, y1 } = o, z1 = zp + o.h1, two = o.floors === 2, J = two ? (o.J ?? 0.1) : 0, zt = two ? z1 + o.h2 : z1, low = o.low, up = o.up || o.low;
+  if (o.plinth !== false) { const p = o.plinth || ['stone', null]; B.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, p[0], { ao: 0.4, pal: p[1] }); }
+  const timber = (S, E, spec, nuS, nuE) => { if (spec[2]) { halfTimber(sc, S.O, S.U, S.V, { nu: nuS, col: spec[2] }); halfTimber(sc, E.O, E.U, E.V, { nu: nuE, col: spec[2] }); } };
+  B.box(x0, y0, zp, x1, y1, z1, low[0], { ao: 0.3, pal: low[1], eave: two ? 0.55 : 0.4, wear: o.wear }, (S, E) => {
+    timber(S, E, low, o.nuS ?? Math.max(2, Math.round((x1 - x0) / 0.5)), o.nuE ?? Math.max(2, Math.round((y1 - y0) / 0.5)));
+    if (o.S) facade(sc, S, o.S); if (o.E) facade(sc, E, o.E); if (o.deco1) o.deco1(S, E);
+  });
+  if (two) B.box(x0 - J, y0 - J, z1, x1 + J, y1 + J, zt, up[0], { ao: 0.15, pal: up[1], eave: 0.3, wear: o.wear }, (S, E) => {
+    const nS = o.S2 && o.S2.win ? o.S2.win.n : 2, nE = o.E2 && o.E2.win ? o.E2.win.n : 2;                      // pola ryglówki = liczba okien, okna w środku pól (słup nigdy nie przecina okna)
+    timber(S, E, up, o.nuS2 ?? nS, o.nuE2 ?? nE);
+    if (o.S2) facade(sc, S, { ...o.S2, marg: 0 }); if (o.E2) facade(sc, E, { ...o.E2, marg: 0 }); if (o.deco2) o.deco2(S, E);
+  });
+  const r = o.roof, roof = { x0: x0 - J, x1: x1 + J, y0: y0 - J, y1: y1 + J, z: zt, rise: r.rise, ov: r.ov ?? 0.1, ovE: r.ovE ?? 0.1, mat: r.mat, pal: r.pal, gableMat: r.gableMat, gablePal: r.gablePal, ridge: o.ridge || 'x', nest: r.nest };
+  B.gable(roof, () => {
+    if (!r.gwin) return;
+    const gy = roof.ridge === 'y', G = gy ? { O: [roof.x0, roof.y1, zt + r.rise], U: [roof.x1 - roof.x0, 0, 0], V: [0, 0, -r.rise] } : { O: [roof.x1, roof.y1, zt + r.rise], U: [0, -(roof.y1 - roof.y0), 0], V: [0, 0, -r.rise] };
+    const lu = Math.hypot(...G.U), w = r.gwin.w ?? 0.16; windowAt(sc, G.O, G.U, G.V, lu / 2 - w / 2, r.rise * 0.4, w, r.gwin.h ?? 0.22, { frame: r.gwin.frame || '#3b2616', shutters: r.gwin.shut });
+  });
+  if (o.chim) { const [cx, cy, ch, cw, cm, cp] = o.chim; B.chim(roof, cx, cy, ch, cw, cm, cp); }
+  return { roof, zp, z1, zt, J, x0, x1, y0, y1 };
+}
+
 /* ---- 30_buildings.js ---- */
 /* ====================== ZESTAW ELEMENTÓW ARCHITEKTONICZNYCH ====================== */
 const BAKED = {};
@@ -772,6 +1352,7 @@ const wallE = (y0, y1, x1, zt, zb) => ({ O: [x1, y1, zt], U: [0, -(y1 - y0), 0],
 /* drzwi z (opcjonalnym) łukiem i okuciami; (u0,w) — położenie na ścianie, h — wysokość, vb — v podstawy drzwi */
 function door(sc, O, U, V, u0, w, h, o = {}) {
   const lu = Math.hypot(...U), lv = Math.hypot(...V), vb = o.vb ?? lv;
+  if (LINT) sc.regRect(O, U, V, 'drzwi', u0 - 0.04, u0 + w + 0.04, vb - h - (o.arch ? w / 2 : 0) - 0.06, vb);
   sc.local(O, U, V, (g) => {
     g.fillStyle = o.frame || '#2b1c10';
     g.beginPath(); g.moveTo(u0 - 0.025, vb); g.lineTo(u0 - 0.025, vb - h); if (o.arch) g.arc(u0 + w / 2, vb - h, w / 2 + 0.025, Math.PI, 0); else g.lineTo(u0 + w + 0.025, vb - h); g.lineTo(u0 + w + 0.025, vb); g.closePath(); g.fill();
@@ -790,13 +1371,16 @@ function door(sc, O, U, V, u0, w, h, o = {}) {
 
 /* okno z oświetlonym wnętrzem, ramą i (opcjonalnie) okiennicami */
 function windowAt(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) { const sw = o.shutters ? w * 0.42 + 0.012 : 0.014; sc.regRect(O, U, V, 'okno', u0 - sw, u0 + w + sw, v0 - 0.014, v0 + h + (o.sill ? 0.05 : 0.026)); }
   sc.local(O, U, V, (g) => {
     if (o.shutters) { g.fillStyle = o.shutters; const sw = w * 0.42; g.fillRect(u0 - sw - 0.012, v0 - 0.004, sw, h + 0.008); g.fillRect(u0 + w + 0.012, v0 - 0.004, sw, h + 0.008);
       g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 0.008; g.strokeRect(u0 - sw - 0.012, v0 - 0.004, sw, h + 0.008); g.strokeRect(u0 + w + 0.012, v0 - 0.004, sw, h + 0.008);
       g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 0.005; for (const x of [u0 - sw * 0.5 - 0.012, u0 + w + sw * 0.5 + 0.012]) for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(x - sw * 0.4, v0 + h * i / 5); g.lineTo(x + sw * 0.4, v0 + h * i / 5); g.stroke(); } }
     g.fillStyle = o.frame || '#3a2818'; g.fillRect(u0 - 0.014, v0 - 0.014, w + 0.028, h + 0.028);
-    const gr = g.createLinearGradient(0, v0, 0, v0 + h); gr.addColorStop(0, o.lit || '#ffe9a0'); gr.addColorStop(1, '#d99a40');
+    const gr = g.createLinearGradient(0, v0, 0, v0 + h), glow = !!(o.lit || o.glow);                                // za dnia: ciemna szyba z odbiciem nieba; ciepłe światło tylko na życzenie (o.glow / o.lit)
+    if (glow) { gr.addColorStop(0, o.lit || '#ffe9a0'); gr.addColorStop(1, '#d99a40'); } else { gr.addColorStop(0, '#9bb0c4'); gr.addColorStop(0.5, '#51657a'); gr.addColorStop(1, '#2c3947'); }
     g.fillStyle = o.dark ? '#1c1710' : gr; g.fillRect(u0, v0, w, h);
+    if (!glow && !o.dark) { g.strokeStyle = 'rgba(235,245,255,0.28)'; g.lineWidth = 0.014; g.beginPath(); g.moveTo(u0 + w * 0.12, v0 + h * 0.46); g.lineTo(u0 + w * 0.46, v0 + h * 0.08); g.stroke(); }
     g.strokeStyle = o.frame || '#3a2818'; g.lineWidth = 0.012; g.beginPath(); g.moveTo(u0 + w / 2, v0); g.lineTo(u0 + w / 2, v0 + h); g.moveTo(u0, v0 + h / 2); g.lineTo(u0 + w, v0 + h / 2); g.stroke();
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(u0 - 0.014, v0 + h + 0.014, w + 0.028, 0.012);   // parapet
     if (o.sill) { g.fillStyle = o.sill; g.fillRect(u0 - 0.03, v0 + h + 0.014, w + 0.06, 0.03); }
@@ -805,11 +1389,13 @@ function windowAt(sc, O, U, V, u0, v0, w, h, o = {}) {
 
 /* okno łukowe (architektura wschodnia): ciemne wnętrze albo światło lampy */
 function archWin(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) sc.regRect(O, U, V, 'okno', u0 - 0.014, u0 + w + 0.014, v0 - 0.014, v0 + h + 0.026);
   sc.local(O, U, V, (g) => {
     const r = w / 2, e = 0.014;
     g.fillStyle = o.frame || '#8a5a2a'; g.beginPath(); g.moveTo(u0 - e, v0 + h + e); g.lineTo(u0 - e, v0 + r); g.arc(u0 + r, v0 + r, r + e, Math.PI, 0); g.lineTo(u0 + w + e, v0 + h + e); g.closePath(); g.fill();
     const gr = g.createLinearGradient(0, v0, 0, v0 + h); gr.addColorStop(0, o.lit || '#241a10'); gr.addColorStop(1, o.lit2 || '#120d08');
     g.fillStyle = gr; g.beginPath(); g.moveTo(u0, v0 + h); g.lineTo(u0, v0 + r); g.arc(u0 + r, v0 + r, r, Math.PI, 0); g.lineTo(u0 + w, v0 + h); g.closePath(); g.fill();
+    if (o.louver) { g.strokeStyle = 'rgba(150,118,76,0.85)'; g.lineWidth = 0.014; for (let j = 0; j < 6; j++) { const yy = v0 + r * 0.9 + j * (h - r * 0.9) / 6 + 0.03; g.beginPath(); g.moveTo(u0 + 0.01, yy + 0.03); g.lineTo(u0 + w - 0.01, yy); g.stroke(); } }
     if (o.grille) { g.strokeStyle = 'rgba(210,170,90,0.55)'; g.lineWidth = 0.008; for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(u0 + w * i / 4, v0 + r * 0.6); g.lineTo(u0 + w * i / 4, v0 + h); g.stroke(); } }
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(u0 - e, v0 + h + e, w + 2 * e, 0.012);
   });
@@ -817,6 +1403,7 @@ function archWin(sc, O, U, V, u0, v0, w, h, o = {}) {
 
 /* ostrołukowe okno witrażowe (gotyk): kamienna rama, ołowiane szprosy, kolorowe szybki */
 function glassWin(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) sc.regRect(O, U, V, 'okno', u0 - 0.02, u0 + w + 0.02, v0 - w * 0.275 - 0.02, v0 + h + 0.02);
   sc.local(O, U, V, (g) => {
     const r = w / 2, e = 0.02, x1 = u0 + w, xm = u0 + r, ys = v0 + r, yt = v0 - r * 0.55, yb = v0 + h;
     const path = (dx) => { g.beginPath(); g.moveTo(u0 - dx, yb + dx); g.lineTo(u0 - dx, ys); g.quadraticCurveTo(u0 - dx, yt + r * 0.6 - dx, xm, yt - dx); g.quadraticCurveTo(x1 + dx, yt + r * 0.6 - dx, x1 + dx, ys); g.lineTo(x1 + dx, yb + dx); g.closePath(); };
@@ -852,8 +1439,8 @@ function soot(sc, x, y, z, r = 0.12, a = 0.4) {
 }
 /* komin z kapturem i ciemnym wylotem */
 function chimney(sc, cx, cy, zb, zt, w = 0.24, mat = 'stone', pal) {
-  sc.box(cx - w / 2, cy - w / 2, zb, cx + w / 2, cy + w / 2, zt, mat, { ao: 0.15, pal });
-  sc.box(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zt, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, mat, { ao: 0, pal, wear: 0.3 });
+  sc.box(cx - w / 2, cy - w / 2, zb, cx + w / 2, cy + w / 2, zt, mat, { ao: 0.15, pal, tag: 'komin' });
+  sc.box(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zt, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, mat, { ao: 0, pal, wear: 0.3, tag: 'komin' });
   const g = sc.g, [px, py] = sc.P(cx, cy, zt + 0.07), rx = (w / 2 - 0.02) * AX * sc.F * 1.4142;
   g.fillStyle = '#17120e'; g.beginPath(); g.ellipse(px, py, rx * 0.8, rx * 0.4, 0, 0, TAU); g.fill();
 }
@@ -863,6 +1450,7 @@ function stairs(sc, xa, xb, y, n, h, mat = 'stone', d = 0.17, pal) {
 }
 /* skrzynka z kwiatami pod oknem (na ścianie) */
 function flowerBox(sc, O, U, V, u0, v, w, cols = ['#d8433a', '#f0d84a', '#e8e0d0']) {
+  if (LINT) sc.regRect(O, U, V, 'kwiaty', u0 - 0.02, u0 + w + 0.02, v - 0.05, v + 0.07);
   sc.local(O, U, V, (g) => {
     g.fillStyle = '#6a4428'; g.fillRect(u0 - 0.02, v, w + 0.04, 0.07); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 0.006; g.strokeRect(u0 - 0.02, v, w + 0.04, 0.07);
     const r = rng(Math.round(u0 * 311 + v * 97)); for (let i = 0; i < 9; i++) { const x = u0 + (i + 0.5) * w / 9; g.fillStyle = '#3f7a2c'; g.beginPath(); g.arc(x, v - 0.005, 0.022, 0, TAU); g.fill(); g.fillStyle = cols[(r() * cols.length) | 0]; g.beginPath(); g.arc(x + (r() - 0.5) * 0.01, v - 0.03, 0.016, 0, TAU); g.fill(); }
@@ -899,6 +1487,7 @@ function wattle(sc, x0, y0, x1, y1, h = 0.4, th = 0.05) {
 }
 /* ul: słomiany kosz (dla pszczół) rysowany w przestrzeni ekranu */
 function skep(sc, x, y, s = 1) {
+  sc.regVol('prop', x - 0.08, y - 0.08, 0, x + 0.08, y + 0.08, 0.2, 'ul');
   const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, 0), w = 8 * f, h = 12 * f;
   g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(px + 3 * f, py + 0.5 * f, w * 0.9, w * 0.35, 0, 0, TAU); g.fill();
   const gr = g.createLinearGradient(px - w, 0, px + w, 0); gr.addColorStop(0, '#f0d27a'); gr.addColorStop(0.55, '#d4a948'); gr.addColorStop(1, '#8c6a28');
@@ -915,6 +1504,7 @@ function barrel(sc, x, y, z = 0, s = 1) {
   for (const yy of [py, py2]) { g.beginPath(); g.ellipse(px, yy, rx, rx / 2, 0, 0, Math.PI); g.stroke(); }
 }
 function logPile(sc, x, y, n = 6) { // stos kłód (końce okrągłe)
+  sc.regVol('prop', x - 0.18, y - 0.08, 0, x + 0.18, y + 0.08, 0.25, 'stos');
   const g = sc.g, r = 0.05, rows = [3, 2, 1], F = sc.F;
   rows.forEach((cnt, row) => {
     for (let i = 0; i < cnt; i++) {
@@ -928,6 +1518,7 @@ function logPile(sc, x, y, n = 6) { // stos kłód (końce okrągłe)
 }
 function crate(sc, x, y, s = 0.16, h = 0.16) { sc.box(x - s / 2, y - s / 2, 0, x + s / 2, y + s / 2, h, 'plank', { pal: '#8a6a40', ao: 0.3 }); }
 function haystack(sc, x, y) {
+  sc.regVol('prop', x - 0.22, y - 0.22, 0, x + 0.22, y + 0.22, 0.5, 'stóg');
   const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, 0), R = 0.2 * AX * f * 1.4;
   g.save(); g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.9, py - R * 1.5, px, py - R * 1.65); g.quadraticCurveTo(px + R * 0.9, py - R * 1.5, px + R, py); g.ellipse(px, py, R, R * 0.45, 0, 0, Math.PI); g.closePath(); g.clip();
   const gr = g.createLinearGradient(px - R, 0, px + R, 0); gr.addColorStop(0, '#e6c868'); gr.addColorStop(0.5, '#cfa84c'); gr.addColorStop(1, '#8a6a28');
@@ -936,8 +1527,9 @@ function haystack(sc, x, y) {
   for (let i = 0; i < 180; i++) { g.strokeStyle = `rgba(${r() < 0.5 ? '255,235,150' : '90,60,16'},${0.2 + r() * 0.35})`; const a = px - R + r() * R * 2, b = py - r() * R * 1.6; g.beginPath(); g.moveTo(a, b); g.lineTo(a + (r() - 0.5) * 8 * f, b + (5 + r() * 7) * f); g.stroke(); }
   g.restore(); g.strokeStyle = 'rgba(30,20,6,0.5)'; g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.9, py - R * 1.5, px, py - R * 1.65); g.quadraticCurveTo(px + R * 0.9, py - R * 1.5, px + R, py); g.stroke();
 }
-function sack(sc, x, y, col = '#d8c898', s = 1) {
-  const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, 0), w = 11 * f, h = 14 * f;
+function sack(sc, x, y, col = '#d8c898', s = 1, z = 0) {
+  sc.regVol('prop', x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 0.22, 'worek');
+  const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, z), w = 11 * f, h = 14 * f;
   const gr = g.createRadialGradient(px - 3 * f, py - h * 0.7, 1, px, py - h * 0.5, w);
   gr.addColorStop(0, css(scaleC(hex(col), 1.2))); gr.addColorStop(1, css(scaleC(hex(col), 0.62)));
   g.fillStyle = gr; g.beginPath(); g.ellipse(px, py - h * 0.45, w * 0.8, h * 0.55, 0, 0, TAU); g.fill();
@@ -952,6 +1544,7 @@ function shield(g, u, v, r, col) {
 }
 /* stożkowy dach wieżyczki */
 function cone(sc, cx, cy, z0, r, h, col) {
+  sc.regVol('cone', cx - r, cy - r, z0, cx + r, cy + r, z0 + h);
   const g = sc.g, [px, py] = sc.P(cx, cy, z0), [, pt] = sc.P(cx, cy, z0 + h), rx = r * AX * sc.F * 1.4142, ry = r * AY * sc.F * 1.4142;
   g.beginPath(); g.moveTo(px - rx, py); g.lineTo(px, pt); g.lineTo(px + rx, py); g.ellipse(px, py, rx, ry, 0, 0, Math.PI); g.closePath();
   const gr = g.createLinearGradient(px - rx, 0, px + rx, 0); gr.addColorStop(0, css(scaleC(col, 1.3))); gr.addColorStop(0.5, css(col)); gr.addColorStop(1, css(scaleC(col, 0.5)));
@@ -969,6 +1562,7 @@ function pennant(sc, x, y, z, len, col) {
 
 /* kopuła (półkula albo cebulasta) z żebrami, połyskiem i opcjonalnym zwieńczeniem */
 function dome(sc, cx, cy, z, r, o = {}) {
+  sc.regVol('dome', cx - r, cy - r, z, cx + r, cy + r, z + r * 1.16 * (o.onion ? 1.75 : 1), 'kopuła');
   const g = sc.g, f = sc.F, [dx, dy] = sc.P(cx, cy, z), R = r * AX * f * 1.4142, cols = o.cols || ['#a6e8ea', '#3fb0b8', '#1d7480', '#0f4452'];
   const path = () => { g.beginPath(); if (o.onion) { g.moveTo(dx - R, dy); g.bezierCurveTo(dx - R * 1.18, dy - R * 0.7, dx - R * 0.45, dy - R * 1.0, dx, dy - R * 1.75); g.bezierCurveTo(dx + R * 0.45, dy - R * 1.0, dx + R * 1.18, dy - R * 0.7, dx + R, dy); g.ellipse(dx, dy, R, R / 2, 0, 0, Math.PI); } else { g.arc(dx, dy, R, Math.PI, 0); g.ellipse(dx, dy, R, R / 2, 0, 0, Math.PI); } g.closePath(); };
   g.save(); path(); g.clip();
@@ -1384,169 +1978,6 @@ BAKED.frankKeep = function () {
   merlonLine(sc, -w + 0.4, w - 0.06, -0.62, w - 0.06, zc, 5, 0.1, 0.13); merlonLine(sc, 0.62, w - 0.06, w - 0.4, w - 0.06, zc, 5, 0.1, 0.13); merlonLine(sc, w - 0.06, -w + 0.4, w - 0.06, w - 0.4, zc, 12, 0.1, 0.13);
   tower(w - 0.05, w - 0.05, 2.05);
   for (const [x, y] of [[-w + 0.05, -w + 0.05], [w - 0.05, -w + 0.05], [-w + 0.05, w - 0.05], [w - 0.05, w - 0.05]]) pennant(sc, x, y, 2.9, 40, '#b8352b');
-  return sc.finish();
-};
-
-/* ---- 33_saracens.js ---- */
-/* ====================== SARACENI: piaskowiec, kopuły, mozaika, markizy ====================== */
-
-/* pasek mozaiki na ścianie (nakładka tuż przed płaszczyzną) */
-function mosaicBand(sc, O, U, V, z0, hgt, side = 'S', pal) {
-  const n = side === 'S' ? [0, 0.004, 0] : [0.004, 0, 0], lu = Math.hypot(...U), dir = [U[0] / lu, U[1] / lu, U[2] / lu];
-  sc.face([O[0] + n[0], O[1] + n[1], z0], [dir[0] * lu, dir[1] * lu, 0], [0, 0, -hgt], 'mosaic', { shade: side === 'S' ? LIGHT.south : LIGHT.east, pal: pal || '#2a8a9a|#f2ead6|#d8a830', wear: 0.4, edge: 0.3 });
-}
-
-/* DOM 2×2: dom z tarasem, piętrem z kopułką, mashrabiją i markizą */
-BAKED.saracenHouse = function () {
-  const sc = sceneFor(2, 2, 2.6), x0 = -0.85, x1 = 0.85, y0 = -0.8, y1 = 0.8, zg = 1.05, zu = 1.78, pz = zg + 0.13;
-  sc.patch(0, 0.05, 1.3, 1.2, { seed: 21, pal: '#b79a62', alpha: 0.75 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [x0, y0, pz], [x1, y0, pz], [x1, y1, pz], [x0, y1, pz], [-0.5, -0.5, zu + 0.5], [0.0, 0.0, zu + 0.5]]);
-  sc.contact(x0, y0, x1, y1);
-  sc.box(x0, y0, 0, x1, y1, zg, 'sandstone', { ao: 0.3, pal: '#dcc490', topPal: '#e2cd9c', eave: 0.3 });
-  const S = wallS(x0, x1, y1, zg, 0), E = wallE(y0, y1, x1, zg, 0);
-  mosaicBand(sc, S.O, S.U, S.V, zg - 0.16, 0.09, 'S'); mosaicBand(sc, E.O, E.U, E.V, zg - 0.16, 0.09, 'E');
-  door(sc, S.O, S.U, S.V, 0.66, 0.4, 0.82, { vb: zg, arch: true, frame: '#1f6f78', pal: '#5a3d22' });
-  for (const u of [0.14, 1.22]) archWin(sc, S.O, S.U, S.V, u, 0.28, 0.22, 0.36, { frame: '#1f6f78', grille: true });
-  for (const u of [0.15, 0.7, 1.25]) archWin(sc, E.O, E.U, E.V, u, 0.28, 0.22, 0.36, { frame: '#8a5a2a', grille: true });
-  for (const [O, U, n] of [[S.O, S.U, 7], [E.O, E.U, 7]]) sc.local(O, U, S.V, (gg, lu) => { gg.fillStyle = '#4a3018'; for (let i = 0; i < n; i++) gg.fillRect(0.06 + i * (lu - 0.12) / (n - 1) - 0.016, 0.0, 0.032, 0.04); });
-  awning(sc, -0.26, y1, 0.98, 0.52, 0.22, 0.1);
-  stairs(sc, -0.3, 0.3, y1, 2, 0.12, 'sandstone');
-  // attyka
-  const pt = 0.07;
-  sc.box(x0 - 0.01, y0 - 0.01, zg, x1 + 0.01, y0 + pt, pz, 'sandstone', { ao: 0, pal: '#e0c996', top: true }); sc.box(x0 - 0.01, y0 - 0.01, zg, x0 + pt, y1 + 0.01, pz, 'sandstone', { ao: 0, pal: '#e0c996' });
-  // piętro w tylnej części + kopułka + mashrabija
-  const ux0 = -0.85, ux1 = 0.18, uy0 = -0.8, uy1 = 0.12;
-  sc.box(ux0, uy0, zg, ux1, uy1, zu, 'sandstone', { ao: 0.25, pal: '#e6d1a0', topPal: '#ead7a8' });
-  const US = wallS(ux0, ux1, uy1, zu, zg);
-  archWin(sc, US.O, US.U, US.V, 0.12, 0.14, 0.14, 0.24, { frame: '#1f6f78', lit: '#f6c866', lit2: '#c98a30' }); archWin(sc, US.O, US.U, US.V, 0.82, 0.14, 0.14, 0.24, { frame: '#1f6f78' });
-  sc.box(-0.62, uy1, zg + 0.18, -0.12, uy1 + 0.2, zg + 0.62, { east: 'plank', south: 'plank', top: 'plank' }, { ao: 0.25, pal: '#7a4a22', wear: 0.5 });
-  const B = wallS(-0.62, -0.12, uy1 + 0.2, zg + 0.62, zg + 0.18);
-  sc.local(B.O, B.U, B.V, (g, lu, lv) => { g.strokeStyle = 'rgba(20,10,4,0.75)'; g.lineWidth = 0.012; for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * lu / 10, 0.02); g.lineTo(i * lu / 10, lv - 0.02); g.stroke(); } for (let j = 1; j < 6; j++) { g.beginPath(); g.moveTo(0.02, j * lv / 6); g.lineTo(lu - 0.02, j * lv / 6); g.stroke(); } g.fillStyle = 'rgba(255,200,100,0.18)'; g.fillRect(0.04, 0.04, lu - 0.08, lv - 0.08); });
-  dome(sc, (ux0 + ux1) / 2, (uy0 + uy1) / 2, zu, 0.34, { cols: ['#f6e8b8', '#d6bb7a', '#a98b4e', '#6e5428'] });
-  // pergola z liści palmowych na tarasie, dzbany, dywan
-  for (const [px, py] of [[0.35, -0.55], [0.75, -0.55], [0.35, -0.1], [0.75, -0.1]]) sc.box(px - 0.03, py - 0.03, zg, px + 0.03, py + 0.03, zg + 0.5, 'plank', { ao: 0.1, pal: '#6a4a2c' });
-  sc.face([0.3, -0.6, zg + 0.5], [0.52, 0, 0], [0, 0.55, 0], 'thatch', { shade: 1, pal: '#9a8a4a', wear: 0.4, edge: 0.4 });
-  sc.cyl(0.7, 0.6, zg, zg + 0.22, 0.07, { color: [176, 112, 62], ao: 0 }); sc.cyl(0.55, 0.65, zg, zg + 0.18, 0.06, { color: [150, 90, 50], ao: 0 });
-  sc.local(S.O, S.U, S.V, (g) => { g.fillStyle = '#a8352b'; g.fillRect(1.1, -0.02, 0.4, 0.3); g.fillStyle = '#e8d8a0'; for (let i = 0; i < 4; i++) g.fillRect(1.14 + i * 0.09, 0.03, 0.04, 0.22); g.strokeStyle = 'rgba(30,10,4,0.6)'; g.lineWidth = 0.01; g.strokeRect(1.1, -0.02, 0.4, 0.3); });
-  sack(sc, 0.62, y1 + 0.22); sack(sc, 0.78, y1 + 0.16, '#c9b27a', 0.9); barrel(sc, -0.62, y1 + 0.2); crate(sc, 1.05, 0.3, 0.2, 0.2);
-  return sc.finish();
-};
-
-/* MECZET 3×3: sala modlitewna z kopułą na bębnie i czterema kopułkami, portal-iwan, dziedziniec z fontanną, minaret */
-BAKED.saracenMosque = function () {
-  const sc = sceneFor(3, 3, 3.4), x0 = -1.1, x1 = 1.1, y0 = -1.25, y1 = 0.3, zw = 1.15;
-  sc.paved(-1.45, 0.35, 1.45, 1.45, { mat: 'pavers', pal: '#c8b890', seed: 9, jit: 0.1 });
-  sc.patch(0, 0.05, 2.0, 1.9, { seed: 27, pal: '#b79a62', alpha: 0.6, feather: 18 });
-  sc.shadow([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0], [0, -0.4, 2.2], [1.3, 0.5, 2.8], [x1, y1, zw + 0.5], [x0, y0, zw + 0.5]]);
-  sc.contact(x0, y0, x1, 1.45);
-  sc.box(x0 - 0.04, y0 - 0.04, 0, x1 + 0.04, y1 + 0.04, 0.1, 'sandstone', { ao: 0.4, pal: '#c9ad74' });
-  sc.box(x0, y0, 0.1, x1, y1, zw, 'sandstone', { ao: 0.3, pal: '#e0c995', topPal: '#e6d2a0', eave: 0.25 });
-  const S = wallS(x0, x1, y1, zw, 0.1), E = wallE(y0, y1, x1, zw, 0.1);
-  mosaicBand(sc, S.O, S.U, S.V, zw - 0.2, 0.1, 'S'); mosaicBand(sc, E.O, E.U, E.V, zw - 0.2, 0.1, 'E');
-  [0.12, 0.42, 1.2, 1.5, 1.82].forEach(u => archWin(sc, S.O, S.U, S.V, u, 0.34, 0.16, 0.46, { frame: '#1f6f78', lit: '#2c4a50', lit2: '#16282c', grille: true }));
-  [0.12, 0.5, 0.88, 1.26].forEach(u => archWin(sc, E.O, E.U, E.V, u, 0.34, 0.16, 0.46, { frame: '#1f6f78', lit: '#2c4a50', lit2: '#16282c', grille: true }));
-  // portal-iwan z głęboką niszą i mozaiką
-  const px0 = -0.4, px1 = 0.4, py1 = 0.72, pz = 1.45;
-  sc.box(px0, y1 - 0.02, 0.1, px1, py1, pz, 'sandstone', { ao: 0.25, pal: '#e6d2a0', eave: 0.2 });
-  const PS = wallS(px0, px1, py1, pz, 0.1);
-  sc.local(PS.O, PS.U, PS.V, (g, lu) => { g.fillStyle = '#1f6f78'; g.beginPath(); g.moveTo(0.06, 1.35); g.lineTo(0.06, 0.55); g.arc(lu / 2, 0.55, lu / 2 - 0.06, Math.PI, 0); g.lineTo(lu - 0.06, 1.35); g.closePath(); g.fill();
-    g.fillStyle = '#17120e'; g.beginPath(); g.moveTo(0.14, 1.35); g.lineTo(0.14, 0.58); g.arc(lu / 2, 0.58, lu / 2 - 0.14, Math.PI, 0); g.lineTo(lu - 0.14, 1.35); g.closePath(); g.fill();
-    g.fillStyle = '#5a3d22'; g.beginPath(); g.moveTo(0.26, 1.35); g.lineTo(0.26, 0.9); g.arc(lu / 2, 0.9, lu / 2 - 0.26, Math.PI, 0); g.lineTo(lu - 0.26, 1.35); g.closePath(); g.fill();
-    g.strokeStyle = '#d8b44a'; g.lineWidth = 0.014; g.beginPath(); g.moveTo(0.06, 1.35); g.lineTo(0.06, 0.55); g.arc(lu / 2, 0.55, lu / 2 - 0.06, Math.PI, 0); g.lineTo(lu - 0.06, 1.35); g.stroke(); });
-  for (let i = 0; i < 3; i++) sc.box(px0 + i * 0.06, y1 + 0.2, pz + i * 0.04, px1 - i * 0.06, py1 - 0.02, pz + 0.04 + i * 0.04, 'sandstone', { ao: 0.1, pal: '#d8c08a', wear: 0.4 });
-  // kopuły
-  for (const [cx, cy] of [[x0 + 0.2, y0 + 0.2], [x1 - 0.2, y0 + 0.2]]) { sc.cyl(cx, cy, zw, zw + 0.25, 0.2, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); dome(sc, cx, cy, zw + 0.25, 0.24); }
-  sc.cyl(0, -0.4, zw, zw + 0.38, 0.62, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', topPal: '#e6d2a0', ao: 0.5 });
-  for (const [cx, cy] of [[x0 + 0.2, y1 - 0.2], [x1 - 0.2, y1 - 0.2]]) { sc.cyl(cx, cy, zw, zw + 0.25, 0.2, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); dome(sc, cx, cy, zw + 0.25, 0.24); }
-  dome(sc, 0, -0.4, zw + 0.38, 0.68);
-  // dziedziniec: niski mur z arkadą, fontanna
-  sc.box(-1.45, 1.36, 0, 1.45, 1.44, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' });
-  const FS = wallS(-1.45, 1.45, 1.44, 0.5, 0); sc.local(FS.O, FS.U, FS.V, (g) => { g.fillStyle = '#1a1510'; for (let i = 0; i < 9; i++) { const u = 0.15 + i * 0.3; if (u > 1.2 && u < 1.7) continue; g.beginPath(); g.moveTo(u, 0.5); g.lineTo(u, 0.24); g.arc(u + 0.07, 0.24, 0.07, Math.PI, 0); g.lineTo(u + 0.14, 0.5); g.closePath(); g.fill(); } });
-  sc.box(-1.45, 0.4, 0, -1.37, 1.36, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' }); sc.box(1.37, 0.4, 0, 1.45, 1.36, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' });
-  sc.cyl(0, 1.0, 0, 0.22, 0.38, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 });
-  const g = sc.g, f = sc.F, [wx, wy] = sc.P(0, 1.0, 0.22); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.3 * AX * f * 1.4142, 0.3 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(wx - 4 * f, wy - 1 * f, 0.18 * AX * f * 1.4142, 0.1 * AY * f * 1.4142, 0, 0, TAU); g.fill();
-  sc.cyl(0, 1.0, 0.22, 0.5, 0.05, { mat: 'sandstone', pal: '#d8c08a', ao: 0.2 }); g.strokeStyle = 'rgba(160,220,240,0.7)'; g.lineWidth = 2 * f; for (const a of [-0.5, 0, 0.5]) { const [tx, ty] = sc.P(0, 1.0, 0.5); g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + a * 14 * f, ty - 12 * f, tx + a * 24 * f, ty + 6 * f); g.stroke(); }
-  minaret(sc, 1.3, 0.55, 2.55, 0.12);
-  return sc.finish();
-};
-
-/* TARG 3×3: wybrukowany plac ze straganami pod kolorowymi markizami i fontanną */
-function stall(sc, x, y, w, d, pal, kind) {
-  for (const [px, py] of [[x, y], [x + w, y], [x, y + d], [x + w, y + d]]) sc.box(px - 0.03, py - 0.03, 0, px + 0.03, py + 0.03, px === x ? 0.9 : 0.74, 'plank', { ao: 0.1, pal: '#6a4a2c', wear: 0.5 });
-  sc.box(x + 0.02, y + d - 0.16, 0, x + w - 0.02, y + d - 0.04, 0.34, 'plank', { ao: 0.3, pal: '#8a6a40', wear: 0.8 });
-  const g = sc.g, f = sc.F, r = rng(Math.round(x * 100 + y * 37));
-  for (let i = 0; i < 9; i++) {
-    const [px, py] = sc.P(x + 0.08 + (i + r() * 0.6) * (w - 0.16) / 9, y + d - 0.1, 0.36 + (i % 2) * 0.01);
-    if (kind === 'fruit') { g.fillStyle = ['#d8433a', '#e8a030', '#8ab04a', '#c8a030'][(r() * 4) | 0]; g.beginPath(); g.arc(px, py - 3 * f, 4.2 * f, 0, TAU); g.fill(); g.strokeStyle = 'rgba(20,10,4,0.6)'; g.lineWidth = f; g.stroke(); }
-    else if (kind === 'spice') { g.fillStyle = ['#c0392b', '#e8b030', '#8a5a2a', '#d8a860', '#6a8a3a'][i % 5]; g.beginPath(); g.moveTo(px - 5 * f, py); g.lineTo(px, py - 11 * f); g.lineTo(px + 5 * f, py); g.closePath(); g.fill(); g.strokeStyle = 'rgba(20,10,4,0.6)'; g.lineWidth = f; g.stroke(); }
-    else if (kind === 'cloth') { g.fillStyle = ['#2f6ea8', '#a8352b', '#d8a830', '#2f7a58', '#7a3a8a'][i % 5]; g.fillRect(px - 4 * f, py - 8 * f, 8 * f, 8 * f); g.strokeStyle = 'rgba(20,10,4,0.6)'; g.lineWidth = f; g.strokeRect(px - 4 * f, py - 8 * f, 8 * f, 8 * f); }
-    else { g.fillStyle = ['#b4693a', '#a85a30', '#c8844a'][i % 3]; g.beginPath(); g.ellipse(px, py - 5 * f, 4.4 * f, 6 * f, 0, 0, TAU); g.fill(); g.strokeStyle = 'rgba(20,10,4,0.6)'; g.lineWidth = f; g.stroke(); }
-  }
-  sc.face([x - 0.04, y - 0.02, 0.9], [w + 0.08, 0, 0], [0, d + 0.12, -0.2], 'stripes', { shade: 1, edge: 0.45, pal, ppu: 150, wear: 0.3 });
-  sc.face([x - 0.04, y + d + 0.1, 0.7], [w + 0.08, 0, 0], [0, 0, -0.08], 'stripes', { shade: 0.8, edge: 0.45, pal, ppu: 150, wear: 0 });
-}
-BAKED.saracenMarket = function () {
-  const sc = sceneFor(3, 3, 1.8);
-  sc.paved(-1.5, -1.5, 1.5, 1.5, { mat: 'pavers', pal: '#c0b088', seed: 13, jit: 0.1 });
-  sc.patch(0, 0, 2.2, 2.2, { seed: 31, pal: '#b79a62', alpha: 0.5, feather: 16 });
-  sc.shadow([[-1.4, -1.4, 0], [1.4, -1.4, 0], [1.4, 1.4, 0], [-1.4, 1.4, 0], [-1.0, -1.0, 0.9], [1.0, 1.0, 0.9]], { alpha: 0.32, blur: 10 });
-  const defs = [[-1.3, -1.25, 0.8, 0.5, '#b8352b|#f1e6c8', 'fruit'], [-0.35, -1.3, 0.8, 0.5, '#2f6ea8|#f1e6c8', 'cloth'], [0.6, -1.25, 0.8, 0.5, '#d8a830|#f1e6c8', 'spice'], [-1.35, -0.2, 0.5, 0.8, '#2f7a58|#f1e6c8', 'pot'], [0.85, -0.3, 0.5, 0.8, '#7a3a8a|#f1e6c8', 'fruit'], [-1.0, 0.85, 0.8, 0.5, '#d8a830|#a8352b', 'cloth'], [0.2, 0.9, 0.8, 0.5, '#b8352b|#f1e6c8', 'spice']];
-  defs.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  const g = sc.g, f = sc.F;
-  // dywany na ziemi
-  for (const [x, y, w, d, pal] of [[-0.5, 0.2, 0.7, 0.45, '#a8352b|#d8a830'], [0.45, 0.55, 0.6, 0.4, '#2f6ea8|#f1e6c8']]) sc.face([x, y, 0.012], [w, 0, 0], [0, d, 0], 'stripes', { shade: 1, pal, ppu: 190, wear: 0.3, edge: 0.5 });
-  let center = false;
-  for (const [x, y, w, d, pal, kind] of defs) {
-    if (!center && x + y > -0.2) { center = true; sc.cyl(0, -0.1, 0, 0.26, 0.34, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 }); const [wx, wy] = sc.P(0, -0.1, 0.26); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.27 * AX * f * 1.4142, 0.27 * AY * f * 1.4142, 0, 0, TAU); g.fill();
-      for (const [px, py] of [[-0.2, -0.3], [0.2, -0.3], [-0.2, 0.1], [0.2, 0.1]]) sc.box(px - 0.025, py - 0.025, 0.26, px + 0.025, py + 0.025, 1.0, 'plank', { ao: 0.1, pal: '#6a4a2c' }); pyramidRoof(sc, { x0: -0.3, x1: 0.3, y0: -0.4, y1: 0.2, z: 1.0, rise: 0.3, mat: 'tiles', pal: '#2a8a9a', ov: 0.03 }); }
-    stall(sc, x, y, w, d, pal, kind);
-  }
-  crate(sc, 1.2, 1.2, 0.2, 0.2); crate(sc, 1.2, 1.0, 0.2, 0.34); barrel(sc, -1.3, 1.25); sack(sc, 1.0, 1.25); sack(sc, 1.15, 1.3, '#c9b27a', 0.9);
-  return sc.finish();
-};
-
-/* KARAWANSERAJ 4×3: mur z krenelażem i arkadą, portal-pishtak, kopuły, dziedziniec z towarem */
-BAKED.saracenSerai = function () {
-  const sc = sceneFor(4, 3, 3.0), w = 1.9, hz = 1.4, t = 0.4, zc = 1.2;
-  sc.paved(-1.5, -1.0, 1.5, 1.4, { mat: 'pavers', pal: '#c0b088', seed: 17, jit: 0.1 });
-  sc.patch(0, 0.05, 2.7, 2.1, { seed: 41, pal: '#b79a62', alpha: 0.55, feather: 18 });
-  sc.shadow([[-w, -hz, 0], [w, -hz, 0], [w, hz, 0], [-w, hz, 0], [-w, -hz, zc + 0.9], [w, -hz, zc + 0.9], [w, hz, zc + 0.5], [-w, hz, zc + 0.5], [0, 1.4, 2.2]], { alpha: 0.5, blur: 12 });
-  sc.contact(-w, -hz, w, hz, { grow: 0.08 });
-  sc.box(-w - 0.04, -hz - 0.04, 0, w + 0.04, hz + 0.04, 0.1, 'sandstone', { ao: 0.4, pal: '#c9ad74' });
-  // mury tylne z arkadą od środka (północny) i zachodni
-  sc.box(-w, -hz, 0.1, w, -hz + t, zc, 'sandstone', { ao: 0.3, pal: '#dcc490' }); sc.box(-w, -hz + t, 0.1, -w + t, hz, zc, 'sandstone', { ao: 0.3, pal: '#dcc490' });
-  const N = wallS(-w, w, -hz + t, zc, 0.1); sc.local(N.O, N.U, N.V, (g) => { for (let i = 0; i < 9; i++) { const u = 0.22 + i * 0.4; g.fillStyle = '#1a1510'; g.beginPath(); g.moveTo(u, 1.1); g.lineTo(u, 0.5); g.arc(u + 0.12, 0.5, 0.12, Math.PI, 0); g.lineTo(u + 0.24, 1.1); g.closePath(); g.fill(); g.strokeStyle = '#8a5a2a'; g.lineWidth = 0.016; g.stroke(); } });
-  merlonLine(sc, -w + 0.05, -hz + 0.05, w - 0.05, -hz + 0.05, zc, 15, 0.1, 0.14, 'sandstone'); merlonLine(sc, -w + 0.05, -hz + 0.05, -w + 0.05, hz - 0.05, zc, 11, 0.1, 0.14, 'sandstone');
-  for (const cx of [-1.2, 0, 1.2]) { sc.cyl(cx, -hz + t / 2, zc, zc + 0.3, 0.3, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); dome(sc, cx, -hz + t / 2, zc + 0.3, 0.34, { cols: ['#f6e8b8', '#d6bb7a', '#a98b4e', '#6e5428'] }); }
-  // dziedziniec: posadzka, studnia, towar, wielbłądy (uproszczone sylwetki)
-  sc.face([-w + t, -hz + t, 0.1], [2 * w - t - 0.4, 0, 0], [0, 2 * hz - t - 0.4, 0], 'pavers', { shade: 1, pal: '#c0b088', wear: 0.5, edge: 0 });
-  const g = sc.g, f = sc.F;
-  sc.cyl(0.2, 0.0, 0.1, 0.4, 0.2, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 }); const [wx, wy] = sc.P(0.2, 0.0, 0.4); g.fillStyle = '#1a2a30'; g.beginPath(); g.ellipse(wx, wy, 0.15 * AX * f * 1.4142, 0.15 * AY * f * 1.4142, 0, 0, TAU); g.fill();
-  const camel = (x, y, flip = 1) => { const [px, py] = sc.P(x, y, 0.1), s = f * 1.2; g.save(); g.translate(px, py); g.scale(flip * s, s);
-    g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(6, 1, 22, 5, 0, 0, TAU); g.fill();
-    g.fillStyle = '#b08850'; g.strokeStyle = '#2a1c0c'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-18, -22); g.quadraticCurveTo(-12, -34, -4, -26); g.quadraticCurveTo(2, -34, 8, -24); g.quadraticCurveTo(18, -22, 20, -26); g.lineTo(28, -42); g.lineTo(34, -40); g.lineTo(36, -35); g.lineTo(26, -30); g.lineTo(22, -16); g.lineTo(18, -2); g.lineTo(14, -2); g.lineTo(14, -14); g.lineTo(4, -14); g.lineTo(2, -2); g.lineTo(-2, -2); g.lineTo(-4, -14); g.lineTo(-14, -14); g.lineTo(-16, -2); g.lineTo(-20, -2); g.lineTo(-20, -14); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = '#a8352b'; g.fillRect(-12, -26, 16, 6); g.fillStyle = '#d8a830'; g.fillRect(-12, -22, 16, 2); g.fillStyle = '#1a1006'; g.beginPath(); g.arc(32, -38, 1.2, 0, TAU); g.fill(); g.restore(); };
-  camel(-0.9, 0.05, 1); camel(0.75, 0.5, -1); camel(-0.1, 0.85, 1);
-  for (const [x, y] of [[-1.3, 0.7], [-1.15, 0.85], [1.2, -0.3], [1.35, -0.1]]) crate(sc, x, y, 0.22, 0.22); sack(sc, -0.6, 0.85); sack(sc, -0.45, 0.9, '#c9b27a', 0.9); barrel(sc, 1.25, 0.3);
-  // mury przednie z portalem
-  const zf = 0.82;
-  sc.box(-w, hz - t, 0.1, -0.55, hz, zf, 'sandstone', { ao: 0.3, pal: '#dcc490', eave: 0.3 }); sc.box(0.55, hz - t, 0.1, w, hz, zf, 'sandstone', { ao: 0.3, pal: '#dcc490', eave: 0.3 }); sc.box(w - t, -hz + t, 0.1, w, hz - t, zf, 'sandstone', { ao: 0.3, pal: '#dcc490', eave: 0.3 });
-  const FS = wallS(-w, w, hz, zf, 0.1), FE = wallE(-hz + t, hz - t, w, zf, 0.1);
-  mosaicBand(sc, FS.O, FS.U, FS.V, zf - 0.14, 0.08, 'S'); mosaicBand(sc, FE.O, FE.U, FE.V, zf - 0.14, 0.08, 'E');
-  [0.35, 0.8, 1.25, 2.55, 3.0, 3.4].forEach(u => archWin(sc, FS.O, FS.U, FS.V, u, 0.26, 0.15, 0.3, { frame: '#8a5a2a', grille: true }));
-  [0.25, 0.65, 1.05, 1.45].forEach(u => archWin(sc, FE.O, FE.U, FE.V, u, 0.26, 0.15, 0.3, { frame: '#8a5a2a', grille: true }));
-  // portal (pishtak)
-  const gx0 = -0.58, gx1 = 0.58, gy0 = hz - 0.55, gy1 = hz + 0.12, gz = 2.15;
-  sc.box(gx0, gy0, 0.1, gx1, gy1, gz, 'sandstone', { ao: 0.25, pal: '#e6d2a0', eave: 0.3 });
-  const GS = wallS(gx0, gx1, gy1, gz, 0.1);
-  sc.local(GS.O, GS.U, GS.V, (g2, lu) => { const vb = gz - 0.1; g2.fillStyle = '#1f6f78'; g2.beginPath(); g2.moveTo(0.07, vb); g2.lineTo(0.07, 0.95); g2.arc(lu / 2, 0.95, lu / 2 - 0.07, Math.PI, 0); g2.lineTo(lu - 0.07, vb); g2.closePath(); g2.fill();
-    g2.fillStyle = '#17120e'; g2.beginPath(); g2.moveTo(0.18, vb); g2.lineTo(0.18, 0.98); g2.arc(lu / 2, 0.98, lu / 2 - 0.18, Math.PI, 0); g2.lineTo(lu - 0.18, vb); g2.closePath(); g2.fill();
-    g2.fillStyle = '#5a3d22'; g2.beginPath(); g2.moveTo(0.3, vb); g2.lineTo(0.3, 1.3); g2.arc(lu / 2, 1.3, lu / 2 - 0.3, Math.PI, 0); g2.lineTo(lu - 0.3, vb); g2.closePath(); g2.fill();
-    g2.strokeStyle = '#d8b44a'; g2.lineWidth = 0.016; g2.beginPath(); g2.moveTo(0.07, vb); g2.lineTo(0.07, 0.95); g2.arc(lu / 2, 0.95, lu / 2 - 0.07, Math.PI, 0); g2.lineTo(lu - 0.07, vb); g2.stroke();
-    g2.fillStyle = '#2a8a9a'; for (let i = 0; i < 5; i++) { g2.fillRect(0.12 + i * (lu - 0.24) / 5, 0.12, (lu - 0.24) / 5 - 0.02, 0.2); } });
-  for (const [x, y] of [[-w + 0.1, hz - 0.1], [w - 0.1, hz - 0.1]]) { sc.box(x - 0.2, y - 0.2, 0.1, x + 0.2, y + 0.2, 1.75, 'sandstone', { ao: 0.25, pal: '#e0c995' }); dome(sc, x, y, 1.75, 0.26, { cols: ['#f6e8b8', '#d6bb7a', '#a98b4e', '#6e5428'] }); }
-  merlonLine(sc, -w + 0.4, hz - 0.05, -0.62, hz - 0.05, zf, 5, 0.1, 0.13, 'sandstone'); merlonLine(sc, 0.62, hz - 0.05, w - 0.4, hz - 0.05, zf, 5, 0.1, 0.13, 'sandstone'); merlonLine(sc, w - 0.05, -hz + 0.4, w - 0.05, hz - 0.4, zf, 11, 0.1, 0.13, 'sandstone');
-  sack(sc, 1.2, hz + 0.28); sack(sc, 1.35, hz + 0.22, '#c9b27a', 0.9); barrel(sc, -1.2, hz + 0.25); crate(sc, 1.6, hz + 0.2, 0.22, 0.22);
   return sc.finish();
 };
 
@@ -2124,6 +2555,801 @@ const CAST = {
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 
+/* ---- 51_franks.js ---- */
+/* ====================== FRANKOWIE: kamień, ryglówka, dachówka, łupek ======================
+   Zasady: okna układa facade() (równe odstępy, max 2–3 na ścianę), kolejność rysowania ustala Build, rekwizyty mieszczą się w obrysie. */
+const FR = { stone: '#b8b2a2', stoneD: '#9d9a90', plaster: '#eadfc2', plasterD: '#e2d6b8', timber: '#3b2616', tiles: '#b5532e', tilesD: '#9a4a2a', shingle: '#6a5240', slate: '#5e6a78', door: '#5a3e22', doorF: '#241a10', shutR: '#7a2f22', shutG: '#2f6a50', blue: '#2f5aa8', gold: '#e0c060', sill: '#8d897d' };
+
+/* DOM 2×2 (Chata): parter z kamienia, piętro z ryglówki z nawisem, dach dachówkowy szczytem do ulicy; przed domem schody */
+BAKED.franks_hut = function () {
+  const sc = sceneFor(2, 2, 3.2), B = new Build(sc), x0 = -0.8, x1 = 0.8, y0 = -0.84, y1 = 0.5, zp = 0.1, z1 = 0.95, z2 = 1.72, J = 0.1, rise = 0.82;
+  sc.patch(0, 0.1, 1.3, 1.2, { seed: 8, alpha: 0.7 });
+  B.box(x0 - 0.02, y0 - 0.02, 0, x1 + 0.02, y1 + 0.02, zp, 'stone', { ao: 0.4 });
+  B.box(x0, y0, zp, x1, y1, z1, 'stone', { ao: 0.3, eave: 0.55 }, (S, E) => {
+    facade(sc, S, { door: { at: 0.5, w: 0.38, h: 0.54, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 2, w: 0.15, h: 0.25, v: 0.2, frame: FR.timber, sill: FR.sill } });
+    facade(sc, E, { marg: 0.2, win: { n: 2, w: 0.16, h: 0.26, v: 0.2, frame: FR.timber, sill: FR.sill, glow: i => i === 1 } });
+  });
+  B.stairs(-0.4, 0.4, y1 + 0.02, 3, 0.17, 'stone', 0.13);
+  B.box(x0 - J, y0 - J, z1, x1 + J, y1 + J, z2, 'plaster', { ao: 0.15, eave: 0.3, pal: FR.plaster }, (S, E) => {
+    halfTimber(sc, S.O, S.U, S.V, { nu: 2 });
+    facade(sc, S, { marg: 0, win: { n: 2, w: 0.2, h: 0.34, v: 0.2, shut: FR.shutR, frame: FR.timber, each: (w, i) => { if (i === 0) flowerBox(sc, S.O, S.U, S.V, w.u0, w.v0 + w.h + 0.02, w.w); } } });
+    halfTimber(sc, E.O, E.U, E.V, { nu: 2 });
+    facade(sc, E, { marg: 0, win: { n: 2, w: 0.2, h: 0.34, v: 0.2, frame: FR.timber } });
+    sc.local(S.O, S.U, S.V, g => { for (const u of [0.08, 0.5, 0.92, 1.34, 1.76]) { g.fillStyle = FR.timber; g.beginPath(); g.moveTo(u - 0.03, 0.8); g.lineTo(u + 0.03, 0.8); g.lineTo(u, 0.88); g.closePath(); g.fill(); } });   // konsole nawisu
+    signBoard(sc, x0 - J + 0.04, y1 + J + 0.01, z1 + 0.4, 'loaf');
+  });
+  const roof = { x0: x0 - J, x1: x1 + J, y0: y0 - J, y1: y1 + J, z: z2, rise, ov: 0.1, ovE: 0.1, mat: 'tiles', pal: FR.tiles, gableMat: 'plaster', gablePal: FR.plaster, ridge: 'y' };
+  B.gable(roof, () => {
+    const G = { O: [x0 - J, y1 + J, z2 + rise], U: [x1 - x0 + 2 * J, 0, 0], V: [0, 0, -rise] };
+    sc.local(G.O, G.U, G.V, (g, lu, lv) => { g.save(); g.beginPath(); g.moveTo(lu / 2, 0); g.lineTo(lu, lv); g.lineTo(0, lv); g.closePath(); g.clip(); g.fillStyle = FR.timber; g.fillRect(lu / 2 - 0.016, 0, 0.032, lv); g.fillRect(0, lv * 0.7, lu, 0.03); g.restore(); });
+    windowAt(sc, G.O, G.U, G.V, Math.hypot(...G.U) / 2 - 0.09, 0.3, 0.18, 0.24, { frame: FR.timber, shutters: FR.shutR });
+  });
+  B.chim(roof, 0.38, -0.35, 0.8, 0.28);
+  B.barrel(0.68, 0.82); B.crate(-0.7, 0.84, 0.2, 0.2);
+  return B.flush();
+};
+
+/* KOŚCIÓŁ 4×2 (Świątynia): nawa z trzema witrażami i przyporami, wieża z dzwonnicą i smukłą iglicą */
+BAKED.franks_temple = function () {
+  const sc = sceneFor(4, 2, 5.6), B = new Build(sc), zp = 0.1, zw = 1.5, nx0 = -1.9, nx1 = 0.9, ny0 = -0.58, ny1 = 0.58, tx0 = 0.9, tx1 = 1.94, ty0 = -0.52, ty1 = 0.52, zt = 2.7, zb = 3.4;
+  const glass = ['#3c62a8', '#4a7ac0', '#d8a830', '#2f5a98'], trim = '#8d897d';
+  sc.patch(0, 0.1, 2.3, 1.2, { seed: 61, alpha: 0.6 });
+  B.box(nx0 - 0.03, ny0 - 0.03, 0, nx1, ny1 + 0.03, zp, 'stone', { ao: 0.4 });
+  B.box(nx0, ny0, zp, nx1, ny1, zw, 'stone', { ao: 0.3, pal: FR.stone, eave: 0.4 }, (S) => { facade(sc, S, { marg: 0, win: { n: 3, kind: 'glass', w: 0.22, h: 0.78, v: 0.32, frame: trim, glass } }); });
+  const bw = (nx1 - nx0) / 3;
+  for (let i = 0; i <= 3; i++) { const xb = nx0 + i * bw + (i === 0 ? 0.07 : i === 3 ? -0.07 : 0); B.box(xb - 0.07, ny1, zp, xb + 0.07, ny1 + 0.15, zw - 0.2, 'stone', { ao: 0.25, pal: '#b0aa9a' }); B.box(xb - 0.05, ny1, zw - 0.2, xb + 0.05, ny1 + 0.09, zw - 0.06, 'stone', { ao: 0.1, pal: '#b0aa9a' }); }
+  B.gable({ x0: nx0, x1: nx1, y0: ny0, y1: ny1, z: zw, rise: 0.8, ov: 0.13, ovE: 0.07, mat: 'slate', pal: FR.slate, gableMat: 'stone', gablePal: '#b0aa9a', ridge: 'x', nest: true });
+  B.box(tx0, ty0 - 0.03, 0, tx1 + 0.03, ty1 + 0.03, 0.2, 'stone', { ao: 0.4, pal: '#a8a292' });
+  B.box(tx0, ty0, 0.2, tx1, ty1, zt, 'stone', { ao: 0.3, pal: '#aea898', eave: 0.2 }, (S, E) => {
+    facade(sc, E, { door: { at: 0.5, w: 0.4, h: 0.82, arch: true, frame: trim, pal: '#4a3420' }, win: { n: 1, over: true, kind: 'glass', w: 0.2, h: 0.5, v: 0.75, frame: trim, glass } });
+    facade(sc, S, { win: { n: 1, kind: 'glass', w: 0.2, h: 0.5, v: 0.75, frame: trim, glass } });
+    for (const W of [S, E]) sc.local(W.O, W.U, W.V, (g, lu, lv) => { g.fillStyle = 'rgba(70,64,54,0.5)'; g.fillRect(0, lv * 0.46, lu, 0.035); g.fillStyle = 'rgba(250,244,226,0.12)'; g.fillRect(0, lv * 0.46 - 0.012, lu, 0.012); });
+  });
+  B.box(tx0 + 0.07, ty0 + 0.07, zt, tx1 - 0.07, ty1 - 0.07, zb, 'stone', { ao: 0.2, pal: '#b6b0a0' }, (S, E) => {
+    for (const W of [S, E]) facade(sc, W, { win: { n: 1, kind: 'arch', w: 0.26, h: 0.5, v: 0.14, frame: trim, lit: '#17120d', lit2: '#0c0906', louver: true } });
+  });
+  B.pyramid({ x0: tx0 + 0.04, x1: tx1 - 0.04, y0: ty0 + 0.04, y1: ty1 - 0.04, z: zb, rise: 1.5, mat: 'slate', pal: '#586470', ov: 0.05 });
+  B.part((tx0 + tx1) / 2 - 0.04, -0.04, zb + 1.5, (tx0 + tx1) / 2 + 0.04, 0.04, zb + 1.95, () => { const g = sc.g, [cx, cy] = sc.P((tx0 + tx1) / 2, 0, zb + 1.5), f = sc.F; g.strokeStyle = '#d8b44a'; g.lineWidth = 2.6 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy - 22 * f); g.moveTo(cx - 6 * f, cy - 15 * f); g.lineTo(cx + 6 * f, cy - 15 * f); g.stroke(); }, { tag: 'krzyż', shadow: false, nest: true });
+  return B.flush();
+};
+
+/* CHATA DRWALA 2×2: lekka ryglówka pod gontem, stos kłód, pień do rąbania i deski */
+BAKED.franks_woodcutter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 11, alpha: 0.7 });
+  cottage(B, { x0: -0.7, x1: 0.7, y0: -0.85, y1: 0.1, h1: 0.7, ridge: 'x', low: ['plaster', FR.plasterD, FR.timber], nuS: 3, nuE: 2,
+    S: { door: { at: 0.3, w: 0.3, h: 0.5, lintel: FR.timber }, win: { n: 1, w: 0.18, h: 0.24, v: 0.16, frame: FR.timber, shut: FR.shutG } },
+    E: { win: { n: 1, w: 0.18, h: 0.24, v: 0.16, frame: FR.timber } },
+    roof: { mat: 'shingle', pal: FR.shingle, rise: 0.55, ov: 0.1, ovE: 0.08, gableMat: 'plaster', gablePal: FR.plasterD }, chim: [-0.4, -0.375, 0.45, 0.24] });
+  B.logs(-0.58, 0.42); B.logs(-0.58, 0.64); B.stump(0.36, 0.5); B.planks(0.4, 0.78, 0.84, 0.92, 0.24);
+  return B.flush();
+};
+
+/* LEŚNICZÓWKA 2×2: chatka i ogrodzona grządka z sadzonkami */
+BAKED.franks_forester = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 12, alpha: 0.6 });
+  sc.decal('dirt', '#3e2c18', [[[-0.86, 0.3], [0.86, 0.3], [0.86, 0.96], [-0.86, 0.96]]], { feather: 5, alpha: 0.92 });
+  cottage(B, { x0: -0.85, x1: 0.35, y0: -0.85, y1: -0.08, h1: 0.7, ridge: 'x', low: ['plaster', FR.plasterD, FR.timber], nuS: 2, nuE: 2,
+    S: { door: { at: 0.3, w: 0.3, h: 0.5, lintel: FR.timber }, win: { n: 1, w: 0.17, h: 0.24, v: 0.16, frame: FR.timber, shut: FR.shutG } },
+    E: { win: { n: 1, w: 0.18, h: 0.24, v: 0.16, frame: FR.timber } },
+    roof: { mat: 'shingle', pal: FR.shingle, rise: 0.5, ov: 0.1, ovE: 0.08, gableMat: 'plaster', gablePal: FR.plasterD }, chim: [-0.6, -0.465, 0.42, 0.22] });
+  B.fenceRect(-0.9, 0.3, 0.9, 0.98, { kind: 'rail', gap: { S: [-0.2, 0.2] } });
+  for (const y of [0.5, 0.8]) for (const x of [-0.6, -0.2, 0.2, 0.6]) B.sapling(x, y);
+  B.bucket(0.55, 0.12); B.logs(0.62, -0.1);
+  return B.flush();
+};
+
+/* CHATA MYŚLIWEGO 2×2: ciemny gont, poroże nad drzwiami, suszarka ze skórami */
+BAKED.franks_hunter = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 13, alpha: 0.7 });
+  cottage(B, { x0: -0.9, x1: 0.4, y0: -0.85, y1: 0.05, h1: 0.7, ridge: 'x', low: ['stone', FR.stoneD], plinth: false,
+    S: { door: { at: 0.4, w: 0.3, h: 0.5, lintel: FR.timber }, win: { n: 1, w: 0.17, h: 0.22, v: 0.16, frame: FR.timber } },
+    E: { win: { n: 1, w: 0.18, h: 0.24, v: 0.16, frame: FR.timber } },
+    deco1: (S) => sc.local(S.O, S.U, S.V, (g) => { const cx = 0.52; g.fillStyle = '#d8cfb8'; g.strokeStyle = '#2a2018'; g.lineWidth = 0.012; g.beginPath(); g.ellipse(cx, 0.115, 0.045, 0.035, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = '#d8cfb8'; g.lineWidth = 0.02; g.lineCap = 'round'; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(cx + s * 0.03, 0.1); g.quadraticCurveTo(cx + s * 0.12, 0.02, cx + s * 0.13, -0.0); g.moveTo(cx + s * 0.08, 0.06); g.lineTo(cx + s * 0.13, 0.07); g.stroke(); } }),
+    roof: { mat: 'shingle', pal: '#4a3a30', rise: 0.5, ov: 0.1, ovE: 0.08, gableMat: 'stone', gablePal: FR.stoneD }, chim: [-0.6, -0.4, 0.4, 0.22] });
+  B.rack(0.78, -0.55, 0.78, 0.3, 'pelts', 0.78); B.barrel(-0.7, 0.4); B.stump(-0.3, 0.55);
+  return B.flush();
+};
+
+/* TARTAK 3×2: otwarta wiata z piłą ramową, belką na kobyłkach, stosami kłód i desek */
+BAKED.franks_sawmill = function () {
+  const sc = sceneFor(3, 2, 2.4), B = new Build(sc), zr = 1.0;
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 14, alpha: 0.7, pal: '#6a5a3c' });
+  B.box(-1.3, -0.75, 0, 0.55, 0.45, 0.08, 'plank', { pal: '#8a6a40', ao: 0.3, shadow: false });
+  B.box(-1.3, -0.75, 0.08, 0.45, -0.67, zr, 'plank', { pal: '#7a5a36', ao: 0.3 });
+  B.box(-1.3, -0.67, 0.08, -1.22, 0.35, zr, 'plank', { pal: '#7a5a36', ao: 0.3 });
+  for (const [px, py] of [[-1.3, 0.35], [-0.4, 0.35], [0.45, 0.35], [0.45, -0.75]]) B.box(px, py, 0.08, px + 0.1, py + 0.1, zr - 0.08, 'bark', { pal: '#6a4a2c', ao: 0.2 });
+  B.box(-1.3, 0.35, zr - 0.08, 0.55, 0.45, zr, 'log', { pal: '#6a4a2c', ao: 0.2 });
+  B.gable({ x0: -1.3, x1: 0.55, y0: -0.75, y1: 0.45, z: zr, rise: 0.45, ov: 0.12, ovE: 0.1, mat: 'shingle', pal: FR.shingle, gableMat: 'plank', gablePal: '#7a5a36', ridge: 'x' });
+  for (const x of [-1.0, -0.15]) B.box(x, -0.08, 0.08, x + 0.1, 0.1, 0.3, 'log', { pal: '#6a4a2c', ao: 0.2 });
+  B.box(-1.15, -0.06, 0.3, 0.0, 0.08, 0.42, 'log', { pal: '#8a6a40', ao: 0.2 });
+  B.part(-0.72, -0.12, 0.3, -0.5, 0.14, 0.95, () => { sc.local([-0.72, 0.14, 0.95], [0.22, 0, 0], [0, 0, -0.65], (g) => { g.strokeStyle = '#5a3e22'; g.lineWidth = 0.035; g.strokeRect(0.01, 0.01, 0.2, 0.63); g.strokeStyle = 'rgba(190,196,204,0.9)'; g.lineWidth = 0.012; for (const u of [0.07, 0.11, 0.15]) { g.beginPath(); g.moveTo(u, 0.05); g.lineTo(u, 0.6); g.stroke(); } }); }, { tag: 'piła', shadow: false });
+  B.logs(-1.1, 0.7); B.logs(-0.75, 0.72); B.planks(0.7, -0.3, 1.2, 0.0, 0.34); B.planks(0.72, 0.15, 1.15, 0.4, 0.26, '#d0b07a');
+  return B.flush();
+};
+
+/* SKŁAD 3×2: kamienny parter, ryglowe piętro, szeroka brama, wciągarka i worki */
+BAKED.franks_store = function () {
+  const sc = sceneFor(3, 2, 3.0), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 15, alpha: 0.7 });
+  const h = cottage(B, { x0: -1.3, x1: 1.3, y0: -0.8, y1: 0.35, h1: 0.8, floors: 2, h2: 0.7, J: 0.08, ridge: 'x', low: ['stone', FR.stone], up: ['plaster', FR.plaster, FR.timber], nuS2: 4, nuE2: 2,
+    S: { door: { at: 0.5, w: 0.56, h: 0.44, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 2, w: 0.14, h: 0.22, v: 0.14, frame: FR.timber, sill: FR.sill } },
+    E: { win: { n: 1, w: 0.16, h: 0.24, v: 0.16, frame: FR.timber, sill: FR.sill } },
+    S2: { marg: 0.1, win: { n: 3, w: 0.17, h: 0.3, v: 0.18, shut: FR.shutR, frame: FR.timber } }, E2: { win: { n: 1, w: 0.17, h: 0.3, v: 0.18, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.7, ov: 0.1, ovE: 0.1, gableMat: 'plaster', gablePal: FR.plaster }, chim: [0.8, -0.45, 0.5, 0.26] });
+  B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'stone', 0.14);
+  B.sack(-0.75, 0.62, '#d8c898'); B.sack(-0.55, 0.7, '#cdbb88'); B.sack(-0.7, 0.8, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85);
+  return B.flush();
+};
+
+/* MLECZARNIA 2×3: kamienno-ryglowy dom z szerokim dachem, bańki, stół z serami, wiadro i stóg */
+BAKED.franks_dairy = function () {
+  const sc = sceneFor(2, 3, 2.8), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.7, { seed: 16, alpha: 0.7 });
+  cottage(B, { x0: -0.8, x1: 0.8, y0: -1.4, y1: -0.2, h1: 0.8, ridge: 'y', low: ['plaster', FR.plasterD, FR.timber], plinth: ['stone', FR.stoneD], nuS: 3, nuE: 3,
+    S: { door: { at: 0.5, w: 0.34, h: 0.56, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 2, w: 0.15, h: 0.24, v: 0.18, frame: FR.timber, shut: FR.shutG } },
+    E: { win: { n: 2, w: 0.16, h: 0.26, v: 0.18, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.75, ov: 0.1, ovE: 0.1, gableMat: 'plaster', gablePal: FR.plasterD, gwin: { w: 0.16, h: 0.2, frame: FR.timber } }, chim: [0.4, -0.8, 0.5, 0.26] });
+  B.churn(-0.6, 0.35); B.churn(-0.4, 0.42); B.churn(-0.62, 0.58);
+  B.box(0.3, 0.4, 0, 0.8, 0.62, 0.32, 'plank', { pal: '#8a6a40', ao: 0.3, tag: 'stół' });
+  B.disc(0.42, 0.5, 0.32, 0.07, 0.05, [236, 206, 120]); B.disc(0.62, 0.5, 0.32, 0.07, 0.05, [230, 196, 104]); B.disc(0.52, 0.5, 0.37, 0.07, 0.05, [240, 212, 130]);
+  B.bucket(-0.05, 0.85); B.hay(-0.55, 1.1); B.fence(0.1, 1.3, 0.9, 1.3, { kind: 'rail' });
+  return B.flush();
+};
+
+/* SAD 3×3: ogrodzony sad — sześć jabłoni w dwóch rzędach, skrzynki z jabłkami, brama od frontu */
+BAKED.franks_orchard = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc);
+  sc.decal('grass', 'tundra', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.55 });
+  B.fenceRect(-1.38, -1.3, 1.38, 1.3, { kind: 'rail', gap: { S: [-0.3, 0.3] } });
+  [[-0.85, -0.65], [0.0, -0.72], [0.85, -0.65], [-0.8, 0.22], [0.05, 0.15], [0.85, 0.2]].forEach(([x, y], i) => B.tree('apple', 11 + i, x, y, 0.78));
+  B.crate(-1.0, 0.95, 0.24, 0.2); B.crate(-0.7, 1.0, 0.24, 0.2); B.heap(-1.0, 0.95, 0.13, 0.1, ['#e05a48', '#b02a22', '#6a1812'], 0.2); B.heap(-0.7, 1.0, 0.13, 0.1, ['#e05a48', '#b02a22', '#6a1812'], 0.2);
+  B.part(0.8, 0.9, 0, 1.05, 1.1, 0.16, () => { const g = sc.g, f = sc.F; for (const [x, y] of [[0.88, 0.95], [1.0, 1.0]]) { const [px, py] = sc.P(x, y, 0); g.fillStyle = '#9a6e34'; g.strokeStyle = 'rgba(30,18,6,0.8)'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py - 4 * f, 8 * f, 5 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#c4302a'; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(px - 4 * f + i * 2.8 * f, py - 7 * f, 2.2 * f, 0, TAU); g.fill(); } } }, { tag: 'kosze', shadow: false });
+  return B.flush();
+};
+
+/* CHATA NOSIWODY 2×2: kamienna studnia z daszkiem i korbą, obok szopka z beczkami i wiadrami */
+BAKED.franks_watercarrier = function () {
+  const sc = sceneFor(2, 2, 2.2), B = new Build(sc), wx = -0.38, wy = 0.15;
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 17, alpha: 0.7 });
+  B.cyl(wx, wy, 0, 0.42, 0.3, { mat: 'stone', pal: FR.stoneD, topMat: 'stone', ao: 0.4 });
+  B.part(wx - 0.3, wy - 0.3, 0.42, wx + 0.3, wy + 0.3, 0.46, () => { const g = sc.g, [px, py] = sc.P(wx, wy, 0.42), rx = 0.24 * AX * sc.F * 1.4142; const gr = g.createRadialGradient(px - rx * 0.3, py - rx * 0.1, 1, px, py, rx); gr.addColorStop(0, '#5aa0c0'); gr.addColorStop(1, '#123a54'); g.fillStyle = gr; g.strokeStyle = 'rgba(10,8,6,0.7)'; g.lineWidth = sc.F; g.beginPath(); g.ellipse(px, py, rx, rx / 2, 0, 0, TAU); g.fill(); g.stroke(); }, { tag: 'woda', shadow: false, nest: true });
+  for (const px of [wx - 0.42, wx + 0.42]) B.box(px - 0.04, wy - 0.04, 0, px + 0.04, wy + 0.04, 0.95, 'bark', { pal: '#6a4a2c', ao: 0.2 });
+  B.box(wx - 0.5, wy - 0.04, 0.95, wx + 0.5, wy + 0.04, 1.03, 'log', { pal: '#6a4a2c', ao: 0.2 });
+  B.gable({ x0: wx - 0.55, x1: wx + 0.55, y0: wy - 0.24, y1: wy + 0.24, z: 1.03, rise: 0.3, ov: 0.08, ovE: 0.06, mat: 'shingle', pal: FR.shingle, gableMat: 'plank', gablePal: '#7a5a36', ridge: 'x' });
+  B.part(wx - 0.05, wy - 0.05, 0.4, wx + 0.05, wy + 0.05, 1.0, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(wx, wy, 0.95), [, pb] = sc.P(wx, wy, 0.58); g.strokeStyle = '#d8c090'; g.lineWidth = 1.3 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, pb); g.stroke(); sc.cyl(wx, wy, 0.46, 0.58, 0.06, { mat: 'plank', pal: '#8a6a3c', topMat: 'plank', ao: 0.1 }); }, { tag: 'wiadro', shadow: false, nest: true });
+  cottage(B, { x0: 0.3, x1: 0.92, y0: -0.9, y1: -0.2, h1: 0.62, ridge: 'y', plinth: false, low: ['plank', '#8a6a40'],
+    S: { door: { at: 0.5, w: 0.3, h: 0.46, lintel: FR.timber } }, E: { win: { n: 1, w: 0.16, h: 0.2, v: 0.14, frame: FR.timber } },
+    roof: { mat: 'shingle', pal: FR.shingle, rise: 0.4, ov: 0.08, ovE: 0.08, gableMat: 'plank', gablePal: '#7a5a36' } });
+  B.barrel(0.45, 0.1, 0, 1.1); B.barrel(0.7, 0.2, 0, 1.1); B.barrel(0.62, 0.45, 0, 1.1); B.bucket(0.2, 0.2); B.bucket(0.2, 0.42);
+  return B.flush();
+};
+
+/* TARG 3×3: bruk, trzy stragany z pasiastymi płachtami i krzyż targowy pośrodku */
+BAKED.franks_market = function () {
+  const sc = sceneFor(3, 3, 2.2), B = new Build(sc), pals = ['#2f5aa8|#f1e6c8', '#b8352b|#f1e6c8', '#2f7a58|#f1e6c8'];
+  sc.paved(-1.4, -1.4, 1.4, 1.4, { mat: 'cobble', jit: 0.1, seed: 7, feather: 4 });
+  [-0.95, 0, 0.95].forEach((cx, i) => B.stall(cx, -1.3, { pal: pals[i], kind: ['fruit', 'cloth', 'bread'][i] }));
+  B.box(-0.42, -0.1, 0, 0.42, 0.62, 0.1, 'stone', { pal: FR.stone, ao: 0.3 }); B.box(-0.3, 0.02, 0.1, 0.3, 0.5, 0.2, 'stone', { pal: FR.stoneD, ao: 0.25 });
+  B.box(-0.07, 0.19, 0.2, 0.07, 0.33, 1.0, 'stone', { pal: FR.stone, ao: 0.2 }); B.box(-0.22, 0.2, 0.74, 0.22, 0.32, 0.84, 'stone', { pal: FR.stone, ao: 0.1, nest: true });
+  B.crate(-1.1, 0.85, 0.24, 0.24); B.crate(-0.82, 0.95, 0.22, 0.2); B.sack(0.95, 0.9, '#d8c898'); B.sack(1.12, 0.78, '#cdbb88'); B.barrel(1.15, 0.2);
+  return B.flush();
+};
+
+/* DWÓR / ZAMEK 4×4: mur kurtynowy z dziedzińcem, cztery baszty, brama z kratą, donżon, stajnia, studnia */
+BAKED.franks_keep = function () {
+  const sc = sceneFor(4, 4, 4.2), B = new Build(sc), w = 1.7, t = 0.4, zp = 0, zc = 1.05, zd = 2.2, banner = '#2f5aa8';
+  sc.paved(-1.3, -1.3, 1.3, 1.3, { mat: 'cobble', jit: 0.1, seed: 4, feather: 4 });
+  sc.patch(0, 0.1, 2.5, 2.3, { seed: 51, alpha: 0.55, feather: 20 });
+  B.part(-w + t, -w + t, zp, w - t, w - t, zp + 0.002, () => sc.face([-w + t, -w + t, zp], [2 * w - 2 * t, 0, 0], [0, 2 * w - 2 * t, 0], 'cobble', { shade: 1, wear: 0.4, edge: 0 }), { tag: 'dziedziniec', kind: 'flat', shadow: false });
+  const tower = (cx, cy, hgt = 1.95) => {
+    B.cyl(cx, cy, zp, hgt, 0.34, { mat: 'stone', pal: '#9d9a90', topMat: 'stone', ao: 0.45, nest: true });
+    B.cyl(cx, cy, hgt - 0.04, hgt + 0.06, 0.4, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0, top: false, nest: true });
+    B.cone(cx, cy, hgt + 0.06, 0.4, 0.9, [168, 62, 40], { nest: true });
+    B.part(cx - 0.02, cy - 0.02, hgt + 0.9, cx + 0.02, cy + 0.02, hgt + 1.3, () => pennant(sc, cx, cy, hgt + 0.96, 40, '#b8352b'), { tag: 'proporzec', shadow: false, nest: true });
+  };
+  const merlons = (x0, y0, x1, y1, z, n) => B.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, z, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, z + 0.13, () => merlonLine(sc, x0, y0, x1, y1, z, n, 0.1, 0.13), { tag: 'blanki', shadow: false });
+  // mury tylne (północny i zachodni) + baszty
+  B.box(-w, -w, zp, w, -w + t, zc, 'stone', { ao: 0.3 }); B.box(-w, -w + t, zp, -w + t, w - t, zc, 'stone', { ao: 0.3 });
+  merlons(-w + 0.4, -w + 0.06, w - 0.4, -w + 0.06, zc, 11); merlons(-w + 0.06, -w + 0.4, -w + 0.06, w - 0.5, zc, 10);
+  tower(-w + 0.05, -w + 0.05); tower(w - 0.05, -w + 0.05); tower(-w + 0.05, w - 0.05);
+  // donżon
+  B.box(-0.8, -0.95, zp, 0.55, 0.45, zd, 'stone', { ao: 0.3, pal: '#aaa497', eave: 0.2 }, (S, E) => {
+    facade(sc, S, { door: { at: 0.5, w: 0.3, h: 0.5, arch: true, frame: '#8d897d', pal: '#4a3420' }, win: { n: 2, over: true, kind: 'glass', w: 0.2, h: 0.62, v: 0.5, frame: '#8d897d', glass: ['#3c62a8', '#4a7ac0', '#d8a830', '#2f5a98'] } });
+    facade(sc, E, { win: { n: 2, kind: 'arch', w: 0.18, h: 0.5, v: 0.55, frame: '#8d897d', lit: '#ffd078', lit2: '#c98a30' } });
+  });
+  B.box(-0.86, -1.01, zd - 0.06, 0.61, 0.51, zd + 0.03, 'stone', { ao: 0, pal: '#8f8a7e', nest: true });
+  merlons(-0.8, -0.95, 0.55, -0.95, zd + 0.03, 8); merlons(-0.8, 0.45, 0.55, 0.45, zd + 0.03, 8); merlons(-0.8, -0.75, -0.8, 0.25, zd + 0.03, 6); merlons(0.55, -0.75, 0.55, 0.25, zd + 0.03, 6);
+  B.box(-0.55, -0.7, zd + 0.03, 0.3, 0.2, zd + 0.2, 'stone', { ao: 0.1, pal: '#a39d90' });
+  B.part(0.08, -0.22, zd + 0.2, 0.12, -0.18, zd + 0.62, () => pennant(sc, 0.1, -0.2, zd + 0.2, 70, banner), { tag: 'proporzec', shadow: false });
+  // stajnia przy murze, studnia, drobiazgi
+  B.box(-1.24, 0.5, zp, -0.95, 1.25, 0.75, 'plank', { ao: 0.3, pal: '#6a4a2c' });
+  B.gable({ x0: -1.24, x1: -0.95, y0: 0.5, y1: 1.25, z: 0.75, rise: 0.36, ov: 0.04, ovE: 0.05, mat: 'shingle', pal: '#5a4636', ridge: 'y' });
+  B.cyl(0.95, 0.85, zp, 0.34, 0.17, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0.4 });
+  B.barrel(0.55, 1.05); B.barrel(0.72, 1.17); B.crate(1.1, 0.4, 0.24, 0.24); B.hay(1.05, -0.55);
+  // mury przednie (południowy z bramą, wschodni) + baszta SE
+  B.box(-w, w - t, zp, -0.55, w, zc, 'stone', { ao: 0.3, eave: 0.3 }, (S) => { sc.local(S.O, S.U, S.V, g => { g.fillStyle = '#15120d'; for (const u of [0.45, 0.85]) g.fillRect(u, 0.22, 0.035, 0.22); }); });
+  B.box(0.55, w - t, zp, w, w, zc, 'stone', { ao: 0.3, eave: 0.3 }, (S) => { sc.local(S.O, S.U, S.V, g => { g.fillStyle = '#15120d'; for (const u of [0.3, 0.7]) g.fillRect(u, 0.22, 0.035, 0.22); }); });
+  B.box(w - t, -w + t, zp, w, w - t, zc, 'stone', { ao: 0.3, eave: 0.3 }, (S, E) => { sc.local(E.O, E.U, E.V, g => { g.fillStyle = '#15120d'; for (const u of [0.5, 1.2, 1.9, 2.6]) g.fillRect(u, 0.22, 0.035, 0.22); }); });
+  const gz = 1.85, gx0 = -0.55, gx1 = 0.55, gy0 = w - 0.5, gy1 = w + 0.1;
+  B.box(gx0, gy0, zp, gx1, gy1, gz, 'stone', { ao: 0.25, pal: '#aaa497', eave: 0.3 }, (S) => {
+    sc.local(S.O, S.U, S.V, (g) => {
+      const u0 = 0.3, ww = 0.5, vb = gz - zp; g.fillStyle = '#17120e'; g.beginPath(); g.moveTo(u0, vb); g.lineTo(u0, vb - 0.62); g.arc(u0 + ww / 2, vb - 0.62, ww / 2, Math.PI, 0); g.lineTo(u0 + ww, vb); g.closePath(); g.fill(); g.strokeStyle = '#8d897d'; g.lineWidth = 0.03; g.stroke();
+      g.strokeStyle = 'rgba(60,50,40,0.95)'; g.lineWidth = 0.018; for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(u0 + i * ww / 5, vb - 0.62 - 0.2); g.lineTo(u0 + i * ww / 5, vb - 0.05); g.stroke(); } for (let j = 0; j < 5; j++) { g.beginPath(); g.moveTo(u0, vb - 0.1 - j * 0.14); g.lineTo(u0 + ww, vb - 0.1 - j * 0.14); g.stroke(); }
+      for (const u of [0.06, 0.88]) { g.fillStyle = banner; g.fillRect(u, 0.18, 0.16, 0.5); g.fillStyle = '#e0c060'; g.fillRect(u + 0.07, 0.24, 0.025, 0.36); g.fillRect(u + 0.04, 0.32, 0.08, 0.03); }
+    });
+  });
+  merlons(gx0 + 0.05, gy1 - 0.05, gx1 - 0.05, gy1 - 0.05, gz, 7); merlons(gx1 - 0.05, gy0 + 0.05, gx1 - 0.05, gy1 - 0.25, gz, 3);
+  B.box(-0.3, w + 0.1, 0, 0.3, 1.99, 0.07, 'plank', { ao: 0.3, pal: '#7a5632' });
+  merlons(-w + 0.4, w - 0.06, -0.62, w - 0.06, zc, 5); merlons(0.62, w - 0.06, w - 0.4, w - 0.06, zc, 5); merlons(w - 0.06, -w + 0.4, w - 0.06, w - 0.4, zc, 12);
+  tower(w - 0.05, w - 0.05, 2.05);
+  return B.flush({ shadow: { alpha: 0.5, blur: 14 } });
+};
+
+/* MŁYN 3×3: kamienna wieża z czapą i skrzydłami + dom młynarza, worki, kamień młyński, wóz */
+BAKED.franks_mill = function () {
+  const sc = sceneFor(3, 3, 3.9), B = new Build(sc), cx = 0.4, cy = -0.5;
+  sc.patch(0, 0.1, 1.9, 1.7, { seed: 71, alpha: 0.7 });
+  B.cyl(cx, cy, 0, 0.2, 0.9, { mat: 'stone', pal: '#8c897f', topMat: 'stone', ao: 0.5, nest: true });
+  B.cyl(cx, cy, 0.2, 1.85, 0.78, { mat: 'stone', pal: '#bdb7a6', topMat: 'stone', ao: 0.5, nest: true });
+  B.cyl(cx, cy, 1.8, 1.92, 0.86, { mat: 'stone', pal: '#9a948a', ao: 0, nest: true });
+  B.cone(cx, cy, 1.92, 0.88, 1.0, [112, 78, 48], { nest: true });
+  B.part(cx + 0.3, cy + 0.3, 0, cx + 0.8, cy + 0.8, 1.6, () => {
+    const g = sc.g, f = sc.F, [fx, fy] = sc.P(cx + 0.55, cy + 0.55, 0);
+    g.fillStyle = '#2b1c10'; g.beginPath(); g.moveTo(fx - 12 * f, fy + 3 * f); g.lineTo(fx - 12 * f, fy - 26 * f); g.arc(fx, fy - 26 * f, 12 * f, Math.PI, 0); g.lineTo(fx + 12 * f, fy + 3 * f); g.closePath(); g.fill();
+    g.fillStyle = '#6a4a2c'; g.beginPath(); g.moveTo(fx - 9.5 * f, fy + 2 * f); g.lineTo(fx - 9.5 * f, fy - 25 * f); g.arc(fx, fy - 25 * f, 9.5 * f, Math.PI, 0); g.lineTo(fx + 9.5 * f, fy + 2 * f); g.closePath(); g.fill(); g.strokeStyle = 'rgba(20,12,6,0.7)'; g.lineWidth = f; for (const dx of [-3, 3]) { g.beginPath(); g.moveTo(fx + dx * f, fy + 2 * f); g.lineTo(fx + dx * f, fy - 34 * f); g.stroke(); }
+    for (const [zz, ww] of [[0.95, 8], [1.4, 7]]) { const [wx, wy] = sc.P(cx + 0.5, cy + 0.5, zz); g.fillStyle = '#17120e'; g.beginPath(); g.moveTo(wx - ww * f, wy + 9 * f); g.lineTo(wx - ww * f, wy - 3 * f); g.arc(wx, wy - 3 * f, ww * f, Math.PI, 0); g.lineTo(wx + ww * f, wy + 9 * f); g.closePath(); g.fill(); g.strokeStyle = '#7a766c'; g.lineWidth = 1.4 * f; g.stroke(); }
+  }, { tag: 'drzwi wieży', shadow: false, nest: true });
+  B.part(cx + 0.3, cy + 0.3, 1.5, cx + 0.8, cy + 0.8, 1.95, () => {
+    const g = sc.g, f = sc.F, [hx, hy] = sc.P(cx + 0.52, cy + 0.52, 1.7), L = 150 * f, a0 = 0.34;
+    for (let k = 0; k < 4; k++) {
+      g.save(); g.translate(hx, hy); g.rotate(a0 + k * Math.PI / 2);
+      g.fillStyle = '#4a3220'; g.strokeStyle = 'rgba(14,8,4,0.8)'; g.lineWidth = f; g.fillRect(0, -2.6 * f, L, 5.2 * f); g.strokeRect(0, -2.6 * f, L, 5.2 * f);
+      const ww = 0.24 * L; g.fillStyle = 'rgba(238,230,206,0.94)'; g.fillRect(0.2 * L, 2.6 * f, 0.8 * L, ww); g.strokeStyle = '#4a3220'; g.lineWidth = 1.6 * f; g.strokeRect(0.2 * L, 2.6 * f, 0.8 * L, ww);
+      g.lineWidth = 1.1 * f; for (let i = 1; i < 8; i++) { g.beginPath(); g.moveTo(0.2 * L + i * 0.1 * L, 2.6 * f); g.lineTo(0.2 * L + i * 0.1 * L, 2.6 * f + ww); g.stroke(); }
+      g.restore();
+    }
+    g.fillStyle = '#3a2814'; g.strokeStyle = 'rgba(10,6,2,0.8)'; g.lineWidth = f; g.beginPath(); g.arc(hx, hy, 8 * f, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#c9a85a'; g.beginPath(); g.arc(hx, hy, 3 * f, 0, TAU); g.fill();
+  }, { tag: 'skrzydła', shadow: false, nest: true });
+  cottage(B, { x0: -1.4, x1: -0.25, y0: 0.25, y1: 1.3, h1: 0.95, ridge: 'y', low: ['plaster', '#e6dbbf', FR.timber], plinth: ['stone', FR.stoneD], nuS: 2, nuE: 2,
+    S: { door: { at: 0.3, w: 0.3, h: 0.54, lintel: FR.timber }, win: { n: 1, w: 0.16, h: 0.24, v: 0.2, frame: FR.timber, shut: FR.shutG } }, E: { win: { n: 1, w: 0.16, h: 0.26, v: 0.2, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.62, ov: 0.1, ovE: 0.08, gableMat: 'plaster', gablePal: '#e6dbbf' }, chim: [-0.82, 0.7, 0.55, 0.24] });
+  B.sack(-0.08, 0.6, '#d8c898'); B.sack(0.12, 0.7, '#cdbb88'); B.sack(-0.02, 0.85, '#d8c898'); B.sack(0.22, 0.95, '#cdbb88', 0.9);
+  B.part(0.6, 0.4, 0, 0.9, 0.7, 0.4, () => { const g = sc.g, f = sc.F, [mx, my] = sc.P(0.75, 0.55, 0); g.fillStyle = '#9d9a90'; g.strokeStyle = 'rgba(14,12,10,0.7)'; g.lineWidth = f; g.beginPath(); g.ellipse(mx, my - 14 * f, 15 * f, 17 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#3a3630'; g.beginPath(); g.ellipse(mx, my - 14 * f, 4.4 * f, 5.4 * f, 0, 0, TAU); g.fill(); }, { tag: 'kamień młyński', shadow: false });
+  B.box(0.85, 0.75, 0.14, 1.4, 1.15, 0.2, 'plank', { pal: '#7a5632', ao: 0.4 });
+  B.part(0.85, 1.05, 0, 1.4, 1.2, 0.3, () => { const g = sc.g, f = sc.F; for (const [wx, wy] of [[0.95, 1.18], [1.3, 1.18]]) { const [px, py] = sc.P(wx, wy, 0.16); g.fillStyle = '#4a3322'; g.beginPath(); g.ellipse(px, py, 8 * f, 15 * f, 0, 0, TAU); g.fill(); g.fillStyle = '#7a5632'; g.beginPath(); g.ellipse(px, py, 5.6 * f, 12 * f, 0, 0, TAU); g.fill(); g.strokeStyle = '#2b1c10'; g.lineWidth = f; g.stroke(); } }, { tag: 'koła wozu', shadow: false });
+  B.sack(1.0, 0.95, '#d8c898', 0.9, 0.2); B.sack(1.26, 0.93, '#cdbb88', 0.9, 0.2);
+  return B.flush();
+};
+
+/* KAMIENIOŁOM 3×3: skalna ściana, wyrobisko z gruzem, stosy ciosów, drewniany żuraw z kamiennym blokiem */
+BAKED.franks_quarry = function () {
+  const sc = sceneFor(3, 3, 2.8), B = new Build(sc);
+  sc.decal('rubble', null, [[[-1.4, -1.4], [1.4, -1.4], [1.4, 0.95], [-1.4, 0.95]]], { feather: 16, alpha: 0.9 });
+  B.rock(401, -0.55, -0.95, 2.1); B.rock(402, 0.6, -1.0, 1.8); B.rock(403, -1.1, -0.3, 1.5, '#7e7c76'); B.rock(404, 1.15, -0.4, 1.4); B.rock(405, 0.05, -0.35, 1.2, '#9a9890');
+  B.blocks(0.35, 0.2, 3, 2, 2); B.blocks(-1.15, 0.45, 2, 2, 1, '#bdb8aa'); B.blocks(0.5, 0.85, 2, 1, 1, '#c8c3b4');
+  const zx = -0.6, zy = 0.5;
+  B.box(zx - 0.06, zy - 0.06, 0, zx + 0.06, zy + 0.06, 1.3, 'bark', { pal: '#6a4a2c', ao: 0.2 });
+  B.box(zx - 0.04, zy - 0.04, 1.2, zx + 0.75, zy + 0.04, 1.29, 'log', { pal: '#6a4a2c', ao: 0.2, nest: true });
+  B.part(zx - 0.1, zy - 0.06, 0.4, zx + 0.2, zy + 0.06, 1.3, () => { const g = sc.g, f = sc.F, [a, b] = sc.P(zx, zy + 0.06, 1.0), [c, d] = sc.P(zx + 0.38, zy + 0.06, 1.2); g.strokeStyle = '#5a3e22'; g.lineWidth = 3 * f; g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }, { tag: 'zastrzał', shadow: false, nest: true });
+  B.part(zx + 0.55, zy - 0.12, 0.3, zx + 0.75, zy + 0.12, 1.2, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(zx + 0.65, zy, 1.2), [, pb] = sc.P(zx + 0.65, zy, 0.52); g.strokeStyle = '#d8c090'; g.lineWidth = 1.5 * f; g.beginPath(); g.moveTo(px, py); g.lineTo(px, pb); g.stroke(); sc.box(zx + 0.55, zy - 0.1, 0.3, zx + 0.75, zy + 0.1, 0.5, 'stone', { pal: '#cfcabb', ao: 0.2 }); }, { tag: 'blok', shadow: true });
+  B.crate(1.25, 0.85, 0.2, 0.2); B.barrel(-0.25, 0.95);
+  return B.flush();
+};
+
+/* FARMA 4×3: dom, stodoła, pole pszenicy w ogrodzeniu, stogi i strach na wróble */
+BAKED.franks_farm = function () {
+  const sc = sceneFor(4, 3, 2.9, { pRes: RES }), B = new Build(sc), fp = [[-1.9, 0.22], [1.9, 0.22], [1.9, 1.38], [-1.9, 1.38]];
+  sc.patch(0, -0.5, 2.0, 1.0, { seed: 41, alpha: 0.6 });
+  sc.decal('dirt', '#6a4e2c', [[[-1.95, 0.17], [1.95, 0.17], [1.95, 1.43], [-1.95, 1.43]]], { feather: 6, alpha: 0.9 }); sc.decal('field', 'wheat', [fp], { feather: 0 });
+  cottage(B, { x0: -1.9, x1: -0.65, y0: -1.4, y1: -0.4, h1: 0.8, ridge: 'x', low: ['plaster', FR.plasterD, FR.timber], plinth: ['stone', FR.stoneD], nuS: 3, nuE: 2,
+    S: { door: { at: 0.3, w: 0.3, h: 0.52, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 1, w: 0.17, h: 0.24, v: 0.2, frame: FR.timber, shut: FR.shutR } }, E: { win: { n: 1, w: 0.17, h: 0.24, v: 0.2, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: FR.tiles, rise: 0.55, ov: 0.1, ovE: 0.08, gableMat: 'plaster', gablePal: FR.plasterD }, chim: [-1.5, -0.9, 0.5, 0.26] });
+  cottage(B, { x0: -0.35, x1: 1.8, y0: -1.4, y1: -0.3, h1: 0.95, ridge: 'x', low: ['plank', '#8a6a40'], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.5, w: 0.76, h: 0.74, frame: FR.doorF, pal: '#6a4a2c', lintel: FR.timber } }, E: { win: { n: 1, w: 0.18, h: 0.2, v: 0.14, frame: FR.timber } },
+    roof: { mat: 'shingle', pal: FR.shingle, rise: 0.7, ov: 0.12, ovE: 0.1, gableMat: 'plank', gablePal: '#7a5a36', gwin: { w: 0.2, h: 0.2, frame: FR.timber } } });
+  B.fenceRect(-1.95, 0.17, 1.95, 1.43, { kind: 'rail', h: 0.3, gap: { N: [-1.95, 1.95] } });
+  B.hay(1.5, -0.1); B.hay(-0.25, 0.0);
+  B.part(0.2, 0.7, 0, 0.4, 0.9, 0.9, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.3, 0.8, 0); g.strokeStyle = '#4a3220'; g.lineWidth = 2.6 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 56 * f); g.moveTo(px - 17 * f, py - 40 * f); g.lineTo(px + 17 * f, py - 40 * f); g.stroke(); g.fillStyle = '#c8b070'; g.beginPath(); g.moveTo(px - 10 * f, py - 40 * f); g.lineTo(px + 10 * f, py - 40 * f); g.lineTo(px + 8 * f, py - 24 * f); g.lineTo(px - 8 * f, py - 24 * f); g.closePath(); g.fill(); g.strokeStyle = 'rgba(40,24,8,0.7)'; g.lineWidth = f; g.stroke(); g.fillStyle = '#d8c898'; g.beginPath(); g.arc(px, py - 60 * f, 5.4 * f, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#7a5a30'; g.beginPath(); g.ellipse(px, py - 64 * f, 9 * f, 2.6 * f, 0, 0, TAU); g.fill(); g.beginPath(); g.moveTo(px - 4.5 * f, py - 64 * f); g.lineTo(px, py - 74 * f); g.lineTo(px + 4.5 * f, py - 64 * f); g.closePath(); g.fill(); }, { tag: 'strach', shadow: false });
+  return B.flush();
+};
+
+/* PIEKARNIA 2×3: kamienno-ryglowy dom z wielkim kominem, piec chlebowy na zewnątrz, stół z bochenkami */
+BAKED.franks_bakery = function () {
+  const sc = sceneFor(2, 3, 2.9), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.7, { seed: 18, alpha: 0.7 });
+  cottage(B, { x0: -0.9, x1: 0.4, y0: -1.35, y1: -0.2, h1: 0.85, ridge: 'x', low: ['plaster', FR.plaster, FR.timber], plinth: ['stone', FR.stoneD], nuS: 3, nuE: 2,
+    S: { door: { at: 0.28, w: 0.32, h: 0.54, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 1, w: 0.18, h: 0.26, v: 0.2, frame: FR.timber, shut: FR.shutR, glow: true } }, E: { win: { n: 1, w: 0.18, h: 0.26, v: 0.2, frame: FR.timber } },
+    deco1: () => signBoard(sc, 0.36, -0.18, 0.68, 'loaf'),
+    roof: { mat: 'tiles', pal: FR.tiles, rise: 0.62, ov: 0.1, ovE: 0.08, gableMat: 'plaster', gablePal: FR.plaster }, chim: [-0.55, -0.775, 0.8, 0.34] });
+  B.box(0.46, -0.81, 0, 0.98, -0.29, 0.2, 'stone', { pal: FR.stoneD, ao: 0.3 });
+  B.dome(0.72, -0.55, 0.2, 0.26, { cols: ['#f0d8bc', '#d0a47c', '#a07048', '#5a3c24'], finial: false });
+  B.part(0.6, -0.4, 0.2, 0.84, -0.26, 0.5, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.72, -0.3, 0.3); const gl = g.createRadialGradient(px, py, 0, px, py, 12 * f); gl.addColorStop(0, 'rgba(255,220,120,0.95)'); gl.addColorStop(0.5, 'rgba(255,120,30,0.8)'); gl.addColorStop(1, 'rgba(120,20,0,0.5)'); g.fillStyle = '#1c120c'; g.beginPath(); g.ellipse(px, py, 10 * f, 8 * f, 0, 0, TAU); g.fill(); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py + 1 * f, 7 * f, 5 * f, 0, 0, TAU); g.fill(); g.strokeStyle = '#6a4a30'; g.lineWidth = 1.6 * f; g.beginPath(); g.ellipse(px, py, 10 * f, 8 * f, 0, 0, TAU); g.stroke(); }, { tag: 'otwór pieca', shadow: false, nest: true });
+  B.logs(-0.62, 0.15);
+  B.box(0.1, 0.12, 0, 0.7, 0.42, 0.32, 'plank', { pal: '#8a6a40', ao: 0.3, tag: 'stół' });
+  B.part(0.14, 0.15, 0.32, 0.66, 0.4, 0.5, () => { const g = sc.g, f = sc.F; [[0.22, 0.24], [0.36, 0.3], [0.5, 0.24], [0.6, 0.32]].forEach(([x, y], i) => { const [px, py] = sc.P(x, y, 0.32); g.fillStyle = i % 2 ? '#c88a3a' : '#b87a2e'; g.strokeStyle = 'rgba(50,26,6,0.8)'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py - 3 * f, 7 * f, 4 * f, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = 'rgba(255,230,170,0.5)'; g.beginPath(); g.moveTo(px - 3 * f, py - 4 * f); g.lineTo(px + 1 * f, py - 5.2 * f); g.stroke(); }); }, { tag: 'bochenki', shadow: false });
+  B.sack(-0.1, 0.5, '#f0e8d0'); B.sack(-0.28, 0.42, '#e8e0c8', 0.9);
+  return B.flush();
+};
+
+/* KOPALNIA 3×3 (żelaza / węgla): skalne zbocze z wejściem w ramie z bali, tory, wózek z urobkiem i hałdy */
+function frankMine(kind) {
+  const sc = sceneFor(3, 3, 2.6), B = new Build(sc), iron = kind === 'ore';
+  sc.decal('rubble', null, [[[-1.45, -0.9], [1.45, -0.9], [1.45, 1.25], [-1.45, 1.25]]], { feather: 16, alpha: 0.75 });
+  B.rock(411, -0.5, -0.95, 2.0, iron ? '#8e8c84' : '#7c7c80'); B.rock(412, 0.7, -0.95, 1.7, iron ? '#8e8c84' : '#7c7c80'); B.rock(413, -1.15, -0.35, 1.4, '#7e7c76'); B.rock(414, 1.15, -0.35, 1.3, '#85837c'); B.rock(415, 0.1, -0.5, 1.5, '#9a9890');
+  B.mineMouth(0.05, 0.0, 0.7, 0.78);
+  B.rails(0.05, 0.1, 1.2); B.cart(0.05, 0.6, kind);
+  B.heap(0.98, 0.55, 0.38, 0.32, kind); B.heap(-0.95, 0.75, 0.3, 0.24, kind);
+  B.crate(-0.55, 1.0, 0.22, 0.2); B.barrel(0.55, 1.1); B.logs(-1.1, 0.1);
+  return B.flush();
+}
+BAKED.franks_ironmine = () => frankMine('ore');
+BAKED.franks_coalmine = () => frankMine('coal');
+
+/* HUTA 3×3: kamienna hala z paleniskiem (żar w łukowym otworze), wysoki komin, hałdy rudy, węgla i żużlu, sztabki */
+BAKED.franks_smelter = function () {
+  const sc = sceneFor(3, 3, 3.6), B = new Build(sc);
+  sc.patch(0, 0.2, 1.5, 1.4, { seed: 61, alpha: 0.7, pal: '#5a4a34' });
+  sc.flat([[[-0.5, 0.1], [0.5, 0.1], [0.5, 1.0], [-0.5, 1.0]]], 'rgba(255,150,60,0.22)', 16);
+  const h = cottage(B, { x0: -1.2, x1: 0.9, y0: -1.2, y1: 0.0, h1: 1.0, ridge: 'x', low: ['stone', '#a8a296'], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.5, w: 0.5, h: 0.5, arch: true, frame: '#6a645a', pal: '#1a1008' } }, E: { win: { n: 1, w: 0.18, h: 0.24, v: 0.2, frame: FR.timber, glow: true } },
+    deco1: (S) => sc.local(S.O, S.U, S.V, (g, lu, lv) => { const cx = lu / 2, cy = lv - 0.3, gr = g.createRadialGradient(cx, cy, 0, cx, cy, 0.34); gr.addColorStop(0, 'rgba(255,230,130,0.95)'); gr.addColorStop(0.45, 'rgba(255,130,30,0.7)'); gr.addColorStop(1, 'rgba(160,30,0,0)'); g.fillStyle = gr; g.fillRect(cx - 0.34, cy - 0.34, 0.68, 0.68); }),
+    roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.5, ov: 0.1, ovE: 0.08, gableMat: 'stone', gablePal: '#a8a296' }, chim: [-0.7, -0.6, 1.3, 0.46] });
+  B.heap(-1.1, 0.5, 0.4, 0.34, 'ore'); B.heap(1.05, 0.45, 0.38, 0.32, 'coal'); B.heap(1.2, -0.6, 0.28, 0.24, 'slag');
+  B.part(-0.3, 0.55, 0, 0.3, 0.85, 0.2, () => { const g = sc.g; let i = 0; for (let l = 0; l < 3; l++) for (let k = 0; k < 3 - l; k++) { const x = -0.2 + k * 0.19 + l * 0.095; sc.box(x - 0.09, 0.62, l * 0.07, x + 0.09, 0.72, l * 0.07 + 0.065, 'stone', { pal: '#b0b6bc', ao: 0.1, wear: 0 }); i++; } }, { tag: 'sztabki', shadow: false });
+  B.barrel(-0.6, 0.95); B.crate(0.65, 0.85, 0.22, 0.2);
+  return B.flush();
+};
+
+/* KUŹNIA NARZĘDZI 2×3: kamienny warsztat z dachówką i otwartym zadaszeniem z paleniskiem, kowadłem i narzędziami */
+BAKED.franks_toolforge = function () {
+  const sc = sceneFor(2, 3, 2.9), B = new Build(sc);
+  sc.patch(0, 0.2, 1.3, 1.9, { seed: 91, alpha: 0.7, pal: '#6a5a3c' });
+  sc.flat([[[0.1, 0.2], [0.9, 0.2], [0.9, 1.0], [0.1, 1.0]]], 'rgba(255,150,60,0.22)', 16);
+  cottage(B, { x0: -0.92, x1: 0.92, y0: -1.4, y1: 0.0, h1: 1.0, ridge: 'x', low: ['stone', '#a39d90'], plinth: ['stone', FR.stoneD],
+    E: { win: { n: 2, w: 0.18, h: 0.26, v: 0.2, frame: '#3a2818', sill: FR.sill, glow: true } },
+    deco1: (S) => sc.local(S.O, S.U, S.V, (g, lu, lv) => { g.fillStyle = 'rgba(16,10,6,0.4)'; g.fillRect(0, 0, lu, lv); g.strokeStyle = '#2a2018'; g.lineWidth = 0.014; for (const [u, v, k] of [[0.3, 0.3, 0], [0.55, 0.34, 1], [0.8, 0.3, 2], [1.1, 0.34, 0], [1.4, 0.3, 1]]) { g.beginPath(); g.moveTo(u, v - 0.1); g.lineTo(u, v + 0.1); g.stroke(); g.fillStyle = '#9aa0a6'; if (k === 0) g.fillRect(u - 0.05, v - 0.12, 0.1, 0.05); else if (k === 1) { g.beginPath(); g.moveTo(u, v - 0.1); g.lineTo(u + 0.06, v - 0.18); g.lineTo(u + 0.08, v - 0.1); g.fill(); } else { g.beginPath(); g.arc(u, v + 0.1, 0.03, 0, TAU); g.stroke(); } } }),
+    roof: { mat: 'tiles', pal: '#a24a28', rise: 0.62, ov: 0.1, ovE: 0.08, gableMat: 'stone', gablePal: '#a39d90' }, chim: [0.55, -0.7, 0.9, 0.34] });
+  B.lean({ x0: -0.98, x1: 0.98, y0: 0.02, y1: 1.02, z: 1.15, drop: 0.26, mat: 'tiles', pal: '#8f4224' });
+  for (const px of [-0.87, -0.3, 0.3, 0.87]) B.box(px - 0.05, 0.96, 0, px + 0.05, 1.06, 0.89, 'bark', { ao: 0.2, pal: '#7a5632' });
+  B.box(0.2, 0.2, 0.1, 0.88, 0.7, 0.55, 'stone', { ao: 0.3, pal: '#8f8a7e' });
+  B.part(0.3, 0.3, 0.55, 0.8, 0.62, 0.62, () => { const g = sc.g, f = sc.F, [fx, fy] = sc.P(0.54, 0.45, 0.55), gl = g.createRadialGradient(fx, fy, 0, fx, fy, 30 * f); gl.addColorStop(0, 'rgba(255,230,140,0.95)'); gl.addColorStop(0.35, 'rgba(255,140,40,0.75)'); gl.addColorStop(1, 'rgba(180,40,0,0)'); g.fillStyle = gl; g.beginPath(); g.ellipse(fx, fy, 30 * f, 15 * f, 0, 0, TAU); g.fill(); }, { tag: 'żar', shadow: false, nest: true });
+  B.anvil(-0.35, 0.55); B.barrel(-0.75, 0.82); B.barrel(0.72, 1.25, 0, 0.85); B.logs(0.3, 1.32);
+  return B.flush();
+};
+
+/* ZBROJOWNIA 3×2: kamienny warsztat z szeroką bramą, sztandary, stojaki na włócznie i tarcze, kowadło i szlifierka */
+BAKED.franks_armory = function () {
+  const sc = sceneFor(3, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 19, alpha: 0.7 });
+  cottage(B, { x0: -1.35, x1: 0.55, y0: -0.85, y1: -0.05, h1: 0.85, ridge: 'x', low: ['stone', FR.stone], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.45, w: 0.5, h: 0.46, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 1, w: 0.16, h: 0.24, v: 0.2, frame: FR.timber, sill: FR.sill } }, E: { win: { n: 1, w: 0.17, h: 0.26, v: 0.2, frame: FR.timber, sill: FR.sill } },
+    deco1: (S) => sc.local(S.O, S.U, S.V, (g, lu) => { for (const u of [0.1, lu - 0.3]) { g.fillStyle = FR.timber; g.fillRect(u + 0.07, 0.02, 0.03, 0.06); g.fillStyle = '#2f5aa8'; g.beginPath(); g.moveTo(u, 0.08); g.lineTo(u + 0.18, 0.08); g.lineTo(u + 0.18, 0.4); g.lineTo(u + 0.09, 0.46); g.lineTo(u, 0.4); g.closePath(); g.fill(); g.strokeStyle = 'rgba(10,10,30,0.7)'; g.lineWidth = 0.01; g.stroke(); g.fillStyle = '#e0c060'; g.fillRect(u + 0.08, 0.13, 0.02, 0.22); g.fillRect(u + 0.04, 0.2, 0.1, 0.025); } }),
+    roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.5, ov: 0.1, ovE: 0.08, gableMat: 'stone', gablePal: FR.stone }, chim: [-0.9, -0.45, 0.45, 0.24] });
+  B.weaponRack(-1.2, 0.5, -0.75, 0.5, 'spears'); B.shieldRack(0.45, 0.2, 1.05, 0.2); B.anvil(1.25, 0.55); B.barrel(-0.3, 0.75); B.crate(0.2, 0.85, 0.22, 0.2);
+  return B.flush();
+};
+
+/* WINNICA 3×3: trzy rzędy winorośli na palikach, mała tłocznia z beczkami i koszami gron */
+BAKED.franks_vineyard = function () {
+  const sc = sceneFor(3, 3, 2.4, { pRes: RES }), B = new Build(sc);
+  for (const y of [-0.85, -0.15, 0.55]) sc.decal('dirt', '#5a4028', [[[-1.4, y - 0.22], [1.4, y - 0.22], [1.4, y + 0.22], [-1.4, y + 0.22]]], { feather: 8, alpha: 0.9 });
+  for (const y of [-0.85, -0.15, 0.55]) B.vineRow(-1.3, 1.3, y);
+  cottage(B, { x0: 0.45, x1: 1.4, y0: 0.9, y1: 1.4, h1: 0.55, ridge: 'x', low: ['stone', FR.stone], plinth: false,
+    S: { door: { at: 0.4, w: 0.24, h: 0.38, lintel: FR.timber } }, E: {}, roof: { mat: 'shingle', pal: FR.shingle, rise: 0.38, ov: 0.08, ovE: 0.06, gableMat: 'stone', gablePal: FR.stone } });
+  B.barrel(-1.0, 1.1, 0, 1.2); B.barrel(-0.7, 1.2, 0, 1.2);
+  B.part(-0.2, 1.0, 0, 0.2, 1.25, 0.18, () => { const g = sc.g, f = sc.F; for (const x of [-0.08, 0.1]) { const [px, py] = sc.P(x, 1.12, 0); g.fillStyle = '#9a6e34'; g.strokeStyle = 'rgba(30,18,6,0.8)'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py - 4 * f, 8 * f, 5 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#5a2a6a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(px - 5 * f + i * 2.6 * f, py - 7 * f, 2.2 * f, 0, TAU); g.fill(); } } }, { tag: 'kosze', shadow: false });
+  return B.flush();
+};
+
+/* WINIARZ 2×3: kamienna piwnica z wielką bramą, beczki, prasa do winogron i skrzynka gron */
+BAKED.franks_winery = function () {
+  const sc = sceneFor(2, 3, 2.8), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 20, alpha: 0.7 });
+  cottage(B, { x0: -0.9, x1: 0.5, y0: -1.4, y1: -0.3, h1: 0.9, ridge: 'x', low: ['stone', FR.stone], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.3, w: 0.5, h: 0.48, arch: true, frame: FR.doorF, pal: FR.door }, win: { n: 1, w: 0.16, h: 0.24, v: 0.2, frame: FR.timber, sill: FR.sill } }, E: { win: { n: 1, w: 0.17, h: 0.26, v: 0.2, frame: FR.timber, sill: FR.sill } },
+    roof: { mat: 'tiles', pal: FR.tiles, rise: 0.6, ov: 0.1, ovE: 0.08, gableMat: 'stone', gablePal: FR.stone }, chim: [0.2, -0.85, 0.5, 0.24] });
+  B.barrel(-0.62, 0.2, 0, 1.5); B.barrel(-0.32, 0.3, 0, 1.5); B.barrel(-0.68, 0.55, 0, 1.5);
+  B.box(0.35, 0.3, 0, 0.85, 0.75, 0.3, 'plank', { pal: '#8a6a40', ao: 0.3, tag: 'prasa' });
+  B.part(0.52, 0.45, 0.3, 0.68, 0.6, 0.85, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.6, 0.52, 0.3); g.strokeStyle = '#4a3220'; g.lineWidth = 5 * f; g.lineCap = 'round'; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 40 * f); g.stroke(); g.lineWidth = 4 * f; g.beginPath(); g.moveTo(px - 14 * f, py - 38 * f); g.lineTo(px + 14 * f, py - 36 * f); g.stroke(); }, { tag: 'śruba', shadow: false });
+  B.box(-0.1, 0.9, 0, 0.3, 1.2, 0.22, 'plank', { pal: '#7a5a36', ao: 0.3 }); B.heap(0.1, 1.05, 0.15, 0.1, ['#8a4a9a', '#5a2a6a', '#2a1034'], 0.22);
+  return B.flush();
+};
+
+/* KOSZARY 3×3: długa hala (kamień + ryglówka), skrzydło wschodnie, dziedziniec z palisadą, stojakiem, manekinem i sztandarami */
+BAKED.franks_barracks = function () {
+  const sc = sceneFor(3, 3, 3.3), B = new Build(sc);
+  sc.paved(-1.45, -0.3, 0.4, 1.45, { mat: 'cobble', jit: 0.12, seed: 3, feather: 5 });
+  sc.patch(0, 0.05, 2.1, 1.9, { seed: 81, alpha: 0.5 });
+  const hall = cottage(B, { x0: -1.4, x1: 1.4, y0: -1.4, y1: -0.45, h1: 0.7, floors: 2, h2: 0.7, J: 0.08, ridge: 'x', low: ['stone', FR.stone], up: ['plaster', '#e2d8bc', FR.timber], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.5, w: 0.56, h: 0.34, arch: true, frame: FR.doorF, pal: '#4a3420' }, win: { n: 2, w: 0.15, h: 0.22, v: 0.14, frame: FR.timber, sill: FR.sill } }, E: { win: { n: 1, w: 0.16, h: 0.22, v: 0.14, frame: FR.timber } },
+    S2: { win: { n: 3, w: 0.18, h: 0.3, v: 0.18, shut: '#2f4f8a', frame: FR.timber } }, E2: { win: { n: 1, w: 0.18, h: 0.3, v: 0.18, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: '#9a4a2a', rise: 0.7, ov: 0.1, ovE: 0.1, gableMat: 'plaster', gablePal: '#e2d8bc' } });
+  B.chim(hall.roof, -0.75, -0.92, 0.5, 0.26); B.chim(hall.roof, 0.75, -0.92, 0.5, 0.26);
+  cottage(B, { x0: 0.6, x1: 1.4, y0: -0.3, y1: 0.95, h1: 0.95, ridge: 'y', low: ['stone', FR.stone], plinth: ['stone', FR.stoneD],
+    S: { door: { at: 0.5, w: 0.3, h: 0.5, arch: true, frame: FR.doorF, pal: FR.door } }, E: { win: { n: 2, w: 0.16, h: 0.26, v: 0.2, frame: FR.timber } },
+    roof: { mat: 'tiles', pal: '#9a4a2a', rise: 0.5, ov: 0.08, ovE: 0.02, gableMat: 'stone', gablePal: FR.stone, nest: true } });
+  B.palisade(-1.42, -0.3, -1.42, 1.4); B.palisade(-1.42, 1.4, -0.35, 1.4); B.palisade(0.05, 1.4, 0.5, 1.4);
+  B.weaponRack(-1.15, 0.1, -0.6, 0.1, 'spears'); B.dummy(-0.2, 0.55); B.banner(-1.3, 1.2, 1.0); B.banner(0.38, 1.2, 1.0); B.barrel(0.25, 0.1); B.crate(-0.95, 0.95, 0.22, 0.22);
+  return B.flush();
+};
+
+/* ---- 52_saracens.js ---- */
+/* ====================== SARACENI: piaskowiec, kopuły, mozaika, markizy ======================
+   Dachy płaskie z attyką, jedna kopuła na budynek, łukowe okna, jeden pas mozaiki, jedna markiza — resztę ustala facade() i Build. */
+const SR = { sand: '#dcc490', sandL: '#e6d1a0', sandD: '#c9ad74', wall2: '#e0c995', mud: '#cfb27c', teal: '#1f6f78', tealL: '#2a8a9a', wood: '#7a4a22', door: '#5a3d22', gold: '#d8b44a', domeSand: ['#f6e8b8', '#d6bb7a', '#a98b4e', '#6e5428'], dark: '#17120e' };
+
+/* pasek mozaiki tuż przed płaszczyzną ściany */
+function mosaicBand(sc, O, U, V, z0, hgt, side = 'S', pal) {
+  const n = side === 'S' ? [0, 0.004, 0] : [0.004, 0, 0], lu = Math.hypot(...U), dir = [U[0] / lu, U[1] / lu, U[2] / lu];
+  sc.face([O[0] + n[0], O[1] + n[1], z0], [dir[0] * lu, dir[1] * lu, 0], [0, 0, -hgt], 'mosaic', { shade: side === 'S' ? LIGHT.south : LIGHT.east, pal: pal || '#2a8a9a|#f2ead6|#d8a830', wear: 0.4, edge: 0.3 });
+}
+/* dom z płaskim dachem: ściany z piaskowca, pas mozaiki, elewacje przez facade(), attyka */
+function flatHouse(B, o) {
+  const sc = B.sc, h = o.h, z0 = o.z0 ?? 0;
+  B.box(o.x0, o.y0, z0, o.x1, o.y1, h, 'sandstone', { ao: 0.3, pal: o.pal || SR.sand, topPal: SR.sandL, eave: 0.3, wear: o.wear }, (S, E) => {
+    if (o.band !== false) { mosaicBand(sc, S.O, S.U, S.V, h - 0.17, 0.08, 'S'); mosaicBand(sc, E.O, E.U, E.V, h - 0.17, 0.08, 'E'); }
+    if (o.S) facade(sc, S, o.S); if (o.E) facade(sc, E, o.E); if (o.deco) o.deco(S, E);
+  });
+  if (o.parapet !== false) B.parapet(o.x0 - 0.01, o.y0 - 0.01, o.x1 + 0.01, o.y1 + 0.01, h, 0.12, 0.07);
+}
+const arcWin = (w = 0.2, h = 0.34, v = 0.26, o = {}) => ({ kind: 'arch', w, h, v, frame: SR.teal, grille: true, ...o });
+const sarDoor = (at, w = 0.36, h = 0.6, o = {}) => ({ at, w, h, arch: true, frame: SR.teal, pal: SR.door, ...o });
+
+/* DWÓR (PAŁAC) 4×4: mur z baszatami i kopułami, brama-pishtak, pałac z wielką turkusową kopułą i minaretem, dziedziniec z fontanną */
+BAKED.saracens_keep = function () {
+  const sc = sceneFor(4, 4, 4.4), B = new Build(sc), w = 1.7, t = 0.35, zb = 1.0, zf = 0.78;
+  sc.paved(-1.3, -1.3, 1.3, 1.3, { mat: 'pavers', pal: '#c8b890', seed: 5, jit: 0.1, feather: 4 });
+  sc.patch(0, 0.1, 2.5, 2.3, { seed: 52, pal: '#b79a62', alpha: 0.55, feather: 20 });
+  B.part(-w + t, -w + t, 0, w - t, w - t, 0.002, () => sc.face([-w + t, -w + t, 0.002], [2 * w - 2 * t, 0, 0], [0, 2 * w - 2 * t, 0], 'pavers', { shade: 1, pal: '#c0b088', wear: 0.5, edge: 0 }), { tag: 'dziedziniec', kind: 'flat', shadow: false });
+  const tower = (cx, cy, hgt = 1.4) => { B.cyl(cx, cy, 0, hgt, 0.3, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.45, nest: true }); B.dome(cx, cy, hgt, 0.34, { cols: SR.domeSand, nest: true }); };
+  const merlons = (x0, y0, x1, y1, z, n) => B.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, z, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, z + 0.13, () => merlonLine(sc, x0, y0, x1, y1, z, n, 0.1, 0.13, 'sandstone'), { tag: 'blanki', shadow: false });
+  B.box(-w, -w, 0, w, -w + t, zb, 'sandstone', { ao: 0.3, pal: SR.sand }); B.box(-w, -w + t, 0, -w + t, w - t, zb, 'sandstone', { ao: 0.3, pal: SR.sand });
+  merlons(-w + 0.4, -w + 0.05, w - 0.4, -w + 0.05, zb, 10); merlons(-w + 0.05, -w + 0.4, -w + 0.05, w - 0.5, zb, 9);
+  tower(-w + 0.05, -w + 0.05); tower(w - 0.05, -w + 0.05); tower(-w + 0.05, w - 0.05);
+  // pałac
+  B.box(-0.95, -1.0, 0, 0.7, 0.2, 1.45, 'sandstone', { ao: 0.3, pal: SR.wall2, eave: 0.25 }, (S, E) => {
+    mosaicBand(sc, S.O, S.U, S.V, 1.45 - 0.2, 0.1, 'S'); mosaicBand(sc, E.O, E.U, E.V, 1.45 - 0.2, 0.1, 'E');
+    facade(sc, S, { door: sarDoor(0.5, 0.34, 0.5), win: arcWin(0.18, 0.46, 0.34, { over: true, n: 2 }) });
+    facade(sc, E, { win: arcWin(0.18, 0.46, 0.34, { n: 2 }) });
+  });
+  B.parapet(-0.96, -1.01, 0.71, 0.21, 1.45, 0.12, 0.07);
+  B.cyl(-0.12, -0.4, 1.45, 1.8, 0.5, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.45 }); B.dome(-0.12, -0.4, 1.8, 0.55);
+  B.part(0.78, -0.9, 0, 1.0, -0.6, 3.2, () => minaret(sc, 0.88, -0.75, 2.6, 0.11), { tag: 'minaret', shadow: true });
+  // dziedziniec: fontanna i palmy
+  B.cyl(0.0, 0.68, 0, 0.22, 0.34, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 });
+  B.part(-0.34, 0.34, 0.2, 0.34, 1.02, 0.5, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0, 0.68, 0.22); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(px, py, 0.28 * AX * f * 1.4142, 0.28 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(px - 4 * f, py - 1 * f, 10 * f, 3 * f, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
+  B.tree('palm', 3, -1.05, 0.8, 0.6); B.tree('palm', 4, 1.0, 0.5, 0.55);
+  // mury przednie z bramą-pishtak
+  B.box(-w, w - t, 0, -0.5, w, zf, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S) => { mosaicBand(sc, S.O, S.U, S.V, zf - 0.15, 0.07, 'S'); });
+  B.box(0.5, w - t, 0, w, w, zf, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S) => { mosaicBand(sc, S.O, S.U, S.V, zf - 0.15, 0.07, 'S'); });
+  B.box(w - t, -w + t, 0, w, w - t, zf, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S, E) => { mosaicBand(sc, E.O, E.U, E.V, zf - 0.15, 0.07, 'E'); });
+  B.box(-0.5, w - 0.55, 0, 0.5, w + 0.1, 1.7, 'sandstone', { ao: 0.25, pal: SR.sandL, eave: 0.3 }, (S) => sc.local(S.O, S.U, S.V, (g, lu) => {
+    const vb = 1.7, ww = 0.62, u0 = (lu - ww) / 2; g.fillStyle = SR.teal; g.beginPath(); g.moveTo(u0 - 0.06, vb); g.lineTo(u0 - 0.06, 0.7); g.arc(lu / 2, 0.7, ww / 2 + 0.06, Math.PI, 0); g.lineTo(u0 + ww + 0.06, vb); g.closePath(); g.fill();
+    g.fillStyle = SR.dark; g.beginPath(); g.moveTo(u0, vb); g.lineTo(u0, 0.72); g.arc(lu / 2, 0.72, ww / 2, Math.PI, 0); g.lineTo(u0 + ww, vb); g.closePath(); g.fill();
+    g.fillStyle = SR.door; g.beginPath(); g.moveTo(u0 + 0.1, vb); g.lineTo(u0 + 0.1, 1.0); g.arc(lu / 2, 1.0, ww / 2 - 0.1, Math.PI, 0); g.lineTo(u0 + ww - 0.1, vb); g.closePath(); g.fill();
+    g.strokeStyle = SR.gold; g.lineWidth = 0.016; g.beginPath(); g.moveTo(u0 - 0.06, vb); g.lineTo(u0 - 0.06, 0.7); g.arc(lu / 2, 0.7, ww / 2 + 0.06, Math.PI, 0); g.lineTo(u0 + ww + 0.06, vb); g.stroke();
+    g.fillStyle = SR.tealL; for (let i = 0; i < 5; i++) g.fillRect(0.06 + i * (lu - 0.12) / 5, 0.1, (lu - 0.12) / 5 - 0.02, 0.18); }));
+  merlons(-0.45, w + 0.05, 0.45, w + 0.05, 1.7, 5);
+  B.box(-0.3, w + 0.1, 0, 0.3, 1.99, 0.06, 'plank', { pal: '#7a5632', ao: 0.3 });
+  merlons(-w + 0.4, w - 0.05, -0.55, w - 0.05, zf, 4); merlons(0.55, w - 0.05, w - 0.4, w - 0.05, zf, 4); merlons(w - 0.05, -w + 0.4, w - 0.05, w - 0.45, zf, 10);
+  tower(w - 0.05, w - 0.05, 1.5);
+  return B.flush({ shadow: { alpha: 0.5, blur: 14 } });
+};
+
+/* DOM 2×2 (Chata): taras z attyką, mała nadbudówka z kopułką, markiza nad drzwiami */
+BAKED.saracens_hut = function () {
+  const sc = sceneFor(2, 2, 2.6), B = new Build(sc), x0 = -0.8, x1 = 0.8, y0 = -0.85, y1 = 0.5, zg = 1.0;
+  sc.patch(0, 0.05, 1.3, 1.2, { seed: 21, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0, x1, y0, y1, h: zg, S: { door: sarDoor(0.32), win: { n: 1, ...arcWin() } }, E: { win: { n: 2, ...arcWin(0.2, 0.34, 0.26, { frame: SR.wood }) } } });
+  B.box(x0 + 0.1, y0 + 0.1, zg + 0.12, x0 + 0.95, y0 + 0.75, zg + 0.7, 'sandstone', { ao: 0.25, pal: SR.sandL }, (S) => facade(sc, S, { win: { n: 1, ...arcWin(0.16, 0.28, 0.14, { lit: '#f6c866', lit2: '#c98a30' }) } }));
+  B.dome(x0 + 0.525, y0 + 0.425, zg + 0.7, 0.32, { cols: SR.domeSand });
+  B.part(-0.6, y1, 0.82, 0.04, y1 + 0.3, 0.98, () => awning(sc, -0.6, y1 + 0.01, 0.96, 0.64, 0.24, 0.1), { tag: 'markiza', kind: 'roof' });
+  B.stairs(-0.46, -0.1, y1 + 0.02, 2, 0.12, 'sandstone', 0.13);
+  B.jar(0.5, 0.72); B.jar(0.66, 0.64, 0.9); B.sack(0.25, 0.82, '#d8c898'); B.barrel(-0.7, 0.8);
+  return B.flush();
+};
+
+/* CHATA DRWALA 2×2: lepianka z szopą z liści palmowych, kłody, pień do rąbania */
+BAKED.saracens_woodcutter = function () {
+  const sc = sceneFor(2, 2, 2.2), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 22, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.85, x1: 0.35, y0: -0.85, y1: 0.0, h: 0.75, pal: SR.mud, band: false, S: { door: sarDoor(0.3, 0.3, 0.45), win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } } });
+  B.pergola(0.45, 0.1, 0.95, 0.75, 0.62); B.logs(0.7, 0.55); B.logs(0.7, 0.35);
+  B.logs(-0.6, 0.35); B.logs(-0.6, 0.58); B.stump(-0.15, 0.45);
+  return B.flush();
+};
+
+/* LEŚNICZÓWKA 2×2: lepianka i grządka z sadzonkami palm, kanał nawadniający */
+BAKED.saracens_forester = function () {
+  const sc = sceneFor(2, 2, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 23, pal: '#b79a62', alpha: 0.75 });
+  sc.decal('dirt', '#4a3822', [[[-0.86, 0.28], [0.86, 0.28], [0.86, 0.9], [-0.86, 0.9]]], { feather: 5, alpha: 0.92 });
+  flatHouse(B, { x0: -0.85, x1: 0.35, y0: -0.85, y1: -0.08, h: 0.75, pal: SR.mud, band: false, S: { door: sarDoor(0.3, 0.3, 0.45), win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } } });
+  B.mudWall(-0.9, 0.25, 0.9, 0.25, 0.2); B.mudWall(-0.9, 0.25, -0.9, 0.95, 0.2); B.mudWall(0.9, 0.25, 0.9, 0.95, 0.2);
+  B.channel(-0.8, 0.9, 0.8, 0.97);
+  for (const x of [-0.6, -0.2, 0.2, 0.6]) B.tree('palm', 31 + Math.round(x * 5), x, 0.62, 0.26);
+  B.bucket(0.55, 0.0); B.jar(0.7, 0.1);
+  return B.flush();
+};
+
+/* TARTAK 3×2: otwarta wiata z dachem z liści, piła ramowa na belce, stosy kłód i desek */
+BAKED.saracens_sawmill = function () {
+  const sc = sceneFor(3, 2, 2.2), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 24, pal: '#b79a62', alpha: 0.75 });
+  B.box(-1.3, -0.75, 0, 0.55, 0.45, 0.06, 'plank', { pal: '#8a6a40', ao: 0.3, shadow: false });
+  B.box(-1.3, -0.75, 0.06, 0.45, -0.67, 0.95, 'sandstone', { pal: SR.mud, ao: 0.3, wear: 0.8 }); B.box(-1.3, -0.67, 0.06, -1.22, 0.35, 0.95, 'sandstone', { pal: SR.mud, ao: 0.3, wear: 0.8 });
+  for (const [px, py] of [[-1.3, 0.35], [-0.4, 0.35], [0.45, 0.35], [0.45, -0.75]]) B.box(px, py, 0.06, px + 0.1, py + 0.1, 0.95, 'bark', { pal: '#6a4a2c', ao: 0.2 });
+  B.part(-1.32, -0.77, 0.95, 0.57, 0.47, 0.99, () => sc.face([-1.32, -0.77, 0.97], [1.89, 0, 0], [0, 1.24, 0], 'thatch', { shade: 1, pal: '#9a8a4a', wear: 0.4, edge: 0.4 }), { tag: 'daszek', kind: 'roof' });
+  B.sawRig(-1.1, 0.0, 0.0);
+  B.logs(-1.1, 0.7); B.logs(-0.75, 0.72); B.planks(0.7, -0.3, 1.2, 0.0, 0.34); B.planks(0.72, 0.15, 1.15, 0.4, 0.26, '#d0b07a');
+  return B.flush();
+};
+
+/* CHATA MYŚLIWEGO 2×2: lepianka, suszarka ze skórami, łuk i kołczan na ścianie */
+BAKED.saracens_hunter = function () {
+  const sc = sceneFor(2, 2, 2.2), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 25, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.9, x1: 0.4, y0: -0.85, y1: 0.05, h: 0.78, pal: SR.mud, band: false, S: { door: sarDoor(0.4, 0.3, 0.46), win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } },
+    deco: (S) => sc.local(S.O, S.U, S.V, (g) => { g.strokeStyle = '#5a3a1c'; g.lineWidth = 0.02; g.lineCap = 'round'; g.beginPath(); g.moveTo(1.0, 0.1); g.quadraticCurveTo(0.92, 0.3, 1.0, 0.5); g.stroke(); g.lineWidth = 0.008; g.strokeStyle = '#e8e0c8'; g.beginPath(); g.moveTo(1.0, 0.1); g.lineTo(1.0, 0.5); g.stroke(); g.fillStyle = '#7a4a22'; g.fillRect(1.08, 0.14, 0.05, 0.3); }) });
+  B.rack(0.78, -0.55, 0.78, 0.3, 'pelts', 0.78); B.barrel(-0.7, 0.4); B.stump(-0.3, 0.55);
+  return B.flush();
+};
+
+/* MLECZARNIA 2×3: dom z zagrodą z cegły mułowej, dzbany, stół z serami */
+BAKED.saracens_dairy = function () {
+  const sc = sceneFor(2, 3, 2.4), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.7, { seed: 26, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.8, x1: 0.8, y0: -1.4, y1: -0.2, h: 0.9, S: { door: sarDoor(0.5, 0.34, 0.52), win: { n: 2, ...arcWin(0.18, 0.3, 0.22) } }, E: { win: { n: 2, ...arcWin(0.18, 0.3, 0.22, { frame: SR.wood }) } } });
+  B.mudWall(-0.9, 1.3, -0.1, 1.3, 0.22); B.mudWall(0.1, 1.3, 0.9, 1.3, 0.22); B.mudWall(-0.9, 0.6, -0.9, 1.3, 0.22); B.mudWall(0.9, 0.6, 0.9, 1.3, 0.22);
+  B.jar(-0.6, 0.35); B.jar(-0.4, 0.42); B.jar(-0.62, 0.58, 0.9);
+  B.box(0.3, 0.3, 0, 0.8, 0.52, 0.32, 'plank', { pal: '#8a6a40', ao: 0.3, tag: 'stół' });
+  B.disc(0.42, 0.4, 0.32, 0.07, 0.05, [236, 206, 120]); B.disc(0.62, 0.4, 0.32, 0.07, 0.05, [230, 196, 104]); B.churn(0.0, 0.75);
+  return B.flush();
+};
+
+/* SAD 3×3: drzewa owocowe (figi, granaty) w murowanym ogrodzie z kanałem nawadniającym i koszami */
+BAKED.saracens_orchard = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc);
+  sc.decal('grass', 'sand', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.5 });
+  B.mudWall(-1.38, -1.3, 1.38, -1.3, 0.22); B.mudWall(-1.38, -1.3, -1.38, 1.3, 0.22); B.mudWall(1.38, -1.3, 1.38, 1.3, 0.22);
+  B.mudWall(-1.38, 1.3, -0.3, 1.3, 0.22); B.mudWall(0.3, 1.3, 1.38, 1.3, 0.22);
+  B.channel(-1.2, 0.58, 1.2, 0.66);
+  [[-0.85, -0.65], [0.0, -0.72], [0.85, -0.65], [-0.8, 0.2], [0.05, 0.12], [0.85, 0.2]].forEach(([x, y], i) => B.tree('olive', 21 + i, x, y, 0.78));
+  B.crate(-1.0, 1.0, 0.24, 0.2); B.heap(-1.0, 1.0, 0.13, 0.1, ['#f0a040', '#d07020', '#7a3a10'], 0.2); B.jar(0.9, 1.0); B.jar(1.08, 0.92, 0.9);
+  return B.flush();
+};
+
+/* CHATA NOSIWODY 2×2: sabil — kioskowy dom z kopułą i otworami z kratą, poidło z wodą, dzbany */
+BAKED.saracens_watercarrier = function () {
+  const sc = sceneFor(2, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 27, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.55, x1: 0.45, y0: -0.75, y1: 0.2, h: 0.95, S: { win: { n: 2, ...arcWin(0.22, 0.46, 0.28, { lit: '#243a42', lit2: '#101e24' }) } }, E: { win: { n: 2, ...arcWin(0.2, 0.46, 0.28, { lit: '#243a42', lit2: '#101e24' }) } } });
+  B.cyl(-0.05, -0.28, 0.95, 1.12, 0.36, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); B.dome(-0.05, -0.28, 1.12, 0.38);
+  B.box(-0.55, 0.3, 0, 0.35, 0.62, 0.24, { east: 'sandstone', south: 'sandstone', top: 'water' }, { pal: '#d8c08a', ao: 0.3, tag: 'poidło' });
+  B.jar(-0.6, 0.82); B.jar(-0.42, 0.88, 0.9); B.jar(0.6, 0.4); B.jar(0.7, 0.55, 0.9); B.jar(0.62, 0.7);
+  return B.flush();
+};
+
+/* TARG 3×3: bruk, trzy stragany pod pasiastymi markizami, pawilon z fontanną i dywany */
+BAKED.saracens_market = function () {
+  const sc = sceneFor(3, 3, 2.4), B = new Build(sc);
+  sc.paved(-1.5, -1.5, 1.5, 1.5, { mat: 'pavers', pal: '#c0b088', seed: 13, jit: 0.1 }); sc.patch(0, 0, 2.2, 2.2, { seed: 31, pal: '#b79a62', alpha: 0.5, feather: 16 });
+  B.stall(-0.95, -1.35, { pal: '#b8352b|#f1e6c8', kind: 'fruit' }); B.stall(0, -1.35, { pal: '#2f6ea8|#f1e6c8', kind: 'cloth' }); B.stall(0.95, -1.35, { pal: '#d8a830|#f1e6c8', kind: 'spice' });
+  B.rug(-1.2, 0.35, 0.7, 0.45); B.rug(0.55, 0.6, 0.6, 0.4, '#2f6ea8|#f1e6c8');
+  B.cyl(0, -0.1, 0, 0.26, 0.34, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 });
+  B.part(-0.3, -0.4, 0.26, 0.3, 0.2, 0.3, () => { const g = sc.g, f = sc.F, [wx, wy] = sc.P(0, -0.1, 0.26); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.27 * AX * f * 1.4142, 0.27 * AY * f * 1.4142, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
+  for (const [px, py] of [[-0.3, -0.4], [0.24, -0.4], [-0.3, 0.14], [0.24, 0.14]]) B.box(px, py, 0.26, px + 0.06, py + 0.06, 1.0, 'bark', { ao: 0.1, pal: '#6a4a2c' });
+  B.pyramid({ x0: -0.34, x1: 0.34, y0: -0.44, y1: 0.24, z: 1.0, rise: 0.4, mat: 'thatch', pal: '#9a8a4a', ov: 0.1 });
+  B.crate(1.2, 1.2, 0.2, 0.2); B.crate(1.2, 1.0, 0.2, 0.34); B.barrel(-1.3, 1.25); B.sack(1.0, 1.25); B.sack(1.15, 1.3, '#c9b27a', 0.9); B.jar(-1.1, 1.05);
+  return B.flush();
+};
+
+/* SKŁAD 3×2: magazyn z płaskim dachem i nadbudówką świetlika, wielka brama, amfory i worki */
+BAKED.saracens_store = function () {
+  const sc = sceneFor(3, 2, 2.6), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 28, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -1.3, x1: 1.3, y0: -0.7, y1: 0.35, h: 1.0, S: { door: sarDoor(0.5, 0.6, 0.5), win: { n: 2, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } } });
+  B.box(-0.5, -0.5, 1.12, 0.5, -0.05, 1.45, 'sandstone', { ao: 0.25, pal: SR.sandL }, (S) => facade(sc, S, { win: { n: 2, ...arcWin(0.16, 0.2, 0.08, { lit: '#243a42', lit2: '#101e24' }) } }));
+  B.parapet(-0.51, -0.51, 0.51, -0.04, 1.45, 0.1, 0.06);
+  B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'sandstone', 0.14);
+  B.jar(-1.0, 0.65); B.jar(-0.82, 0.7); B.jar(-0.68, 0.62, 0.95); B.jar(-0.9, 0.85, 0.9); B.sack(0.7, 0.65); B.sack(0.9, 0.72); B.sack(0.8, 0.85, '#c9b27a', 0.9); B.crate(1.1, 0.6, 0.22, 0.22);
+  return B.flush();
+};
+
+/* MECZET 3×3: sala modlitewna z kopułą na bębnie, portal-iwan, dziedziniec z fontanną, minaret */
+BAKED.saracens_temple = function () {
+  const sc = sceneFor(3, 3, 3.6), B = new Build(sc), x0 = -1.1, x1 = 1.1, y0 = -1.25, y1 = 0.3, zw = 1.15;
+  sc.paved(-1.45, 0.35, 1.45, 1.45, { mat: 'pavers', pal: '#c8b890', seed: 9, jit: 0.1 });
+  sc.patch(0, 0.05, 2.0, 1.9, { seed: 27, pal: '#b79a62', alpha: 0.6, feather: 18 });
+  B.box(x0 - 0.04, y0 - 0.04, 0, x1 + 0.04, y1 + 0.04, 0.1, 'sandstone', { ao: 0.4, pal: SR.sandD });
+  B.box(x0, y0, 0.1, x1, y1, zw, 'sandstone', { ao: 0.3, pal: SR.wall2, topPal: SR.sandL, eave: 0.25 }, (S, E) => {
+    mosaicBand(sc, S.O, S.U, S.V, zw - 0.2, 0.1, 'S'); mosaicBand(sc, E.O, E.U, E.V, zw - 0.2, 0.1, 'E');
+    facade(sc, S, { win: arcWin(0.17, 0.46, 0.34, { n: 3, lit: '#2c4a50', lit2: '#16282c' }) }); facade(sc, E, { win: arcWin(0.17, 0.46, 0.34, { n: 2, lit: '#2c4a50', lit2: '#16282c' }) });
+  });
+  B.parapet(x0 - 0.01, y0 - 0.01, x1 + 0.01, y1 + 0.01, zw, 0.1, 0.06, '#e6d1a0', 'sandstone', [-0.44, 0.44]);
+  // portal-iwan z głęboką niszą i mozaiką
+  B.box(-0.4, y1, 0.1, 0.4, 0.72, 1.45, 'sandstone', { ao: 0.25, pal: SR.sandL, eave: 0.2 }, (S) => sc.local(S.O, S.U, S.V, (g, lu) => {
+    g.fillStyle = SR.teal; g.beginPath(); g.moveTo(0.06, 1.35); g.lineTo(0.06, 0.55); g.arc(lu / 2, 0.55, lu / 2 - 0.06, Math.PI, 0); g.lineTo(lu - 0.06, 1.35); g.closePath(); g.fill();
+    g.fillStyle = SR.dark; g.beginPath(); g.moveTo(0.14, 1.35); g.lineTo(0.14, 0.58); g.arc(lu / 2, 0.58, lu / 2 - 0.14, Math.PI, 0); g.lineTo(lu - 0.14, 1.35); g.closePath(); g.fill();
+    g.fillStyle = SR.door; g.beginPath(); g.moveTo(0.26, 1.35); g.lineTo(0.26, 0.9); g.arc(lu / 2, 0.9, lu / 2 - 0.26, Math.PI, 0); g.lineTo(lu - 0.26, 1.35); g.closePath(); g.fill();
+    g.strokeStyle = SR.gold; g.lineWidth = 0.014; g.beginPath(); g.moveTo(0.06, 1.35); g.lineTo(0.06, 0.55); g.arc(lu / 2, 0.55, lu / 2 - 0.06, Math.PI, 0); g.lineTo(lu - 0.06, 1.35); g.stroke(); }));
+  // kopuły: wielka na bębnie + dwie małe na rogach frontu
+  B.cyl(0, -0.4, zw, zw + 0.38, 0.62, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', topPal: SR.sandL, ao: 0.5 }); B.dome(0, -0.4, zw + 0.38, 0.68);
+  for (const cx of [-0.85, 0.85]) { B.cyl(cx, y1 - 0.25, zw, zw + 0.25, 0.18, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); B.dome(cx, y1 - 0.25, zw + 0.25, 0.21, { nest: true }); }
+  // dziedziniec: niski mur z arkadą i fontanna
+  B.box(-1.45, 1.38, 0, 1.45, 1.46, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' }, (S) => sc.local(S.O, S.U, S.V, (g) => { g.fillStyle = '#1a1510'; for (let i = 0; i < 9; i++) { const u = 0.15 + i * 0.3; if (u > 1.2 && u < 1.7) continue; g.beginPath(); g.moveTo(u, 0.5); g.lineTo(u, 0.24); g.arc(u + 0.09, 0.24, 0.09, Math.PI, 0); g.lineTo(u + 0.18, 0.5); g.closePath(); g.fill(); } }));
+  B.box(-1.45, 0.4, 0, -1.37, 1.38, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' }); B.box(1.37, 0.4, 0, 1.45, 1.38, 0.5, 'sandstone', { ao: 0.2, pal: '#dcc490' });
+  B.cyl(0, 1.05, 0, 0.22, 0.3, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 });
+  B.part(-0.3, 0.75, 0.22, 0.3, 1.35, 0.55, () => { const g = sc.g, f = sc.F, [wx, wy] = sc.P(0, 1.05, 0.22); g.fillStyle = '#3a9ab8'; g.beginPath(); g.ellipse(wx, wy, 0.23 * AX * f * 1.4142, 0.23 * AY * f * 1.4142, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(wx - 4 * f, wy - 1 * f, 10 * f, 3 * f, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
+  B.part(1.13, 0.38, 0, 1.37, 0.62, 3.4, () => minaret(sc, 1.25, 0.5, 2.55, 0.12), { tag: 'minaret', shadow: true });
+  return B.flush();
+};
+
+/* GLINIANKA 3×3: wyrobisko z glinianą skarpą, hałdy gliny, cegły schnące na słońcu i lepianka */
+BAKED.saracens_claypit = function () {
+  const sc = sceneFor(3, 3, 2.2, { pRes: RES }), B = new Build(sc);
+  sc.decal('dirt', '#a8643a', [[[-1.42, -1.25], [1.42, -1.25], [1.42, 1.05], [-1.42, 1.05]]], { feather: 14, alpha: 0.95 });
+  sc.decal('dirt', '#7a4426', [[[-1.0, -0.8], [0.7, -0.8], [0.7, 0.45], [-1.0, 0.45]]], { feather: 10, alpha: 0.9 });
+  B.box(-1.35, -1.3, 0, 0.5, -0.9, 0.5, { east: 'dirt', south: 'dirt', top: 'dirt' }, { pal: '#a8643a', ao: 0.35, wear: 0.5, tag: 'skarpa' });
+  B.box(-1.35, -1.3, 0.5, -0.2, -1.05, 0.8, { east: 'dirt', south: 'dirt', top: 'dirt' }, { pal: '#b0703e', ao: 0.3, wear: 0.5 });
+  flatHouse(B, { x0: 0.7, x1: 1.4, y0: -1.3, y1: -0.7, h: 0.72, pal: SR.mud, band: false, S: { door: sarDoor(0.35, 0.26, 0.4), win: { n: 1, ...arcWin(0.14, 0.22, 0.18, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.14, 0.22, 0.18, { frame: SR.wood }) } } });
+  B.bricksRow(-1.2, 0.55, 5); B.bricksRow(-1.2, 0.78, 5); B.bricksRow(-1.2, 1.0, 5, '#b87a40');
+  B.heap(0.95, 0.35, 0.35, 0.3, 'clay'); B.heap(0.2, 0.2, 0.28, 0.22, 'clay');
+  B.barrel(0.7, 1.05); B.jar(0.95, 1.0); B.crate(1.2, 0.85, 0.2, 0.2);
+  return B.flush();
+};
+
+/* GAJ DAKTYLOWY 3×3: pięć palm daktylowych, kanał nawadniający i kosze z daktylami */
+BAKED.saracens_dategrove = function () {
+  const sc = sceneFor(3, 3, 3.0), B = new Build(sc);
+  sc.decal('grass', 'sand', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.5 });
+  B.channel(-1.25, 0.7, 1.25, 0.78);
+  [[-0.9, -0.75], [0.05, -0.9], [0.95, -0.7], [-0.5, 0.15], [0.5, 0.1]].forEach(([x, y], i) => B.tree('palm', 51 + i, x, y, 0.92));
+  B.part(-1.15, 0.9, 0, -0.5, 1.2, 0.18, () => { const g = sc.g, f = sc.F; for (const [x, y] of [[-1.0, 1.0], [-0.75, 1.08]]) { const [px, py] = sc.P(x, y, 0); g.fillStyle = '#9a6e34'; g.strokeStyle = 'rgba(30,18,6,0.8)'; g.lineWidth = f; g.beginPath(); g.ellipse(px, py - 4 * f, 9 * f, 5.5 * f, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#5a3418'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(px - 6 * f + i * 2.4 * f, py - 7 * f, 2.2 * f, 0, TAU); g.fill(); } } }, { tag: 'kosze', shadow: false });
+  B.jar(1.0, 1.0); B.jar(1.18, 0.92, 0.9);
+  return B.flush();
+};
+
+/* LAS KADZIDLANY 3×3: rzędy niskich drzewek żywicznych, chata zbieracza i dzbany na żywicę */
+BAKED.saracens_incensewood = function () {
+  const sc = sceneFor(3, 3, 2.2), B = new Build(sc);
+  sc.decal('grass', 'sand', [[[-1.4, -1.4], [1.4, -1.4], [1.4, 1.4], [-1.4, 1.4]]], { feather: 12, alpha: 0.7 });
+  [-0.95, 0, 0.95].forEach((x, i) => [-0.9, -0.3, 0.3].forEach((y, j) => B.tree('olive', 61 + i * 3 + j, x + (j % 2) * 0.12, y, 0.5)));
+  flatHouse(B, { x0: 0.6, x1: 1.35, y0: 0.7, y1: 1.3, h: 0.7, pal: SR.mud, band: false, S: { door: sarDoor(0.35, 0.26, 0.4) }, E: { win: { n: 1, ...arcWin(0.14, 0.22, 0.18, { frame: SR.wood }) } } });
+  B.jar(-0.9, 1.0); B.jar(-0.72, 1.1, 0.9); B.jar(-0.5, 0.98); B.sack(0.1, 1.05, '#d8c898');
+  return B.flush();
+};
+
+/* WYTWÓRNIA KADZIDŁA 2×3: dom z kopułą, kadzielnice z dymkiem, dzbany i worki żywicy */
+BAKED.saracens_incense = function () {
+  const sc = sceneFor(2, 3, 2.8), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 29, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.8, x1: 0.6, y0: -1.4, y1: -0.3, h: 0.92, S: { door: sarDoor(0.3, 0.36, 0.54), win: { n: 1, ...arcWin(0.2, 0.34, 0.24) } }, E: { win: { n: 2, ...arcWin(0.18, 0.32, 0.24, { frame: SR.wood }) } } });
+  B.cyl(-0.1, -0.85, 0.92, 1.1, 0.42, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); B.dome(-0.1, -0.85, 1.1, 0.44, { cols: SR.domeSand });
+  B.rug(-0.3, 0.1, 0.8, 0.5, '#a8352b|#d8a830'); B.censer(-0.15, 0.3); B.censer(0.3, 0.4);
+  B.jar(-0.7, 0.2); B.jar(-0.55, 0.3, 0.9); B.sack(0.65, 0.2, '#d8c898'); B.sack(0.75, 0.35, '#cdbb88', 0.9);
+  return B.flush();
+};
+
+/* PLANTACJA BAWEŁNY 3×3: rzędy krzewów z białymi torebkami, bele i chata */
+BAKED.saracens_cotton = function () {
+  const sc = sceneFor(3, 3, 2.0, { pRes: RES }), B = new Build(sc);
+  for (const y of [-0.85, -0.15, 0.55]) sc.decal('dirt', '#6a4a2a', [[[-1.4, y - 0.2], [1.4, y - 0.2], [1.4, y + 0.2], [-1.4, y + 0.2]]], { feather: 8, alpha: 0.85 });
+  for (const y of [-0.85, -0.15, 0.55]) B.cottonRow(-1.3, 1.3, y);
+  flatHouse(B, { x0: 0.6, x1: 1.35, y0: 0.9, y1: 1.4, h: 0.62, pal: SR.mud, band: false, S: { door: sarDoor(0.4, 0.24, 0.36) } });
+  B.sack(-1.0, 1.1, '#f6f2e6', 1.1); B.sack(-0.78, 1.18, '#f6f2e6', 1.1); B.sack(-0.9, 1.0, '#f0ece0', 1.0, 0.2); B.jar(0.0, 1.1);
+  return B.flush();
+};
+
+/* TKALNIA 2×3: dom z krosnem pod markizą, suszarka z kolorowymi tkaninami i bele */
+BAKED.saracens_weaver = function () {
+  const sc = sceneFor(2, 3, 2.4), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 30, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.8, x1: 0.6, y0: -1.4, y1: -0.35, h: 0.9, S: { door: sarDoor(0.25, 0.34, 0.52), win: { n: 1, ...arcWin(0.2, 0.34, 0.24) } }, E: { win: { n: 2, ...arcWin(0.18, 0.32, 0.24, { frame: SR.wood }) } } });
+  B.loom(-0.45, 0.4, 0.6); B.rack(0.35, 0.3, 0.35, 1.0, 'cloth', 0.85);
+  B.sack(-0.7, 0.85, '#f0e8d0'); B.sack(-0.52, 0.95, '#e8e0c8', 0.9); B.jar(0.0, 0.95);
+  return B.flush();
+};
+
+/* GARNCARNIA 2×3: dom, piec garncarski z kopułą i żarem, stosy dzbanów i koło garncarskie */
+BAKED.saracens_pottery = function () {
+  const sc = sceneFor(2, 3, 2.6), B = new Build(sc);
+  sc.patch(0, 0.2, 1.2, 1.7, { seed: 32, pal: '#b79a62', alpha: 0.75 });
+  flatHouse(B, { x0: -0.85, x1: 0.35, y0: -1.4, y1: -0.35, h: 0.88, S: { door: sarDoor(0.3, 0.34, 0.52), win: { n: 1, ...arcWin(0.2, 0.34, 0.24) } }, E: { win: { n: 1, ...arcWin(0.18, 0.32, 0.24, { frame: SR.wood }) } } });
+  B.box(0.5, -1.0, 0, 0.98, -0.52, 0.25, 'sandstone', { pal: '#b88a52', ao: 0.3 }); B.dome(0.74, -0.76, 0.25, 0.26, { cols: ['#e8c898', '#c8946a', '#9a6a44', '#5a3c24'], finial: false });
+  B.part(0.6, -0.55, 0.25, 0.88, -0.45, 0.45, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(0.74, -0.5, 0.33); g.fillStyle = '#1c120c'; g.beginPath(); g.ellipse(px, py, 8 * f, 6 * f, 0, 0, TAU); g.fill(); const gl = g.createRadialGradient(px, py, 0, px, py, 8 * f); gl.addColorStop(0, 'rgba(255,220,120,0.9)'); gl.addColorStop(1, 'rgba(255,100,20,0.5)'); g.fillStyle = gl; g.beginPath(); g.ellipse(px, py + 1 * f, 5.4 * f, 3.8 * f, 0, 0, TAU); g.fill(); }, { tag: 'otwór pieca', shadow: false, nest: true });
+  for (const [x, y, s] of [[-0.7, 0.2, 1], [-0.52, 0.3, 0.9], [-0.7, 0.42, 1.1], [-0.4, 0.5, 0.9], [0.0, 0.2, 1], [0.18, 0.3, 0.9]]) B.jar(x, y, s);
+  B.disc(0.4, 0.55, 0, 0.18, 0.06, [196, 140, 90]); B.heap(0.85, 0.5, 0.25, 0.18, 'clay');
+  return B.flush();
+};
+
+/* QANAT 3×2: murowane wylotowe ujęcie z łukowym tunelem, kanał i basen z wodą, dwa szyby z wyciągami */
+BAKED.saracens_qanat = function () {
+  const sc = sceneFor(3, 2, 2.2, { pRes: RES }), B = new Build(sc);
+  sc.patch(0, 0.1, 1.9, 1.2, { seed: 33, pal: '#b79a62', alpha: 0.7 });
+  B.box(-0.8, -0.9, 0, 0.8, -0.35, 0.8, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S, E) => {
+    mosaicBand(sc, S.O, S.U, S.V, 0.8 - 0.16, 0.08, 'S'); mosaicBand(sc, E.O, E.U, E.V, 0.8 - 0.16, 0.08, 'E');
+    facade(sc, S, { door: { at: 0.5, w: 0.5, h: 0.36, arch: true, frame: SR.teal, pal: '#0a1216' } });
+  });
+  B.parapet(-0.81, -0.91, 0.81, -0.34, 0.8, 0.1, 0.06);
+  for (const x of [-1.15, 1.15]) { B.cyl(x, -0.62, 0, 0.3, 0.2, { mat: 'sandstone', pal: SR.sandD, topMat: 'sandstone', ao: 0.4 }); B.part(x - 0.15, -0.77, 0.3, x + 0.15, -0.47, 0.34, () => { const g = sc.g, [px, py] = sc.P(x, -0.62, 0.3), rx = 0.14 * AX * sc.F * 1.4142; g.fillStyle = '#0a1216'; g.beginPath(); g.ellipse(px, py, rx, rx / 2, 0, 0, TAU); g.fill(); }, { tag: 'szyb', shadow: false, nest: true }); }
+  B.channel(-0.2, -0.3, 0.2, 0.4);
+  const rim = (x0, y0, x1, y1) => B.box(x0, y0, 0, x1, y1, 0.14, 'sandstone', { pal: SR.sandD, ao: 0.2, tag: 'obrzeże' });
+  rim(-0.9, 0.38, 0.9, 0.46); rim(-0.9, 0.46, -0.82, 0.82); rim(0.82, 0.46, 0.9, 0.82); rim(-0.9, 0.82, 0.9, 0.9);
+  B.channel(-0.8, 0.46, 0.8, 0.82);
+  B.jar(1.2, 0.5); B.jar(1.05, 0.6, 0.9); B.jar(-1.15, 0.55);
+  return B.flush();
+};
+
+/* ŁAŹNIA 3×3: hammam z trzema kopułami z gwiaździstymi świetlikami, wejście, ławy i dzbany w dziedzińcu */
+BAKED.saracens_bathhouse = function () {
+  const sc = sceneFor(3, 3, 3.0), B = new Build(sc);
+  sc.paved(-1.4, 0.35, 1.4, 1.4, { mat: 'pavers', pal: '#c8b890', seed: 11, jit: 0.1 }); sc.patch(0, 0.1, 2.0, 1.9, { seed: 34, pal: '#b79a62', alpha: 0.55, feather: 18 });
+  flatHouse(B, { x0: -1.2, x1: 1.0, y0: -1.2, y1: 0.3, h: 0.95, S: { door: sarDoor(0.28, 0.4, 0.5), win: { n: 2, ...arcWin(0.18, 0.28, 0.26) } }, E: { win: { n: 2, ...arcWin(0.18, 0.28, 0.26, { frame: SR.wood }) } } });
+  const star = (cx, cy, z, r) => B.part(cx - r, cy - r, z, cx + r, cy + r, z + r * 1.2, () => { const g = sc.g, f = sc.F, [dx, dy] = sc.P(cx, cy, z), R2 = r * AX * f * 1.4142; g.fillStyle = 'rgba(14,30,40,0.85)'; for (const [a, b] of [[0, -0.55], [-0.4, -0.3], [0.4, -0.3], [-0.25, -0.65], [0.25, -0.65]]) { g.beginPath(); g.arc(dx + a * R2, dy + b * R2, R2 * 0.08, 0, TAU); g.fill(); } }, { tag: 'świetlik', shadow: false, nest: true });
+  B.cyl(-0.1, -0.45, 0.95, 1.2, 0.46, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); B.dome(-0.1, -0.45, 1.2, 0.5, { cols: SR.domeSand }); star(-0.1, -0.45, 1.3, 0.5);
+  for (const cx of [-0.88, 0.7]) { B.cyl(cx, -0.0, 0.95, 1.1, 0.2, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4 }); B.dome(cx, 0.0, 1.1, 0.24, { cols: SR.domeSand, finial: false, nest: true }); }
+  B.box(0.55, -1.15, 0.95, 0.85, -0.85, 1.7, 'sandstone', { ao: 0.25, pal: SR.sandL });
+  B.box(-0.85, 0.75, 0, -0.35, 0.95, 0.22, 'sandstone', { pal: SR.sandD, ao: 0.3, tag: 'ława' }); B.box(0.35, 0.75, 0, 0.85, 0.95, 0.22, 'sandstone', { pal: SR.sandD, ao: 0.3, tag: 'ława' });
+  B.jar(-1.1, 1.0); B.jar(-0.95, 1.1, 0.9); B.jar(1.05, 1.0); B.tree('palm', 71, 1.2, 0.6, 0.5);
+  return B.flush();
+};
+
+/* KARAWANSERAJ 4×3: mur z arkadą i kopułami, dziedziniec ze studnią, wielbłądami i towarem, portal-pishtak od frontu */
+BAKED.saracens_caravanserai = function () {
+  const sc = sceneFor(4, 3, 3.0), B = new Build(sc), w = 1.9, hz = 1.4, t = 0.4, zc = 1.2, zf = 0.82;
+  sc.paved(-1.6, -1.0, 1.6, 1.4, { mat: 'pavers', pal: '#c0b088', seed: 17, jit: 0.1 });
+  sc.patch(0, 0.05, 2.7, 2.1, { seed: 41, pal: '#b79a62', alpha: 0.55, feather: 18 });
+  B.part(-w + t, -hz + t, 0, w - t, hz - t, 0.002, () => sc.face([-w + t, -hz + t, 0.002], [2 * w - 2 * t, 0, 0], [0, 2 * hz - 2 * t, 0], 'pavers', { shade: 1, pal: '#c0b088', wear: 0.5, edge: 0 }), { tag: 'dziedziniec', kind: 'flat', shadow: false });
+  const merlons = (x0, y0, x1, y1, z, n) => B.part(Math.min(x0, x1) - 0.05, Math.min(y0, y1) - 0.05, z, Math.max(x0, x1) + 0.05, Math.max(y0, y1) + 0.05, z + 0.13, () => merlonLine(sc, x0, y0, x1, y1, z, n, 0.1, 0.13, 'sandstone'), { tag: 'blanki', shadow: false });
+  B.box(-w, -hz, 0, w, -hz + t, zc, 'sandstone', { ao: 0.3, pal: SR.sand }, (S) => sc.local(S.O, S.U, S.V, (g) => { g.fillStyle = '#1a1510'; for (let i = 0; i < 8; i++) { const u = 0.3 + i * 0.45; g.beginPath(); g.moveTo(u, 1.1); g.lineTo(u, 0.5); g.arc(u + 0.12, 0.5, 0.12, Math.PI, 0); g.lineTo(u + 0.24, 1.1); g.closePath(); g.fill(); } }));
+  B.box(-w, -hz + t, 0, -w + t, hz - t, zc, 'sandstone', { ao: 0.3, pal: SR.sand });
+  merlons(-w + 0.4, -hz + 0.05, w - 0.4, -hz + 0.05, zc, 13); merlons(-w + 0.05, -hz + t + 0.1, -w + 0.05, hz - t - 0.1, zc, 7);
+  for (const cx of [-1.2, 0, 1.2]) { B.cyl(cx, -hz + t / 2, zc, zc + 0.3, 0.26, { mat: 'sandstone', pal: '#e4cf9e', topMat: 'sandstone', ao: 0.4, nest: true }); B.dome(cx, -hz + t / 2, zc + 0.3, 0.3, { cols: SR.domeSand, nest: true }); }
+  B.cyl(0.2, 0.0, 0, 0.4, 0.2, { mat: 'sandstone', pal: '#d8c08a', topMat: 'sandstone', ao: 0.3 });
+  B.part(0.0, -0.2, 0.4, 0.4, 0.2, 0.44, () => { const g = sc.g, f = sc.F, [wx, wy] = sc.P(0.2, 0, 0.4); g.fillStyle = '#1a2a30'; g.beginPath(); g.ellipse(wx, wy, 0.15 * AX * f * 1.4142, 0.15 * AY * f * 1.4142, 0, 0, TAU); g.fill(); }, { tag: 'woda', shadow: false, nest: true });
+  const camel = (x, y, flip = 1) => B.part(x - 0.32, y - 0.12, 0, x + 0.32, y + 0.12, 0.62, () => { const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, 0), s = f * 1.2; g.save(); g.translate(px, py); g.scale(flip * s, s);
+    g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(6, 1, 22, 5, 0, 0, TAU); g.fill();
+    g.fillStyle = '#b08850'; g.strokeStyle = '#2a1c0c'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-18, -22); g.quadraticCurveTo(-12, -34, -4, -26); g.quadraticCurveTo(2, -34, 8, -24); g.quadraticCurveTo(18, -22, 20, -26); g.lineTo(28, -42); g.lineTo(34, -40); g.lineTo(32, -34); g.lineTo(24, -22); g.lineTo(22, -4); g.lineTo(18, -4); g.lineTo(16, -18); g.lineTo(2, -18); g.lineTo(0, -4); g.lineTo(-4, -4); g.lineTo(-6, -18); g.lineTo(-14, -18); g.lineTo(-16, -4); g.lineTo(-20, -4); g.lineTo(-20, -18); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#a8352b'; g.fillRect(-12, -26, 16, 6); g.fillStyle = '#d8a830'; g.fillRect(-12, -22, 16, 2); g.fillStyle = '#1a1006'; g.beginPath(); g.arc(32, -38, 1.2, 0, TAU); g.fill(); g.restore(); }, { tag: 'wielbłąd', shadow: false });
+  camel(-0.9, -0.05, 1); camel(0.8, 0.4, -1); camel(-0.2, 0.55, 1);
+  B.crate(-1.3, 0.6, 0.22, 0.22); B.crate(-1.1, 0.75, 0.22, 0.22); B.crate(1.3, -0.3, 0.22, 0.22); B.sack(-0.7, 0.72); B.sack(-0.55, 0.78, '#c9b27a', 0.9); B.barrel(1.25, 0.2);
+  // mury przednie (z oknami) i portal
+  const fwall = (x0, x1, nwin) => B.box(x0, hz - t, 0, x1, hz, zf, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S) => { mosaicBand(sc, S.O, S.U, S.V, zf - 0.14, 0.08, 'S'); facade(sc, S, { win: { n: nwin, ...arcWin(0.15, 0.28, 0.22, { frame: SR.wood }) } }); });
+  fwall(-w + t, -0.58, 2); fwall(0.58, w - t, 2);
+  B.box(w - t, -hz + t, 0, w, hz - t, zf, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S, E) => { mosaicBand(sc, E.O, E.U, E.V, zf - 0.14, 0.08, 'E'); facade(sc, E, { win: { n: 3, ...arcWin(0.15, 0.28, 0.22, { frame: SR.wood }) } }); });
+  const gz = 2.1;
+  B.box(-0.58, hz - 0.55, 0, 0.58, hz + 0.1, gz, 'sandstone', { ao: 0.25, pal: SR.sandL, eave: 0.3 }, (S) => sc.local(S.O, S.U, S.V, (g, lu) => {
+    const vb = gz, ww = lu - 0.36; g.fillStyle = SR.teal; g.beginPath(); g.moveTo(0.1, vb); g.lineTo(0.1, 0.95); g.arc(lu / 2, 0.95, lu / 2 - 0.1, Math.PI, 0); g.lineTo(lu - 0.1, vb); g.closePath(); g.fill();
+    g.fillStyle = SR.dark; g.beginPath(); g.moveTo(0.18, vb); g.lineTo(0.18, 0.98); g.arc(lu / 2, 0.98, lu / 2 - 0.18, Math.PI, 0); g.lineTo(lu - 0.18, vb); g.closePath(); g.fill();
+    g.fillStyle = SR.door; g.beginPath(); g.moveTo(0.3, vb); g.lineTo(0.3, 1.3); g.arc(lu / 2, 1.3, lu / 2 - 0.3, Math.PI, 0); g.lineTo(lu - 0.3, vb); g.closePath(); g.fill();
+    g.strokeStyle = SR.gold; g.lineWidth = 0.016; g.beginPath(); g.moveTo(0.1, vb); g.lineTo(0.1, 0.95); g.arc(lu / 2, 0.95, lu / 2 - 0.1, Math.PI, 0); g.lineTo(lu - 0.1, vb); g.stroke();
+    g.fillStyle = SR.tealL; for (let i = 0; i < 5; i++) g.fillRect(0.12 + i * (lu - 0.24) / 5, 0.12, (lu - 0.24) / 5 - 0.02, 0.2); }));
+  for (const sx of [-1, 1]) { const x = sx * (w - t / 2); B.box(x - t / 2, hz - t, 0, x + t / 2, hz, 1.5, 'sandstone', { ao: 0.25, pal: SR.wall2 }); B.dome(x, hz - t / 2, 1.5, 0.26, { cols: SR.domeSand, nest: true }); }
+  merlons(-w + t + 0.1, hz - 0.05, -0.62, hz - 0.05, zf, 3); merlons(0.62, hz - 0.05, w - t - 0.1, hz - 0.05, zf, 3); merlons(w - 0.05, -hz + t + 0.1, w - 0.05, hz - t - 0.1, zf, 7);
+  return B.flush({ shadow: { alpha: 0.5, blur: 12 } });
+};
+
+/* STRAŻNICA 2×2: kamienna wieża z platformą z blankami, łukowe wejście i strzelnice, proporzec, stojak z włóczniami */
+BAKED.saracens_guardpost = function () {
+  const sc = sceneFor(2, 2, 3.2), B = new Build(sc);
+  sc.patch(0, 0.1, 1.2, 1.2, { seed: 35, pal: '#b79a62', alpha: 0.75 });
+  B.box(-0.55, -0.85, 0, 0.55, 0.25, 0.14, 'sandstone', { ao: 0.4, pal: SR.sandD });
+  B.box(-0.45, -0.75, 0.14, 0.45, 0.15, 1.7, 'sandstone', { ao: 0.3, pal: SR.sand, eave: 0.3 }, (S, E) => {
+    mosaicBand(sc, S.O, S.U, S.V, 1.7 - 0.3, 0.08, 'S'); mosaicBand(sc, E.O, E.U, E.V, 1.7 - 0.3, 0.08, 'E');
+    facade(sc, S, { door: sarDoor(0.5, 0.3, 0.46), win: arcWin(0.14, 0.3, 0.5, { n: 1, over: true, lit: '#243a42', lit2: '#101e24' }) });
+    sc.local(E.O, E.U, E.V, (g) => { g.fillStyle = SR.dark; for (const v of [0.55, 1.0]) g.fillRect(0.42, v, 0.05, 0.22); });
+  });
+  B.box(-0.55, -0.85, 1.7, 0.55, 0.25, 1.82, 'sandstone', { ao: 0.1, pal: SR.sandL, nest: true });
+  B.part(-0.6, -0.9, 1.82, 0.6, 0.3, 1.95, () => { merlonLine(sc, -0.5, -0.8, 0.5, -0.8, 1.82, 5, 0.1, 0.13, 'sandstone'); merlonLine(sc, -0.5, 0.2, 0.5, 0.2, 1.82, 5, 0.1, 0.13, 'sandstone'); merlonLine(sc, -0.5, -0.6, -0.5, 0.0, 1.82, 3, 0.1, 0.13, 'sandstone'); merlonLine(sc, 0.5, -0.6, 0.5, 0.0, 1.82, 3, 0.1, 0.13, 'sandstone'); }, { tag: 'blanki', shadow: false });
+  B.part(-0.04, -0.34, 1.82, 0.04, -0.26, 2.5, () => pennant(sc, 0, -0.3, 1.82, 62, '#b8352b'), { tag: 'proporzec', shadow: false });
+  B.weaponRack(0.7, 0.1, 0.95, 0.1, 'spears'); B.barrel(-0.75, 0.55); B.crate(0.1, 0.75, 0.2, 0.2);
+  return B.flush();
+};
+
 /* ---- 90_main.js ---- */
 /* ====================== SCENA POKAZOWA (v2) ======================
    Układ na siatce pól (każdy budynek = 1 pole, wszystko w skali jednego pola), teren w kaflach wypiekanych na żądanie,
@@ -2209,8 +3435,8 @@ const FOOT = [];                                                    // ślady bu
 /* plan budynków: [nazwa sprite'a, i, j] — (i,j) to północny róg obrysu; środek = (i+fw/2, j+fh/2). Brakujące sprite'y są pomijane. */
 const PLAN = [
   // Frankowie
-  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['frankChurch', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
-  ['frankHouse', 12, 11], ['frankHouse', 15, 11], ['frankHouse', 18, 11],
+  ['frankKeep', 12, 5], ['frankBarracks', 17, 6], ['franks_temple', 5, 7], ['frankSmithy', 10, 6], ['frankMill', 17, 1],
+  ['franks_hut', 12, 11], ['franks_hut', 15, 11], ['franks_hut', 18, 11],
   // Słowianie
   ['slavHut', 2, 15], ['slavHut', 5, 15], ['slavStore', 7, 15], ['slavWaxery', 2, 19], ['slavShrine', 5, 19], ['slavHut', 8, 20], ['well', 9, 18],
   // Wikingowie
@@ -2279,7 +3505,8 @@ async function bakeAll() {
   let t0 = performance.now();
   const names = Object.keys(BAKED), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
   TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12;
-  for (const n of names) SPR[n] = await step('Budynki', BAKED[n]);
+  for (const n of names) { LINT_NAME = n; SPR[n] = await step('Budynki', BAKED[n]); }
+  window.__lint = LINT_LOG;
   tmark('budynki', t0); t0 = performance.now();
   const oaks = await many('Drzewa', 5, i => TREES.oak(100 + i)), pines = await many('Drzewa', 4, i => TREES.pine(200 + i)), palms = await many('Drzewa', 3, i => TREES.palm(300 + i));
   const rocks = await many('Skały', 4, i => bakeRock(400 + i)), tufts = await many('Roślinność', 4, i => bakeTuft(500 + i, 'green')), sandTufts = await many('Roślinność', 3, i => bakeTuft(600 + i, 'sand'));
@@ -2508,18 +3735,23 @@ function sheetFrame() {
     names.forEach((n, i) => { const spr = SPR[n]; if (spr) draw(spr, (i + 0.5) * cw, H * (parseFloat(QS.get('y') || '0.82')), zs, ['p', 'u', 'c']); });
     return;
   }
-  if (mode === 'r') {                                                  // porównanie rozmiarów: wszystkie budynki w tej samej skali, z obrysem w polach i podpisem
-    const LAB = { frankHouse: 'Dom ryglowy', frankChurch: 'Kościół', frankMill: 'Młyn', frankBarracks: 'Koszary', frankSmithy: 'Kuźnia', frankKeep: 'Zamek', slavHut: 'Chata', slavStore: 'Spichlerz', slavWaxery: 'Woskarnia', slavShrine: 'Święty krąg', well: 'Studnia', saracenHouse: 'Dom', saracenMosque: 'Meczet', saracenMarket: 'Targ', saracenSerai: 'Karawanseraj', vikingHut: 'Chata', vikingMead: 'Miodosytnia', vikingHall: 'Długi dom', vikingDock: 'Przystań', longship: 'Okręt' };
-    const ROWS = [['FRANKOWIE', ['frankHouse', 'frankSmithy', 'frankMill', 'frankBarracks', 'frankChurch', 'frankKeep']], ['SŁOWIANIE', ['well', 'slavHut', 'slavWaxery', 'slavStore', 'slavShrine']], ['SARACENI', ['saracenHouse', 'saracenMarket', 'saracenMosque', 'saracenSerai']], ['WIKINGOWIE', ['vikingHut', 'vikingMead', 'vikingHall', 'vikingDock', 'longship']]];
+  if (mode === 'r') {                                                  // porównanie rozmiarów: budynki nacji (katalog z gry) w jednej skali, z obrysem w polach i podpisem; #sheet-r-franks = jedna nacja
     for (const id of ['cap', 'leg', 'st', 'ui']) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
-    const GAP = 30, lab = 36 * dpr, lay = ROWS.map(([nm, ks]) => { const it = ks.filter(k => SPR[k]).map(k => { const s = SPR[k]; return { k, s, w: s.fw ? (s.fw + s.fh) * AX + 40 : s.w * 0.8, up: s.ay - 20, down: s.fw ? (s.fw + s.fh) / 2 * AY + 14 : s.h - s.ay }; }); return { nm, it, w: it.reduce((a, o) => a + o.w + GAP, GAP), up: Math.max(...it.map(o => o.up)), down: Math.max(...it.map(o => o.down)) }; });
-    const z = Math.min(Z, (W * 0.98) / Math.max(...lay.map(r => r.w)), (H - lay.length * lab - 12 * dpr) / lay.reduce((a, r) => a + r.up + r.down, 0));
-    ctx.textAlign = 'center'; ctx.lineJoin = 'round';
-    const text = (t, x, y, px, bold) => { ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
+    const only = (location.hash.match(/sheet-r-([a-z]+)/) || [])[1], COLS = parseInt(QS.get('cols') || '6', 10), GAP = 34, lab = 34 * dpr, rows = [];
+    for (const n of only ? [only] : Object.keys(NATIONS)) {
+      const items = NATIONS[n].map(id => ({ id, k: spriteName(n, id), s: SPR[spriteName(n, id)], n })).filter(o => o.s);
+      for (let i = 0; i < items.length; i += COLS) {
+        const it = items.slice(i, i + COLS).map(o => ({ ...o, w: o.s.fw ? (o.s.fw + o.s.fh) * AX + 40 : o.s.w * 0.8, up: o.s.ay - 20, down: o.s.fw ? (o.s.fw + o.s.fh) / 2 * AY + 14 : o.s.h - o.s.ay }));
+        rows.push({ title: i === 0 ? NATION_PL[n] : '', it, w: it.reduce((a, o) => a + o.w + GAP, GAP), up: Math.max(...it.map(o => o.up)), down: Math.max(...it.map(o => o.down)) });
+      }
+    }
+    if (!rows.length) return;
+    const z = Math.min(Z, (W * 0.98) / Math.max(...rows.map(r => r.w)), (H - rows.length * lab - 12 * dpr) / rows.reduce((a, r) => a + r.up + r.down, 0));
+    const text = (t, x, y, px, bold, al = 'center') => { ctx.textAlign = al; ctx.font = `${bold ? 'bold ' : ''}${Math.round(px * dpr)}px Georgia, serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
     let y = 8 * dpr;
-    for (const r of lay) {
+    for (const r of rows) {
       const base = y + r.up * z; let x = (W - (r.w * z)) / 2 + GAP * z;
-      ctx.textAlign = 'left'; text(r.nm, 14 * dpr, y + 20 * dpr, 17, true); ctx.textAlign = 'center';
+      if (r.title) text(r.title, 14 * dpr, y + 20 * dpr, 17, true, 'left');
       for (const o of r.it) {
         const cx = x + o.w * z / 2, s = o.s, fw = s.fw || 0, fh = s.fh || 0;
         for (const l of ['p', 'u']) if (s[l]) ctx.drawImage(lodPick(s[l], layerR(s, l) / z), cx - s.ax * z, base - s.ay * z, s.w * z, s.h * z);
@@ -2528,7 +3760,7 @@ function sheetFrame() {
           ctx.beginPath(); c.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.closePath(); ctx.fillStyle = 'rgba(255,214,70,0.13)'; ctx.fill(); ctx.lineWidth = 2 * dpr; ctx.strokeStyle = 'rgba(255,214,70,0.9)'; ctx.stroke();
         }
         if (s.c) ctx.drawImage(lodPick(s.c, layerR(s, 'c') / z), cx - s.ax * z, base - s.ay * z, s.w * z, s.h * z);
-        text(LAB[o.k] + (fw ? ' · ' + fw + '×' + fh : ''), cx, base + r.down * z + 22 * dpr, 15, false);
+        text(nameOfBuilding(o.n, o.id) + (fw ? ' · ' + fw + '×' + fh : ''), cx, base + r.down * z + 22 * dpr, 15, false);
         x += (o.w + GAP) * z;
       }
       y += (r.up + r.down) * z + lab;
@@ -2592,5 +3824,28 @@ async function boot() {
   window.__setZoom = z => setZoom(z); window.__ready = true;
 }
 boot().catch(e => { const t = document.getElementById('ltxt'); if (t) t.textContent = 'Błąd: ' + e.message; console.error(e); });
+
+/* ---- 95_catalog.js ---- */
+/* ====================== KATALOG BUDYNKÓW: id z gry → sprite, obrys, nazwa ======================
+   Sprite budynku `id` nacji `n` nazywa się `${n}_${id}` (np. franks_mill). Obrys (fw×fh w polach) pochodzi z wypieczonego sprite'a.
+   Lista id odpowiada Data.BUILDINGS z Nova_Roma.html: 12 budynków wspólnych + budynki specyficzne dla nacji. */
+const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple'];
+const NATIONS = {
+  franks: COMMON_IDS.concat(['quarry', 'farm', 'mill', 'bakery', 'ironmine', 'coalmine', 'smelter', 'toolforge', 'armory', 'vineyard', 'winery', 'barracks']),
+  saracens: COMMON_IDS.concat(['claypit', 'dategrove', 'incensewood', 'incense', 'cotton', 'weaver', 'pottery', 'qanat', 'bathhouse', 'caravanserai', 'guardpost']),
+  vikings: COMMON_IDS.concat(['fisherhut', 'peatmine', 'charburner', 'mead', 'dock', 'smelter', 'toolforge', 'armory', 'ship']),
+  slavs: COMMON_IDS.concat(['gatherer', 'field', 'kasha', 'bartnik', 'waxery', 'trapper', 'tannery', 'sauna'])
+};
+const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
+const NAMES = {
+  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia',
+  quarry: 'Kamieniołom', farm: 'Farma', mill: 'Młyn', bakery: 'Piekarnia', ironmine: 'Kopalnia żelaza', coalmine: 'Kopalnia węgla', smelter: 'Huta', toolforge: 'Kuźnia narzędzi', armory: 'Zbrojownia', vineyard: 'Winnica', winery: 'Winiarz', barracks: 'Koszary',
+  claypit: 'Glinianka', dategrove: 'Gaj daktylowy', incensewood: 'Las kadzidlany', incense: 'Wytwórnia kadzidła', cotton: 'Plantacja bawełny', weaver: 'Tkalnia', pottery: 'Garncarnia', qanat: 'Qanat', bathhouse: 'Łaźnia', caravanserai: 'Karawanseraj', guardpost: 'Strażnica',
+  fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
+  gatherer: 'Chata zbieracza', field: 'Pole stałe', kasha: 'Kaszarnia', bartnik: 'Barć', waxery: 'Woskarnia', trapper: 'Chata łowcy futer', tannery: 'Garbarnia', sauna: 'Bania'
+};
+const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
+const spriteName = (nation, id) => `${nation}_${id}`;
+const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id];
 
 </script></body></html>

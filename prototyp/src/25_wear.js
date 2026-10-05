@@ -11,8 +11,8 @@ const WEAR = {
   stone:     { streak: 0.5, grime: 0.9, patch: ['stone', '#bdb9ac', 'rect'], patchN: 0.8, moss: 0.5, crack: 1.0, chip: 0.8, tone: 1 },
   rubble:    { streak: 0.4, grime: 0.9, patch: ['rubble', '#a49f93', 'rect'], patchN: 0.5, moss: 0.7, crack: 0.8, chip: 0.6, tone: 1 },
   sandstone: { streak: 0.45, grime: 0.7, patch: ['sandstone', '#ecd8a6', 'rect'], patchN: 0.8, crack: 0.9, chip: 0.8, salt: 0.6, tone: 1 },
-  plaster:   { streak: 0.8, grime: 0.8, patch: ['plaster', '#d8ccae', 'blob'], patchN: 0.6, moss: 0.15, crack: 1.1, peel: 0.9, tone: 1 },
-  whitewash: { streak: 0.7, grime: 0.7, patch: ['whitewash', '#e4dcc4', 'blob'], patchN: 0.5, crack: 0.8, peel: 0.7, tone: 1 }
+  plaster:   { streak: 0.8, grime: 0.8, patch: ['plaster', '#d8ccae', 'blob'], patchN: 0.6, moss: 0.15, crack: 0.6, peel: 0.7, tone: 1 },
+  whitewash: { streak: 0.7, grime: 0.7, patch: ['whitewash', '#e4dcc4', 'blob'], patchN: 0.5, crack: 0.5, peel: 0.6, tone: 1 }
 };
 
 function wearBlob(g, r, cx, cy, rad, n = 9, jit = 0.38) {
@@ -21,11 +21,11 @@ function wearBlob(g, r, cx, cy, rad, n = 9, jit = 0.38) {
   g.closePath();
 }
 function wearCrack(g, r, W, H, K, px, long = 1) {
-  let x = r() * W, y = r() * H * 0.75, ang = Math.PI / 2 + (r() - 0.5) * 1.1;
-  const pts = [[x, y]], steps = Math.round((5 + r() * 9) * long), br = [];
+  let x = r() * W, y = r() * H * 0.75, ang = Math.PI / 2 + (r() - 0.5) * 0.9;
+  const pts = [[x, y]], steps = Math.round((4 + r() * 6) * long), br = [];
   for (let s = 0; s < steps; s++) {
-    ang += (r() - 0.5) * 0.95; const l = (0.012 + r() * 0.024) * K; x += Math.cos(ang) * l; y += Math.sin(ang) * l; pts.push([x, y]);
-    if (r() < 0.2) br.push([x, y, ang + (r() < 0.5 ? 0.9 : -0.9), 2 + (r() * 4 | 0)]);
+    ang += (r() - 0.5) * 0.6; const l = (0.012 + r() * 0.022) * K; x += Math.cos(ang) * l; y += Math.sin(ang) * l; pts.push([x, y]);
+    if (r() < 0.1) br.push([x, y, ang + (r() < 0.5 ? 0.8 : -0.8), 2 + (r() * 3 | 0)]);
   }
   const draw = (p, off) => { g.beginPath(); p.forEach(([a, b], i) => i ? g.lineTo(a + off, b + off) : g.moveTo(a + off, b + off)); g.stroke(); };
   const all = [pts];
@@ -112,10 +112,10 @@ function wearFace(sc, mat, o, W, H, K, px, seed) {
     g.fillStyle = bone(0.5 + r() * 0.25); g.fill(); g.strokeStyle = ink(0.55); g.lineWidth = 0.9 / px; g.stroke();
   }
   // 7) brakujące dachówki / gonty
-  if (P.missing) for (let i = cnt(P.missing * k * A * 0.9); i > 0; i--) {
-    const gu = 16, x = Math.floor(r() * (W / gu - 1)) * gu + (r() < 0.5 ? 8 : 0), y = Math.floor(r() * (H / gu - 1)) * gu;
-    g.fillStyle = 'rgba(18,9,5,0.78)'; g.fillRect(x, y + 2, gu - 2, gu - 3);
-    g.fillStyle = bone(0.12); g.fillRect(x, y + 2, gu - 2, 1.2 / px);
+  if (P.missing) for (let i = cnt(P.missing * k * A * 1.4); i > 0; i--) {
+    const gu = 16, x = Math.floor(r() * (W / gu - 1)) * gu + (r() < 0.5 ? 8 : 0), y = Math.floor(r() * (H / gu - 1)) * gu, fresh = r() < 0.55;
+    g.fillStyle = fresh ? 'rgba(255,196,140,0.30)' : 'rgba(36,44,30,0.34)'; g.fillRect(x, y + 2, gu - 2, gu - 3);          // wymieniona (jaśniejsza) albo zmurszała (ciemna) dachówka
+    g.strokeStyle = ink(0.35); g.lineWidth = 0.9 / px; g.strokeRect(x, y + 2, gu - 2, gu - 3);
   }
   // 8) przybrudzenie u podstawy i bryzgi
   if (P.grime && !roof) {

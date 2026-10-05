@@ -13,6 +13,7 @@ const wallE = (y0, y1, x1, zt, zb) => ({ O: [x1, y1, zt], U: [0, -(y1 - y0), 0],
 /* drzwi z (opcjonalnym) łukiem i okuciami; (u0,w) — położenie na ścianie, h — wysokość, vb — v podstawy drzwi */
 function door(sc, O, U, V, u0, w, h, o = {}) {
   const lu = Math.hypot(...U), lv = Math.hypot(...V), vb = o.vb ?? lv;
+  if (LINT) sc.regRect(O, U, V, 'drzwi', u0 - 0.04, u0 + w + 0.04, vb - h - (o.arch ? w / 2 : 0) - 0.06, vb);
   sc.local(O, U, V, (g) => {
     g.fillStyle = o.frame || '#2b1c10';
     g.beginPath(); g.moveTo(u0 - 0.025, vb); g.lineTo(u0 - 0.025, vb - h); if (o.arch) g.arc(u0 + w / 2, vb - h, w / 2 + 0.025, Math.PI, 0); else g.lineTo(u0 + w + 0.025, vb - h); g.lineTo(u0 + w + 0.025, vb); g.closePath(); g.fill();
@@ -31,13 +32,16 @@ function door(sc, O, U, V, u0, w, h, o = {}) {
 
 /* okno z oświetlonym wnętrzem, ramą i (opcjonalnie) okiennicami */
 function windowAt(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) { const sw = o.shutters ? w * 0.42 + 0.012 : 0.014; sc.regRect(O, U, V, 'okno', u0 - sw, u0 + w + sw, v0 - 0.014, v0 + h + (o.sill ? 0.05 : 0.026)); }
   sc.local(O, U, V, (g) => {
     if (o.shutters) { g.fillStyle = o.shutters; const sw = w * 0.42; g.fillRect(u0 - sw - 0.012, v0 - 0.004, sw, h + 0.008); g.fillRect(u0 + w + 0.012, v0 - 0.004, sw, h + 0.008);
       g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 0.008; g.strokeRect(u0 - sw - 0.012, v0 - 0.004, sw, h + 0.008); g.strokeRect(u0 + w + 0.012, v0 - 0.004, sw, h + 0.008);
       g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 0.005; for (const x of [u0 - sw * 0.5 - 0.012, u0 + w + sw * 0.5 + 0.012]) for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(x - sw * 0.4, v0 + h * i / 5); g.lineTo(x + sw * 0.4, v0 + h * i / 5); g.stroke(); } }
     g.fillStyle = o.frame || '#3a2818'; g.fillRect(u0 - 0.014, v0 - 0.014, w + 0.028, h + 0.028);
-    const gr = g.createLinearGradient(0, v0, 0, v0 + h); gr.addColorStop(0, o.lit || '#ffe9a0'); gr.addColorStop(1, '#d99a40');
+    const gr = g.createLinearGradient(0, v0, 0, v0 + h), glow = !!(o.lit || o.glow);                                // za dnia: ciemna szyba z odbiciem nieba; ciepłe światło tylko na życzenie (o.glow / o.lit)
+    if (glow) { gr.addColorStop(0, o.lit || '#ffe9a0'); gr.addColorStop(1, '#d99a40'); } else { gr.addColorStop(0, '#9bb0c4'); gr.addColorStop(0.5, '#51657a'); gr.addColorStop(1, '#2c3947'); }
     g.fillStyle = o.dark ? '#1c1710' : gr; g.fillRect(u0, v0, w, h);
+    if (!glow && !o.dark) { g.strokeStyle = 'rgba(235,245,255,0.28)'; g.lineWidth = 0.014; g.beginPath(); g.moveTo(u0 + w * 0.12, v0 + h * 0.46); g.lineTo(u0 + w * 0.46, v0 + h * 0.08); g.stroke(); }
     g.strokeStyle = o.frame || '#3a2818'; g.lineWidth = 0.012; g.beginPath(); g.moveTo(u0 + w / 2, v0); g.lineTo(u0 + w / 2, v0 + h); g.moveTo(u0, v0 + h / 2); g.lineTo(u0 + w, v0 + h / 2); g.stroke();
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(u0 - 0.014, v0 + h + 0.014, w + 0.028, 0.012);   // parapet
     if (o.sill) { g.fillStyle = o.sill; g.fillRect(u0 - 0.03, v0 + h + 0.014, w + 0.06, 0.03); }
@@ -46,11 +50,13 @@ function windowAt(sc, O, U, V, u0, v0, w, h, o = {}) {
 
 /* okno łukowe (architektura wschodnia): ciemne wnętrze albo światło lampy */
 function archWin(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) sc.regRect(O, U, V, 'okno', u0 - 0.014, u0 + w + 0.014, v0 - 0.014, v0 + h + 0.026);
   sc.local(O, U, V, (g) => {
     const r = w / 2, e = 0.014;
     g.fillStyle = o.frame || '#8a5a2a'; g.beginPath(); g.moveTo(u0 - e, v0 + h + e); g.lineTo(u0 - e, v0 + r); g.arc(u0 + r, v0 + r, r + e, Math.PI, 0); g.lineTo(u0 + w + e, v0 + h + e); g.closePath(); g.fill();
     const gr = g.createLinearGradient(0, v0, 0, v0 + h); gr.addColorStop(0, o.lit || '#241a10'); gr.addColorStop(1, o.lit2 || '#120d08');
     g.fillStyle = gr; g.beginPath(); g.moveTo(u0, v0 + h); g.lineTo(u0, v0 + r); g.arc(u0 + r, v0 + r, r, Math.PI, 0); g.lineTo(u0 + w, v0 + h); g.closePath(); g.fill();
+    if (o.louver) { g.strokeStyle = 'rgba(150,118,76,0.85)'; g.lineWidth = 0.014; for (let j = 0; j < 6; j++) { const yy = v0 + r * 0.9 + j * (h - r * 0.9) / 6 + 0.03; g.beginPath(); g.moveTo(u0 + 0.01, yy + 0.03); g.lineTo(u0 + w - 0.01, yy); g.stroke(); } }
     if (o.grille) { g.strokeStyle = 'rgba(210,170,90,0.55)'; g.lineWidth = 0.008; for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(u0 + w * i / 4, v0 + r * 0.6); g.lineTo(u0 + w * i / 4, v0 + h); g.stroke(); } }
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(u0 - e, v0 + h + e, w + 2 * e, 0.012);
   });
@@ -58,6 +64,7 @@ function archWin(sc, O, U, V, u0, v0, w, h, o = {}) {
 
 /* ostrołukowe okno witrażowe (gotyk): kamienna rama, ołowiane szprosy, kolorowe szybki */
 function glassWin(sc, O, U, V, u0, v0, w, h, o = {}) {
+  if (LINT) sc.regRect(O, U, V, 'okno', u0 - 0.02, u0 + w + 0.02, v0 - w * 0.275 - 0.02, v0 + h + 0.02);
   sc.local(O, U, V, (g) => {
     const r = w / 2, e = 0.02, x1 = u0 + w, xm = u0 + r, ys = v0 + r, yt = v0 - r * 0.55, yb = v0 + h;
     const path = (dx) => { g.beginPath(); g.moveTo(u0 - dx, yb + dx); g.lineTo(u0 - dx, ys); g.quadraticCurveTo(u0 - dx, yt + r * 0.6 - dx, xm, yt - dx); g.quadraticCurveTo(x1 + dx, yt + r * 0.6 - dx, x1 + dx, ys); g.lineTo(x1 + dx, yb + dx); g.closePath(); };
@@ -93,8 +100,8 @@ function soot(sc, x, y, z, r = 0.12, a = 0.4) {
 }
 /* komin z kapturem i ciemnym wylotem */
 function chimney(sc, cx, cy, zb, zt, w = 0.24, mat = 'stone', pal) {
-  sc.box(cx - w / 2, cy - w / 2, zb, cx + w / 2, cy + w / 2, zt, mat, { ao: 0.15, pal });
-  sc.box(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zt, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, mat, { ao: 0, pal, wear: 0.3 });
+  sc.box(cx - w / 2, cy - w / 2, zb, cx + w / 2, cy + w / 2, zt, mat, { ao: 0.15, pal, tag: 'komin' });
+  sc.box(cx - w / 2 - 0.035, cy - w / 2 - 0.035, zt, cx + w / 2 + 0.035, cy + w / 2 + 0.035, zt + 0.07, mat, { ao: 0, pal, wear: 0.3, tag: 'komin' });
   const g = sc.g, [px, py] = sc.P(cx, cy, zt + 0.07), rx = (w / 2 - 0.02) * AX * sc.F * 1.4142;
   g.fillStyle = '#17120e'; g.beginPath(); g.ellipse(px, py, rx * 0.8, rx * 0.4, 0, 0, TAU); g.fill();
 }
@@ -104,6 +111,7 @@ function stairs(sc, xa, xb, y, n, h, mat = 'stone', d = 0.17, pal) {
 }
 /* skrzynka z kwiatami pod oknem (na ścianie) */
 function flowerBox(sc, O, U, V, u0, v, w, cols = ['#d8433a', '#f0d84a', '#e8e0d0']) {
+  if (LINT) sc.regRect(O, U, V, 'kwiaty', u0 - 0.02, u0 + w + 0.02, v - 0.05, v + 0.07);
   sc.local(O, U, V, (g) => {
     g.fillStyle = '#6a4428'; g.fillRect(u0 - 0.02, v, w + 0.04, 0.07); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 0.006; g.strokeRect(u0 - 0.02, v, w + 0.04, 0.07);
     const r = rng(Math.round(u0 * 311 + v * 97)); for (let i = 0; i < 9; i++) { const x = u0 + (i + 0.5) * w / 9; g.fillStyle = '#3f7a2c'; g.beginPath(); g.arc(x, v - 0.005, 0.022, 0, TAU); g.fill(); g.fillStyle = cols[(r() * cols.length) | 0]; g.beginPath(); g.arc(x + (r() - 0.5) * 0.01, v - 0.03, 0.016, 0, TAU); g.fill(); }
@@ -140,6 +148,7 @@ function wattle(sc, x0, y0, x1, y1, h = 0.4, th = 0.05) {
 }
 /* ul: słomiany kosz (dla pszczół) rysowany w przestrzeni ekranu */
 function skep(sc, x, y, s = 1) {
+  sc.regVol('prop', x - 0.08, y - 0.08, 0, x + 0.08, y + 0.08, 0.2, 'ul');
   const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, 0), w = 8 * f, h = 12 * f;
   g.fillStyle = 'rgba(14,22,8,0.3)'; g.beginPath(); g.ellipse(px + 3 * f, py + 0.5 * f, w * 0.9, w * 0.35, 0, 0, TAU); g.fill();
   const gr = g.createLinearGradient(px - w, 0, px + w, 0); gr.addColorStop(0, '#f0d27a'); gr.addColorStop(0.55, '#d4a948'); gr.addColorStop(1, '#8c6a28');
@@ -156,6 +165,7 @@ function barrel(sc, x, y, z = 0, s = 1) {
   for (const yy of [py, py2]) { g.beginPath(); g.ellipse(px, yy, rx, rx / 2, 0, 0, Math.PI); g.stroke(); }
 }
 function logPile(sc, x, y, n = 6) { // stos kłód (końce okrągłe)
+  sc.regVol('prop', x - 0.18, y - 0.08, 0, x + 0.18, y + 0.08, 0.25, 'stos');
   const g = sc.g, r = 0.05, rows = [3, 2, 1], F = sc.F;
   rows.forEach((cnt, row) => {
     for (let i = 0; i < cnt; i++) {
@@ -169,6 +179,7 @@ function logPile(sc, x, y, n = 6) { // stos kłód (końce okrągłe)
 }
 function crate(sc, x, y, s = 0.16, h = 0.16) { sc.box(x - s / 2, y - s / 2, 0, x + s / 2, y + s / 2, h, 'plank', { pal: '#8a6a40', ao: 0.3 }); }
 function haystack(sc, x, y) {
+  sc.regVol('prop', x - 0.22, y - 0.22, 0, x + 0.22, y + 0.22, 0.5, 'stóg');
   const g = sc.g, f = sc.F, [px, py] = sc.P(x, y, 0), R = 0.2 * AX * f * 1.4;
   g.save(); g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.9, py - R * 1.5, px, py - R * 1.65); g.quadraticCurveTo(px + R * 0.9, py - R * 1.5, px + R, py); g.ellipse(px, py, R, R * 0.45, 0, 0, Math.PI); g.closePath(); g.clip();
   const gr = g.createLinearGradient(px - R, 0, px + R, 0); gr.addColorStop(0, '#e6c868'); gr.addColorStop(0.5, '#cfa84c'); gr.addColorStop(1, '#8a6a28');
@@ -177,8 +188,9 @@ function haystack(sc, x, y) {
   for (let i = 0; i < 180; i++) { g.strokeStyle = `rgba(${r() < 0.5 ? '255,235,150' : '90,60,16'},${0.2 + r() * 0.35})`; const a = px - R + r() * R * 2, b = py - r() * R * 1.6; g.beginPath(); g.moveTo(a, b); g.lineTo(a + (r() - 0.5) * 8 * f, b + (5 + r() * 7) * f); g.stroke(); }
   g.restore(); g.strokeStyle = 'rgba(30,20,6,0.5)'; g.beginPath(); g.moveTo(px - R, py); g.quadraticCurveTo(px - R * 0.9, py - R * 1.5, px, py - R * 1.65); g.quadraticCurveTo(px + R * 0.9, py - R * 1.5, px + R, py); g.stroke();
 }
-function sack(sc, x, y, col = '#d8c898', s = 1) {
-  const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, 0), w = 11 * f, h = 14 * f;
+function sack(sc, x, y, col = '#d8c898', s = 1, z = 0) {
+  sc.regVol('prop', x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 0.22, 'worek');
+  const g = sc.g, f = sc.F * s, [px, py] = sc.P(x, y, z), w = 11 * f, h = 14 * f;
   const gr = g.createRadialGradient(px - 3 * f, py - h * 0.7, 1, px, py - h * 0.5, w);
   gr.addColorStop(0, css(scaleC(hex(col), 1.2))); gr.addColorStop(1, css(scaleC(hex(col), 0.62)));
   g.fillStyle = gr; g.beginPath(); g.ellipse(px, py - h * 0.45, w * 0.8, h * 0.55, 0, 0, TAU); g.fill();
@@ -193,6 +205,7 @@ function shield(g, u, v, r, col) {
 }
 /* stożkowy dach wieżyczki */
 function cone(sc, cx, cy, z0, r, h, col) {
+  sc.regVol('cone', cx - r, cy - r, z0, cx + r, cy + r, z0 + h);
   const g = sc.g, [px, py] = sc.P(cx, cy, z0), [, pt] = sc.P(cx, cy, z0 + h), rx = r * AX * sc.F * 1.4142, ry = r * AY * sc.F * 1.4142;
   g.beginPath(); g.moveTo(px - rx, py); g.lineTo(px, pt); g.lineTo(px + rx, py); g.ellipse(px, py, rx, ry, 0, 0, Math.PI); g.closePath();
   const gr = g.createLinearGradient(px - rx, 0, px + rx, 0); gr.addColorStop(0, css(scaleC(col, 1.3))); gr.addColorStop(0.5, css(col)); gr.addColorStop(1, css(scaleC(col, 0.5)));
@@ -210,6 +223,7 @@ function pennant(sc, x, y, z, len, col) {
 
 /* kopuła (półkula albo cebulasta) z żebrami, połyskiem i opcjonalnym zwieńczeniem */
 function dome(sc, cx, cy, z, r, o = {}) {
+  sc.regVol('dome', cx - r, cy - r, z, cx + r, cy + r, z + r * 1.16 * (o.onion ? 1.75 : 1), 'kopuła');
   const g = sc.g, f = sc.F, [dx, dy] = sc.P(cx, cy, z), R = r * AX * f * 1.4142, cols = o.cols || ['#a6e8ea', '#3fb0b8', '#1d7480', '#0f4452'];
   const path = () => { g.beginPath(); if (o.onion) { g.moveTo(dx - R, dy); g.bezierCurveTo(dx - R * 1.18, dy - R * 0.7, dx - R * 0.45, dy - R * 1.0, dx, dy - R * 1.75); g.bezierCurveTo(dx + R * 0.45, dy - R * 1.0, dx + R * 1.18, dy - R * 0.7, dx + R, dy); g.ellipse(dx, dy, R, R / 2, 0, 0, Math.PI); } else { g.arc(dx, dy, R, Math.PI, 0); g.ellipse(dx, dy, R, R / 2, 0, 0, Math.PI); } g.closePath(); };
   g.save(); path(); g.clip();
