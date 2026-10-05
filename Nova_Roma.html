@@ -1,0 +1,3168 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Nova Roma — Etap 5</title>
+<style>
+  :root {
+    --panel-bg: rgba(20, 16, 12, 0.92);
+    --panel-border: #6b543a;
+    --gold: #e8c860;
+    --text: #f0e6d2;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0b08; font-family: Georgia, 'Times New Roman', serif; }
+  #game { position: absolute; inset: 0; display: block; cursor: default; touch-action: none; -webkit-user-select: none; user-select: none; }
+  #game.dragging { cursor: grabbing; }
+
+  /* ---------- HUD górny ---------- */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0; height: calc(46px + var(--safe-top));
+    background: linear-gradient(#2a2018, #1a140e);
+    border-bottom: 2px solid var(--panel-border);
+    display: flex; align-items: center; gap: 18px; padding: var(--safe-top) 14px 0;
+    color: var(--text); font-size: 14px; z-index: 10;
+    user-select: none;
+  }
+  #hud .title { color: var(--gold); font-weight: bold; font-size: 16px; letter-spacing: 1px; }
+  #hud .stat { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  #hud .stat b { color: var(--gold); }
+  #hud .spacer { flex: 1; }
+  #hud button {
+    background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border);
+    padding: 4px 12px; cursor: pointer; font-family: inherit; font-size: 13px;
+  }
+  #hud button:hover { background: #55412a; }
+
+  @media (max-width: 720px), (max-height: 640px) {
+    /* HUD na telefonie: zwarty, zawijany, większe przyciski dotykowe */
+    #hud { flex-wrap: wrap; height: auto; padding: calc(4px + var(--safe-top)) 8px 4px; font-size: 12px; gap: 8px 12px; overflow-x: hidden; }
+    #hud .title { font-size: 13px; }
+    #hud button { padding: 8px 10px; font-size: 12px; touch-action: manipulation; }
+    /* podpowiedź widoczna na telefonie tylko jako komunikat chwilowy */
+    #hint:not(.flash) { display: none !important; }
+    #hint.flash { top: auto !important; bottom: 150px; left: 8px !important; right: 8px; font-size: 13px !important; }
+    #resPanel { width: 132px; font-size: 10px; top: auto; height: 40vh; }
+    .buildItem { width: 64px; }
+  }
+  /* ---------- Panel wyboru nacji ---------- */
+  #factionPick {
+    position: absolute; inset: 0; z-index: 50; display: flex;
+    align-items: flex-start; justify-content: center;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: radial-gradient(ellipse at center, #2a2118 0%, #0d0b08 75%);
+  }
+  #factionPick .inner { text-align: center; max-width: 860px; padding: 20px; }
+  #factionPick h1 { color: var(--gold); font-size: 42px; letter-spacing: 4px; margin-bottom: 4px; text-shadow: 0 2px 8px #000; }
+  #factionPick p.sub { color: #a89878; margin-bottom: 26px; font-style: italic; }
+  .factionCards { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; }
+  .factionCard {
+    width: 240px; background: var(--panel-bg); border: 2px solid var(--panel-border);
+    padding: 14px; cursor: pointer; color: var(--text); transition: transform .15s, box-shadow .15s;
+  }
+  .factionCard:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.6); border-color: var(--gold); }
+  .factionCard canvas { width: 100%; height: 130px; display: block; background: #10130f; border: 1px solid #000; }
+  .factionCard h2 { margin: 10px 0 2px; font-size: 20px; }
+  .factionCard .tagline { font-size: 12px; color: #a89878; font-style: italic; margin-bottom: 8px; }
+  .factionCard ul { list-style: none; font-size: 12px; text-align: left; color: #c8bda8; }
+  .factionCard li::before { content: "◆ "; color: var(--gold); }
+  @media (max-width: 720px), (max-height: 640px) {
+    #factionPick { align-items: flex-start; overflow-y: auto; }
+    #factionPick .inner { max-width: 100%; padding: calc(16px + var(--safe-top)) 12px 40px; }
+    #factionPick h1 { font-size: 30px; letter-spacing: 2px; }
+    #factionPick p.sub { margin-bottom: 16px; font-size: 14px; }
+    .factionCards { flex-direction: column; align-items: center; }
+    .factionCard { width: 100%; max-width: 420px; padding: 12px; touch-action: manipulation; }
+    .factionCard:active { transform: scale(0.97); }
+  }
+
+  /* ---------- Dolny pasek budowy ---------- */
+  #buildBar {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: linear-gradient(#1a140e, #241c12);
+    border-top: 2px solid var(--panel-border);
+    padding: 6px 10px calc(8px + var(--safe-bottom)); color: var(--text);
+    user-select: none;
+  }
+  #buildTabs { display: flex; gap: 6px; margin-bottom: 6px; }
+  #buildTabs button {
+    background: transparent; border: none; color: #a89878; font-family: inherit;
+    font-size: 13px; padding: 3px 10px; cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  #buildTabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
+  #buildItems { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+  .buildItem {
+    flex: 0 0 auto; width: 74px; background: #241c12; border: 1px solid #4a3a26;
+    padding: 4px 3px; cursor: pointer; text-align: center;
+  }
+  .buildItem:hover { border-color: var(--gold); background: #35281a; }
+  .buildItem.selected { border-color: var(--gold); box-shadow: 0 0 6px rgba(232,200,96,.5); background: #35281a; }
+  .buildItem canvas { width: 62px; height: 44px; display: block; margin: 0 auto; }
+  .buildItem .bname { font-size: 10px; line-height: 1.1; margin-top: 2px; height: 22px; overflow: hidden; }
+  .buildItem .bcost { font-size: 9px; color: #9a8a68; }
+
+  /* ---------- Tooltip / info ---------- */
+  #tooltip {
+    position: absolute; z-index: 20; pointer-events: none; display: none;
+    background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text);
+    padding: 8px 10px; font-size: 12px; max-width: 240px; line-height: 1.45;
+  }
+  #tooltip h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
+  #tooltip .affordable { color: #8fce8f; }
+  #tooltip .expensive { color: #e08484; }
+
+  #hint {
+    position: absolute; z-index: 30; left: 12px; top: calc(54px + var(--safe-top)); color: #b8a888;
+    font-size: 12px; background: rgba(20,16,12,.85); padding: 4px 8px; border-radius: 3px;
+    pointer-events: none;
+  }
+
+  #resPanel {
+    position: absolute; z-index: 8; top: calc(54px + var(--safe-top)); right: 0; bottom: 90px; width: 172px;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-right: none; color: var(--text); font-size: 11px;
+    padding: 6px 8px; overflow-y: auto; user-select: none;
+  }
+  #resPanel h3 { color: var(--gold); font-size: 12px; margin-bottom: 4px; letter-spacing: 1px; }
+  #resPanel .row { display: flex; justify-content: space-between; line-height: 1.5; }
+  #resPanel .row .v { color: #c8bda8; }
+  #resPanel .row .cap { color: #7a6c55; font-size: 10px; }
+  #resPanel .sep { border-top: 1px solid #3a2f22; margin: 5px 0; }
+  #resPanel .full { color: #e08484; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud" style="display:none">
+  <span class="title">NOVA ROMA</span>
+  <span class="stat" id="hudFaction"></span>
+  <span class="stat">⏱ <b id="hudTime">0</b> min</span>
+  <span class="stat">👥 <b id="hudPop">0</b></span>
+  <span class="stat">💛 <b id="hudPopularity">50</b></span>
+  <span class="stat">🪙 <b id="hudGold">0</b></span>
+  <span class="stat">🔧 <b id="hudTools">0</b></span>
+  <span class="stat">🍖 <b id="hudFood">0</b></span>
+  <span class="stat">👷 <b id="hudJobs">0/0</b></span>
+  <span class="stat">🏠 <b id="hudHousing">20</b></span>
+  <span class="spacer"></span>
+  <button id="btnRations">Racje: ×1</button>
+  <button id="btnTax">Podatek: 1</button>
+  <button id="btnBuilders">👷 Budowniczowie: 3</button>
+  <button id="btnTribute">📜 Haracz: Wyłączony</button>
+  <button id="btnVoyages">⛵ Wyprawy: Zwykłe</button>
+  <button id="btnCrisis">🔥 Kryzysy: wył.</button>
+  <button id="btnSpeed">Prędkość: ×1</button>
+</div>
+<div id="hint" style="display:none">Przeciągnij prawym przyciskiem / WASD — kamera · kółko — zoom · ESC — anuluj budowę</div>
+<div id="resPanel" style="display:none"></div>
+<div id="buildBar" style="display:none">
+  <div id="buildTabs"></div>
+  <div id="buildItems"></div>
+</div>
+<div id="tooltip"></div>
+<div id="factionPick">
+  <div class="inner">
+    <h1>NOVA ROMA</h1>
+    <p class="sub">v6 — Wybierz nację — każda buduje inaczej, wygląda inaczej i żyje inaczej.</p>
+    <div class="factionCards" id="factionCards"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* nakładka błędów: każdy błąd JS pokazuje się na ekranie (debug na telefonie) */
+window.addEventListener('error', ev => {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#5a1a1a;color:#ffd0d0;font:12px monospace;padding:8px;white-space:pre-wrap;';
+  d.textContent = '⚠ Błąd: ' + (ev.message || '?') + ' @ linia ' + (ev.lineno || '?');
+  document.body.appendChild(d);
+});
+/* ============================================================================
+   NOVA ROMA — silnik świata, wybór nacji, budowa, ekonomia, haracz, zdarzenia.
+   Moduły (każdy to IIFE z jasnym API):
+
+     Data      — cała zawartość (nacje, budynki, koszty, produkcja) jako dane
+     RNG       — deterministyczny generator liczb losowych
+     MapGen    — proceduralna mapa (teren, drzewa, złoża, brzeg)
+     Gfx       — rysowanie kafli, budynków i obywateli
+     Camera    — przesuwanie / zoom / konwersja współrzędnych
+     World     — stan gry: kafle, budynki, obywatele, zasoby
+     Economy   — ekonomia przepływowa (Etap 2): obsada, produkcja, głód
+     Build     — logistyka budowy (Etap 3): kolejka placów, budowniczowie
+     Tribute   — haracz seniora (Etap 4): żołnierze / złoto / wyprawy
+     Events    — świat dynamiczny (Etap 5): napady, kryzysy
+     TestBots  — boty testowe R/D/N
+     BuildMode — interfejs budowy, walidacja miejsc, duch budynku
+     UI        — HUD, pasek budowy, tooltipy
+     Game      — pętla czasu, render, input
+   ========================================================================== */
+
+/* ====================== GLOBALNE (canvas dla Camera) ====================== */
+const canvas = document.getElementById('game');
+let dpr = window.devicePixelRatio || 1;
+
+/* ============================== MODUL: RNG ================================ */
+const RNG = (() => {
+  let s = 123456789;
+  function seed(v) { s = v >>> 0; }
+  function next() { // mulberry32
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  return { seed, next, range: (a, b) => a + next() * (b - a),
+           int: (a, b) => Math.floor(a + next() * (b - a + 1)),
+           pick: arr => arr[Math.floor(next() * arr.length)] };
+})();
+
+/* ============================== MODUL: DATA =============================== */
+/* d = deski, k = kamień, gl = glina, zl = złoto. tool = wymaga narzędzia.
+   req = wymagania terenowe: 'forest', 'shore', 'deposit:<rodzaj>', 'waterEdge'. */
+const Data = (() => {
+
+  const FACTIONS = {
+    franks: {
+      id: 'franks', name: 'Frankowie', tagline: 'Kamień, chleb i żelazo',
+      desc: ['Pełny zestaw 23 budynków', 'Łańcuch chleba i broni', 'Haracz w żołnierzach (Etap 4)'],
+      palette: { terrain: 'grass', wall:'#e0d2ac', timber:'#6b4a2f', roof:'#a05238',
+                 roofAlt:'#7d4a34', stone:'#9a9a92', accent:'#4865a0', metal:'#8b9aa5',
+                 cloth:'#a03a3a', citizen:'#4865a0', citizenAlt:'#a03a3a', skin:'#e8c39a' },
+      treesTarget: 300, treeGrowthMin: 5, deposits: { stone: 3, iron: 2, coal: 3 },
+      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Chleb', wood: 30, stone: 12 }
+    },
+    saracens: {
+      id: 'saracens', name: 'Saraceni', tagline: 'Woda, daktyle i handel',
+      desc: ['Handel kadzidłem, tkaniną i ceramiką', 'Qanat zamiast wielu nosiwodów', 'Haracz w złocie (Etap 4)'],
+      palette: { terrain: 'sand', wall:'#ecdfc0', timber:'#8a6a45', roof:'#cdb488',
+                 roofAlt:'#b89a68', stone:'#d8c8a0', accent:'#2f8a70', metal:'#c9a84a',
+                 cloth:'#2f8a70', citizen:'#f0ead8', citizenAlt:'#2f8a70', skin:'#c89868' },
+      treesTarget: 150, treeGrowthMin: 12, deposits: { clay: 2 },
+      start: { pop: 14, gold: 100, tools: 8, food: 36, foodKind: 'Daktyle', wood: 30, clay: 12 }
+    },
+    vikings: {
+      id: 'vikings', name: 'Wikingowie', tagline: 'Drewno, morze i wyprawy',
+      desc: ['Rybołówstwo i wyprawy okrętów', 'Wypalarki zamiast kopalń węgla', 'Haracz w wyprawach (Etap 4)'],
+      palette: { terrain: 'tundra', wall:'#5c4835', timber:'#3a2c1e', roof:'#7d6a48',
+                 roofAlt:'#6a563a', stone:'#8a8a84', accent:'#b8c2c8', metal:'#b8c2c8',
+                 cloth:'#3a5a3a', citizen:'#6a6a72', citizenAlt:'#3a5a3a', skin:'#e8c39a' },
+      treesTarget: 450, treeGrowthMin: 3, deposits: { peat: 2 },
+      start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Ryby', wood: 40 }
+    }
+  };
+
+  const BUILDINGS = {
+    keep:     { name:'Dwór', cat:'', art:'keep', worker:0, costs:null, note:'Serce osady (komora 20 szt.)' },
+    /* --- wspólne --- */
+    hut:      { name:'Chata', cat:'Mieszkania', art:'hut', housing: 6, costs:{ franks:{d:4}, saracens:{d:2,gl:4}, vikings:{d:8} }, note:'+6 miejsca (Wikingowie +8)' },
+    woodcutter:{ name:'Chata drwala', cat:'Drewno', art:'woodcutter', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} }, out:{ pień:1.0 }, note:'Pierwsza darmowa' },
+    forester: { name:'Leśniczówka', cat:'Drewno', art:'forester', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} }, out:{ 'sadzonki':1.0 }, note:'Sadzi drzewa' },
+    sawmill:  { name:'Tartak', cat:'Drewno', art:'sawmill', worker:1, tool:true, inp:{ pień:1.0 }, out:{ deski:2.0 }, costs:{ franks:{d:6,k:2}, saracens:{d:4,gl:2}, vikings:{d:9} } },
+    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} } },
+    dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6} } },
+    orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4} } },
+    watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4} } },
+    market:   { name:'Targ', cat:'Handel', art:'market', worker:1, costs:{ franks:{d:6}, saracens:{d:4,gl:4}, vikings:{d:6} }, note:'Sprzedaje towary i narzędzia (20 zł)' },
+    store:    { name:'Skład', cat:'Handel', art:'store', worker:0, out:{}, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4} }, note:'+80 szt. każdego towaru' },
+    temple:   { name:'Kościół / Meczet', cat:'Społeczne', art:'temple', worker:1, costs:{ franks:{d:8,zl:80}, saracens:{d:6,gl:4,zl:80}, vikings:{d:12,zl:80} }, note:'Dobrobyt +10' },
+    /* --- Frankowie --- */
+    quarry:   { name:'Kamieniołom', cat:'Surowce', art:'quarry', worker:1, tool:true, factions:['franks'], req:'deposit:stone', out:{ kamień:1.5 }, costs:{ franks:{d:4} } },
+    farm:     { name:'Farma', cat:'Jedzenie', art:'farm', worker:1, factions:['franks'], out:{ zboże:1.5 }, costs:{ franks:{d:6,k:2} } },
+    mill:     { name:'Młyn', cat:'Jedzenie', art:'mill', worker:1, tool:true, factions:['franks'], inp:{ zboże:1.5 }, out:{ mąka:1.5 }, costs:{ franks:{d:6,k:2} } },
+    bakery:   { name:'Piekarnia', cat:'Jedzenie', art:'bakery', worker:1, factions:['franks'], inp:{ mąka:1.5, woda:0.75 }, out:{ chleb:3.3 }, costs:{ franks:{d:6,k:2} } },
+    ironmine: { name:'Kopalnia żelaza', cat:'Surowce', art:'ironmine', worker:1, tool:true, factions:['franks'], req:'deposit:iron', out:{ ruda:1.0 }, costs:{ franks:{d:4,k:4} }, note:'Zjada 0,5 porcji/min' },
+    coalmine: { name:'Kopalnia węgla', cat:'Surowce', art:'coalmine', worker:1, tool:true, factions:['franks'], req:'deposit:coal', out:{ węgiel:1.0 }, costs:{ franks:{d:4,k:4} }, note:'Zjada 0,5 porcji/min' },
+    smelter:  { name:'Huta', cat:'Rzemiosło', art:'smelter', worker:1, tool:true, factions:['franks','vikings'], inp:{ ruda:1.5, węgiel:1.5 }, out:{ sztabki:1.5 }, costs:{ franks:{d:8,k:6}, vikings:{d:17} } },
+    toolforge:{ name:'Kuźnia narzędzi', cat:'Rzemiosło', art:'toolforge', worker:1, tool:true, factions:['franks','vikings'], inp:{ sztabki:1.2 }, out:{ narzędzia:1.2 }, costs:{ franks:{d:6,k:4}, vikings:{d:12} } },
+    armory:   { name:'Zbrojownia', cat:'Militaria', art:'armory', worker:1, tool:true, factions:['franks','vikings'], inp:{ sztabki:1.2, węgiel:1.2 }, out:{ broń:1.2 }, costs:{ franks:{d:8,k:6}, vikings:{d:17} } },
+    vineyard: { name:'Winnica', cat:'Rzemiosło', art:'vineyard', worker:1, factions:['franks'], out:{ winogrona:1.0 }, costs:{ franks:{d:6,k:2} } },
+    winery:   { name:'Winiarz', cat:'Rzemiosło', art:'winery', worker:1, factions:['franks'], inp:{ winogrona:1.0 }, out:{ wino:1.0 }, costs:{ franks:{d:6,k:2} } },
+    barracks: { name:'Koszary', cat:'Militaria', art:'barracks', worker:0, factions:['franks'], costs:{ franks:{d:8,k:8,zl:60} }, note:'Warunek dostaw żołnierzy' },
+    /* --- Saraceni --- */
+    claypit:  { name:'Glinianka', cat:'Surowce', art:'claypit', worker:1, tool:true, factions:['saracens'], req:'deposit:clay', out:{ glina:2.0 }, costs:{ saracens:{d:4} } },
+    dategrove:{ name:'Gaj daktylowy', cat:'Jedzenie', art:'palms', worker:1, factions:['saracens'], inp:{ woda:0.6 }, out:{ daktyle:1.6 }, costs:{ saracens:{d:4,gl:4} } },
+    incensewood:{ name:'Las kadzidlany', cat:'Rzemiosło', art:'shrubs', worker:1, factions:['saracens'], out:{ żywica:1.0 }, costs:{ saracens:{d:4} } },
+    incense:  { name:'Wytwórnia kadzidła', cat:'Rzemiosło', art:'incense', worker:1, tool:true, factions:['saracens'], inp:{ żywica:1.0 }, out:{ kadzidło:1.0 }, costs:{ saracens:{d:4,gl:4} }, note:'Zjada 0,5 porcji/min' },
+    cotton:   { name:'Plantacja bawełny', cat:'Rzemiosło', art:'cotton', worker:1, factions:['saracens'], inp:{ woda:0.6 }, out:{ bawełna:1.2 }, costs:{ saracens:{d:4,gl:4} } },
+    weaver:   { name:'Tkalnia', cat:'Rzemiosło', art:'weaver', worker:1, tool:true, factions:['saracens'], inp:{ bawełna:1.2 }, out:{ tkanina:1.0 }, costs:{ saracens:{d:4,gl:4} } },
+    pottery:  { name:'Garncarnia', cat:'Rzemiosło', art:'pottery', worker:1, tool:true, factions:['saracens'], inp:{ glina:1.0, pień:0.3 }, out:{ ceramika:1.0 }, costs:{ saracens:{d:4,gl:4} } },
+    qanat:    { name:'Qanat', cat:'Jedzenie', art:'qanat', worker:1, factions:['saracens'], out:{ woda:4.5 }, costs:{ saracens:{d:6,gl:10,zl:60} }, note:'Zastępuje 3 nosiwody' },
+    bathhouse:{ name:'Łaźnia', cat:'Społeczne', art:'bath', worker:1, factions:['saracens'], inp:{ woda:0.5 }, costs:{ saracens:{d:6,gl:6,zl:40} }, note:'Popularność +6' },
+    caravanserai:{ name:'Karawanseraj', cat:'Handel', art:'serai', worker:1, factions:['saracens'], costs:{ saracens:{d:10,gl:10,zl:100} }, note:'Ceny +20% (max 2)' },
+    guardpost:{ name:'Strażnica', cat:'Militaria', art:'guard', worker:1, factions:['saracens'], costs:{ saracens:{d:8,gl:6,zl:40} }, note:'Ryzyko napadu −40% (max 2)' },
+    /* --- Wikingowie --- */
+    fisherhut:{ name:'Chata rybaka', cat:'Jedzenie', art:'fisher', worker:1, factions:['vikings'], req:'shore', out:{ ryby:1.1 }, costs:{ vikings:{d:6} } },
+    peatmine: { name:'Kopalnia darniowa', cat:'Surowce', art:'peatmine', worker:1, tool:true, factions:['vikings'], req:'deposit:peat', out:{ ruda:1.5 }, costs:{ vikings:{d:10} }, note:'Zjada 0,25 porcji/min' },
+    charburner:{ name:'Wypalarka węgla', cat:'Surowce', art:'kiln', worker:1, factions:['vikings'], inp:{ pień:2.0 }, out:{ węgiel:1.0 }, costs:{ vikings:{d:8} }, note:'Jedyne źródło węgla' },
+    mead:     { name:'Miodosytnia', cat:'Rzemiosło', art:'mead', worker:1, factions:['vikings'], inp:{ woda:0.5 }, out:{ 'miód pitny':1.0 }, costs:{ vikings:{d:9} } },
+    dock:     { name:'Przystań', cat:'Militaria', art:'dock', worker:0, factions:['vikings'], req:'waterEdge', costs:{ vikings:{d:15} }, note:'Warunek dla Okrętu' },
+    ship:     { name:'Okręt', cat:'Militaria', art:'ship', worker:0, factions:['vikings'], req:'waterEdge', costs:{ vikings:{d:40} }, note:'Wyprawa: 6 załogi, 6 miodu, 6 broni' }
+  };
+
+  const CATS = ['Mieszkania','Jedzenie','Drewno','Surowce','Rzemiosło','Handel','Militaria','Społeczne'];
+
+  const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
+
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL };
+})();
+
+/* ============================= MODUL: CAMERA ============================== */
+const Camera = (() => {
+  const api = { x: 0, y: 0, zoom: 1 };
+  const TW = 64, TH = 32; // rozmiar kafla izometrycznego przy zoom=1
+  api.tileW = () => TW * api.zoom;
+  api.tileH = () => TH * api.zoom;
+  api.screenToWorld = (sx, sy) => {
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    const u = (sx - api.x - w / 2) / (TW * api.zoom);
+    const v = (sy - api.y - h / 2) / (TH * api.zoom);
+    return { x: u + v, y: v - u };
+  };
+  api.worldToScreen = (wx, wy) => {
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    return { x: (wx - wy) * (TW*api.zoom/2) + api.x + w/2,
+             y: (wx + wy) * (TH*api.zoom/2) + api.y + h/2 };
+  };
+  return api;
+})();
+
+/* ============================= MODUL: MAPGEN ============================== */
+/* Kafel: { h: typ terenu (0 woda, 1 piasek/trawa, 2 skała), trees: 0..3,
+           deposit: null|'stone'|'iron'|'coal'|'clay'|'peat', occup: uid|null } */
+const MapGen = (() => {
+  const SIZE = 48;
+  function generate(factionId) {
+    RNG.seed(factionId === 'franks' ? 777 : factionId === 'saracens' ? 888 : 999);
+    const c = Math.floor(SIZE/2);
+    const tiles = new Array(SIZE * SIZE);
+    for (let i = 0; i < SIZE * SIZE; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null };
+
+    // Morze po jednej krawędzi (Wikingowie — pełne morze; inni — jezioro/zatoka)
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const i = y * SIZE + x;
+        const nx = x / SIZE, ny = y / SIZE;
+        const coast = 5 + Math.sin(y * 0.35) * 2.5 + RNG.range(-0.8, 0.8)
+                      + (factionId === 'vikings' ? -1.5 : 3.5);
+        if (x < coast) tiles[i].h = 0;
+        const mtn = Math.sin(nx*9)*Math.cos(ny*7)*0.9 + Math.sin((nx+ny)*13)*0.5;
+        if (mtn > 0.92 && tiles[i].h === 1 && Math.hypot(x - c, y - c) > 9) tiles[i].h = 2; // skały nie na starcie
+      }
+    }
+    // Drzewa — kępy; cel docelowy z danych nacji (przybliżenie gęstością)
+    const f = Data.FACTIONS[factionId];
+    const density = f.treesTarget / (SIZE * SIZE * 0.6);
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const i = y * SIZE + x;
+      if (tiles[i].h !== 1) continue;
+      const clump = Math.sin(x*0.9)*Math.cos(y*0.8) + RNG.range(-0.5, 0.5);
+      if (clump > 0.1 && RNG.next() < density * 2.2)
+        tiles[i].trees = RNG.int(1, 3);
+    }
+    // Złoża: gwarantowane minima; poza placem Dworu, na kaflu bez drzew
+    const depPlan = {
+      franks: [['stone',3], ['iron',2], ['coal',3]],
+      saracens: [['clay',2]],
+      vikings: [['peat',2]]
+    }[factionId];
+    for (const [kind, count] of depPlan) {
+      let placed = 0, guard = 0;
+      while (placed < count && guard++ < 500) {
+        const x = RNG.int(6, SIZE-3), y = RNG.int(2, SIZE-3);
+        const i = y * SIZE + x;
+        const inPlaza = Math.abs(x - c) <= 3 && Math.abs(y - c) <= 3;
+        if (tiles[i].h === 1 && !tiles[i].deposit && !inPlaza) {
+          tiles[i].deposit = kind; tiles[i].trees = 0; placed++;
+        }
+      }
+    }
+    // Wyczyść plac pod Dwór (środek mapy)
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const t = tiles[(c+dy)*SIZE + (c+dx)];
+      if (t) { t.h = 1; t.trees = 0; t.deposit = null; }
+    }
+    return { size: SIZE, tiles };
+  }
+  function at(map, x, y) {
+    if (x < 0 || y < 0 || x >= map.size || y >= map.size) return null;
+    return map.tiles[y * map.size + x];
+  }
+  function neighbors(map, x, y) {
+    return [[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy]) => at(map, x+dx, y+dy)).filter(Boolean);
+  }
+  return { generate, at, neighbors, SIZE };
+})();
+
+/* =============================== MODUL: GFX =============================== */
+/* Sprite'y proceduralne (canvas 2D). Zasady czytelności:
+   1. jedna bryła budynku + jeden sygnaturowy rekwizyt przylegający do ściany;
+   2. unikalna sylwetka (wieża, komin, kopuła, koło, maszt);
+   3. kolor kategorii: Militaria — proporzec, Społeczne — niebieski akcent,
+      Handel — pasiasty daszek, Produkcja — ciepłe dachy z dymem;
+   4. działki (farmy, sady, gaje) scalone płotem w jedną całość;
+   5. teren żyje: kępki trawy, kwiaty, kamyki — deterministycznie z hasha
+      pozycji kafla (bez RNG w renderze: zero migotania między klatkami). */
+const Gfx = (() => {
+  let t_anim = 0;
+  function setAnim(v) { t_anim = v; }
+
+  function shade(color, f) { // rozjaśnianie / przyciemnianie koloru (#rrggbb albo rgb(r,g,b))
+    let r, g, b;
+    if (color[0] === '#') {
+      const n = parseInt(color.slice(1), 16);
+      r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255;
+    } else {
+      const m = color.match(/\d+/g) || [0, 0, 0];
+      r = +m[0]; g = +m[1]; b = +m[2];
+    }
+    r = Math.min(255, Math.max(0, r * f)) | 0;
+    g = Math.min(255, Math.max(0, g * f)) | 0;
+    b = Math.min(255, Math.max(0, b * f)) | 0;
+    return `rgb(${r},${g},${b})`;
+  }
+
+  /* deterministyczny hash kafla 0..1 (stabilny między klatkami) */
+  function thash(x, y, n) {
+    let v = (x * 374761393 + y * 668265263 + n * 69069) | 0;
+    v = Math.imul(v ^ (v >>> 13), 1274126177);
+    return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+  }
+
+  /* ============================== TEREN ============================== */
+  function drawTile(ctx, t, sx, sy, z, terrain, coast) {
+    const w = Camera.tileW(), h = Camera.tileH();
+    let c;
+    if (t.h === 0) c = terrain === 'sand' ? '#3a7192' : '#4a7a94';
+    else if (t.h === 2) c = terrain === 'sand' ? '#a89880' : '#75746c';
+    else c = terrain === 'grass' ? '#4f7c3a' : terrain === 'sand' ? '#cbb684' : '#63724a';
+    ctx.fillStyle = shade(c, 0.96 + ((t.x + t.y) % 2) * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - h/2); ctx.lineTo(sx + w/2, sy);
+    ctx.lineTo(sx, sy + h/2); ctx.lineTo(sx - w/2, sy);
+    ctx.closePath(); ctx.fill();
+    /* ziarno terenu: deterministyczne nakrapki jasne/ciemne */
+    ctx.save(); ctx.clip();
+    const gr = t.h === 0 ? 10 : 7;
+    for (let i = 0; i < gr; i++) {
+      const rA = thash(t.x, t.y, 200 + i), rB = thash(t.x, t.y, 240 + i);
+      const gx = sx + (rA - 0.5) * w * 0.82;
+      const gy = sy + (rB - 0.5) * h * 0.82;
+      ctx.fillStyle = shade(c, thash(t.x, t.y, 280 + i) > 0.5 ? 1.14 : 0.8);
+      ctx.fillRect(gx, gy, 1.7*z, 1.0*z);
+    }
+    ctx.restore();
+
+    if (t.h === 0) { // woda: piana przy brzegu, zmarszczki, błyski
+      if (coast) {
+        const VT = [[0,-h/2, w/2,0], [w/2,0, 0,h/2], [0,h/2, -w/2,0], [-w/2,0, 0,-h/2]];
+        for (let e = 0; e < 4; e++) {
+          if (!(coast & (1 << e))) continue;
+          const vx1 = VT[e][0], vy1 = VT[e][1], vx2 = VT[e][2], vy2 = VT[e][3];
+          const k = 0.82, wob = Math.sin(t_anim * 1.6 + t.x * 1.3 + t.y * 0.7 + e * 1.6) * 1.6 * z;
+          ctx.strokeStyle = "rgba(230,240,240,0.38)"; ctx.lineWidth = 2.0 * z;
+          ctx.beginPath();
+          ctx.moveTo(sx + vx1 * k, sy + vy1 * k);
+          ctx.quadraticCurveTo(sx + (vx1 + vx2) * 0.35 + wob, sy + (vy1 + vy2) * 0.35 + wob * 0.5, sx + vx2 * k, sy + vy2 * k);
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(230,240,240,0.15)"; ctx.lineWidth = 3.6 * z;
+          ctx.beginPath();
+          ctx.moveTo(sx + vx1 * k * 0.92, sy + vy1 * k * 0.92);
+          ctx.lineTo(sx + vx2 * k * 0.92, sy + vy2 * k * 0.92);
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath(); ctx.ellipse(sx, sy, w/4, h/6, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const r1 = thash(t.x, t.y, i * 2), r2 = thash(t.x, t.y, i * 2 + 1);
+        const drift = ((t_anim * 0.35 + i * 0.33) % 1 - 0.5) * w * 0.2;
+        const wx = sx + (r1 - 0.5) * w * 0.5 + drift, wy = sy + (r2 - 0.5) * h * 0.5;
+        ctx.beginPath(); ctx.moveTo(wx - 4*z, wy); ctx.quadraticCurveTo(wx, wy - 2*z, wx + 4*z, wy); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      for (let i = 0; i < 4; i++) {
+        const bA = thash(t.x, t.y, 300 + i), bB = thash(t.x, t.y, 320 + i);
+        ctx.fillRect(sx + (bA - 0.5) * w * 0.7, sy + (bB - 0.5) * h * 0.7, 1.2*z, 0.7*z);
+      }
+    } else if (terrain === 'grass' && t.h === 1) { // łąka: kępki, kwiaty, kamyki
+      const nTufts = 2 + Math.floor(thash(t.x, t.y, 9) * 3);
+      for (let i = 0; i < nTufts; i++) {
+        const gx = sx + (thash(t.x, t.y, i * 3) - 0.5) * w * 0.62;
+        const gy = sy + (thash(t.x, t.y, i * 3 + 1) - 0.5) * h * 0.62;
+        drawGrassTuft(ctx, gx, gy, z, 0.8 + thash(t.x, t.y, i * 3 + 2) * 0.5);
+      }
+      if (thash(t.x, t.y, 30) > 0.62) { // kwiatek
+        const fx = sx + (thash(t.x, t.y, 31) - 0.5) * w * 0.5;
+        const fy = sy + (thash(t.x, t.y, 32) - 0.5) * h * 0.5;
+        const fc = thash(t.x, t.y, 33) > 0.5 ? '#e8d84a' : '#e07a9a';
+        ctx.strokeStyle = '#4a7a34'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 4*z); ctx.stroke();
+        ctx.fillStyle = fc;
+        ctx.beginPath(); ctx.arc(fx, fy - 5*z, 1.8*z, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(fx, fy - 5*z, 0.7*z, 0, 7); ctx.fill();
+      }
+      if (thash(t.x, t.y, 40) > 0.78) { // kamyk
+        const px = sx + (thash(t.x, t.y, 41) - 0.5) * w * 0.55;
+        const py = sy + (thash(t.x, t.y, 42) - 0.5) * h * 0.55;
+        ctx.fillStyle = '#8a8a80';
+        ctx.beginPath(); ctx.ellipse(px, py, 2.4*z, 1.4*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#a8a89c';
+        ctx.beginPath(); ctx.ellipse(px - 0.6*z, py - 0.5*z, 1*z, 0.55*z, 0, 0, 7); ctx.fill();
+      }
+    } else if (terrain === 'sand' && t.h === 1) { // piach: zmarszczki
+      ctx.strokeStyle = 'rgba(120,90,50,0.25)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const ry = sy - h*0.22 + i*h*0.22 + (thash(t.x, t.y, i) - 0.5) * h * 0.12;
+        ctx.beginPath(); ctx.moveTo(sx - w*0.3, ry);
+        ctx.quadraticCurveTo(sx, ry + (thash(t.x, t.y, i + 5) - 0.5) * h * 0.2, sx + w*0.3, ry);
+        ctx.stroke();
+      }
+    } else if (t.h === 2) { // skały: spękania
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 2; i++) {
+        const rx = sx + (thash(t.x, t.y, i + 60) - 0.5) * w * 0.4;
+        const ry = sy + (thash(t.x, t.y, i + 62) - 0.5) * h * 0.4;
+        ctx.beginPath(); ctx.moveTo(rx - 4*z, ry); ctx.lineTo(rx + 4*z, ry + (thash(t.x, t.y, i + 64) - 0.5) * 4*z); ctx.stroke();
+      }
+    }
+
+    // drzewa na kafel (1–3 szt.)
+    if (t.trees > 0) {
+      const spots = [[-0.18, -0.1], [0.12, -0.18], [0.02, 0.1]];
+      for (let i = 0; i < t.trees; i++) {
+        const ox = spots[i][0] * w, oy = spots[i][1] * h;
+        drawTree(ctx, sx + ox, sy + oy, z, terrain);
+      }
+    }
+    if (t.deposit) drawDeposit(ctx, sx, sy, z, t.deposit);
+  }
+
+  function drawGrassTuft(ctx, x, y, z, sc) {
+    ctx.strokeStyle = '#4e8034'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = -1; i <= 1; i++) {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + i * 2.4*z*sc, y - 5*z*sc + Math.abs(i) * 1.2*z);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#6ba04a';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 0.8*z, y - 4.6*z*sc); ctx.stroke();
+  }
+
+  function drawTree(ctx, x, y, z, terrain) {
+    const s = z;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; // cień korony
+    ctx.beginPath(); ctx.ellipse(x + 2.2*s, y + 1.2*s, 7*s, 2.6*s, 0, 0, 7); ctx.fill();
+    const trunk = terrain === 'sand' ? '#8a6a45' : '#5c4630';
+    const leaf = terrain === 'sand' ? '#5a8a4a' : terrain === 'tundra' ? '#3e6a44' : '#3a7a34';
+    ctx.fillStyle = trunk;
+    ctx.fillRect(x - 1.5*s, y - 8*s, 3*s, 8*s);
+    ctx.fillStyle = leaf;
+    ctx.beginPath(); ctx.moveTo(x, y - 20*s); ctx.lineTo(x + 7*s, y - 6*s); ctx.lineTo(x - 7*s, y - 6*s);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(leaf, 1.25); // oświetlenie lewej strony
+    ctx.beginPath(); ctx.moveTo(x, y - 20*s); ctx.lineTo(x - 5*s, y - 8*s); ctx.lineTo(x - 1*s, y - 8*s);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(leaf, 0.7); // przygaszenie prawej
+    ctx.beginPath(); ctx.moveTo(x, y - 20*s); ctx.lineTo(x + 7*s, y - 6*s); ctx.lineTo(x + 2*s, y - 8*s);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawDeposit(ctx, x, y, z, kind) {
+    const colors = { stone:'#9a9a92', iron:'#a58760', coal:'#3a3a3a', clay:'#b07050', peat:'#6a5030' };
+    const c = colors[kind];
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.ellipse(x, y + 2*z, 13*z, 5*z, 0, 0, 7); ctx.fill();
+    for (const [ox, oy, r] of [[-8,2,4],[6,4,5],[0,-4,3]]) {
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.ellipse(x + ox*z, y + oy*z, r*z, r*0.55*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = shade(c, 1.35);
+      ctx.beginPath(); ctx.ellipse(x + ox*z - 1, y + oy*z - 1, r*z*0.45, r*0.25*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade(c, 0.5); ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.ellipse(x + ox*z, y + oy*z, r*z, r*0.55*z, 0, 0, 7); ctx.stroke();
+    }
+    if (kind === 'iron') { // rudy błysk
+      ctx.fillStyle = '#d8c8a8';
+      ctx.fillRect(x - 6*z, y + 2*z, 1.4*z, 1.4*z); ctx.fillRect(x + 8*z, y + 1*z, 1.4*z, 1.4*z);
+    }
+  }
+
+  function shadow(ctx, x, y, z, rx) { // kierunkowy cień: światło z lewej-góry
+    const ox = rx * 0.3 * z, oy = 0.5 * z;
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.beginPath(); ctx.ellipse(x + ox, y + oy, rx * z * 1.12, rx * 0.42 * z, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.10)"; // miękka poświata
+    ctx.beginPath(); ctx.ellipse(x + ox * 0.5, y + oy * 0.5, rx * z * 1.3, rx * 0.5 * z, 0, 0, 7); ctx.fill();
+  }
+
+  /* ===================== PRYMITYWY I REKWIZYTY ===================== */
+
+  function base(ctx, x, y, z, p, wW, wH) { // prostokąt ściany (front)
+    ctx.fillStyle = p.wall; ctx.fillRect(x - wW/2, y - wH, wW, wH);
+    ctx.strokeStyle = shade(p.wall, 0.6); ctx.lineWidth = 1; ctx.strokeRect(x - wW/2, y - wH, wW, wH);
+    ctx.fillStyle = shade(p.wall, 1.16); ctx.fillRect(x - wW/2, y - wH, wW, 2*z); // rozświetlona góra ściany
+    ctx.fillStyle = shade(p.wall, 0.8); ctx.fillRect(x - wW/2, y - 2*z, wW, 2*z); // przyziemie w cieniu
+    if (p.timber) { // szachulec / bierwiona
+      ctx.strokeStyle = shade(p.timber, 1.0); ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x - wW/2, y - wH/2); ctx.lineTo(x + wW/2, y - wH/2);
+      ctx.moveTo(x - wW/2, y - wH); ctx.lineTo(x + wW/2, y);
+      ctx.moveTo(x + wW/2, y - wH); ctx.lineTo(x - wW/2, y);
+      ctx.stroke();
+    }
+  }
+
+  function door(ctx, x, y, z, col) {
+    ctx.fillStyle = col || '#3a2a1a'; ctx.fillRect(x - 3*z, y - 8*z, 6*z, 8*z);
+    ctx.fillStyle = shade(col || '#3a2a1a', 1.5);
+    ctx.fillRect(x - 2.2*z, y - 7*z, 1.2*z, 1.2*z); // klamka
+  }
+
+  function windowLit(ctx, x, y, z, p) { // okno z "łuną"
+    ctx.fillStyle = '#f8e8a0'; ctx.fillRect(x - 2.5*z, y - 3*z, 5*z, 5*z);
+    ctx.strokeStyle = shade(p.wall, 0.5); ctx.lineWidth = 1;
+    ctx.strokeRect(x - 2.5*z, y - 3*z, 5*z, 5*z);
+    ctx.beginPath(); ctx.moveTo(x, y - 3*z); ctx.lineTo(x, y + 2*z); ctx.stroke();
+  }
+
+  function roofGable(ctx, x, y, z, p, wW, wH, rh, col) { // dwuspadowy dach
+    const c = col || p.roof;
+    const g = ctx.createLinearGradient(x - wW/2, y - wH - rh, x + wW/2, y - wH);
+    g.addColorStop(0, shade(c, 1.18)); g.addColorStop(0.55, c); g.addColorStop(1, shade(c, 0.8));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x - wW/2 - 2*z, y - wH); ctx.lineTo(x, y - wH - rh);
+    ctx.lineTo(x + wW/2 + 2*z, y - wH); ctx.lineTo(x + wW/2 - 1*z, y - wH + 3*z);
+    ctx.lineTo(x - wW/2 + 1*z, y - wH + 3*z);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = shade(c, 0.55); ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = shade(c, 1.25); // krawędź słońca
+    ctx.beginPath();
+    ctx.moveTo(x - wW/2 - 2*z, y - wH); ctx.lineTo(x, y - wH - rh);
+    ctx.lineTo(x, y - wH - rh + 3*z); ctx.lineTo(x - wW/2 + 1*z, y - wH + 3*z);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = shade(c, 0.5); // strzecha
+    ctx.beginPath();
+    ctx.moveTo(x - wW/2 + 1*z, y - wH + 3*z); ctx.lineTo(x + wW/2 - 1*z, y - wH + 3*z);
+    ctx.stroke();
+  }
+
+  function roofFlat(ctx, x, y, z, p, wW, wH) { // płaski dach (Saraceni)
+    const g = ctx.createLinearGradient(x - wW/2 - 2*z, y - wH - 7*z, x + wW/2 + 2*z, y - wH - 1*z);
+    g.addColorStop(0, shade(p.roof, 1.15)); g.addColorStop(1, shade(p.roof, 0.82));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x - wW/2 - 2*z, y - wH - 4*z); ctx.lineTo(x, y - wH - 1*z);
+    ctx.lineTo(x + wW/2 + 2*z, y - wH - 4*z); ctx.lineTo(x, y - wH - 7*z);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = shade(p.roof, 0.6); ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  function dome(ctx, x, y, z, p, wW, wH, col) {
+    ctx.fillStyle = col || p.accent;
+    ctx.beginPath(); ctx.ellipse(x, y - wH - 2*z, wW*0.42, wH*0.55, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = shade(col || p.accent, 0.55); ctx.stroke();
+    ctx.fillStyle = shade(col || p.accent, 1.3); // podświetlenie kopuły
+    ctx.beginPath(); ctx.ellipse(x - wW*0.13, y - wH - 2.5*z, wW*0.16, wH*0.34, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = p.metal; // iglica
+    ctx.fillRect(x - 0.8*z, y - wH - 2*z - wH*0.55 - 5*z, 1.6*z, 5*z);
+  }
+
+  function chimneyWith(ctx, x, y, z, c) { // komin + dymek
+    ctx.fillStyle = shade(c || '#8a7a6a', 0.9);
+    ctx.fillRect(x - 2.5*z, y - 8*z, 5*z, 8*z);
+    ctx.fillStyle = shade(c || '#8a7a6a', 0.6);
+    ctx.fillRect(x - 3*z, y - 9.5*z, 6*z, 2*z);
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(x + Math.sin(i*1.5)*3*z, y - (13 + i*5)*z, (2.5 + i*0.8)*z, 0, 7);
+      ctx.fillStyle = `rgba(210,210,210,${0.42 - i*0.12})`;
+      ctx.fill();
+    }
+  }
+
+  /* rekwizyty — zawsze przylegające do budynku (x,y = punkt przy ścianie) */
+  function barrelV(ctx, x, y, z, c, w, h) { // beczka pionowa
+    ctx.fillStyle = shade(c, 1.1);
+    ctx.beginPath(); ctx.ellipse(x, y, w*z, w*0.45*z, 0, 0, 7); ctx.fill(); // dno
+    ctx.fillRect(x - w*z, y - h*z, 2*w*z, h*z);
+    ctx.strokeStyle = shade(c, 0.55); ctx.lineWidth = 1;
+    ctx.strokeRect(x - w*z, y - h*z, 2*w*z, h*z);
+    ctx.beginPath(); ctx.moveTo(x - w*z, y - h*0.3*z); ctx.lineTo(x + w*z, y - h*0.3*z);
+    ctx.moveTo(x - w*z, y - h*0.7*z); ctx.lineTo(x + w*z, y - h*0.7*z); ctx.stroke(); // obręcze
+    ctx.fillStyle = shade(c, 1.3);
+    ctx.beginPath(); ctx.ellipse(x, y - h*z, w*z, w*0.45*z, 0, 0, 7); ctx.fill(); // wieczko
+  }
+  function logStack(ctx, x, y, z, c, n) { // stos kłód poziomych
+    for (let i = 0; i < n; i++) {
+      const ly = y - (i % 2) * 4*z - Math.floor(i / 2) * 0;
+      const lx = x + (i % 2 ? 5 : 0) * z;
+      ctx.fillStyle = c;
+      ctx.fillRect(lx - 5*z, ly - 6*z - (i > 1 ? 4*z : 0), 11*z, 5*z);
+      ctx.fillStyle = shade(c, 1.35);
+      ctx.beginPath(); ctx.ellipse(lx + 6*z, ly - 3.5*z - (i > 1 ? 4*z : 0), 1.8*z, 2.5*z, 0, 0, 7); ctx.fill();
+    }
+  }
+  function crate(ctx, x, y, z, c, s) { // skrzynia
+    ctx.fillStyle = c; ctx.fillRect(x - s*z, y - 2*s*z, 2*s*z, 2*s*z);
+    ctx.strokeStyle = shade(c, 0.6); ctx.lineWidth = 1;
+    ctx.strokeRect(x - s*z, y - 2*s*z, 2*s*z, 2*s*z);
+    ctx.beginPath(); ctx.moveTo(x - s*z, y - 2*s*z); ctx.lineTo(x + s*z, y); ctx.stroke();
+  }
+  function sack(ctx, x, y, z, c) { // worek z ziarnem
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.ellipse(x, y - 3.5*z, 3.4*z, 3.8*z, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = shade(c, 0.6); ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 1.5*z, y - 6.2*z); ctx.lineTo(x + 1.5*z, y - 6.2*z); ctx.stroke();
+  }
+  function pennant(ctx, x, y, z, p, t) { // proporzec na maszcie przy ścianie
+    ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.5*z;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 22*z); ctx.stroke();
+    ctx.fillStyle = p.cloth;
+    ctx.beginPath(); ctx.moveTo(x, y - 22*z);
+    ctx.lineTo(x + 10*z + Math.sin(t*3)*2*z, y - 19*z);
+    ctx.lineTo(x, y - 16*z); ctx.closePath(); ctx.fill();
+  }
+  function plot(ctx, x, y, z, col) { // działka: płaski romb "ziemi" + niski płot
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 9*z); ctx.lineTo(x + 20*z, y); ctx.lineTo(x, y + 9*z); ctx.lineTo(x - 20*z, y);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,66,48,0.85)'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 9*z); ctx.lineTo(x - 20*z, y); ctx.lineTo(x, y + 9*z);
+    ctx.lineTo(x + 20*z, y); ctx.closePath(); ctx.stroke();
+    for (const [fx, fy] of [[-18, 0], [0, -8], [18, 0], [0, 8]]) { // słupki płotu
+      ctx.strokeStyle = '#7a5c3a'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x + fx*z, y + fy*z); ctx.lineTo(x + fx*z, y + fy*z - 4*z); ctx.stroke();
+    }
+  }
+
+  /* ============================ ARTS: JEDEN BUDYNEK = JEDEN ART =========================
+     (ctx, x, y, z, p, t): x,y = punkt odniesienia na kaflu; p = paleta nacji. */
+  const ART = {
+
+    /* ---- MIESZKANIA ---- */
+    hut(ctx, x, y, z, p, t) {
+      shadow(ctx, x, y, z, 15);
+      base(ctx, x, y, z, p, 26*z, 16*z);
+      if (p.terrain === 'sand') roofFlat(ctx, x, y, z, p, 26*z, 16*z);
+      else roofGable(ctx, x, y, z, p, 26*z, 16*z, 12*z);
+      door(ctx, x - 6*z, y, z);
+      windowLit(ctx, x + 5*z, y - 10*z, z, p);
+      ctx.fillStyle = '#d84a5a'; // skrzynka z kwiatami pod oknem
+      ctx.fillRect(x + 2*z, y - 4.5*z, 7*z, 3*z);
+      ctx.fillStyle = '#4a8a3a';
+      ctx.fillRect(x + 2.5*z, y - 5.5*z, 6*z, 1.2*z);
+      chimneyWith(ctx, x + 8*z, y - 20*z, z, p.stone);
+    },
+
+    /* ---- DREWNO ---- */
+    woodcutter(ctx, x, y, z, p, t) { // pniak z toporkiem + stos kłód
+      shadow(ctx, x, y, z, 15);
+      base(ctx, x, y, z, p, 24*z, 15*z);
+      roofGable(ctx, x, y, z, p, 24*z, 15*z, 11*z);
+      door(ctx, x - 5*z, y, z);
+      logStack(ctx, x + 8*z, y - 1*z, z, '#8a6a45', 3);
+      ctx.fillStyle = '#7a5a3a';
+      ctx.fillRect(x - 14*z, y - 5*z, 5*z, 5*z);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.6*z;
+      ctx.beginPath(); ctx.moveTo(x - 11.5*z, y - 5*z); ctx.lineTo(x - 8*z, y - 11*z); ctx.stroke();
+      ctx.fillStyle = p.metal;
+      ctx.beginPath(); ctx.moveTo(x - 8*z, y - 11*z); ctx.lineTo(x - 5.5*z, y - 9.5*z);
+      ctx.lineTo(x - 8*z, y - 8.5*z); ctx.closePath(); ctx.fill();
+    },
+    forester(ctx, x, y, z, p, t) { // skrzynka z sadzonkami
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 13*z, p.roofAlt);
+      door(ctx, x - 4*z, y, z);
+      windowLit(ctx, x + 4*z, y - 9*z, z, p);
+      crate(ctx, x + 10*z, y, z, '#8a6a45', 5);
+      ctx.fillStyle = '#4a8a3a';
+      for (let i = 0; i < 3; i++) {
+        const sxp = x + (7.5 + i * 2.4)*z;
+        ctx.fillRect(sxp - 0.5*z, y - 14*z, 1*z, 4.2*z);
+        ctx.beginPath(); ctx.ellipse(sxp, y - 15*z, 1.8*z, 2.4*z, 0, 0, 7); ctx.fill();
+      }
+    },
+    sawmill(ctx, x, y, z, p, t) { // koło piły + deski
+      shadow(ctx, x, y, z, 17);
+      base(ctx, x, y, z, p, 30*z, 17*z);
+      roofGable(ctx, x, y, z, p, 30*z, 17*z, 9*z);
+      door(ctx, x - 8*z, y, z);
+      ctx.save(); ctx.translate(x + 9*z, y - 8*z); ctx.rotate(t * 3);
+      ctx.strokeStyle = p.metal; ctx.lineWidth = 2*z;
+      ctx.beginPath(); ctx.arc(0, 0, 6*z, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6*z, 0); ctx.lineTo(6*z, 0); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = '#c8a878';
+      for (let i = 0; i < 3; i++) ctx.fillRect(x - 15*z, y - 10*z - i*2.6*z, 7*z, 1.8*z);
+      ctx.strokeStyle = '#8a6a45'; ctx.lineWidth = 0.8;
+      for (let i = 0; i < 3; i++) ctx.strokeRect(x - 15*z, y - 10*z - i*2.6*z, 7*z, 1.8*z);
+    },
+
+    /* ---- JEDZENIE ---- */
+    hunter(ctx, x, y, z, p, t) { // poroże na szczycie + wędzarka
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 24*z, 15*z);
+      roofGable(ctx, x, y, z, p, 24*z, 15*z, 11*z, p.roofAlt);
+      door(ctx, x - 4*z, y, z);
+      ctx.strokeStyle = '#e8d8b8'; ctx.lineWidth = 1.6*z;
+      ctx.beginPath();
+      ctx.moveTo(x - 3*z, y - 24*z); ctx.lineTo(x - 7*z, y - 29*z);
+      ctx.moveTo(x - 5.5*z, y - 27*z); ctx.lineTo(x - 8.5*z, y - 27.5*z);
+      ctx.moveTo(x + 3*z, y - 24*z); ctx.lineTo(x + 7*z, y - 29*z);
+      ctx.moveTo(x + 5.5*z, y - 27*z); ctx.lineTo(x + 8.5*z, y - 27.5*z);
+      ctx.stroke();
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.5*z;
+      ctx.beginPath(); ctx.moveTo(x + 9*z, y); ctx.lineTo(x + 9*z, y - 14*z);
+      ctx.moveTo(x + 14*z, y); ctx.lineTo(x + 14*z, y - 14*z);
+      ctx.moveTo(x + 7.5*z, y - 14*z); ctx.lineTo(x + 15.5*z, y - 14*z); ctx.stroke();
+      ctx.fillStyle = '#a05a30';
+      for (const ox of [9, 14]) { // szynki
+        ctx.beginPath(); ctx.ellipse(x + ox*z, y - 9*z, 2.2*z, 3.6*z, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#c89858'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(x + ox*z, y - 13*z); ctx.lineTo(x + ox*z, y - 5.4*z); ctx.stroke();
+      }
+    },
+    fisher(ctx, x, y, z, p, t) { // na palach + suszące się sieci/ryby
+      shadow(ctx, x, y, z, 14);
+      ctx.fillStyle = '#6a4a2c';
+      for (const ox of [-9, 0, 9]) ctx.fillRect(x + ox*z - 1.2*z, y - 6*z, 2.4*z, 6*z);
+      base(ctx, x, y - 5*z, z, p, 22*z, 13*z);
+      roofGable(ctx, x, y - 5*z, z, p, 22*z, 13*z, 11*z);
+      door(ctx, x - 4*z, y - 3*z, z);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.4*z;
+      ctx.beginPath();
+      ctx.moveTo(x + 12*z, y); ctx.lineTo(x + 12*z, y - 12*z); ctx.stroke();
+      ctx.strokeStyle = 'rgba(230,225,210,0.9)'; ctx.lineWidth = 0.6;
+      for (let i = 0; i < 3; i++) { // siatka
+        ctx.beginPath();
+        ctx.moveTo(x + 12.5*z, y - 3*z - i*3.2*z); ctx.lineTo(x + 17.5*z, y - 5*z - i*3.2*z);
+        ctx.moveTo(x + 12.5*z, y - 5*z - i*3.2*z); ctx.lineTo(x + 17.5*z, y - 3*z - i*3.2*z);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#b8c8d8'; // ryby
+      ctx.beginPath(); ctx.ellipse(x + 14.5*z, y - 2*z, 2.6*z, 1.2*z, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + 17*z, y - 2*z); ctx.lineTo(x + 19*z, y - 3.2*z);
+      ctx.lineTo(x + 19*z, y - 0.8*z); ctx.closePath(); ctx.fill();
+    },
+    dairy(ctx, x, y, z, p, t) { // konwie + ser
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 16*z);
+      if (p.terrain === 'sand') roofFlat(ctx, x, y, z, p, 26*z, 16*z);
+      else roofGable(ctx, x, y, z, p, 26*z, 16*z, 9*z);
+      door(ctx, x - 6*z, y, z);
+      windowLit(ctx, x + 4*z, y - 11*z, z, p);
+      for (const ox of [10, 14]) {
+        ctx.fillStyle = '#d8d0c0';
+        ctx.fillRect(x + ox*z - 2*z, y - 8*z, 4*z, 8*z);
+        ctx.strokeStyle = '#9a9280'; ctx.lineWidth = 1;
+        ctx.strokeRect(x + ox*z - 2*z, y - 8*z, 4*z, 8*z);
+        ctx.beginPath(); ctx.arc(x + ox*z, y - 8*z, 2*z, Math.PI, 0); ctx.stroke(); // uchwyt
+        ctx.fillStyle = '#f4f0e8'; ctx.fillRect(x + ox*z - 2*z, y - 10*z, 4*z, 2*z); // wieczko
+      }
+      ctx.fillStyle = '#e8c860'; // głowa sera
+      ctx.beginPath(); ctx.ellipse(x + 12*z, y - 2*z, 2.4*z, 1.4*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#c8a040'; ctx.beginPath(); ctx.ellipse(x + 12*z, y - 2*z, 1.4*z, 0.8*z, 0, 0, 7); ctx.stroke();
+    },
+    bakery(ctx, x, y, z, p, t) { // precel na szyldzie + worki mąki
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 28*z, 16*z);
+      roofGable(ctx, x, y, z, p, 28*z, 16*z, 10*z);
+      door(ctx, x - 7*z, y, z);
+      windowLit(ctx, x + 6*z, y - 11*z, z, p);
+      chimneyWith(ctx, x + 10*z, y - 24*z, z, p.stone);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.2*z;
+      ctx.beginPath(); ctx.moveTo(x - 14*z, y - 12*z); ctx.lineTo(x - 14*z, y - 2*z); ctx.stroke();
+      ctx.strokeStyle = '#c89040'; ctx.lineWidth = 2.2*z; // precel
+      ctx.beginPath(); ctx.arc(x - 14*z, y - 6*z, 2.8*z, 0, 7); ctx.stroke();
+      sack(ctx, x - 9*z, y, z, '#d8c8a0');
+      sack(ctx, x - 4.5*z, y, z, '#e0d2ae');
+    },
+    incense(ctx, x, y, z, p, t) { // kadzielnice z dymem + wory żywicy
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 16*z);
+      roofFlat(ctx, x, y, z, p, 26*z, 16*z);
+      door(ctx, x - 6*z, y, z);
+      ctx.fillStyle = '#b08040';
+      ctx.beginPath(); ctx.moveTo(x + 8*z, y); ctx.lineTo(x + 7*z, y - 6*z);
+      ctx.lineTo(x + 15*z, y - 6*z); ctx.lineTo(x + 14*z, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade('#b08040', 0.6); ctx.stroke();
+      for (let i = 0; i < 3; i++) { // kłąb kadzidła
+        ctx.beginPath();
+        ctx.arc(x + 11*z + Math.sin(i*2)*2.5*z, y - (10 + i*5)*z, (2.2 + i*0.7)*z, 0, 7);
+        ctx.fillStyle = `rgba(230,220,200,${0.38 - i*0.1})`;
+        ctx.fill();
+      }
+      sack(ctx, x - 2*z, y, z, '#c8a860');
+      sack(ctx, x + 2.5*z, y, z, '#b89450');
+    },
+    farm(ctx, x, y, z, p, t) { // jedna działka z płotem, chatka w rogu
+      function wRow(i) { return 18*z - i*3.5*z; }
+      function hRow(i) { return 5.5*z - i*1.5*z; }
+      plot(ctx, x, y, z, p.terrain === 'sand' ? '#c8b078' : '#c9a84e');
+      ctx.strokeStyle = shade('#c8a850', 0.72); ctx.lineWidth = 1; // bruzdy pól
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(x - wRow(i), y - hRow(i));
+        ctx.lineTo(x + wRow(i), y - hRow(i)); ctx.stroke();
+      }
+      ctx.strokeStyle = '#d8c058'; // kłosy
+      for (let i = 0; i < 6; i++) {
+        const gx = x + (thash(i, 3, 1) - 0.5) * 30*z, gy = y + (thash(i, 7, 2) - 0.5) * 12*z;
+        ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + 0.5*z, gy - 4*z); ctx.stroke();
+      }
+      shadow(ctx, x + 9*z, y - 7*z, z, 7);
+      base(ctx, x + 9*z, y - 7*z, z, p, 13*z, 9*z);
+      roofGable(ctx, x + 9*z, y - 7*z, z, p, 13*z, 9*z, 6*z, p.roofAlt);
+    },
+    cotton(ctx, x, y, z, p, t) { // krzaki z białymi kłębami w rzędach
+      plot(ctx, x, y, z, '#cdb98a');
+      for (let i = 0; i < 6; i++) {
+        const gx = x + (thash(i, 11, 3) - 0.5) * 32*z;
+        const gy = y + (thash(i, 13, 4) - 0.5) * 13*z;
+        ctx.fillStyle = '#5a8a44';
+        ctx.beginPath(); ctx.ellipse(gx, gy - 2.5*z, 3.2*z, 2.6*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#f4f0ea';
+        for (const [ox, oy] of [[-1.4, -3.6], [0.6, -4.6], [2, -3.2]]) {
+          ctx.beginPath(); ctx.arc(gx + ox*z, gy + oy*z, 1.3*z, 0, 7); ctx.fill();
+        }
+      }
+    },
+    orchard(ctx, x, y, z, p, t) { // płot + 3 drzewa owocowe
+      plot(ctx, x, y, z, '#8aa85c');
+      const colors = p.terrain === 'sand' ? '#e88a3a' : '#d84a4a';
+      for (const [ox, oy] of [[-9, -2], [8, -6], [0, 4]]) {
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath(); ctx.ellipse(x + ox*z, y + oy*z + 1*z, 5*z, 1.8*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#5c4630';
+        ctx.fillRect(x + ox*z - 1*z, y + oy*z - 9*z, 2*z, 9*z);
+        ctx.fillStyle = p.terrain === 'sand' ? '#6a9a4a' : '#4a8a3a';
+        ctx.beginPath(); ctx.arc(x + ox*z, y + oy*z - 13*z, 6*z, 0, 7); ctx.fill();
+        ctx.fillStyle = colors; // owoce
+        ctx.beginPath();
+        ctx.arc(x + ox*z - 2*z, y + oy*z - 12*z, 1.6*z, 0, 7);
+        ctx.arc(x + ox*z + 2.5*z, y + oy*z - 14*z, 1.6*z, 0, 7); ctx.fill();
+      }
+    },
+    vineyard(ctx, x, y, z, p, t) { // rzędy winorośli na poprzeczkach
+      plot(ctx, x, y, z, '#96b060');
+      for (let i = 0; i < 3; i++) {
+        const gx = x - 12*z + i * 12*z;
+        ctx.strokeStyle = '#6a4a2c'; ctx.lineWidth = 1.6*z;
+        ctx.beginPath();
+        ctx.moveTo(gx - 4*z, y); ctx.lineTo(gx - 4*z, y - 12*z);
+        ctx.moveTo(gx + 4*z, y); ctx.lineTo(gx + 4*z, y - 12*z);
+        ctx.moveTo(gx - 5*z, y - 11*z); ctx.lineTo(gx + 5*z, y - 11*z);
+        ctx.stroke();
+        ctx.fillStyle = '#4a8a3a'; // listowie
+        ctx.beginPath(); ctx.ellipse(gx, y - 9*z, 5.5*z, 3*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#6a3a72'; // grona
+        for (const ox of [-3, 0, 3]) {
+          ctx.beginPath(); ctx.arc(gx + ox*z, y - 8*z, 1.4*z, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(gx + ox*z, y - 6.2*z, 1.4*z, 0, 7); ctx.fill();
+        }
+      }
+    },
+    palms(ctx, x, y, z, p, t) { // gaj daktylowy: palmy w wygrodzeniu
+      plot(ctx, x, y, z, '#c8ae74');
+      for (const [ox, oy] of [[-9, 1], [7, -3], [1, 5]]) {
+        const px = x + ox*z, py = y + oy*z;
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath(); ctx.ellipse(px, py + 0.5*z, 4*z, 1.6*z, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#8a6a45'; ctx.lineWidth = 2*z;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(px + 2*z, py - 10*z, px + 1*z, py - 17*z); ctx.stroke();
+        ctx.fillStyle = '#5a9a4a';
+        for (let i = 0; i < 5; i++) {
+          const a = -0.5 + i * 0.5;
+          ctx.beginPath(); ctx.ellipse(px + 1*z + Math.cos(a)*6*z, py - 17*z + Math.sin(a)*3*z, 6*z, 2.2*z, a, 0, 7); ctx.fill();
+        }
+        ctx.fillStyle = '#e8a040';
+        ctx.beginPath(); ctx.arc(px + 1*z, py - 15*z, 1.8*z, 0, 7); ctx.fill();
+      }
+    },
+    shrubs(ctx, x, y, z, p, t) { // las kadzidlany: krzewy żywiczne w wygrodzeniu
+      plot(ctx, x, y, z, '#7a9454');
+      for (const [ox, oy] of [[-8, -1], [6, 4], [4, -5]]) {
+        ctx.fillStyle = '#5a7a4a';
+        ctx.beginPath(); ctx.ellipse(x + ox*z, y + oy*z, 5*z, 3*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = shade('#5a7a4a', 1.3);
+        ctx.beginPath(); ctx.ellipse(x + ox*z - 1.5*z, y + oy*z - 1*z, 2*z, 1.2*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#d8a850'; // kropla żywicy
+        ctx.beginPath(); ctx.arc(x + ox*z, y + oy*z - 3.4*z, 1.2*z, 0, 7); ctx.fill();
+      }
+    },
+    qanat(ctx, x, y, z, p, t) { // studnia-szyb z łukiem + kanał
+      ctx.fillStyle = '#b89868';
+      ctx.beginPath(); ctx.ellipse(x, y, 12*z, 6*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade('#b89868', 0.6); ctx.stroke();
+      ctx.fillStyle = '#3a8ac8'; // wodne oko
+      ctx.beginPath(); ctx.ellipse(x, y, 7*z, 3.2*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; // krążki światła
+      const off = (t * 8) % 10;
+      ctx.beginPath(); ctx.ellipse(x - 5 + off, y, 2.6*z, 1*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#a08858'; ctx.lineWidth = 2*z;
+      ctx.beginPath(); ctx.moveTo(x - 10*z, y - 5*z); ctx.lineTo(x, y - 12*z); ctx.lineTo(x + 10*z, y - 5*z); ctx.stroke();
+      ctx.strokeStyle = '#7a6a48'; ctx.lineWidth = 1.2*z;
+      ctx.beginPath(); ctx.arc(x, y - 8*z, 2.6*z, 0, 7); ctx.stroke(); // kołowrót
+    },
+    well(ctx, x, y, z, p, t) { // chata nosiwody: studnia z żurawiem
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath(); ctx.ellipse(x, y + 1*z, 12*z, 5*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = p.stone;
+      ctx.beginPath(); ctx.ellipse(x, y, 12*z, 6*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade(p.stone, 0.6); ctx.stroke();
+      ctx.fillStyle = '#3a5a7a';
+      ctx.beginPath(); ctx.ellipse(x, y - 1*z, 8*z, 4*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath(); ctx.ellipse(x - 2*z, y - 1.8*z, 2.4*z, 0.9*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#5c4630'; ctx.lineWidth = 1.5*z;
+      ctx.beginPath(); ctx.moveTo(x - 8*z, y); ctx.lineTo(x, y - 20*z); ctx.lineTo(x + 8*z, y); ctx.stroke();
+      const bob = Math.sin(t * 2) * 2*z;
+      ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x - 2.5*z, y - 12*z + bob, 5*z, 5*z);
+    },
+
+    /* ---- SUROWCE ---- */
+    quarry(ctx, x, y, z, p, t) { // jeden wykop ze schodkami + blok
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath(); ctx.ellipse(x, y + 1.5*z, 17*z, 7*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = shade(p.stone, 0.78);
+      ctx.beginPath(); ctx.ellipse(x, y, 16*z, 8*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade(p.stone, 0.5); ctx.stroke();
+      ctx.fillStyle = shade(p.stone, 0.62); // stopnie wykopu
+      ctx.beginPath(); ctx.ellipse(x, y, 11*z, 5*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = shade(p.stone, 0.48);
+      ctx.beginPath(); ctx.ellipse(x, y, 6*z, 2.6*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = p.stone; // ociosany blok
+      ctx.fillRect(x + 8*z, y - 6*z, 6*z, 4*z);
+      ctx.strokeStyle = shade(p.stone, 0.6); ctx.strokeRect(x + 8*z, y - 6*z, 6*z, 4*z);
+      ctx.strokeStyle = '#8a6a45'; ctx.lineWidth = 1.5*z; // kilof w bloku
+      ctx.beginPath(); ctx.moveTo(x + 10*z, y - 8*z); ctx.lineTo(x + 12*z, y - 11*z); ctx.stroke();
+    },
+    claypit(ctx, x, y, z, p, t) { // płytki wykop + gliniane kopczyki
+      ctx.fillStyle = 'rgba(0,0,0,0.13)';
+      ctx.beginPath(); ctx.ellipse(x, y + 1.5*z, 16*z, 7*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#9a6244';
+      ctx.beginPath(); ctx.ellipse(x, y, 15*z, 7*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#b07050'; // kałuża wilgotnej gliny
+      ctx.beginPath(); ctx.ellipse(x, y, 9*z, 4*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath(); ctx.ellipse(x - 2*z, y - 1*z, 2.6*z, 1*z, 0, 0, 7); ctx.fill();
+      for (const [ox, oy] of [[-10, -4], [10, 3]]) { // kopczyki + cegły
+        ctx.fillStyle = '#c08058';
+        ctx.beginPath(); ctx.ellipse(x + ox*z, y + oy*z, 4*z, 2.4*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#d09868';
+        ctx.fillRect(x + ox*z - 2*z, y + oy*z - 4*z, 4*z, 2.2*z);
+      }
+    },
+    ironmine(ctx, x, y, z, p, t) { // sztolnia + ruda rdzawa
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 9*z, p.roofAlt);
+      ctx.fillStyle = '#1a120c'; // otwór szybu
+      ctx.beginPath(); ctx.moveTo(x - 5*z, y); ctx.lineTo(x - 5*z, y - 8*z);
+      ctx.arc(x, y - 8*z, 5*z, Math.PI, 0); ctx.lineTo(x + 5*z, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = p.timber || '#5a4230'; ctx.lineWidth = 1.6*z; ctx.stroke();
+      ctx.fillStyle = '#a58760'; // hałda rudy
+      ctx.beginPath(); ctx.ellipse(x + 10*z, y - 1*z, 5*z, 3*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#d8c8a8';
+      ctx.fillRect(x + 9*z, y - 2*z, 1.3*z, 1.3*z); ctx.fillRect(x + 12*z, y - 3.2*z, 1.3*z, 1.3*z);
+    },
+    coalmine(ctx, x, y, z, p, t) { // sztolnia + czarna hałda + wózek
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 9*z, '#3a3a3a');
+      ctx.fillStyle = '#0c0a08';
+      ctx.beginPath(); ctx.moveTo(x - 5*z, y); ctx.lineTo(x - 5*z, y - 8*z);
+      ctx.arc(x, y - 8*z, 5*z, Math.PI, 0); ctx.lineTo(x + 5*z, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = p.timber || '#5a4230'; ctx.lineWidth = 1.6*z; ctx.stroke();
+      ctx.fillStyle = '#262626'; // hałda węgla
+      ctx.beginPath(); ctx.ellipse(x + 11*z, y - 1*z, 6*z, 3.4*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#4a4a52';
+      ctx.fillRect(x + 9*z, y - 2*z, 1.2*z, 1.2*z); ctx.fillRect(x + 13*z, y - 3*z, 1.2*z, 1.2*z);
+      ctx.fillStyle = '#5a5a62'; ctx.fillRect(x - 13*z, y - 5*z, 6*z, 4*z); // wózek
+      ctx.fillStyle = '#262626'; ctx.fillRect(x - 12*z, y - 6.4*z, 4*z, 2*z);
+      ctx.fillStyle = '#3a3a3a'; ctx.beginPath(); ctx.arc(x - 11.5*z, y - 0.5*z, 1.2*z, 0, 7); ctx.fill();
+    },
+    peatmine(ctx, x, y, z, p, t) { // sztolnia + ściana darni
+      shadow(ctx, x, y, z, 14);
+      base(ctx, x, y, z, p, 22*z, 14*z);
+      roofGable(ctx, x, y, z, p, 22*z, 14*z, 9*z, '#6a5030');
+      ctx.fillStyle = '#1a120c';
+      ctx.beginPath(); ctx.moveTo(x - 5*z, y); ctx.lineTo(x - 5*z, y - 8*z);
+      ctx.arc(x, y - 8*z, 5*z, Math.PI, 0); ctx.lineTo(x + 5*z, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = p.timber || '#5a4230'; ctx.lineWidth = 1.6*z; ctx.stroke();
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) { // cegły torfu
+        ctx.fillStyle = (r + c) % 2 ? '#7a5a38' : '#6a4c30';
+        ctx.fillRect(x + (7 + c * 4.5)*z, y - (3 + r * 3)*z, 4*z, 2.6*z);
+      }
+    },
+    mine(ctx, x, y, z, p, t) { // kompatybilność: domyślna kopalnia = żelazo
+      ART.ironmine(ctx, x, y, z, p, t);
+    },
+
+    /* ---- RZEMIOSŁO ---- */
+    smelter(ctx, x, y, z, p, t) { // wielki komin + łuna pieca
+      shadow(ctx, x, y, z, 17);
+      base(ctx, x, y, z, p, 28*z, 18*z);
+      roofGable(ctx, x, y, z, p, 28*z, 18*z, 8*z, p.roofAlt);
+      ctx.fillStyle = shade(p.stone, 0.68);
+      ctx.fillRect(x - 4*z, y - 11*z, 9*z, 11*z);
+      ctx.fillStyle = '#e87830';
+      ctx.beginPath(); ctx.arc(x + 0.5*z, y - 1.5*z, 3.6*z, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f8c040';
+      ctx.beginPath(); ctx.arc(x + 0.5*z, y - 1*z, 2*z, Math.PI, 0); ctx.fill();
+      chimneyWith(ctx, x + 11*z, y - 30*z, z, shade(p.stone, 0.55)); // komin dymi wysoko
+      ctx.fillStyle = shade(p.stone, 0.7);
+      ctx.fillRect(x + 8.5*z, y - 34*z, 5*z, 22*z);
+      ctx.fillStyle = shade(p.stone, 0.6);
+      ctx.fillRect(x + 7.5*z, y - 36*z, 6.5*z, 2.5*z);
+    },
+    toolforge(ctx, x, y, z, p, t) { // kowadło + iskra + narzędzia
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 17*z);
+      roofGable(ctx, x, y, z, p, 26*z, 17*z, 9*z);
+      door(ctx, x - 8*z, y, z);
+      windowLit(ctx, x - 1*z, y - 12*z, z, p);
+      ctx.strokeStyle = '#8a6a45'; ctx.lineWidth = 1.8*z; // młot przy ścianie
+      ctx.beginPath(); ctx.moveTo(x + 3*z, y - 2*z); ctx.lineTo(x + 6*z, y - 6.5*z); ctx.stroke();
+      ctx.fillStyle = '#4a4a52'; ctx.save(); ctx.translate(x + 6.7*z, y - 7.4*z);
+      ctx.rotate(0.5); ctx.fillRect(-1.6*z, -2.4*z, 3.2*z, 4.8*z); ctx.restore();
+      ctx.fillStyle = '#4a4a52'; // kowadło
+      ctx.fillRect(x + 9*z, y - 8*z, 7*z, 2.6*z);
+      ctx.fillRect(x + 11*z, y - 5.4*z, 3*z, 3*z);
+      ctx.fillStyle = '#6a6a72'; ctx.fillRect(x + 9*z, y - 8*z, 7*z, 1*z);
+      const spark = (t * 4) % 1; // iskra nad kowadłem
+      ctx.fillStyle = `rgba(255,200,80,${1 - spark})`;
+      ctx.beginPath(); ctx.arc(x + 12.5*z, y - (11 + spark * 8) * z, 2*z, 0, 7); ctx.fill();
+      chimneyWith(ctx, x - 11*z, y - 22*z, z, p.stone);
+    },
+    armory(ctx, x, y, z, p, t) { // stojak z tarczą i mieczem
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 17*z);
+      roofGable(ctx, x, y, z, p, 26*z, 17*z, 9*z, shade(p.roof, 0.75));
+      door(ctx, x - 8*z, y, z);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.6*z;
+      ctx.beginPath(); ctx.moveTo(x + 9*z, y); ctx.lineTo(x + 9*z, y - 13*z); ctx.stroke();
+      ctx.fillStyle = '#c8ccd4'; // miecz pionowy
+      ctx.beginPath(); ctx.moveTo(x + 9*z, y - 13*z); ctx.lineTo(x + 8*z, y - 5.5*z);
+      ctx.lineTo(x + 10*z, y - 5.5*z); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(x + 7*z, y - 6.5*z, 4*z, 1.4*z); // jelec
+      ctx.fillStyle = p.accent; // okrągła tarcza
+      ctx.beginPath(); ctx.arc(x + 14*z, y - 7*z, 3.6*z, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade(p.metal, 0.6); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x + 14*z, y - 7*z, 3.6*z, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 14*z, y - 7*z, 1.4*z, 0, 7); ctx.stroke(); // umbon
+      pennant(ctx, x - 12*z, y, z, p, t);
+    },
+    winery(ctx, x, y, z, p, t) { // duże beczki leżakowe + amfora
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 15*z);
+      roofGable(ctx, x, y, z, p, 26*z, 15*z, 9*z, '#7a3a52');
+      door(ctx, x - 6*z, y, z);
+      windowLit(ctx, x + 3*z, y - 10*z, z, p);
+      barrelV(ctx, x + 9*z, y, z, '#8a6244', 3.2, 8);
+      barrelV(ctx, x + 15*z, y, z, '#8a6244', 3.2, 8);
+      ctx.fillStyle = '#b87840'; // amfora
+      ctx.beginPath(); ctx.ellipse(x + 12*z, y - 3*z, 2*z, 3.2*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#d89860';
+      ctx.fillRect(x + 10.8*z, y - 7.2*z, 2.4*z, 2*z);
+    },
+    weaver(ctx, x, y, z, p, t) { // krosno z tkaniną
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 15*z);
+      if (p.terrain === 'sand') roofFlat(ctx, x, y, z, p, 26*z, 15*z);
+      else roofGable(ctx, x, y, z, p, 26*z, 15*z, 8*z);
+      door(ctx, x - 7*z, y, z);
+      ctx.strokeStyle = '#7a5c3a'; ctx.lineWidth = 1.5*z; // krosno: rama + pasy tkaniny
+      ctx.strokeRect(x + 5*z, y - 14*z, 10*z, 13*z);
+      ctx.beginPath();
+      for (let i = 1; i < 4; i++) { ctx.moveTo(x + (5 + i*2.5)*z, y - 14*z); ctx.lineTo(x + (5 + i*2.5)*z, y - 1*z); }
+      ctx.stroke();
+      ctx.fillStyle = p.cloth; // gotowy wzór
+      ctx.fillRect(x + 7.5*z, y - 12*z, 5*z, 9*z);
+      ctx.fillStyle = shade(p.cloth, 1.35);
+      ctx.fillRect(x + 7.5*z, y - 9.5*z, 5*z, 1.6*z);
+      ctx.fillRect(x + 7.5*z, y - 5.5*z, 5*z, 1.6*z);
+      ctx.fillStyle = '#e8e0d0'; ctx.fillRect(x + 2.5*z, y - 4*z, 1.6*z, 4*z); // szpule nitek
+      ctx.fillStyle = p.accent; ctx.fillRect(x + 2.5*z, y - 5.4*z, 1.6*z, 1.4*z);
+    },
+    pottery(ctx, x, y, z, p, t) { // rząd amfor + wielki garnek
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 15*z);
+      roofFlat(ctx, x, y, z, p, 26*z, 15*z);
+      door(ctx, x - 7*z, y, z);
+      for (let i = 0; i < 3; i++) {
+        const ax = x + (4 + i * 4)*z;
+        ctx.fillStyle = '#b87840';
+        ctx.beginPath(); ctx.ellipse(ax, y - 2.6*z, 1.6*z, 2.6*z, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#d89860';
+        ctx.beginPath(); ctx.moveTo(ax - 1*z, y - 4.4*z); ctx.lineTo(ax - 1.6*z, y - 6*z);
+        ctx.lineTo(ax + 1.6*z, y - 6*z); ctx.lineTo(ax + 1*z, y - 4.4*z); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = '#a05828'; // wielki garnek
+      ctx.beginPath(); ctx.ellipse(x + 16*z, y - 3.5*z, 3*z, 3.5*z, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade('#a05828', 0.6); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(x + 16*z, y - 3.5*z, 1.8*z, 2.2*z, 0, 0, 7); ctx.stroke();
+      ctx.fillStyle = '#d89860';
+      ctx.fillRect(x + 13.5*z, y - 8*z, 5*z, 1.6*z); // obręcz
+    },
+    mead(ctx, x, y, z, p, t) { // beczki miodu + plaster na szyldzie
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 15*z);
+      roofGable(ctx, x, y, z, p, 26*z, 15*z, 9*z, '#a87828');
+      door(ctx, x - 7*z, y, z);
+      windowLit(ctx, x + 2*z, y - 10*z, z, p);
+      barrelV(ctx, x + 8*z, y, z, '#96a044', 3.2, 8);
+      barrelV(ctx, x + 14*z, y, z, '#96a044', 3.2, 8);
+      ctx.fillStyle = '#e8b840'; // plaster miodu
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) {
+        ctx.beginPath();
+        ctx.arc(x + 10.5*z + c*2.6*z, y - 5.5*z - r*2.6*z, 1.3*z, 0, 7); ctx.fill();
+      }
+      chimneyWith(ctx, x - 10*z, y - 21*z, z, p.stone);
+    },
+    kiln(ctx, x, y, z, p, t) { // wypalarka węgla: kopuła pieca z łuną
+      shadow(ctx, x, y, z, 12);
+      ctx.fillStyle = shade('#8a7a5a', 0.8);
+      ctx.beginPath(); ctx.moveTo(x - 11*z, y); ctx.lineTo(x - 4*z, y - 19*z);
+      ctx.lineTo(x + 4*z, y - 19*z); ctx.lineTo(x + 11*z, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4a3a28'; ctx.stroke();
+      ctx.fillStyle = shade('#8a7a5a', 0.55); // obwałowanie
+      ctx.fillRect(x - 11*z, y - 3*z, 22*z, 3*z);
+      ctx.fillStyle = '#e87830'; // łuna w otworze
+      ctx.beginPath(); ctx.arc(x, y - 2*z, 3.5*z, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f8c040';
+      ctx.beginPath(); ctx.arc(x, y - 1.6*z, 1.8*z, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#6a4c30'; ctx.lineWidth = 1.3*z; // stos chrustu
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath(); ctx.moveTo(x + 9*z, y - i*1.8*z); ctx.lineTo(x + 15*z, y - 2*z - i*1.8*z); ctx.stroke();
+      }
+      chimneyWith(ctx, x, y - 21*z, z);
+    },
+    mill(ctx, x, y, z, p, t) { // wieża + skrzydło
+      shadow(ctx, x, y, z, 13);
+      ctx.fillStyle = p.wall; // stożkowy korpus młyna
+      ctx.beginPath(); ctx.moveTo(x - 11*z, y); ctx.lineTo(x - 5*z, y - 24*z);
+      ctx.lineTo(x + 5*z, y - 24*z); ctx.lineTo(x + 11*z, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade(p.wall, 0.6); ctx.stroke();
+      if (p.timber) {
+        ctx.strokeStyle = shade(p.timber, 1.0); ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x - 8*z, y - 8*z); ctx.lineTo(x + 8*z, y - 8*z);
+        ctx.moveTo(x - 6.5*z, y - 16*z); ctx.lineTo(x + 6.5*z, y - 16*z); ctx.stroke();
+      }
+      ctx.fillStyle = p.roof; // czapka
+      ctx.beginPath(); ctx.moveTo(x - 6*z, y - 24*z); ctx.lineTo(x, y - 30*z); ctx.lineTo(x + 6*z, y - 24*z);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade(p.roof, 0.6); ctx.stroke();
+      windowLit(ctx, x, y - 14*z, z, p);
+      ctx.save(); ctx.translate(x + 5*z, y - 26*z); ctx.rotate(t * 1.2); // skrzydło — obraca się
+      ctx.strokeStyle = p.timber || '#6b4a2f'; ctx.lineWidth = 1.6*z;
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 13*z, Math.sin(a) * 13*z); ctx.stroke();
+        ctx.strokeStyle = 'rgba(230,225,210,0.75)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a)*7*z, Math.sin(a)*7*z);
+        ctx.lineTo(Math.cos(a + 0.5)*12*z, Math.sin(a + 0.5)*12*z); ctx.stroke();
+        ctx.strokeStyle = p.timber || '#6b4a2f'; ctx.lineWidth = 1.6*z;
+      }
+      ctx.restore();
+    },
+
+    /* ---- HANDEL ---- */
+    market(ctx, x, y, z, p, t) { // stragan z pasiastym daszkiem
+      shadow(ctx, x, y, z, 17);
+      ctx.fillStyle = '#7a5a3a';
+      ctx.fillRect(x - 14*z, y - 10*z, 3*z, 10*z);
+      ctx.fillRect(x + 11*z, y - 10*z, 3*z, 10*z);
+      ctx.beginPath();
+      ctx.moveTo(x - 18*z, y - 10*z); ctx.lineTo(x, y - 17*z); ctx.lineTo(x + 18*z, y - 10*z);
+      ctx.lineTo(x, y - 4*z); ctx.closePath();
+      ctx.fillStyle = p.cloth; ctx.fill();
+      ctx.save(); ctx.clip();
+      ctx.fillStyle = '#f0ead8';
+      ctx.fillRect(x - 18*z, y - 14*z, 36*z, 3*z); ctx.fillRect(x - 18*z, y - 8*z, 36*z, 3*z);
+      ctx.restore();
+      ctx.strokeStyle = shade(p.cloth, 0.6); ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - 18*z, y - 10*z); ctx.lineTo(x, y - 17*z); ctx.lineTo(x + 18*z, y - 10*z);
+      ctx.lineTo(x, y - 4*z); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(x - 12*z, y - 4.5*z, 24*z, 4.5*z); // towary na ladzie
+      ctx.fillStyle = '#e8c060';
+      ctx.beginPath(); ctx.arc(x - 6*z, y - 5*z, 2.2*z, 0, 7); ctx.fill();
+      ctx.fillStyle = p.metal;
+      ctx.beginPath(); ctx.arc(x + 2*z, y - 5*z, 1.8*z, 0, 7); ctx.fill();
+      ctx.fillStyle = '#b87840';
+      ctx.beginPath(); ctx.ellipse(x + 8*z, y - 5*z, 1.6*z, 2.2*z, 0, 0, 7); ctx.fill();
+    },
+    store(ctx, x, y, z, p, t) { // dom magazynowy + piętrowe skrzynie
+      shadow(ctx, x, y, z, 17);
+      base(ctx, x, y, z, p, 30*z, 15*z);
+      roofGable(ctx, x, y, z, p, 30*z, 15*z, 8*z, p.roofAlt);
+      door(ctx, x - 9*z, y, z);
+      crate(ctx, x + 5*z, y, z, '#8a6a45', 4.5);
+      crate(ctx, x + 12*z, y, z, '#8a6a45', 4.5);
+      crate(ctx, x + 8.5*z, y - 9*z, z, '#9a7a55', 3.8);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 1.2;
+      ctx.strokeRect(x + 5*z - 4.5*z, y - 9*z, 9*z, 9*z);
+      ctx.strokeRect(x + 12*z - 4.5*z, y - 9*z, 9*z, 9*z);
+    },
+    serai(ctx, x, y, z, p, t) { // otoczony mur z bramą
+      shadow(ctx, x, y, z, 21);
+      base(ctx, x, y, z, p, 36*z, 14*z);
+      roofFlat(ctx, x, y, z, p, 36*z, 14*z);
+      ctx.fillStyle = shade(p.wall, 0.85); // krenelaż
+      for (let i = 0; i < 7; i++) ctx.fillRect(x - 18*z + i*5.4*z, y - 18*z, 3*z, 4*z);
+      for (const ox of [-15, 15]) { // narożne wieżyczki
+        ctx.fillStyle = p.wall; ctx.fillRect(x + ox*z, y - 26*z, 4.5*z, 26*z);
+        ctx.strokeStyle = shade(p.wall, 0.55); ctx.strokeRect(x + ox*z, y - 26*z, 4.5*z, 26*z);
+        dome(ctx, x + ox*z + 2.2*z, y, z, p, 9*z, 26*z, p.accent);
+      }
+      ctx.fillStyle = '#c89858'; // brama
+      ctx.beginPath(); ctx.moveTo(x - 3.5*z, y); ctx.lineTo(x - 3.5*z, y - 7*z);
+      ctx.arc(x, y - 7*z, 3.5*z, Math.PI, 0); ctx.lineTo(x + 3.5*z, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade('#c89858', 0.6); ctx.stroke();
+    },
+
+    /* ---- SPOŁECZNE ---- */
+    temple(ctx, x, y, z, p, t) { // kościół / meczet
+      shadow(ctx, x, y, z, 16);
+      if (p.terrain === 'sand') { // meczet: kopuła + minaret
+        base(ctx, x, y, z, p, 26*z, 20*z);
+        roofFlat(ctx, x, y, z, p, 26*z, 20*z);
+        dome(ctx, x, y, z, p, 26*z, 20*z);
+        ctx.fillStyle = p.wall;
+        ctx.fillRect(x + 15*z, y - 34*z, 4*z, 34*z);
+        ctx.strokeStyle = shade(p.wall, 0.6); ctx.strokeRect(x + 15*z, y - 34*z, 4*z, 34*z);
+        dome(ctx, x + 17*z, y, z, p, 10*z, 34*z, p.accent);
+        ctx.strokeStyle = '#e8c860'; ctx.lineWidth = 1.4*z; // półksiężyc
+        ctx.beginPath(); ctx.arc(x + 17*z, y - 44*z, 2.6*z, 0.6, 4.4); ctx.stroke();
+      } else { // kościół: wieża z krzyżem
+        base(ctx, x, y, z, p, 26*z, 20*z);
+        roofGable(ctx, x, y, z, p, 26*z, 20*z, 13*z);
+        ctx.fillStyle = p.wall;
+        ctx.fillRect(x - 4*z, y - 38*z, 9*z, 20*z);
+        ctx.strokeStyle = shade(p.wall, 0.6); ctx.strokeRect(x - 4*z, y - 38*z, 9*z, 20*z);
+        windowLit(ctx, x + 0.5*z, y - 32*z, z, p); // witraż
+        ctx.fillStyle = p.metal; // krzyż
+        ctx.fillRect(x + 0.5*z, y - 46*z, 1.2*z, 5*z);
+        ctx.fillRect(x - 1.5*z, y - 44.5*z, 4*z, 1.2*z);
+        windowLit(ctx, x + 8*z, y - 12*z, z, p);
+      }
+    },
+    bath(ctx, x, y, z, p, t) { // kopuła + para + basen
+      shadow(ctx, x, y, z, 16);
+      base(ctx, x, y, z, p, 26*z, 16*z);
+      roofFlat(ctx, x, y, z, p, 26*z, 16*z);
+      dome(ctx, x - 4*z, y, z, p, 20*z, 16*z, '#4aa5c0');
+      ctx.fillStyle = '#3a8ac8'; // basen przed wejściem
+      ctx.beginPath(); ctx.ellipse(x + 8*z, y + 2*z, 6*z, 2.6*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath(); ctx.ellipse(x + 7*z, y + 1.4*z, 2*z, 0.8*z, 0, 0, 7); ctx.fill();
+      for (let i = 0; i < 3; i++) { // obłoki pary
+        ctx.beginPath();
+        ctx.arc(x + 2*z + Math.sin(i*2)*3*z, y - (24 + i*5)*z, (3 + i*1.2)*z, 0, 7);
+        ctx.fillStyle = `rgba(240,240,245,${0.3 - i*0.08})`;
+        ctx.fill();
+      }
+    },
+
+    /* ---- MILITARIA ---- */
+    barracks(ctx, x, y, z, p, t) { // budynek + proporzec + manekin treningowy
+      shadow(ctx, x, y, z, 18);
+      base(ctx, x, y, z, p, 32*z, 17*z);
+      roofGable(ctx, x, y, z, p, 32*z, 17*z, 10*z);
+      door(ctx, x - 10*z, y, z);
+      windowLit(ctx, x - 2*z, y - 11*z, z, p);
+      windowLit(ctx, x + 6*z, y - 11*z, z, p);
+      pennant(ctx, x - 14*z, y, z, p, t);
+      ctx.fillStyle = '#7a5c3a'; ctx.fillRect(x + 13*z, y - 2*z, 2*z, 2*z); // podstawa
+      ctx.fillRect(x + 13.7*z, y - 12*z, 1.6*z, 10*z); // słupek
+      ctx.fillStyle = '#d8c8a0'; ctx.beginPath(); ctx.arc(x + 14.5*z, y - 13.5*z, 2*z, 0, 7); ctx.fill(); // głowa
+      ctx.fillStyle = '#c8b890'; ctx.fillRect(x + 12.5*z, y - 11*z, 4*z, 5*z); // korpus
+      ctx.fillStyle = p.accent; ctx.beginPath(); ctx.arc(x + 14.5*z, y - 8.5*z, 2.4*z, 0, 7); ctx.fill(); // tarcza
+      ctx.strokeStyle = shade(p.metal, 0.6); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x + 14.5*z, y - 8.5*z, 2.4*z, 0, 7); ctx.stroke();
+    },
+    guard(ctx, x, y, z, p, t) { // wieża wartownicza
+      shadow(ctx, x, y, z, 12);
+      base(ctx, x, y, z, p, 17*z, 26*z);
+      roofFlat(ctx, x, y, z, p, 19*z, 26*z);
+      ctx.strokeStyle = shade(p.wall, 0.55); // kondygnacje
+      for (let i = 1; i < 3; i++) { ctx.beginPath(); ctx.moveTo(x - 8.5*z, y - i*8*z); ctx.lineTo(x + 8.5*z, y - i*8*z); ctx.stroke(); }
+      windowLit(ctx, x, y - 12*z, z, p); // strzelnica
+      ctx.fillStyle = shade(p.wall, 0.85); // blanki + chorągiew
+      for (let i = 0; i < 3; i++) ctx.fillRect(x - 9.5*z + i*7*z, y - 31*z, 3.5*z, 5*z);
+      ctx.fillStyle = p.accent; ctx.fillRect(x - 2*z, y - 34*z, 5*z, 4*z);
+      pennant(ctx, x + 8*z, y - 26*z, z, p, t);
+    },
+    dock(ctx, x, y, z, p, t) { // pomost z cumami i skrzyniami
+      ctx.fillStyle = '#6a4a2c'; // pale w wodzie
+      for (let i = 0; i < 4; i++) ctx.fillRect(x - 16*z + i*9*z, y - 2*z, 5*z, 12*z);
+      ctx.fillStyle = '#8a6a45'; // pomost
+      ctx.fillRect(x - 18*z, y - 8*z, 36*z, 6*z);
+      ctx.strokeStyle = '#5a4230'; ctx.strokeRect(x - 18*z, y - 8*z, 36*z, 6*z);
+      ctx.strokeStyle = shade('#8a6a45', 0.7); ctx.lineWidth = 0.8; // deski
+      for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x - 18*z + i*6*z, y - 8*z); ctx.lineTo(x - 18*z + i*6*z, y - 2*z); ctx.stroke(); }
+      crate(ctx, x - 10*z, y - 8*z, z, '#8a6a45', 3);
+      ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x + 8*z, y - 13*z, 2.4*z, 5*z); // pachołek cumowniczy
+      ctx.strokeStyle = '#c8b090'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(x + 9.2*z, y - 10*z, 4*z, 1.6*z, 0, 0, 7); ctx.stroke();
+    },
+    ship(ctx, x, y, z, p, t) { // smocza głowa + tarcze na burcie
+      const bob = Math.sin(t * 1.5) * 1.5*z;
+      ctx.save(); ctx.translate(0, bob);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; // cień na wodzie
+      ctx.beginPath(); ctx.ellipse(x, y + 4*z, 20*z, 3*z, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#6a4a2c'; // kadłub
+      ctx.beginPath();
+      ctx.moveTo(x - 20*z, y - 8*z); ctx.quadraticCurveTo(x, y - 2*z, x + 20*z, y - 8*z);
+      ctx.lineTo(x + 14*z, y - 16*z); ctx.lineTo(x - 14*z, y - 16*z); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3a2c1a'; ctx.stroke();
+      ctx.strokeStyle = shade('#6a4a2c', 0.6); // poszycie
+      ctx.beginPath(); ctx.moveTo(x - 17*z, y - 11*z); ctx.lineTo(x + 17*z, y - 11*z); ctx.stroke();
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(x - 1.5*z, y - 34*z, 3*z, 18*z); // maszt
+      ctx.save(); ctx.translate(x + 20*z, y - 8*z);
+      ctx.fillStyle = '#8a6a45';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(6*z, -4*z, 5*z, -9*z);
+      ctx.lineTo(1.5*z, -7*z); ctx.quadraticCurveTo(3*z, -3*z, -2*z, -1*z); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3a2c1a'; ctx.stroke();
+      ctx.restore();
+      for (let i = -1; i <= 1; i++) { // tarcze w rzędzie na burcie
+        ctx.fillStyle = i % 2 ? p.cloth : p.accent;
+        ctx.beginPath(); ctx.arc(x + i*8*z, y - 12*z, 2.8*z, 0, 7); ctx.fill();
+        ctx.strokeStyle = shade(p.metal, 0.6); ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + i*8*z, y - 12*z, 1*z, 0, 7); ctx.stroke();
+      }
+      ctx.restore();
+    },
+
+    /* ---- DWÓR (startowy, 2x2) ---- */
+    keep(ctx, x, y, z, p, t) {
+      shadow(ctx, x, y, z, 24);
+      base(ctx, x, y, z, p, 44*z, 30*z);
+      if (p.terrain === 'sand') {
+        roofFlat(ctx, x, y, z, p, 44*z, 30*z);
+        dome(ctx, x, y, z, p, 30*z, 30*z);
+      } else {
+        roofGable(ctx, x, y, z, p, 44*z, 30*z, 18*z);
+      }
+      ctx.fillStyle = p.wall; ctx.fillRect(x - 2*z, y - 52*z, 10*z, 30*z); // wieża narożna
+      ctx.strokeStyle = shade(p.wall, 0.55); ctx.strokeRect(x - 2*z, y - 52*z, 10*z, 30*z);
+      if (p.terrain === 'sand') dome(ctx, x + 3*z, y - 4*z, z, p, 14*z, 52*z);
+      else {
+        ctx.fillStyle = p.roof;
+        ctx.beginPath(); ctx.moveTo(x - 4*z, y - 52*z); ctx.lineTo(x + 3*z, y - 62*z); ctx.lineTo(x + 10*z, y - 52*z); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = shade(p.roof, 0.6); ctx.stroke();
+      }
+      pennant(ctx, x + 3*z, y - 62*z, z, p, t); // proporzec na wieży
+      door(ctx, x, y, z);
+      windowLit(ctx, x - 14*z, y - 20*z, z, p);
+      windowLit(ctx, x + 14*z, y - 20*z, z, p);
+    }
+  };
+
+  /* --- obywatel: mała figurka zależna od nacji --- */
+  function drawCitizen(ctx, c, sx, sy, z, factionId, p, t) {
+    const step = Math.sin(t * 8 + c.phase) * 1.2 * z;
+    const y0 = sy - 4 * z;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(sx, y0, 4.5*z, 2*z, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#3a2c1e'; ctx.lineWidth = 1.4*z;
+    ctx.beginPath();
+    ctx.moveTo(sx - 1.5*z, y0 - 4*z); ctx.lineTo(sx - 1.5*z + step, y0);
+    ctx.moveTo(sx + 1.5*z, y0 - 4*z); ctx.lineTo(sx + 1.5*z - step, y0);
+    ctx.stroke();
+    ctx.fillStyle = c.color;
+    ctx.fillRect(sx - 2.6*z, y0 - 9.5*z, 5.2*z, 5.5*z);
+    ctx.fillStyle = p.skin;
+    ctx.beginPath(); ctx.arc(sx, y0 - 11.5*z, 2.5*z, 0, 7); ctx.fill();
+    if (factionId === 'saracens') {
+      ctx.fillStyle = '#f0ead8';
+      ctx.beginPath(); ctx.ellipse(sx, y0 - 13*z, 3*z, 1.8*z, 0, 0, 7); ctx.fill();
+    } else if (factionId === 'vikings') {
+      ctx.fillStyle = p.metal;
+      ctx.beginPath(); ctx.arc(sx, y0 - 12.2*z, 2.7*z, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = shade(p.metal, 0.7); ctx.fillRect(sx - 0.4*z, y0 - 12.5*z, 0.8*z, 2*z);
+      ctx.fillStyle = p.cloth;
+      ctx.beginPath(); ctx.ellipse(sx - 3.6*z, y0 - 8*z, 2.2*z, 3*z, 0.3, 0, 7); ctx.fill();
+      ctx.strokeStyle = shade(p.metal, 0.6); ctx.lineWidth = 0.8*z; ctx.stroke();
+    } else {
+      ctx.fillStyle = '#5a4230';
+      ctx.beginPath(); ctx.moveTo(sx - 2.6*z, y0 - 12.5*z); ctx.lineTo(sx, y0 - 15.5*z);
+      ctx.lineTo(sx + 2.6*z, y0 - 12.5*z); ctx.closePath(); ctx.fill();
+    }
+    if (c.carry) { // nosiciel: skrzynka z towarem na głowie
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(sx - 3*z, y0 - 18.5*z, 6*z, 4*z);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = 0.7*z;
+      ctx.strokeRect(sx - 3*z, y0 - 18.5*z, 6*z, 4*z);
+      ctx.beginPath(); ctx.moveTo(sx, y0 - 18.5*z); ctx.lineTo(sx, y0 - 14.5*z); ctx.stroke();
+    }
+  }
+
+  /* plac budowy: rusztowanie + pasek postępu */
+  function drawSite(ctx, sx, sy, z, p, progress) {
+    ctx.fillStyle = 'rgba(140,110,70,0.35)';
+    ctx.beginPath(); ctx.ellipse(sx, sy, 13*z, 5.5*z, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#7a5c3a'; ctx.lineWidth = 1.6 * z;
+    ctx.beginPath();
+    ctx.moveTo(sx - 10*z, sy - 2*z); ctx.lineTo(sx - 10*z, sy - 16*z);
+    ctx.moveTo(sx + 10*z, sy - 2*z); ctx.lineTo(sx + 10*z, sy - 16*z);
+    ctx.moveTo(sx - 10*z, sy - 10*z); ctx.lineTo(sx + 10*z, sy - 10*z);
+    ctx.moveTo(sx - 10*z, sy - 15*z); ctx.lineTo(sx + 10*z, sy - 15*z);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(160,120,70,0.5)';
+    ctx.fillRect(sx - 10*z, sy - 15*z, 20*z, 5*z);
+    ctx.fillStyle = '#c8a878'; ctx.fillRect(sx - 7*z, sy - 1*z, 8*z, 1.6*z);
+    ctx.fillStyle = '#9a9a92'; ctx.beginPath(); ctx.ellipse(sx + 6*z, sy - 0.5*z, 2.2*z, 1.3*z, 0, 0, 7); ctx.fill();
+    const w = 24 * z;
+    ctx.fillStyle = '#241c12'; ctx.fillRect(sx - w/2, sy - 23*z, w, 4*z);
+    ctx.fillStyle = '#c8a04e';
+    ctx.fillRect(sx - w/2 + 0.5*z, sy - 22.5*z, Math.max(0, (w - z) * progress), 3*z);
+  }
+
+  return { drawTile, ART, drawCitizen, drawSite, shade, setAnim };
+})();
+
+/* ============================= MODUL: WORLD =============================== */
+const World = (() => {
+  const state = {
+    factionId: null, map: null, buildings: [], citizens: [],
+    time: 0, speed: 1, res: {}, nextId: 1,
+    pop: 14, controls: { rations: 1, tax: 1 },
+    starveTimer: 0, immigrantTimer: 0, tooled: {}, staffed: {},
+    saplings: [], treeFrac: 0, plantFrac: 0, churchFed: false, bathFed: false,
+    workersStaffed: 0, workersNeeded: 0, waitingForTool: false,
+    /* Etap 3 — logistyka budowy */
+    sites: [], builders: 3, buildersActive: 0, buildersWorking: 0, carriers: [],
+    /* Etap 4 — haracz, handel, wyprawy */
+    tribute: null, marketPrices: { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 },
+    voyageMode: 'normal', crewAway: 0, voyages: [],
+    /* Etap 5 — świat dynamiczny */
+    raids: { count: 0, lost: 0, next: 40 }, crisis: null, eventMsgs: []
+  };
+
+  function init(factionId) {
+    state.factionId = factionId;
+    state.map = MapGen.generate(factionId);
+    state.buildings = []; state.citizens = [];
+    state.time = 0; state.nextId = 1;
+    state.pop = 14; state.controls = { rations: 1, tax: 1 };
+    state.starveTimer = 0; state.immigrantTimer = 0;
+    state.tooled = {}; state.staffed = {}; state.saplings = [];
+    state.treeFrac = 0; state.plantFrac = 0;
+    state.churchFed = false; state.bathFed = false; state.waitingForTool = false;
+    state.sites = []; state.builders = 3;
+    state.buildersActive = 0; state.buildersWorking = 0; state.carriers = [];
+    state.tribute = null;
+    state.marketPrices = { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 };
+    state.voyageMode = 'normal'; state.crewAway = 0; state.voyages = [];
+    state.raids = { count: 0, lost: 0, next: 40 };
+    state.crisis = null; state.eventMsgs = [];
+    const f = Data.FACTIONS[factionId];
+    // pełny magazyn towarów wg limitów z sekcji "Magazyny"
+    state.res = {};
+    for (const g of Object.keys(Economy.LIMIT)) state.res[g] = 0;
+    state.res.złoto = f.start.gold;
+    state.res.narzędzia = f.start.tools;
+    state.res.deski = f.start.wood;
+    state.res.kamień = f.start.stone || 0;
+    state.res.glina = f.start.clay || 0;
+    state.res[f.start.foodKind.toLowerCase()] = f.start.food;
+    state.res.popularity = 50;
+    // Dwór na środku (2x2)
+    const c = Math.floor(state.map.size / 2) - 1;
+    placeBuilding('keep', c, c, true);
+    state.keep = state.buildings[0];
+    for (let i = 0; i < state.pop; i++) spawnCitizen();
+  }
+
+  function placeBuilding(id, x, y, instant) {
+    const b = { id, x, y, uid: state.nextId++ };
+    state.buildings.push(b);
+    const size = id === 'keep' ? 2 : 1;
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+      const t = MapGen.at(state.map, x + dx, y + dy);
+      if (t) t.occup = b.uid;
+    }
+    return b;
+  }
+
+  function canPlace(id, x, y) {
+    const def = Data.BUILDINGS[id];
+    const size = id === 'keep' ? 2 : 1;
+    let hasWater = false, hasForest = 0;
+    for (let dy = -1; dy <= size; dy++) for (let dx = -1; dx <= size; dx++) {
+      const t = MapGen.at(state.map, x + dx, y + dy);
+      if (!t) continue;
+      if (t.h === 0) hasWater = true;
+      if (t.trees > 0) hasForest += t.trees;
+    }
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+      const t = MapGen.at(state.map, x + dx, y + dy);
+      if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: 'Zajęte lub niebudowlane pole' };
+      // złoże jest zarezerwowane dla pasującej kopalni
+      if (t.deposit && def.req !== 'deposit:' + t.deposit) return { ok: false, reason: 'Złoże — miejsce tylko na kopalnię' };
+    }
+    if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
+    if (def.req === 'shore' && !hasWater) return { ok: false, reason: 'Wymaga brzegu morza' };
+    if (id === 'fisherhut' && state.buildings.filter(b => b.id === 'fisherhut').length >= 6)
+      return { ok: false, reason: 'Brzeg pełny: maks. 6 Chat rybaka (spec.)' };
+    if (def.req === 'waterEdge' && !hasWater) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do wody' };
+    if (def.req && def.req.startsWith('deposit:')) {
+      const kind = def.req.split(':')[1];
+      const t = MapGen.at(state.map, x, y);
+      if (!t.deposit || t.deposit !== kind) return { ok: false, reason: 'Wymaga złoża (' + kind + ')' };
+    }
+    if (id === 'ship' && !state.buildings.some(b => b.id === 'dock'))
+      return { ok: false, reason: 'Okręt wymaga Przystani' };
+    return { ok: true };
+  }
+
+  function costOf(id) {
+    const f = World.state().factionId;
+    const raw = Data.BUILDINGS[id].costs[f];
+    return raw ? { ...raw } : {};
+  }
+
+  function canAfford(id) {
+    const c = costOf(id);
+    const r = state.res;
+    if ((c.d || 0) > r.deski) return false;
+    if ((c.k || 0) > (r.kamień || 0)) return false;
+    if ((c.gl || 0) > (r.glina || 0)) return false;
+    if ((c.zl || 0) > r.złoto) return false;
+    return true;
+  }
+
+  function build(id, x, y) {
+    const c = costOf(id);
+    if (!canAfford(id)) return false;
+    const check = canPlace(id, x, y);
+    if (!check.ok) return false;
+    state.res.deski -= (c.d || 0);
+    state.res.kamień = (state.res.kamień || 0) - (c.k || 0);
+    state.res.glina = (state.res.glina || 0) - (c.gl || 0);
+    state.res.złoto -= (c.zl || 0);
+    placeBuilding(id, x, y);
+    return true;
+  }
+
+  function placeFree(id, x, y) {
+    if (!canPlace(id, x, y).ok) return false;
+    placeBuilding(id, x, y);
+    return true;
+  }
+
+  function spawnCitizen() {
+    const p = Data.FACTIONS[state.factionId].palette;
+    const keep = state.keep;
+    state.citizens.push({
+      x: keep.x + 1 + RNG.range(-1, 1), y: keep.y + 2 + RNG.range(0, 2),
+      tx: keep.x + 1, ty: keep.y + 2,
+      phase: RNG.range(0, 6.28),
+      color: RNG.next() < 0.5 ? p.citizen : p.citizenAlt,
+      speed: 0.25
+    });
+  }
+
+  /* --- drzewa jako globalny zasób mapy --- */
+  function treeCount() {
+    let n = 0;
+    for (const t of state.map.tiles) n += t.trees;
+    return n;
+  }
+  function addTree() {
+    const tiles = state.map.tiles;
+    for (let tries = 0; tries < 30; tries++) {
+      const t = tiles[RNG.int(0, tiles.length - 1)];
+      if (t.h === 1 && !t.occup && t.trees < 3 && !t.deposit) { t.trees++; return true; }
+    }
+    return false;
+  }
+  function takeTrees(n) {
+    state.treeFrac += n;
+    while (state.treeFrac >= 1) {
+      let done = false;
+      for (let tries = 0; tries < 40 && !done; tries++) {
+        const t = state.map.tiles[RNG.int(0, state.map.tiles.length - 1)];
+        if (t.trees > 0) { t.trees--; done = true; }
+      }
+      state.treeFrac -= 1;
+      if (!done) { state.treeFrac = 0; break; }
+    }
+  }
+
+  function tick(dt) { // dt w minutach gry
+    state.time += dt;
+    Economy.tick(dt);
+    Build.tick(dt); // kolejka placów, budowniczowie (po Economy — zna obsadę)
+    Tribute.tick(dt); // haracz, sprzedaż na Targu, wyprawy Wikingów
+    Events.tick(dt); // napady na karawany, kryzysy
+    // liczba figurek = ludność
+    const target = Math.floor(state.pop);
+    while (state.citizens.length < target) spawnCitizen();
+    while (state.citizens.length > target) state.citizens.pop();
+    for (const c of state.citizens) {
+      const dx = c.tx - c.x, dy = c.ty - c.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 0.05) {
+        const anchor = state.buildings.length > 1 && RNG.next() < 0.6
+          ? RNG.pick(state.buildings) : state.keep;
+        c.tx = anchor.x + RNG.range(-1.5, 1.5);
+        c.ty = anchor.y + RNG.range(-1.5, 1.5);
+      } else {
+        c.x += (dx / dist) * c.speed * dt;
+        c.y += (dy / dist) * c.speed * dt;
+      }
+    }
+    /* --- nosiciele (wizualni): obsadzony producent zanosi towar
+       do najbliższego Składu / Dworu; ekonomia pozostaje nominalna --- */
+    for (const b of state.buildings) {
+      if (b.id === 'keep') continue;
+      const def = Data.BUILDINGS[b.id];
+      const out = def.out ? Object.keys(def.out)[0] : null;
+      if (!out || !(out in Economy.LIMIT)) continue;
+      b.carrierT = (b.carrierT ?? RNG.range(0, 2)) - dt;
+      if (b.carrierT > 0 || !state.staffed[b.uid] || state.carriers.length >= 12) continue;
+      b.carrierT = 2 + RNG.range(0, 1.5);
+      let best = state.keep, bd = 1e9; // najbliższy Skład, w razie braku — Dwór
+      for (const t of state.buildings) {
+        if (t.id !== 'store' && t.id !== 'keep') continue;
+        const d = Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+        if (d < bd) { bd = d; best = t; }
+      }
+      const p = Data.FACTIONS[state.factionId].palette;
+      state.carriers.push({
+        x: b.x + 0.5, y: b.y + 0.5, tx: best.x + 0.5, ty: best.y + 0.5,
+        carry: out, phase: RNG.range(0, 6.28),
+        color: RNG.next() < 0.5 ? p.citizen : p.citizenAlt, speed: 0.35
+      });
+    }
+    for (let i = state.carriers.length - 1; i >= 0; i--) {
+      const c = state.carriers[i];
+      const dx = c.tx - c.x, dy = c.ty - c.y, dist = Math.hypot(dx, dy);
+      if (dist < 0.1) { state.carriers.splice(i, 1); continue; } // rozładowany
+      c.x += (dx / dist) * c.speed * dt;
+      c.y += (dy / dist) * c.speed * dt;
+    }
+  }
+
+  function state$() { return state; }
+  return { init, state: state$, build, placeFree, placeBuilding, canPlace, canAfford, costOf,
+           tick, spawnCitizen, treeCount, addTree, takeTrees };
+})();
+
+/* ============================= MODUL: ECONOMY ==============================
+   Ekonomia przepływowa v3.5: obsada, produkcja, popularność, imigracja/głód,
+   narzędzia z zaworami bezpieczeństwa, magazyny z limitami, las odnawialny.
+   Moduł jest czystą funkcją stanu — bot testujący może wołać Economy.tick()
+   bez renderowania gry. */
+const Economy = (() => {
+  const LIMIT = { 'pień':100, deski:250, 'kamień':300, glina:300, zboże:40, mąka:40, woda:40,
+    chleb:150, mięso:150, ser:150, owoce:150, daktyle:150, ryby:150,
+    ruda:40, węgiel:40, sztabki:40, 'narzędzia':10, broń:60,
+    żywica:40, kadzidło:40, winogrona:40, wino:60, 'miód pitny':60,
+    bawełna:40, tkanina:60, ceramika:60 };
+  const FOODS = ['ryby','chleb','mięso','ser','owoce','daktyle']; // ryby schodzą pierwsze
+  const FOOD_PRIORITY = ['hunter','dairy','orchard','watercarrier','qanat','farm','mill','bakery','dategrove','fisherhut'];
+  const MINE_EATERS = { ironmine:0.5, coalmine:0.5, incense:0.5, peatmine:0.25 };
+  const DOBRO = { franks:'wino', saracens:'kadzidło', vikings:'miód pitny' };
+  const TAX_INCOME = [0, 0.05, 0.10, 0.15];
+  const RATIONS_POP = { 0.5:-25, 1:0, 1.5:8, 2:15 };
+  const TAX_POP = { 0:8, 1:0, 2:-8, 3:-16 };
+
+  function outGood(id) { const d = Data.BUILDINGS[id].out; return d ? Object.keys(d)[0] : null; }
+  function outRate(id) { const d = Data.BUILDINGS[id].out; return d ? Object.values(d)[0] : 0; }
+  function isFoodOut(id) { return FOODS.includes(outGood(id)); }
+
+  /* mnożniki Wikingów: drwal 1,3; leśnik 2,0; tartak 1,3 (→2,6 deski) */
+  const VIK_RATE = { woodcutter: 1.3, forester: 2.0, sawmill: 1.3 };
+  function vikScale(id) {
+    return World.state().factionId === 'vikings' ? (VIK_RATE[id] || 1) : 1;
+  }
+
+  function totalFood(res) { return FOODS.reduce((a, g) => a + (res[g] || 0), 0); }
+  function foodRate(s) { return s.pop / 6 * s.controls.rations; }
+  function housing(s) {
+    const per = s.factionId === 'vikings' ? 8 : 6;
+    return 20 + s.buildings.reduce((a, b) => a + (b.id === 'hut' ? per : 0), 0);
+  }
+  function capOf(s, good) {
+    const producers = s.buildings.filter(b => outGood(b.id) === good).length;
+    const stores = s.buildings.filter(b => b.id === 'store').length;
+    return Math.min(LIMIT[good] ?? Infinity, 6 * producers + 20 + 80 * stores);
+  }
+  function popularity(s) {
+    let p = 50 + (RATIONS_POP[s.controls.rations] ?? 0) + (TAX_POP[s.controls.tax] ?? 0);
+    const kinds = FOODS.filter(g => s.res[g] > 5).length;
+    if (kinds > 1) p += 4 * (kinds - 1);
+    const temples = s.buildings.filter(b => b.id === 'temple').length;
+    if (temples * 50 >= s.pop && s.churchFed) p += 10;
+    const baths = s.buildings.filter(b => b.id === 'bathhouse').length;
+    if (s.factionId === 'saracens' && baths * 50 >= s.pop && s.bathFed) p += 6;
+    return Math.max(0, Math.min(100, p));
+  }
+  function potentialFood(s) {
+    // produkcja żywności przy dostępnych wejściach; chleb liczy Piekarnia, Farma/Młyn nie
+    const treeTotal = World.treeCount();
+    let pot = 0;
+    for (const b of s.buildings) {
+      if (!isFoodOut(b.id)) continue;
+      const def = Data.BUILDINGS[b.id];
+      if (!def.worker) continue;
+      let frac = 1;
+      for (const g in (def.inp || {})) if (s.res[g] < def.inp[g]) frac = 0; // binarnie: wejścia dostępne lub nie
+      if (b.id === 'hunter') frac *= Math.min(1, treeTotal / 80);
+      pot += outRate(b.id) * frac;
+    }
+    return pot;
+  }
+
+  /* --- obsada: budynki żywności pierwszeństwo, potem reszta --- */
+  function staff(s, dt) {
+    s.staffed = {}; s.workersNeeded = 0;
+    // budowniczowie i załoga na wyprawie zajmują ludzi; pracownicy budynków mają pierwszeństwo
+    let free = Math.floor(s.pop) - (s.buildersActive || 0) - (s.crewAway || 0);
+    let waitingTool = false;
+    const prio = id => { const i = FOOD_PRIORITY.indexOf(id); return i === -1 ? 99 : i; };
+    const order = [...s.buildings].sort((a, b) => prio(a.id) - prio(b.id));
+    for (const b of order) {
+      const def = Data.BUILDINGS[b.id];
+      if (!def.worker || b.id === 'keep') continue;
+      s.workersNeeded++;
+      if (free < 1) continue; // narzędzie zużywamy dopiero przy faktycznym obsadzeniu
+      if (def.tool && !s.tooled[b.uid]) {
+        if (s.res.narzędzia >= 1) { s.res.narzędzia -= 1; s.tooled[b.uid] = true; }
+        else { waitingTool = true; continue; }
+      }
+      s.staffed[b.uid] = true; free--;
+    }
+    s.workersStaffed = Object.keys(s.staffed).length;
+    s.waitingForTool = waitingTool;
+    // zawory bezpieczeństwa narzędzi
+    if (waitingTool) {
+      if (s.res.narzędzia < 1) // kuźnia zamkowa: ok. 1 narzędzie na 8 min, aż do pełnej sztuki
+        s.res.narzędzia = Math.min(1, s.res.narzędzia + 0.125 * dt);
+      const marketOn = s.buildings.some(b => b.id === 'market' && s.staffed[b.uid]);
+      // zakup na Targu 20 zł, ale rezerwa na żołd (Frankowie) nietykalna
+      if (marketOn && s.res.złoto >= 20 + (Tribute.soldierReserve ? Tribute.soldierReserve(s) : 0) && s.res.narzędzia < 1) {
+        s.res.złoto -= 20;
+        s.res.narzędzia = Math.min(LIMIT['narzędzia'], s.res.narzędzia + 1);
+      }
+    }
+  }
+
+  function tick(dt) {
+    if (dt <= 0) return;
+    const s = World.state();
+    const res = s.res;
+    staff(s, dt);
+    const pop = popularity(s);
+    res.popularity = pop;
+    const popMult = Math.min(1.2, Math.max(0.8, 1 + 0.004 * (pop - 50)));
+    const starving = s.starveTimer >= 5;
+    const food5min = foodRate(s) * 5;
+    const treeTotal = World.treeCount(); // raz na tick, nie przy każdym budynku
+    s.churchFed = false; s.bathFed = false; // premie wyliczamy na nowo w tym ticku
+
+    /* --- produkcja --- */
+    for (const b of s.buildings) {
+      const def = Data.BUILDINGS[b.id];
+      if (b.id === 'keep' || !def.worker) continue;
+      if (!s.staffed[b.uid]) continue;
+      // kopalnie i wytwórnia kadzidła jedzą tylko z nadwyżki
+      if (MINE_EATERS[b.id] && totalFood(res) < food5min) continue;
+      // Dobrobyt: kościół/meczet spala dobro nacji (0,3/min)
+      if (b.id === 'temple') {
+        const good = DOBRO[s.factionId];
+        if (res[good] >= 0.3 * dt) { res[good] -= 0.3 * dt; s.churchFed = true; }
+        else s.churchFed = false;
+        continue;
+      }
+      const og = outGood(b.id);
+      const sc = vikScale(b.id);
+      const inp = def.inp || {};
+      let frac = 1;
+      for (const g in inp) {
+        const need = inp[g] * sc * dt;
+        if (need > 0) frac = Math.min(frac, res[g] / need);
+      }
+      if (b.id === 'woodcutter') frac = Math.min(frac, treeTotal / (outRate('woodcutter') * sc * dt));
+      if (b.id === 'hunter') frac *= Math.min(1, treeTotal / 80);
+      const hungerK = (starving && !isFoodOut(b.id)) ? 0.75 : 1;
+      // pełny magazyn wyjścia zatrzymuje budynek BEZ zużywania wejść (spec.)
+      if (og && og in LIMIT) {
+        const maxOut = outRate(b.id) * sc * popMult * hungerK * dt;
+        if (maxOut > 0) frac = Math.min(frac, Math.max(0, capOf(s, og) - res[og]) / maxOut);
+      }
+      frac = Math.max(0, Math.min(1, frac));
+      for (const g in inp) res[g] -= inp[g] * sc * frac * dt;
+      if (b.id === 'bathhouse') s.bathFed = frac >= 1;
+      // Leśniczówka: sadzonki dojrzewają po czasie nacji
+      if (og === 'sadzonki') {
+        // akumulacja ułamkowa — przy małym dt produkcja < 1 sadzonki/tick
+        s.plantFrac += outRate(b.id) * sc * frac * popMult * dt;
+        const growth = Data.FACTIONS[s.factionId].treeGrowthMin;
+        while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push({ t: s.time + growth }); }
+        continue;
+      }
+      if (!og || !(og in LIMIT)) continue;
+      const room = Math.max(0, capOf(s, og) - res[og]);
+      const made = Math.min(outRate(b.id) * sc * frac * popMult * hungerK * dt, room);
+      res[og] += made;
+      if (b.id === 'woodcutter') World.takeTrees(made);
+    }
+    // dojrzałe sadzonki stają się drzewami
+    s.saplings = s.saplings.filter(sp => {
+      if (s.time >= sp.t) { World.addTree(); return false; }
+      return true;
+    });
+
+    /* --- zawory Dworu --- */
+    const sawmillOn = s.buildings.some(b => b.id === 'sawmill' && s.staffed[b.uid]);
+    if (!sawmillOn && res['pień'] > 0) { // piła zamkowa: 0,6 pnia/min na deski
+      const conv = Math.min(0.6 * dt, res['pień']);
+      res['pień'] -= conv;
+      res.deski = Math.min(capOf(s, 'deski'), res.deski + conv * 2);
+    }
+    if (s.factionId === 'franks' && !s.buildings.some(b => b.id === 'quarry') && res['kamień'] < 6)
+      res['kamień'] = Math.min(6, res['kamień'] + 0.4 * dt);
+    if (s.factionId === 'saracens' && !s.buildings.some(b => b.id === 'claypit') && res['glina'] < 6)
+      res['glina'] = Math.min(6, res['glina'] + 0.4 * dt);
+
+    /* --- jedzenie --- */
+    let need = foodRate(s) * dt;
+    // budowniczowie w pracy jedzą 1,5 racji (dodatek 0,5 × 1/6 porcji/min)
+    need += (s.buildersWorking || 0) * 0.5 / 6 * s.controls.rations * dt;
+    for (const b of s.buildings) {
+      const e = MINE_EATERS[b.id];
+      if (e && s.staffed[b.uid] && totalFood(res) >= food5min) need += e * dt;
+    }
+    const fish = Math.min(res['ryby'], need);
+    res['ryby'] -= fish; need -= fish;
+    if (need > 0) {
+      const others = FOODS.slice(1);
+      const tot = others.reduce((a, g) => a + res[g], 0);
+      if (tot > 0) {
+        // proporcjonalny rozdział z oryginalnej potrzeby, liczony globalnie
+        const takeTot = Math.min(tot, need);
+        for (const g of others) res[g] -= takeTot * (res[g] / tot);
+        need -= takeTot;
+      }
+    }
+    const shortfall = need;
+    if (shortfall > 0.0001) s.starveTimer += dt;
+    else s.starveTimer = 0;
+    if (s.starveTimer > 5) s.pop = Math.max(10, s.pop - dt); // głód: 1 osoba/min
+
+    /* --- podatki --- */
+    res.złoto += TAX_INCOME[s.controls.tax] * s.pop * dt;
+
+    /* --- imigracja --- */
+    const ok = shortfall <= 0.0001 &&
+      potentialFood(s) >= 1.1 * foodRate(s) &&
+      s.pop < housing(s) &&
+      pop >= 45;
+    if (ok) {
+      s.immigrantTimer += dt;
+      const interval = 0.5 * 50 / Math.max(10, pop);
+      if (s.immigrantTimer >= interval) { s.immigrantTimer = 0; s.pop += 1; }
+    } else s.immigrantTimer = 0;
+  }
+
+  return { tick, LIMIT, FOODS, popularity, housing, capOf, potentialFood, foodRate, totalFood };
+})();
+
+/* ====================== MODUL: BUILD (Etap 3: logistyka) =================== */
+/* Budowniczowie rekrutowani z wolnej ludności sami noszą materiały i budują.
+   Reguły wg specyfikacji v3.5 ("Budowniczowie i budowa"):
+   - złoto pobierane przy otwarciu placu, materiały — przy wniesieniu;
+   - noszenie 0,2 min budowniczego na sztukę; budowa 1,0 + 0,1 min na sztukę,
+     przydzieleni budowniczowie budują razem;
+   - 1 budowniczy na plac; plac > 20 szt. dostaje +1 na każde 20 (max 3;
+     Okręt 2, Przystań 1); gang: domyślnie 3, min 2, max 5;
+   - plac bez ani jednej dostępnej sztuki materiału nie zajmuje budowniczych;
+   - place w kolejce gracza; wcześniejszy plac ma pierwszeństwo do materiałów. */
+const Build = (() => {
+  const MAT = { d: 'deski', k: 'kamień', gl: 'glina' };
+  const PIECE_MIN = 0.2;  // min noszenia na sztukę materiału
+  const BASE_WORK = 1.0;  // stały czas budowy
+  const PER_PIECE = 0.1;  // czas budowy na sztukę materiału
+
+  function piecesOf(cost) { let n = 0; for (const k in cost) if (MAT[k]) n += cost[k]; return n; }
+  function deliveredOf(site) { let n = 0; for (const g in site.need) n += (site.got[g] || 0); return n; }
+
+  function enqueue(id, x, y) {
+    const s = World.state();
+    const check = World.canPlace(id, x, y);
+    if (!check.ok) return check;
+    // pierwsza Chata drwala darmowa — także gdy pierwszy plac jest dopiero w kolejce
+    const free = id === 'woodcutter' &&
+      !s.buildings.some(b => b.id === 'woodcutter') &&
+      !s.sites.some(st => st.id === 'woodcutter');
+    const cost = free ? {} : World.costOf(id);
+    // rezerwa złota na żołd brakujących żołnierzy (Frankowie) nietykalna
+    const reserve = Tribute.soldierReserve ? Tribute.soldierReserve(s) : 0;
+    if ((cost.zl || 0) > s.res.złoto - reserve) return { ok: false, reason: 'Brak złota (rezerwa na żołd)!' };
+    s.res.złoto -= (cost.zl || 0); // złoto przy otwarciu placu
+    const site = { id, x, y, uid: s.nextId++, need: {}, got: {}, work: 0,
+      gold: cost.zl || 0, pieces: piecesOf(cost),
+      workNeed: BASE_WORK + PER_PIECE * piecesOf(cost), assigned: 0 };
+    for (const k in cost) if (MAT[k]) site.need[MAT[k]] = cost[k];
+    s.sites.push(site);
+    // rezerwacja kafli pod plac
+    const size = id === 'keep' ? 2 : 1;
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+      const t = MapGen.at(s.map, x + dx, y + dy);
+      if (t) t.occup = site.uid;
+    }
+    return { ok: true };
+  }
+
+  function siteAt(x, y) {
+    return World.state().sites.find(st => st.x === x && st.y === y) || null;
+  }
+
+  function cancel(site) { // anulowanie placu: materiały i złoto wracają
+    const s = World.state();
+    for (const g in site.need) s.res[g] += (site.got[g] || 0);
+    s.res.złoto += site.gold;
+    const size = site.id === 'keep' ? 2 : 1;
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+      const t = MapGen.at(s.map, site.x + dx, site.y + dy);
+      if (t && t.occup === site.uid) t.occup = null;
+    }
+    s.sites.splice(s.sites.indexOf(site), 1);
+  }
+
+  function complete(site) {
+    const s = World.state();
+    s.sites.splice(s.sites.indexOf(site), 1);
+    World.placeBuilding(site.id, site.x, site.y); // nadpisuje rezerwację placu
+  }
+
+  function tick(dt) {
+    const s = World.state();
+    // gang budowniczych: ustawienie 2–5; rekrutacja z wolnej ludności,
+    // pracownicy budynków mają pierwszeństwo, ale gang nie schodzi poniżej 2
+    const setting = Math.max(2, Math.min(5, s.builders));
+    const freePop = Math.floor(s.pop) - s.workersStaffed;
+    const active = Math.max(2, Math.min(setting, freePop));
+    s.buildersActive = active;
+    // dostępne materiały — wcześniejszy plac w kolejce bierze pierwszeństwo
+    const avail = {};
+    for (const g in s.res) if (typeof s.res[g] === 'number' && g !== 'popularity') avail[g] = s.res[g];
+    const claimed = {}; // rezerwacja brakujących sztuk przez wcześniejsze place
+    let left = active, working = 0;
+    for (const site of [...s.sites]) { // kopia: complete() usuwa plac z s.sites w trakcie pętli
+      site.assigned = 0;
+      const missing = site.pieces - deliveredOf(site);
+      if (missing > 0.0001) {
+        // plac bez ani jednej dostępnej sztuki (po rezerwacji wcześniejszych) nie zajmuje budowniczych
+        let any = false;
+        for (const g in site.need)
+          if ((site.got[g] || 0) < site.need[g] &&
+              (avail[g] || 0) - (claimed[g] || 0) >= 0.001) any = true;
+        if (!any) continue;
+      }
+      if (left < 1) continue;
+      const cap = site.id === 'ship' ? 2 : site.id === 'dock' ? 1
+        : Math.min(3, 1 + Math.floor(site.pieces / 20));
+      site.assigned = Math.min(cap, left);
+      left -= site.assigned;
+      working += site.assigned;
+      // etap 1: noszenie — 0,2 min budowniczego na sztukę
+      if (missing > 0.0001) {
+        for (const g in site.need)
+          claimed[g] = (claimed[g] || 0) + (site.need[g] - (site.got[g] || 0));
+        let budget = site.assigned / PIECE_MIN * dt;
+        for (const g in site.need) {
+          const miss = site.need[g] - (site.got[g] || 0);
+          if (miss <= 0 || budget <= 0.0001) continue;
+          const eff = (avail[g] || 0) - (claimed[g] || 0) + miss; // własna rezerwacja nie blokuje
+          const take = Math.min(miss, Math.max(0, eff), budget);
+          if (take > 0) {
+            site.got[g] = (site.got[g] || 0) + take;
+            avail[g] -= take; s.res[g] -= take; budget -= take;
+          }
+        }
+      }
+      // etap 2: budowa — przydzieleni budowniczowie budują razem
+      if (deliveredOf(site) >= site.pieces - 1e-9) {
+        site.work += site.assigned * dt;
+        if (site.work >= site.workNeed) complete(site);
+      }
+    }
+    s.buildersWorking = working;
+  }
+
+  function progressOf(site) { // do rysowania i HUD: 50% noszenie + 50% budowa
+    const carry = site.pieces ? Math.min(1, deliveredOf(site) / site.pieces) : 1;
+    const work = Math.min(1, site.work / site.workNeed);
+    return carry * 0.5 + work * 0.5;
+  }
+
+  return { enqueue, siteAt, cancel, tick, progressOf };
+})();
+
+/* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
+/* Haracz jest jedyną presją w grze. Poziom L żąda 2L osobominut pracy na minutę;
+   nacje płacą własną jednostką: Frankowie żołnierzem (broń + 3 zł żołdu + osoba),
+   Saraceni złotem z handlu (krzywe cen na Targu), Wikingowie wyprawą okrętu.
+   Terminy co 15 min od pierwszego (60 / 50 / 110), żądanie skumulowane,
+   wyprawy zaokrąglane w dół, ogłoszenie 30 min przed pierwszym terminem. */
+const Tribute = (() => {
+  const PRESET_LEVEL = { easy: 3, normal: 5, hard: 6 };
+  const PRESET_LABEL = { off: 'Wyłączony', easy: 'Łatwy (poz. 3)', normal: 'Normalny (poz. 5)',
+    hard: 'Trudny (poz. 6)', master: 'Mistrz' };
+  const MASTER_LEVEL = { franks: 10, saracens: 7, vikings: 12 };
+  const FIRST_TERM = { franks: 60, saracens: 50, vikings: 110 };
+  // wartość żądana na jednostkę czasu (na 15 min), wg tabeli "Skala poziomów"
+  const RATE = {
+    franks:  [0, 1.6, 3.2, 4.7, 6.3, 7.9, 9.5, 11.1, 12.6, 14.2, 15.8, 17.4],
+    saracens:[0, 27, 54, 81, 108, 135, 162, 189, 216, 243, 270, 297],
+    vikings: [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5]
+  };
+  const TRADE = { kadzidło: { base: 4.2, floor: 0.9 }, tkanina: { base: 3.6, floor: 0.9 },
+                  ceramika: { base: 2.4, floor: 0.6 } };
+  const NEED_LIST = { franks: ['Koszary', 'Zbrojownia'], saracens: ['Targ'],
+                      vikings: ['Przystań', 'Okręt', 'Miodosytnia', 'Zbrojownia'] };
+
+  function set(preset) {
+    const s = World.state();
+    if (preset === 'off') { s.tribute = null; return 'Haracz wyłączony'; }
+    const level = preset === 'master' ? MASTER_LEVEL[s.factionId] : PRESET_LEVEL[preset];
+    s.tribute = { preset, level, firstTerm: FIRST_TERM[s.factionId], announced: false, msgShown: false,
+      terms: 0, met: 0, missed: 0, delivered: 0, soldierFrac: 0 };
+    return 'Haracz: ' + PRESET_LABEL[preset] + (preset === 'master' ? ' (poz. ' + level + ')' : '');
+  }
+
+  function requiredCum(level, faction, n) {
+    const table = RATE[faction];
+    // poziom spoza tabeli (np. Wikingowie "Mistrz" = 12) liczony liniowo od poziomu 1
+    const perTerm = table[level] !== undefined ? table[level] : table[1] * level;
+    return Math.floor(perTerm * n);
+  }
+
+  /* Frankowie: złoto potrzebne na żołd brakujących do najbliższego terminu
+     żołnierzy — rezerwa nietykalna przy zakupach. */
+  function soldierReserve(s) {
+    const t = s.tribute;
+    if (!t || s.factionId !== 'franks' || !t.announced) return 0;
+    const upcoming = requiredCum(t.level, 'franks', Math.max(1, t.terms + 1));
+    return 3 * Math.max(0, upcoming - t.delivered);
+  }
+
+  function tick(dt) {
+    const s = World.state();
+    marketTick(s, dt);
+    if (s.factionId === 'vikings') voyagesTick(s, dt);
+    const t = s.tribute;
+    if (!t) return;
+    // ogłoszenie 30 min przed pierwszym terminem, z listą brakujących budynków
+    if (!t.announced && s.time >= t.firstTerm - 30) {
+      const missing = NEED_LIST[s.factionId].filter(nm =>
+        !s.buildings.some(b => Data.BUILDINGS[b.id] && Data.BUILDINGS[b.id].name === nm));
+      t.announced = true;
+      t.announceMsg = 'Senior żąda haraczu (poziom ' + t.level + ') — pierwsza rata za 30 min' +
+        (missing.length ? '. Brakuje: ' + missing.join(', ') : '');
+    }
+    if (s.factionId === 'franks') soldiersTick(s, t, dt);
+    // termin haraczu co 15 min; żądanie skumulowane od pierwszego terminu
+    if (s.time >= t.firstTerm + t.terms * 15) {
+      const required = requiredCum(t.level, s.factionId, t.terms + 1);
+      if (s.factionId === 'saracens') { // płatność złotem — ze skarbca
+        const due = Math.max(0, required - t.delivered);
+        const pay = Math.min(s.res.złoto, due);
+        s.res.złoto -= pay; t.delivered += pay;
+      }
+      if (t.delivered >= required) t.met++; else t.missed++;
+      t.terms++;
+    }
+  }
+
+  /* --- Frankowie: dostawa żołnierzy (Koszary, broń, żołd 3 zł, osoba) --- */
+  function soldiersTick(s, t, dt) {
+    if (!t.announced) return;
+    if (!s.buildings.some(b => b.id === 'barracks')) return;
+    const upcoming = requiredCum(t.level, 'franks', Math.max(1, t.terms + 1));
+    let want = upcoming - t.delivered;
+    if (want <= 0) return;
+    t.soldierFrac += 2 * dt; // tempo dostaw: 2 żołnierzy/min
+    while (t.soldierFrac >= 1 && want > 0) {
+      // warunki: broń, żołd, ludność ponad 10
+      if (s.res.broń < 1 || s.res.złoto < 3 || s.pop <= 10) { t.soldierFrac = 0; break; }
+      s.res.broń -= 1; s.res.złoto -= 3; s.pop -= 1;
+      t.delivered += 1; t.soldierFrac -= 1; want--;
+    }
+    if (t.soldierFrac > 1) t.soldierFrac = 0;
+  }
+
+  /* --- Wikingowie: wyprawy deterministyczne, bez losu --- */
+  function voyagesTick(s, dt) {
+    // powroty: łup, straty, liczy się do haraczu po powrocie
+    for (let i = s.voyages.length - 1; i >= 0; i--) {
+      const v = s.voyages[i];
+      if (s.time < v.until) continue;
+      s.voyages.splice(i, 1);
+      s.crewAway -= v.crew;
+      for (const uid of v.ships) {
+        const b = s.buildings.find(bb => bb.uid === uid);
+        if (b) b.awayUntil = 0;
+      }
+      s.pop = Math.max(10, s.pop - (v.great ? 2 : 1));       // straty: 1/2 osoby
+      s.res.broń = Math.max(0, s.res.broń - (v.great ? 2 : 1)); // 1/2 bronie
+      s.res.złoto += v.great ? 80 : 30;                       // łup
+      if (v.great) s.res.narzędzia = Math.min(10, s.res.narzędzia + 2);
+      if (s.tribute) s.tribute.delivered += v.great ? 3 : 1;
+    }
+    // wypłynięcia: tryb "Zwykłe" (1 okręt) albo "Mieszane" (wielka, gdy 2 okręty)
+    if (!s.buildings.some(b => b.id === 'dock')) return;
+    const freeShips = s.buildings.filter(b => b.id === 'ship' && !(b.awayUntil > s.time));
+    if (s.voyageMode === 'mixed' && freeShips.length >= 2) {
+      trySail(s, [freeShips[0], freeShips[1]], true);
+    }
+    const still = s.buildings.filter(b => b.id === 'ship' && !(b.awayUntil > s.time));
+    if (still.length >= 1) trySail(s, [still[0]], false);
+  }
+
+  function trySail(s, ships, great) {
+    const crew = great ? 12 : 6, needM = great ? 12 : 6, needW = great ? 12 : 6;
+    if (s.res['miód pitny'] < needM || s.res.broń < needW) return;
+    const freePop = Math.floor(s.pop) - s.workersStaffed - s.buildersActive - s.crewAway;
+    if (freePop < crew) return;
+    if (great) {
+      // po odjeździe zostaje ≥ 90% potrzebnych robotników i ≥ 10 osób
+      if (s.pop - crew < 10 || s.pop - crew < 0.9 * s.workersNeeded) return;
+    }
+    s.res['miód pitny'] -= needM;
+    s.res.broń -= needW;
+    s.crewAway += crew;
+    const until = s.time + (great ? 12 : 10);
+    for (const b of ships) b.awayUntil = until;
+    s.voyages.push({ until, crew, great, ships: ships.map(b => b.uid) });
+  }
+
+  /* --- Targ: sprzedaż towarów handlowych z krzywymi cen (Saraceni) --- */
+  function marketTick(s, dt) {
+    const mkts = s.buildings.filter(b => b.id === 'market' && s.staffed[b.uid]).length;
+    const serai = Math.min(2, s.buildings.filter(b => b.id === 'caravanserai' && s.staffed[b.uid]).length);
+    if (mkts + serai === 0) return;
+    const nM = mkts + 2 * serai;             // Karawanseraj liczy się jak 2 Targi
+    const mul = 1 + 0.2 * serai;             // +20% cen bazowych i podłóg
+    for (const g in TRADE) {
+      let p = s.marketPrices[g];
+      const base = TRADE[g].base * mul, floor = TRADE[g].floor * mul;
+      p += (base - p) * 0.0143 * dt;        // odnowa: 1,43% luki na minutę
+      const q = s.res[g];
+      if (q > 0.001) {
+        // sprzedaż z całego zapasu naraz; spadek 0,05 zł/szt. ÷ liczba Targów
+        let revenue = 0, left = q, guard = 0;
+        while (left > 0.001 && guard++ < 300) {
+          const step = Math.min(1, left);
+          revenue += Math.max(floor, p) * step;
+          p = Math.max(floor, p - 0.05 * step / nM);
+          left -= step;
+        }
+        if (left > 0.001) { revenue += Math.max(floor, p) * left; left = 0; } // powyżej 300 szt. po podłodze
+        s.res.złoto += revenue;
+        s.res[g] = 0;
+      }
+      s.marketPrices[g] = p;
+    }
+  }
+
+  return { set, tick, soldierReserve, requiredCum, PRESET_LABEL };
+})();
+
+/* ==================== MODUL: EVENTS (Etap 5: świat dynamiczny) =================== */
+/* Napad na karawanę (Saraceni): im więcej złota w skarbcu, tym większe ryzyko;
+   pierwsze 150 zł nienaruszalne; Strażnica (0,6 zł/min, gdy złoto jest; max 2
+   się liczą) zmniejsza ryzyko o 40% i łup o 25% za cenę utrzymania. Sprawdzenie
+   co 10 min od 40. minuty. Kryzysy (zaraza, pożar łańcucha, krach cen) idą z
+   harmonogramu — silnik pozostaje deterministyczny (RNG z ziarnem). */
+const Events = (() => {
+  const GUARD_UPKEEP = 0.6;  // zł/min
+  const GUARD_MAX = 2;
+
+  function msg(s, text) { (s.eventMsgs = s.eventMsgs || []).push({ text, time: s.time }); }
+
+  /* Strażnice obsadzone z opłaconym utrzymaniem (bez złota nie działają) */
+  function guardsActive(s, dt) {
+    let active = 0;
+    for (const b of s.buildings) {
+      if (b.id !== 'guardpost' || !s.staffed[b.uid]) continue;
+      const cost = GUARD_UPKEEP * dt;
+      if (s.res.złoto >= cost) { s.res.złoto -= cost; active++; }
+    }
+    return Math.min(GUARD_MAX, active);
+  }
+
+  function tick(dt) {
+    const s = World.state();
+    if (s.factionId === 'saracens') {
+      const guards = guardsActive(s, dt);
+      const r = s.raids;
+      if (s.time >= r.next) {          // kontrola co 10 min od 40. minuty
+        r.next += 10;
+        const gold = s.res.złoto;
+        if (gold > 150) {              // pierwsze 150 zł nienaruszalne
+          const chance = Math.min(0.5, (gold - 150) / 1000) * (1 - 0.4 * guards);
+          if (RNG.next() < chance) {
+            const loot = Math.min(400, 0.3 * (gold - 150) * (1 - 0.25 * guards));
+            s.res.złoto -= loot;
+            r.count++; r.lost += loot;
+            msg(s, '⚔ Napad na karawanę! Zrabowano ' + Math.round(loot) + ' zł' +
+                (guards ? ' (Strażnice złagodziły stratę)' : ' — zbuduj Strażnicę!'));
+          }
+        }
+      }
+    }
+    runCrisis(s);                      // harmonogram kryzysów (jeśli włączony)
+  }
+
+  /* --- kryzysy wg scenariuszy z kryteriów akceptacji (v3.5) --- */
+  function plague(s) { // zaraza: -12 osób, podłoga 10
+    const before = Math.floor(s.pop);
+    s.pop = Math.max(10, s.pop - 12);
+    msg(s, '☠ Zaraza! Ludność spada z ' + before + ' do ' + Math.floor(s.pop));
+  }
+  function destroy(s, b) { // wyburzenie: zwolnij kafle, usuń z listy
+    const size = b.id === 'keep' ? 2 : 1;
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+      const t = MapGen.at(s.map, b.x + dx, b.y + dy);
+      if (t && t.occup === b.uid) t.occup = null;
+    }
+    s.buildings.splice(s.buildings.indexOf(b), 1);
+  }
+  function fire(s, ids) { // pożar: po jednym budynku każdego typu z listy
+    const burned = [];
+    for (const id of ids) {
+      const b = s.buildings.find(bb => bb.id === id);
+      if (!b) continue;
+      destroy(s, b);
+      burned.push(Data.BUILDINGS[id].name);
+    }
+    if (burned.length) msg(s, '🔥 Pożar! Spłonęło: ' + burned.join(', '));
+  }
+  function priceCrash(s) { // krach cen: wszystko na podłogę krzywej
+    s.marketPrices.kadzidło = 0.9; s.marketPrices.tkanina = 0.9; s.marketPrices.ceramika = 0.6;
+    msg(s, '📉 Krach cen! Targ płaci ceny podłogowe.');
+  }
+  function deforest(s, n) { World.takeTrees(n); msg(s, '🪓 Wylesienie: ' + n + ' drzew.'); }
+
+  /* harmonogram "Kryzysy: harmonogram" — scenariusze kryzysowe v3.5 */
+  const SCHEDULE = {
+    franks:   [ { at: 60, fn: s => { fire(s, ['bakery', 'mill', 'farm', 'orchard']); plague(s); } } ],
+    saracens: [ { at: 60, fn: s => fire(s, ['dategrove', 'dategrove', 'qanat']) },
+                { at: 70, fn: s => priceCrash(s) } ],
+    vikings:  [ { at: 90, fn: s => fire(s, ['dock', 'ship']) } ]
+  };
+  function setCrisis(on) {
+    const s = World.state();
+    s.crisis = on ? { idx: 0 } : null;
+    return on ? 'Kryzysy wg harmonogramu (scenariusze v3.5)' : 'Kryzysy wyłączone';
+  }
+  function runCrisis(s) {
+    if (!s.crisis) return;
+    const list = SCHEDULE[s.factionId] || [];
+    while (s.crisis.idx < list.length && s.time >= list[s.crisis.idx].at) {
+      list[s.crisis.idx].fn(s);
+      s.crisis.idx++;
+    }
+  }
+
+  return { tick, plague, fire, priceCrash, deforest, destroy, setCrisis, guardsActive };
+})();
+
+/* ===================== MODUL: TESTBOTS (boty R/D/N, Etap 5-testy) ============ */
+/* Boty testowe wg "Metodologia testów" (v3.5): R = przepis z szumem ε,
+   D = przepis z opóźnieniem decyzji, N = reaktywny bez przepisu.
+   Mierniki: ludność @20/40/60/90/150, minuty głodu, terminy haraczu, złoto.
+   Symulacja headless: stan gry jest zapisywany i odtwarzany, gra trwa bez zmian. */
+const TestBots = (() => {
+  /* przepisy nacji z rozdziałów "Przepis na gospodarkę" (v3.5) */
+  const RECIPE = {
+    franks: ['woodcutter','woodcutter','sawmill','orchard','hunter','quarry','forester',
+      'watercarrier','farm','mill','bakery','barracks','hut','hut','dairy','market','store',
+      'forester','woodcutter','ironmine','coalmine','coalmine','smelter','armory',
+      'sawmill','farm','mill','bakery','hut','toolforge','hut'],
+    saracens: ['woodcutter','woodcutter','sawmill','watercarrier','dategrove','claypit',
+      'forester','forester','hunter','watercarrier','dategrove','market','store',
+      'incensewood','incense','hut','hut','qanat','cotton','weaver','dategrove','dairy',
+      'orchard','hut','temple','pottery','bathhouse','incensewood','incense','hut','caravanserai','hut'],
+    vikings: ['woodcutter','woodcutter','woodcutter','sawmill','forester','fisherhut','fisherhut',
+      'hunter','hut','hut','watercarrier','forester','sawmill','woodcutter','fisherhut',
+      'dairy','orchard','market','store','mead','peatmine','charburner','charburner',
+      'smelter','armory','dock','ship','hut','toolforge','temple','hut','fisherhut','ship','hut']
+  };
+  const FOOD_BUILD = {
+    franks: ['farm','bakery','dairy','orchard','hunter','mill'],
+    saracens: ['dategrove','dairy','orchard','hunter'],
+    vikings: ['fisherhut','dairy','orchard','hunter']
+  };
+
+  function snapshot() { const s = World.state(); const o = {}; for (const k in s) { try { o[k] = JSON.parse(JSON.stringify(s[k])); } catch (e) { o[k] = s[k]; } } return o; }
+  function restore(snap) {
+    const s = World.state();
+    for (const k in snap) s[k] = snap[k];
+    s.keep = s.buildings.find(b => b.id === 'keep') || s.keep; // tożsamość Dworu po klonowaniu
+  }
+
+  /* szukanie miejsca: złoże / brzeg / las / zwykłe (spirala od Dworu) */
+  function findPlace(s, id) {
+    const def = Data.BUILDINGS[id]; if (!def) return null;
+    const size = s.map.size;
+    if (def.req && def.req.startsWith('deposit:')) {
+      const kind = def.req.split(':')[1];
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+        const t = MapGen.at(s.map, x, y);
+        if (t && t.deposit === kind && World.canPlace(id, x, y).ok) return { x, y };
+      }
+      return null;
+    }
+    const c = Math.floor(size / 2);
+    for (let r = 1; r < size; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = c + dx, y = c + dy; const t = MapGen.at(s.map, x, y);
+        if (!t || t.h !== 1) continue;
+        if ((def.req === 'shore' || def.req === 'waterEdge')) {
+          let water = false;
+          for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const n = MapGen.at(s.map, x+ox, y+oy); if (n && n.h === 0) water = true; }
+          if (!water) continue;
+        }
+        if (def.req === 'forest') {
+          let trees = 0;
+          for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const n = MapGen.at(s.map, x+ox, y+oy); if (n) trees += n.trees; }
+          if (trees < 4) continue;
+        }
+        if (World.canPlace(id, x, y).ok) return { x, y };
+      }
+    }
+    return null;
+  }
+
+  function tryBuild(s, id) {
+    const spot = findPlace(s, id);
+    if (!spot) return 'noplace';
+    const r = Build.enqueue(id, spot.x, spot.y);
+    return r.ok ? 'built' : 'wait';
+  }
+
+  /* jeden przebieg; cfg: { faction, bot: 'R'|'D'|'N', epsilon, tax, preset } */
+  function runSync(cfg, onTick) {
+    const snap = snapshot();
+    World.init(cfg.faction);
+    const s = World.state();
+    if (cfg.tax != null) s.controls.tax = cfg.tax;
+    Tribute.set(cfg.preset || 'normal');
+    const plan = (RECIPE[cfg.faction] || []).slice();
+    let pi = 0, nextDecide = 0, famineMin = 0;
+    const eps = cfg.epsilon != null ? cfg.epsilon : 0.15;
+    const decideEvery = cfg.bot === 'D' ? 2.0 : 0.5;
+    const marks = {};
+    const DT = 0.1, END = 150;
+    for (let t = 0; t < END; t += DT) {
+      World.tick(DT); // Economy + Build + Tribute + Events + czas
+      if (Economy.totalFood(s.res) < 0.01) famineMin += DT;
+      for (const m of [20, 40, 60, 90, 150]) if (t >= m && !(m in marks)) marks[m] = Math.floor(s.pop);
+      if (t >= nextDecide) {
+        nextDecide = t + decideEvery;
+        let id = null;
+        if (cfg.bot === 'N') { // reaktywny, bez przepisu (głód > dach > deski > narzędzia > haracz)
+          const needFood = Economy.potentialFood(s) < 1.1 * Economy.foodRate(s) + 0.5;
+          const full = Economy.housing(s) <= s.pop;
+          if (needFood) {
+            for (const i2 of (FOOD_BUILD[cfg.faction] || [])) if (tryBuild(s, i2) === 'built') break;
+          } else if (full) tryBuild(s, 'hut');
+          else if (s.res.deski < 6) tryBuild(s, 'woodcutter');
+          else if (s.waitingForTool) tryBuild(s, cfg.faction === 'saracens' ? 'store' : 'toolforge');
+          else if (s.tribute && s.tribute.announceMsg) { // ogłoszenie haraczu: dobuduj łańcuch
+            const need = { franks: ['barracks','armory'], saracens: ['market'], vikings: ['dock','ship','mead','armory'] }[cfg.faction] || [];
+            for (const i2 of need) if (!s.buildings.some(b2 => b2.id === i2)) { tryBuild(s, i2); break; }
+          } else tryBuild(s, 'hut');
+        } else {
+          if (RNG.next() >= eps && pi < plan.length) { // R/D: przepis; ε = szum nieuwagi
+            id = plan[pi];
+            const r2 = tryBuild(s, id);
+            if (r2 === 'built') pi++;
+            else if (r2 === 'noplace') pi++; // brak miejsca: pomiń (jak w kolejce gry)
+            // 'wait' (brak złota) → ponów decyzję
+          }
+        }
+      }
+      if (onTick) onTick(t / END);
+    }
+    marks[150] = Math.floor(s.pop); // pętla kończy się tuż przed t = 150
+    const tribute = s.tribute ? (s.tribute.met + '/' + (s.tribute.met + s.tribute.missed)) : '—';
+    const out = { faction: cfg.faction, bot: cfg.bot, tax: s.controls.tax,
+      pop: marks, famine: Math.round(famineMin), tribute, gold: Math.round(s.res.złoto), pop36: null };
+    restore(snap);
+    return out;
+  }
+
+  /* panel testowy (zwijany, wypisywany raport) */
+  let panel = null;
+  function createPanel() {
+    if (panel) return;
+    panel = document.createElement('div');
+    panel.style.cssText = 'position:absolute;z-index:60;left:8px;bottom:120px;background:rgba(20,16,12,.94);border:1px solid #6b543a;color:#f0e6d2;font-size:12px;padding:6px 8px;max-width:300px;max-height:46vh;overflow:auto;';
+    panel.innerHTML = '<b id="botToggle" style="color:#e8c860;cursor:pointer">🧪 Boty testowe ▸</b>' +
+      '<div id="botBody" style="display:none;margin-top:4px">' +
+      '<button data-b="R">Bot R (przepis+szum)</button> <button data-b="D">Bot D (opóźnienie)</button> <button data-b="N">Bot N (reaktywny)</button><br>' +
+      '<button data-b="T3">Frank: podatek 3 (brzegowy)</button> <button data-b="ALL">3×R: F/S/V</button><br>' +
+      '<div id="botOut" style="margin-top:6px;white-space:pre-line"></div></div>';
+    panel.querySelectorAll('button').forEach(b => b.style.cssText = 'background:#3a2c1c;color:#f0e6d2;border:1px solid #6b543a;font-size:11px;padding:4px 6px;margin:2px;cursor:pointer;');
+    document.body.appendChild(panel);
+    panel.addEventListener('click', async e => {
+      if (e.target.id === 'botToggle') {
+        const body = document.getElementById('botBody');
+        const open = body.style.display === 'none';
+        body.style.display = open ? 'block' : 'none';
+        e.target.textContent = open ? '🧪 Boty testowe ▾' : '🧪 Boty testowe ▸';
+        return;
+      }
+      const b = e.target.getAttribute && e.target.getAttribute('data-b'); if (!b) return;
+      const out = document.getElementById('botOut'); out.textContent = '…symulacja…';
+      await new Promise(r => setTimeout(r, 10));
+      const fac = World.state().factionId || 'franks';
+      let lines = [];
+      if (b === 'ALL') for (const f of ['franks','saracens','vikings']) lines.push(fmt(runSync({ faction: f, bot: 'R' })));
+      else if (b === 'T3') lines.push(fmt(runSync({ faction: 'franks', bot: 'R', tax: 3 })));
+      else lines.push(fmt(runSync({ faction: fac, bot: b })));
+      out.textContent = lines.join('\n');
+    });
+  }
+  function fmt(r) {
+    const p = r.pop || {};
+    return '[' + r.bot + ' · ' + r.faction + (r.tax !== 1 ? ' · podatek ' + r.tax : '') + ']\n' +
+      'ludność @20/40/60/90/150: ' + (p[20]||'?') + '/' + (p[40]||'?') + '/' + (p[60]||'?') + '/' + (p[90]||'?') + '/' + (p[150]||'?') + '\n' +
+      'głód: ' + r.famine + ' min · haracz: ' + r.tribute + ' terminów · złoto: ' + r.gold;
+  }
+
+  return { runSync, createPanel };
+})();
+
+/* ============================ MODUL: BUILDMODE ============================= */
+const BuildMode = (() => {
+  let selected = null; // id budynku w trybie budowy
+  let hover = { x: -1, y: -1 };
+
+  function select(id) { selected = id; }
+  function clear() { selected = null; }
+  function isSelected() { return selected; }
+  function setHover(wx, wy) { hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
+
+  function click() {
+    if (!selected) {
+      // klik na plac budowy (poza trybem budowy) anuluje go — zwrot materiałów i złota
+      const st = Build.siteAt(hover.x, hover.y);
+      if (st) {
+        Build.cancel(st);
+        UI.flashHint('Budowa anulowana — materiały wróciły do magazynu');
+        UI.refreshHUD();
+      }
+      return;
+    }
+    // klik otwiera plac budowy; budowniczowie doniosą materiały i zbudują
+    const res = Build.enqueue(selected, hover.x, hover.y);
+    if (!res.ok) { UI.flashHint(res.reason || 'Nie można tu budować'); return; }
+    UI.refreshHUD();
+    // tryb budowy zostaje włączony (budowa serii), ESC anuluje
+  }
+
+  function draw(ctx) {
+    if (!selected) return;
+    const s = World.state();
+    const check = World.canPlace(selected, hover.x, hover.y);
+    // przy kolejce budowy wystarczy złoto na otwarcie placu (materiały wnosi budowniczy)
+    const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto;
+    const p = Data.FACTIONS[s.factionId].palette;
+    const pos = Camera.worldToScreen(hover.x + 0.5, hover.y + 0.5);
+    const w = Camera.tileW(), h = Camera.tileH();
+    ctx.fillStyle = check.ok && affordable ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)';
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y - h/2); ctx.lineTo(pos.x + w/2, pos.y);
+    ctx.lineTo(pos.x, pos.y + h/2); ctx.lineTo(pos.x - w/2, pos.y);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.65; // duch budynku
+    const art = Gfx.ART[Data.BUILDINGS[selected].art];
+    if (art) art(ctx, pos.x, pos.y, Camera.zoom, p, performance.now() / 1000);
+    ctx.globalAlpha = 1;
+  }
+
+  return { select, clear, isSelected, setHover, click, draw, hover: () => hover };
+})();
+
+/* ================================ MODUL: UI ================================ */
+const UI = (() => {
+  const hud = document.getElementById('hud');
+  const buildBar = document.getElementById('buildBar');
+  const buildTabs = document.getElementById('buildTabs');
+  const buildItems = document.getElementById('buildItems');
+  const tooltip = document.getElementById('tooltip');
+  const hintEl = document.getElementById('hint');
+  const DEFAULT_HINT = 'Przeciągnij prawym przyciskiem / WASD — kamera · kółko — zoom · ESC — anuluj budowę';
+  let activeCat = 'Jedzenie';
+  let hintTimer = null;
+  let gameStarted = false;
+
+  function buildFactionCards() {
+    const wrap = document.getElementById('factionCards');
+    for (const fid of ['franks', 'saracens', 'vikings']) {
+      const f = Data.FACTIONS[fid];
+      const card = document.createElement('div');
+      card.className = 'factionCard';
+      const mini = document.createElement('canvas');
+      mini.width = 220; mini.height = 130;
+      card.appendChild(mini);
+      const h2 = document.createElement('h2'); h2.textContent = f.name; card.appendChild(h2);
+      const tag = document.createElement('div'); tag.className = 'tagline'; tag.textContent = f.tagline; card.appendChild(tag);
+      const ul = document.createElement('ul');
+      f.desc.forEach(d => { const li = document.createElement('li'); li.textContent = d; ul.appendChild(li); });
+      card.appendChild(ul);
+      card.onclick = () => startGame(fid);
+      // dotyk: tap bez przesunięcia startuje grę, przesunięcie przewija listę kart
+      let tapStart = null;
+      card.addEventListener('touchstart', ev => {
+        const tp = ev.touches[0];
+        tapStart = { x: tp.clientX, y: tp.clientY };
+      }, { passive: true });
+      card.addEventListener('touchend', ev => {
+        if (!tapStart) return;
+        const tp = ev.changedTouches[0];
+        const moved = Math.hypot(tp.clientX - tapStart.x, tp.clientY - tapStart.y) > 10;
+        tapStart = null;
+        if (moved) return;
+        ev.preventDefault(); // blokuje syntetyczny click (bez podwójnego startu)
+        startGame(fid);
+      }, { passive: false });
+      wrap.appendChild(card);
+      // miniatura: budynek + obywatel na tle terenu
+      const mctx = mini.getContext('2d');
+      const terrainColors = { grass: ['#5a8a3c', '#4e7a34'], sand: ['#d8c090', '#c8b080'], tundra: ['#6a7a4c', '#5e6e42'] };
+      const [c1, c2] = terrainColors[f.palette.terrain];
+      mctx.fillStyle = c1; mctx.fillRect(0, 0, 220, 130);
+      mctx.fillStyle = c2;
+      for (let i = 0; i < 40; i++) mctx.fillRect((i * 37) % 220, (i * 53) % 130, 12, 6);
+      Gfx.ART.keep(mctx, 110, 92, 1.1, f.palette, 0);
+      Gfx.ART.hut(mctx, 50, 108, 0.9, f.palette, 0);
+      const fake = { phase: 1, color: f.palette.citizen };
+      Gfx.drawCitizen(mctx, fake, 175, 110, 1.3, fid, f.palette, 0);
+    }
+  }
+
+  function startGame(fid) {
+    if (gameStarted) return;
+    gameStarted = true;
+    document.getElementById('factionPick').style.display = 'none';
+    hud.style.display = 'flex';
+    buildBar.style.display = 'block';
+    document.getElementById('hint').style.display = 'block';
+    World.init(fid);
+    document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b>';
+    // kamera na Dwór
+    const c = MapGen.SIZE / 2;
+    Camera.x = 0; Camera.y = 0;
+    const target = Camera.worldToScreen(c, c);
+    Camera.x -= target.x - canvas.width / dpr / 2;
+    Camera.y -= target.y - canvas.height / dpr / 2;
+    buildTabsUi();
+    refreshHUD();
+    // sterowanie racjami i podatkiem
+    const s = World.state();
+    const btnR = document.getElementById('btnRations');
+    const btnT = document.getElementById('btnTax');
+    const upd = () => {
+      btnR.textContent = 'Racje: ×' + s.controls.rations;
+      btnT.textContent = 'Podatek: ' + s.controls.tax;
+    };
+    btnR.onclick = () => {
+      const opts = [0.5, 1, 1.5, 2];
+      s.controls.rations = opts[(opts.indexOf(s.controls.rations) + 1) % opts.length];
+      upd();
+    };
+    btnT.onclick = () => { s.controls.tax = (s.controls.tax + 1) % 4; upd(); };
+    // liczbę budowniczych ustawia się w Dworze (2–5, domyślnie 3)
+    const btnB = document.getElementById('btnBuilders');
+    const updB = () => { btnB.textContent = '👷 Budowniczowie: ' + s.builders; };
+    btnB.onclick = () => { s.builders = s.builders >= 5 ? 2 : s.builders + 1; updB(); };
+    updB();
+    // preset haraczu (Łatwy/Normalny/Trudny/Mistrz) i tryb wypraw Wikingów
+    const btnTr = document.getElementById('btnTribute');
+    const btnV = document.getElementById('btnVoyages');
+    let preset = 'off';
+    const updTr = () => {
+      btnTr.textContent = '📜 Haracz: ' + (preset === 'off' ? 'Wyłączony' : Tribute.PRESET_LABEL[preset]);
+    };
+    btnTr.onclick = () => {
+      const order = ['off', 'easy', 'normal', 'hard', 'master'];
+      preset = order[(order.indexOf(preset) + 1) % order.length];
+      UI.flashHint(Tribute.set(preset));
+      updTr();
+    };
+    updTr();
+    if (fid === 'vikings') {
+      const updV = () => { btnV.textContent = '⛵ Wyprawy: ' + (s.voyageMode === 'mixed' ? 'Mieszane' : 'Zwykłe'); };
+      btnV.onclick = () => { s.voyageMode = s.voyageMode === 'mixed' ? 'normal' : 'mixed'; updV(); };
+      updV();
+    } else {
+      btnV.style.display = 'none';
+    }
+    // kryzysy wg harmonogramu (scenariusze v3.5) — domyślnie wyłączone
+    const btnC = document.getElementById('btnCrisis');
+    let crisisOn = false;
+    const updC = () => { btnC.textContent = crisisOn ? '🔥 Kryzysy: harmonogram' : '🔥 Kryzysy: wył.'; };
+    btnC.onclick = () => { crisisOn = !crisisOn; UI.flashHint(Events.setCrisis(crisisOn)); updC(); };
+    updC();
+    upd();
+    document.getElementById('resPanel').style.display = 'block';
+    Game.start();
+  }
+
+  function buildTabsUi() {
+    const fid = World.state().factionId;
+    buildTabs.innerHTML = '';
+    for (const cat of Data.CATS) {
+      const has = Object.entries(Data.BUILDINGS)
+        .some(([id, d]) => d.cat === cat && (!d.factions || d.factions.includes(fid)) && id !== 'keep');
+      if (!has) continue;
+      const btn = document.createElement('button');
+      btn.textContent = cat;
+      if (cat === activeCat) btn.classList.add('active');
+      btn.onclick = () => { activeCat = cat; buildTabsUi(); buildItemsUi(); };
+      buildTabs.appendChild(btn);
+    }
+    buildItemsUi();
+  }
+
+  function buildItemsUi() {
+    const fid = World.state().factionId;
+    buildItems.innerHTML = '';
+    for (const [id, def] of Object.entries(Data.BUILDINGS)) {
+      if (id === 'keep') continue;
+      if (def.cat !== activeCat) continue;
+      if (def.factions && !def.factions.includes(fid)) continue;
+      const item = document.createElement('div');
+      item.className = 'buildItem';
+      if (BuildMode.isSelected() === id) item.classList.add('selected');
+      const mini = document.createElement('canvas');
+      mini.width = 62; mini.height = 44;
+      const mctx = mini.getContext('2d');
+      const p = Data.FACTIONS[fid].palette;
+      mctx.fillStyle = p.terrain === 'sand' ? '#d8c090' : p.terrain === 'tundra' ? '#6a7a4c' : '#5a8a3c';
+      mctx.fillRect(0, 0, 62, 44);
+      const art = Gfx.ART[def.art];
+      if (art) art(mctx, 31, 38, 0.85, p, 0);
+      item.appendChild(mini);
+      const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = def.name; item.appendChild(nm);
+      const cost = document.createElement('div'); cost.className = 'bcost';
+      const c = World.costOf(id);
+      cost.textContent = Object.entries(c).map(([k, v]) => v + Data.RES_LABEL[k]).join(' · ') +
+        (def.tool ? ' + T' : '');
+      item.appendChild(cost);
+      item.onclick = () => {
+        BuildMode.select(id);
+        document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+      };
+      item.onmouseenter = () => showTooltip(def, c, item);
+      item.onmouseleave = hideTooltip;
+      buildItems.appendChild(item);
+    }
+  }
+
+  function showTooltip(def, c, anchor) {
+    const afford = World.canAfford(Object.keys(Data.BUILDINGS).find(k => Data.BUILDINGS[k] === def));
+    let html = '<h3>' + def.name + '</h3>';
+    const costStr = Object.entries(c).map(([k, v]) => v + ' ' + Data.RES_LABEL[k]).join(', ');
+    html += '<div class="' + (afford ? 'affordable' : 'expensive') + '">Koszt: ' + (costStr || '—') + '</div>';
+    if (def.tool) html += '<div class="expensive">Wymaga narzędzia</div>';
+    if (def.worker) html += '<div>Pracownik: ' + def.worker + '</div>';
+    if (def.inp) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(', ') + ' /min</div>';
+    if (def.out) html += '<div><b>' + Object.entries(def.out).map(([k, v]) => v + ' ' + k).join(', ') + ' /min</b></div>';
+    if (def.note) html += '<em>' + def.note + '</em>';
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    const r = anchor.getBoundingClientRect();
+    tooltip.style.left = Math.min(window.innerWidth - 260, r.left) + 'px';
+    tooltip.style.top = (r.top - tooltip.offsetHeight - 8) + 'px';
+  }
+  function hideTooltip() { tooltip.style.display = 'none'; }
+
+  function refreshHUD() {
+    const s = World.state();
+    document.getElementById('hudTime').textContent = Math.floor(s.time);
+    document.getElementById('hudPop').textContent = Math.floor(s.pop);
+    document.getElementById('hudPopularity').textContent = Math.round(s.res.popularity || 50);
+    document.getElementById('hudGold').textContent = Math.floor(s.res.złoto);
+    document.getElementById('hudTools').textContent = Math.floor(s.res.narzędzia);
+    document.getElementById('hudFood').textContent = Math.floor(Economy.totalFood(s.res));
+    document.getElementById('hudJobs').textContent = s.workersStaffed + '/' + s.workersNeeded;
+    document.getElementById('hudHousing').textContent = Economy.housing(s);
+    // komunikaty zdarzeń (napady, kryzysy)
+    while (s.eventMsgs && s.eventMsgs.length) flashHint(s.eventMsgs.shift().text);
+    // ogłoszenie haraczu 30 min przed pierwszym terminem
+    const t = s.tribute;
+    if (t && t.announced && t.announceMsg && !t.msgShown) {
+      t.msgShown = true;
+      flashHint(t.announceMsg);
+    }
+    refreshResPanel();
+  }
+
+  let lastPanel = -1;
+  function refreshResPanel() {
+    const s = World.state();
+    if (s.time - lastPanel < 0.2) return;
+    lastPanel = s.time;
+    const panel = document.getElementById('resPanel');
+    let html = '<h3>MAGAZYN</h3>';
+    let shown = 0;
+    for (const g of Object.keys(Economy.LIMIT)) {
+      const producers = s.buildings.filter(b => {
+        const o = Data.BUILDINGS[b.id].out;
+        return o && Object.keys(o)[0] === g;
+      }).length;
+      const val = s.res[g] || 0;
+      if (val < 0.01 && producers === 0) continue;
+      const cap = Economy.capOf(s, g);
+      const full = val >= cap - 0.01;
+      html += `<div class="row${full ? ' full' : ''}"><span>${g}</span>` +
+              `<span class="v">${Math.floor(val)}<span class="cap"> /${cap}</span></span></div>`;
+      shown++;
+    }
+    if (!shown) html += '<div class="row"><span class="v">— pusto —</span></div>';
+    html += '<div class="sep"></div>';
+    const starve = s.starveTimer > 0 ? Math.ceil(5 - s.starveTimer) : null;
+    html += `<div class="row"><span>Głód za</span><span class="v">${starve !== null ? starve + ' min' : '—'}</span></div>`;
+    if (s.waitingForTool) html += '<div class="row full"><span>Budynek czeka na narzędzie!</span></div>';
+    // budowniczowie i kolejka budowy
+    html += `<div class="row"><span>Budowniczowie</span><span class="v">${s.buildersActive || 0}/${s.builders}</span></div>`;
+    if (s.sites.length) {
+      html += '<div class="sep"></div><h3>BUDOWA</h3>';
+      s.sites.slice(0, 4).forEach((st, i) => {
+        const pr = Math.round(Build.progressOf(st) * 100);
+        html += `<div class="row"><span>${i + 1}. ${Data.BUILDINGS[st.id].name}</span>` +
+                `<span class="v">${pr}%</span></div>`;
+      });
+      if (s.sites.length > 4)
+        html += `<div class="row"><span>…i ${s.sites.length - 4} dalej</span></div>`;
+      html += '<div class="row"><span style="color:#7a6c55">Klik na plac = anuluj</span></div>';
+    }
+    // status haraczu i wypraw
+    const t = s.tribute;
+    if (t) {
+      html += '<div class="sep"></div><h3>HARACZ</h3>';
+      const unit = s.factionId === 'franks' ? 'żołn.' : s.factionId === 'saracens' ? 'zł' : 'wypr.';
+      const required = Tribute.requiredCum(t.level, s.factionId, Math.max(1, t.terms + 1));
+      const nextAt = t.firstTerm + t.terms * 15;
+      if (s.time < t.firstTerm)
+        html += `<div class="row"><span>Pierwsza rata</span><span class="v">za ${Math.ceil(nextAt - s.time)} min</span></div>`;
+      else
+        html += `<div class="row"><span>Następna rata</span><span class="v">za ${Math.ceil(nextAt - s.time)} min</span></div>`;
+      html += `<div class="row"><span>Dostawa (${unit})</span><span class="v">${Math.floor(t.delivered)} / ${required}</span></div>`;
+      html += `<div class="row"><span>Terminy</span><span class="v">${t.met} ✔ / ${t.missed} ✘</span></div>`;
+      if (s.factionId === 'franks' && !s.buildings.some(b => b.id === 'barracks'))
+        html += '<div class="row full"><span>Bez Koszar brak dostaw!</span></div>';
+    }
+    if (s.factionId === 'vikings' && (s.voyages.length || s.crewAway)) {
+      html += `<div class="row"><span>Załoga w morzu</span><span class="v">${s.crewAway}</span></div>`;
+      for (const v of s.voyages.slice(0, 3))
+        html += `<div class="row"><span>${v.great ? 'Wielka wyprawa' : 'Wyprawa'} (2 okr.)</span>` +
+                `<span class="v">${Math.ceil(Math.max(0, v.until - s.time))} min</span></div>`;
+    }
+    // napady na karawanę (Saraceni)
+    if (s.factionId === 'saracens' && (s.raids.count || s.raids.lost)) {
+      html += '<div class="sep"></div><h3>NAPADY</h3>';
+      const guards = s.buildings.filter(b => b.id === 'guardpost' && s.staffed[b.uid]).length;
+      html += `<div class="row"><span>Napady / strata</span><span class="v">${s.raids.count} / ${Math.round(s.raids.lost)} zł</span></div>`;
+      html += `<div class="row"><span>Strażnice czynne</span><span class="v">${Math.min(2, guards)} (max 2)</span></div>`;
+    }
+    if (s.crisis) html += '<div class="row full"><span>🔥 Kryzysy: harmonogram aktywny</span></div>';
+    panel.innerHTML = html;
+  }
+
+  function flashHint(msg) {
+    hintEl.textContent = msg;
+    hintEl.style.color = '#e8a060';
+    hintEl.classList.add('flash'); // na telefonie podpowiedź jest widoczna tylko jako komunikat
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      hintEl.textContent = DEFAULT_HINT;
+      hintEl.style.color = '#b8a888';
+      hintEl.classList.remove('flash');
+    }, Math.max(2500, msg.length * 70));
+  }
+
+  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip };
+})();
+
+/* ================================ MODUL: GAME ============================== */
+const Game = (() => {
+  const ctx = canvas.getContext('2d');
+  let running = false, lastFrame = 0, lastHudTick = -1;
+  let keys = {};
+
+  function fit() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  }
+  window.addEventListener('resize', () => fit());
+
+  function start() {
+    if (running) return;
+    running = true;
+    lastFrame = performance.now();
+    requestAnimationFrame(loop);
+    UI.refreshHUD();
+    TestBots.createPanel(); // panel botów R/D/N (warstwa testowa)
+  }
+
+  function loop(now) {
+    const realDt = Math.min(0.05, (now - lastFrame) / 1000);
+    lastFrame = now;
+    // ruch kamery
+    const pan = 420 * realDt;
+    if (keys['w'] || keys['arrowup']) Camera.y += pan;
+    if (keys['s'] || keys['arrowdown']) Camera.y -= pan;
+    if (keys['a'] || keys['arrowleft']) Camera.x += pan;
+    if (keys['d'] || keys['arrowright']) Camera.x -= pan;
+    // zegar gry: 4 s realnych = 1 min gry
+    const s = World.state();
+    const gameDt = realDt / 4 * s.speed;
+    if (s.factionId) {
+      World.tick(gameDt);
+      const hudTick = Math.floor(s.time * 4); // odświeżenie HUD co 1/4 minuty gry
+      if (hudTick !== lastHudTick) { lastHudTick = hudTick; UI.refreshHUD(); }
+    }
+    render(now / 1000);
+    requestAnimationFrame(loop);
+  }
+
+  function render(t) {
+    Gfx.setAnim(t);
+    const s = World.state();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    if (!s.map) return;
+    const f = Data.FACTIONS[s.factionId];
+    ctx.fillStyle = '#10140f';
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    const z = Camera.zoom;
+    const size = s.map.size;
+    const byUid = new Map();
+    for (const b of s.buildings) byUid.set(b.uid, b);
+    // zbierz obiekty do posortowania po głębi (y świata)
+    const drawables = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const tile = s.map.tiles[y * size + x];
+        tile.x = x; tile.y = y;
+        const scr = Camera.worldToScreen(x + 0.5, y + 0.5);
+        if (scr.x < -80 || scr.x > canvas.width / dpr + 80 || scr.y < -80 || scr.y > canvas.height / dpr + 80) continue;
+        drawTile(x, y, scr, tile);
+        if (tile.occup) {
+          const b = byUid.get(tile.occup);
+          // budynek rysujemy raz, z kafla początkowego (Dwór 2x2 zajmuje cztery kafle)
+          if (b && b.x === x && b.y === y) {
+            const big = b.id === 'keep';
+            drawables.push({ depth: x + y + (big ? 2.5 : 0.5), b,
+              scr: big ? Camera.worldToScreen(x + 1.25, y + 1.25) : scr });
+          }
+        }
+      }
+    }
+    // obywatele i nosiciele
+    for (const c of s.citizens) {
+      const scr = Camera.worldToScreen(c.x, c.y);
+      drawables.push({ depth: c.x + c.y, citizen: c, scr });
+    }
+    for (const c of s.carriers) {
+      const scr = Camera.worldToScreen(c.x, c.y);
+      drawables.push({ depth: c.x + c.y, citizen: c, scr });
+    }
+    drawables.sort((a, b) => a.depth - b.depth);
+    for (const d of drawables) {
+      if (d.b) {
+        const def = Data.BUILDINGS[d.b.id];
+        const art = Gfx.ART[def.art];
+        if (art) art(ctx, d.scr.x, d.scr.y, z, f.palette, t);
+      } else {
+        Gfx.drawCitizen(ctx, d.citizen, d.scr.x, d.scr.y, z, s.factionId, f.palette, t);
+      }
+    }
+    // place budowy z budowniczymi
+    for (const st of s.sites) {
+      const scr = Camera.worldToScreen(st.x + 0.5, st.y + 0.5);
+      if (scr.x < -80 || scr.x > canvas.width / dpr + 80 || scr.y < -80 || scr.y > canvas.height / dpr + 80) continue;
+      Gfx.drawSite(ctx, scr.x, scr.y, z, f.palette, Build.progressOf(st));
+      for (let i = 0; i < st.assigned; i++) {
+        const ang = i * 2.1 + st.uid;
+        const bx = scr.x + Math.cos(ang) * 12 * z;
+        const by = scr.y + Math.sin(ang) * 6 * z + 3 * z;
+        Gfx.drawCitizen(ctx, { phase: t * 2 + i, color: f.palette.citizen },
+                        bx, by, z, s.factionId, f.palette, t);
+      }
+    }
+    BuildMode.draw(ctx);
+  }
+
+  function drawTile(x, y, scr, tile) {
+    let coast = 0;
+    if (tile.h === 0) {
+      const s2 = World.state();
+      const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+      for (let i = 0; i < 4; i++) {
+        const n = MapGen.at(s2.map, x + dirs[i][0], y + dirs[i][1]);
+        if (n && n.h !== 0) coast |= (1 << i);
+      }
+    }
+    Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.FACTIONS[World.state().factionId].palette.terrain, coast);
+  }
+
+  /* --- input --- */
+  let dragging = false, dragStart = null, camStart = null, dragged = false;
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('mousedown', e => {
+    dragged = false; // każde naciśnięcie zaczyna od zera (prawy przycisk nie generuje click, który by to zerował)
+    if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
+      dragging = true; canvas.classList.add('dragging');
+      dragStart = { x: e.clientX, y: e.clientY };
+      camStart = { x: Camera.x, y: Camera.y };
+    }
+  });
+  window.addEventListener('mouseup', e => {
+    if (e.button === 2 || dragging) { dragging = false; canvas.classList.remove('dragging'); }
+  });
+  window.addEventListener('mousemove', e => {
+    if (dragging) {
+      if (Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > 5) dragged = true;
+      Camera.x = camStart.x + (e.clientX - dragStart.x);
+      Camera.y = camStart.y + (e.clientY - dragStart.y);
+    } else {
+      const w = Camera.screenToWorld(e.clientX, e.clientY);
+      BuildMode.setHover(w.x, w.y);
+    }
+  });
+  canvas.addEventListener('click', e => {
+    if (dragged) { dragged = false; return; } // to był drag kamery, nie klik
+    if (e.button === 0 && !e.shiftKey) {
+      const w = Camera.screenToWorld(e.clientX, e.clientY);
+      BuildMode.setHover(w.x, w.y);
+      BuildMode.click();
+    }
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const before = Camera.screenToWorld(e.clientX, e.clientY);
+    Camera.zoom = Math.min(2.2, Math.max(0.5, Camera.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+    const after = Camera.worldToScreen(before.x, before.y);
+    Camera.x += e.clientX - after.x;
+    Camera.y += e.clientY - after.y;
+  }, { passive: false });
+  /* --- sterowanie dotykiem: 1 palec = kamera, 2 palce = pinch-zoom, tap = klik --- */
+  let touchMode = null; // 'pan' | 'pinch' | null
+  let tStart = null, tCamStart = null, pinchStart = null, pinchZoomStart = 1;
+  const rectOf = () => canvas.getBoundingClientRect();
+  function tPos(touches) {
+    const r = rectOf();
+    return { x: (touches[0].clientX - r.left), y: (touches[0].clientY - r.top) };
+  }
+  function tMid(touches) {
+    const r = rectOf();
+    return { x: ((touches[0].clientX + touches[1].clientX) / 2 - r.left),
+             y: ((touches[0].clientY + touches[1].clientY) / 2 - r.top) };
+  }
+  function tDist(touches) {
+    return Math.hypot(touches[0].clientX - touches[1].clientX,
+                      touches[0].clientY - touches[1].clientY);
+  }
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      touchMode = 'pan';
+      const p = tPos(e.touches);
+      tStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, sx: p.x, sy: p.y, t: Date.now() };
+      tCamStart = { x: Camera.x, y: Camera.y };
+      dragged = false;
+    } else if (e.touches.length === 2) {
+      touchMode = 'pinch';
+      dragged = true; // dwa palce nigdy nie są tapem
+      pinchStart = { mid: tMid(e.touches), dist: tDist(e.touches), cam: { x: Camera.x, y: Camera.y } };
+      pinchZoomStart = Camera.zoom;
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (touchMode === 'pan' && e.touches.length === 1) {
+      if (Math.hypot(e.touches[0].clientX - tStart.x, e.touches[0].clientY - tStart.y) > 8) dragged = true;
+      Camera.x = tCamStart.x + (e.touches[0].clientX - tStart.x);
+      Camera.y = tCamStart.y + (e.touches[0].clientY - tStart.y);
+    } else if (touchMode === 'pinch' && e.touches.length === 2) {
+      // zoom względem środka uszczypnięcia
+      const d = tDist(e.touches);
+      const zoomNew = Math.min(2.2, Math.max(0.5, pinchZoomStart * (d / pinchStart.dist)));
+      const mid = tMid(e.touches);
+      const before = Camera.screenToWorld(mid.x, mid.y);
+      Camera.zoom = zoomNew;
+      const after = Camera.worldToScreen(before.x, before.y);
+      Camera.x += mid.x - after.x;
+      Camera.y += mid.y - after.y;
+      // pan środkiem uszczypnięcia
+      Camera.x += mid.x - pinchStart.mid.x;
+      Camera.y += mid.y - pinchStart.mid.y;
+      pinchStart.mid = mid; // przyrostowo: bez kumulowania przesunięcia co klatkę
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (touchMode === 'pan' && e.changedTouches.length === 1 && !dragged) {
+      const dx = e.changedTouches[0].clientX - tStart.x;
+      const dy = e.changedTouches[0].clientY - tStart.y;
+      if (Math.hypot(dx, dy) < 8 && Date.now() - tStart.t < 600) {
+        // tap: jak klik lewym przyciskiem — budowa / wybór
+        const w = Camera.screenToWorld(tStart.sx, tStart.sy);
+        BuildMode.setHover(w.x, w.y);
+        BuildMode.click();
+      }
+    }
+    if (e.touches.length === 0) { touchMode = null; dragged = false; }
+  }, { passive: false });
+  canvas.addEventListener('touchcancel', () => { touchMode = null; dragged = false; }, { passive: true });
+  window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === 'Escape') {
+      BuildMode.clear();
+      document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
+    }
+  });
+  window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+  document.getElementById('btnSpeed').onclick = () => {
+    const s = World.state();
+    s.speed = s.speed === 1 ? 2 : s.speed === 2 ? 4 : 1;
+    document.getElementById('btnSpeed').textContent = 'Prędkość: ×' + s.speed;
+  };
+
+  fit();
+  UI.buildFactionCards();
+  return { start };
+})();
+</script>
+</body>
+</html>
