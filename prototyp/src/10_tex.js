@@ -201,3 +201,72 @@ GEN.stripes = (pal = '#b8352b|#f1e6c8') => {
   addGrain(g, N, N, 10, 8);
   return { c, ppu: 120 };
 };
+
+/* --- łupek dachowy: prostokątne płytki w rzędach z przesunięciem --- */
+GEN.slate = (base = '#66717e') => {
+  const N = 128, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(35), b = hex(base), rows = 8, rh = N / rows, tw = 16;
+  g.fillStyle = css(scaleC(b, 0.35)); g.fillRect(0, 0, N, N);
+  for (let row = 0; row < rows; row++) {
+    const y = row * rh, off = (row % 2) * tw / 2;
+    for (let col = -1; col <= N / tw; col++) {
+      const x = col * tw + off, k = 0.78 + r() * 0.44, tint = mixc(b, r() < 0.5 ? [90, 110, 120] : [96, 84, 96], 0.18);
+      const gr = g.createLinearGradient(0, y, 0, y + rh + 2);
+      gr.addColorStop(0, css(scaleC(tint, 0.78 * k))); gr.addColorStop(0.6, css(scaleC(tint, 1.02 * k))); gr.addColorStop(1, css(scaleC(tint, 1.28 * k)));
+      g.fillStyle = gr; g.fillRect(x + 0.4, y, tw - 0.8, rh + 2.4);
+      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(x + 0.4, y, tw - 0.8, 1.2);
+      g.fillStyle = 'rgba(8,8,14,0.55)'; g.fillRect(x + 0.4, y + rh + 1.2, tw - 0.8, 1.4); g.fillRect(x + tw - 1, y, 0.9, rh + 2);
+      if (r() < 0.08) { g.strokeStyle = 'rgba(10,10,16,0.5)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x + 3 + r() * 8, y + 1); g.lineTo(x + 3 + r() * 8, y + rh); g.stroke(); }
+    }
+  }
+  addGrain(g, N, N, 12, 36);
+  return { c, ppu: 96 };
+};
+
+/* --- bruk (otoczaki) --- */
+GEN.cobble = (base = '#8c8780') => {
+  const T = TEXRES, B = 128, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(37), b = hex(base);
+  g.scale(T, T); g.fillStyle = css(scaleC(b, 0.34)); g.fillRect(0, 0, B, B);
+  const cell = 16;
+  for (let j = 0; j < B / cell; j++) for (let i = 0; i < B / cell; i++) {
+    const cx = i * cell + cell / 2 + (r() - 0.5) * 4 + (j % 2) * 3, cy = j * cell + cell / 2 + (r() - 0.5) * 4, rx = 6 + r() * 2.4, ry = 5 + r() * 2.4, k = 0.75 + r() * 0.5, tint = mixc(b, r() < 0.5 ? [150, 130, 100] : [120, 126, 136], 0.16);
+    wrapDraw(B, cx - rx, cy - ry, rx * 2, ry * 2, (ox, oy) => {
+      const gr = g.createRadialGradient(cx + ox - 2, cy + oy - 2, 1, cx + ox, cy + oy, rx + 1);
+      gr.addColorStop(0, css(scaleC(tint, 1.3 * k))); gr.addColorStop(0.7, css(scaleC(tint, 0.95 * k))); gr.addColorStop(1, css(scaleC(tint, 0.62 * k)));
+      g.fillStyle = gr; g.beginPath(); g.ellipse(cx + ox, cy + oy, rx, ry, r() * 0.6, 0, TAU); g.fill();
+    });
+  }
+  return { c, ppu: 112 * T };
+};
+
+/* --- płyty chodnikowe --- */
+GEN.pavers = (base = '#a39d90') => stoneTex(base, 47, 4, 0.12, 0.18, 0.5);
+
+/* --- mozaika / glazura (Saraceni): kafelki z deseniem romboidalnym --- */
+GEN.mosaic = (pal = '#2a8a9a|#f2ead6|#d8a830') => {
+  const [a, b2, c2] = pal.split('|').map(hex), N = 64, c = newCanvas(N, N), g = c.getContext('2d'), t = 16;
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
+    const x = i * t, y = j * t, base = (i + j) % 2 ? a : b2, inner = (i + j) % 2 ? b2 : a;
+    g.fillStyle = css(base); g.fillRect(x, y, t, t);
+    g.fillStyle = css(inner); g.beginPath(); g.moveTo(x + t / 2, y + 2); g.lineTo(x + t - 2, y + t / 2); g.lineTo(x + t / 2, y + t - 2); g.lineTo(x + 2, y + t / 2); g.closePath(); g.fill();
+    g.fillStyle = css(c2); g.beginPath(); g.arc(x + t / 2, y + t / 2, 2, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x, y, t, 1.2); g.fillRect(x, y, 1.2, t);
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + t - 1.2, t, 1.2); g.fillRect(x + t - 1.2, y, 1.2, t);
+  }
+  addGrain(g, N, N, 10, 38);
+  return { c, ppu: 150 };
+};
+
+/* --- plecionka (płot wiklinowy) --- */
+GEN.wattle = (base = '#9a7444') => {
+  const N = 64, c = newCanvas(N, N), g = c.getContext('2d'), r = rng(39), b = hex(base);
+  g.fillStyle = css(scaleC(b, 0.45)); g.fillRect(0, 0, N, N);
+  const rows = 8, rh = N / rows;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < 8; i++) {
+    const x = i * 8 + (j % 2) * 4, y = j * rh, k = 0.8 + r() * 0.5, gr = g.createLinearGradient(0, y, 0, y + rh);
+    gr.addColorStop(0, css(scaleC(b, 1.25 * k))); gr.addColorStop(1, css(scaleC(b, 0.7 * k)));
+    g.fillStyle = gr; g.beginPath(); g.ellipse(x + 4, y + rh / 2, 4.2, rh / 2 - 0.4, 0, 0, TAU); g.fill();
+  }
+  g.fillStyle = css(scaleC(b, 0.55)); for (let i = 0; i < 4; i++) g.fillRect(i * 16 + 6, 0, 3, N);   // pionowe tyczki
+  addGrain(g, N, N, 12, 40);
+  return { c, ppu: 90 };
+};

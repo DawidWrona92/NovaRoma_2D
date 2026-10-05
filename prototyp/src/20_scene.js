@@ -25,12 +25,13 @@ class Scene {
   /* w,h,ax,ay — wymiary i punkt zaczepienia w px logicznych przy F=1; o.F — skala geometrii; o.R — rozdzielczość; o.ground — tylko warstwa terenu */
   constructor(w, h, ax, ay, o = {}) {
     const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
+    this.Rp = o.ground ? R : Math.min(R, 1); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
     this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
-    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R);                                // piksele
-    const mk = () => { const c = newCanvas(this.pw, this.ph), g = c.getContext('2d'); g.setTransform(R, 0, 0, R, 0, 0); return [c, g]; };
-    [this.pcv, this.pg] = mk();                                                                      // warstwa 1: plac / decale terenu
-    if (!o.ground) { [this.ucv, this.gu] = mk(); [this.c, this.g] = mk(); }                          // warstwa 2: cień rzucony; warstwa 3: obiekty
-    this.pats = {};
+    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh;
+    const mk = res => { const c = newCanvas(Math.ceil(this.w * res), Math.ceil(this.h * res)), g = c.getContext('2d'); g.setTransform(res, 0, 0, res, 0, 0); return [c, g]; };
+    [this.pcv, this.pg] = mk(this.Rp);                                                               // warstwa 1: plac / decale terenu
+    if (!o.ground) { [this.ucv, this.gu] = mk(this.Ru); [this.c, this.g] = mk(R); }                  // warstwa 2: cień rzucony; warstwa 3: obiekty
+    this.pats = {}; this.wear = o.wear ?? 1; this._wn = 0;                                           // natężenie zużycia (0 = czysto)
   }
   P(x, y, z = 0) { const F = this.F; return [(x - y) * AX * F + this.ax, (x + y) * AY * F - z * VH * F + this.ay]; }
   pat(name, pal, ctx) {
@@ -52,6 +53,7 @@ class Scene {
     g.closePath();
     g.fillStyle = m.pat; g.fill();
     g.strokeStyle = m.pat; g.lineWidth = 1.1 / sc; g.stroke();        // zakładka — brak szwów między ścianami
+    if (o.wear !== 0 && this.wear > 0) wearFace(this, mat, o, lu * K, lv * K, K, sc, (++this._wn) * 7919 + Math.round(O[0] * 173 + O[1] * 379 + O[2] * 571) + 1000);
     const sh = o.shade ?? 1;
     if (sh < 1) { g.globalCompositeOperation = 'multiply'; g.fillStyle = `rgb(${255 * sh * 0.97 | 0},${255 * sh * 0.98 | 0},${255 * Math.min(1, sh * 1.03) | 0})`; g.fill(); }
     else if (sh > 1) { g.globalCompositeOperation = 'soft-light'; g.globalAlpha = Math.min(1, (sh - 1) * 2.4); g.fillStyle = '#fff1c4'; g.fill(); }
@@ -105,7 +107,7 @@ class Scene {
 
   /* decal terenu: tekstura rzucona w płaszczyznę świata (izometrycznie), przycięta do wielokątów z miękkim brzegiem */
   decal(mat, pal, polys, o = {}) {
-    const R = this.R, m = tex(mat, pal), K = m.ppu;
+    const R = this.Rp, m = tex(mat, pal), K = m.ppu;
     let x0 = 0, y0 = 0, x1 = this.w, y1 = this.h;                          // obszar roboczy (px logiczne) — dla wielokątów tylko ich obwiednia
     if (polys) {
       let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
@@ -138,7 +140,12 @@ class Scene {
   patch(cx, cy, rx, ry, o = {}) {
     const r = rng(o.seed || 9), pts = [], n = 16, f = 1 / this.F;
     for (let i = 0; i < n; i++) { const a = i / n * TAU, k = 0.82 + r() * 0.3; pts.push([(cx + Math.cos(a) * rx * k) * f, (cy + Math.sin(a) * ry * k) * f]); }
-    this.decal('dirt', o.pal, [pts], { feather: o.feather ?? 12, alpha: o.alpha ?? 0.92 });
+    this.decal(o.mat || 'dirt', o.pal, [pts], { feather: o.feather ?? 12, alpha: o.alpha ?? 0.92 });
+  }
+  /* prostokątny, wybrukowany plac (np. dziedziniec, targowisko); współrzędne w polach */
+  paved(x0, y0, x1, y1, o = {}) {
+    const f = 1 / this.F, j = o.jit ?? 0.05, r = rng(o.seed || 5), q = () => (r() - 0.5) * j;
+    this.decal(o.mat || 'pavers', o.pal, [[[x0 * f + q(), y0 * f + q()], [x1 * f + q(), y0 * f + q()], [x1 * f + q(), y1 * f + q()], [x0 * f + q(), y1 * f + q()]]], { feather: o.feather ?? 3, alpha: o.alpha ?? 1 });
   }
 
   /* walec pionowy (wieża, minaret, beczka): gradient poziomy, elipsy góry i dołu */
@@ -175,7 +182,8 @@ class Scene {
     const ow = 1.2 * R;
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]) g.drawImage(t, dx * ow, dy * ow);
     g.drawImage(this.c, 0, 0);
-    return { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, F: this.F };
+    if (o.grain !== 0) addSpriteGrain(g, this.pw, this.ph, R, o.grain ?? 1);
+    return { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh };
   }
 }
 
@@ -187,16 +195,16 @@ function gableRoof(sc, o) {
   if ((o.ridge || 'x') === 'x') {
     const ym = (y0 + y1) / 2, hs = (y1 - y0) / 2, dz = rise * ov / hs, zE = z - dz, L = x1 - x0 + 2 * ovE;
     const ySo = y1 + ov, yNo = y0 - ov, top = z + rise;
-    sc.face([x0 - ovE, ym, top], [L, 0, 0], [0, yNo - ym, zE - top], mat, { shade: LIGHT.roofN, pal, edge: 0.35 });                       // połać północna (tylna)
+    sc.face([x0 - ovE, ym, top], [L, 0, 0], [0, yNo - ym, zE - top], mat, { shade: LIGHT.roofN, pal, edge: 0.35, roof: true });                       // połać północna (tylna)
     if (gm) sc.face([x1, y1, top], [0, -(y1 - y0), 0], [0, 0, -rise], gm, { shade: LIGHT.east, pal: gpal, clip: [[0.5, 0], [1, 1], [0, 1]], vgrad: [[0, 0], [0.8, 0], [1, 0.3]] });   // szczyt widoczny (+x)
-    sc.face([x0 - ovE, ym, top], [L, 0, 0], [0, ySo - ym, zE - top], mat, { shade: LIGHT.roofS, pal, edge: 0.4, vgrad: [[0, 0], [0.86, 0], [1, 0.22]] });   // połać południowa (przednia)
+    sc.face([x0 - ovE, ym, top], [L, 0, 0], [0, ySo - ym, zE - top], mat, { shade: LIGHT.roofS, pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.86, 0], [1, 0.22]] });   // połać południowa (przednia)
     return { ridgeA: [x0 - ovE, ym, top], ridgeB: [x1 + ovE, ym, top], eaveZ: zE, ySo, yNo };
   }
   const xm = (x0 + x1) / 2, hs = (x1 - x0) / 2, dz = rise * ov / hs, zE = z - dz, L = y1 - y0 + 2 * ovE;
   const xEo = x1 + ov, xWo = x0 - ov, top = z + rise;
-  sc.face([xm, y1 + ovE, top], [0, -L, 0], [xWo - xm, 0, zE - top], mat, { shade: LIGHT.roofW, pal, edge: 0.35 });                  // połać zachodnia (tylna)
+  sc.face([xm, y1 + ovE, top], [0, -L, 0], [xWo - xm, 0, zE - top], mat, { shade: LIGHT.roofW, pal, edge: 0.35, roof: true });                  // połać zachodnia (tylna)
   if (gm) sc.face([x0, y1, top], [x1 - x0, 0, 0], [0, 0, -rise], gm, { shade: LIGHT.south, pal: gpal, clip: [[0.5, 0], [1, 1], [0, 1]], vgrad: [[0, 0], [0.8, 0], [1, 0.3]] });   // szczyt (+y)
-  sc.face([xm, y1 + ovE, top], [0, -L, 0], [xEo - xm, 0, zE - top], mat, { shade: LIGHT.roofE, pal, edge: 0.4, vgrad: [[0, 0], [0.86, 0], [1, 0.25]] });                  // połać wschodnia (przednia)
+  sc.face([xm, y1 + ovE, top], [0, -L, 0], [xEo - xm, 0, zE - top], mat, { shade: LIGHT.roofE, pal, edge: 0.4, roof: true, vgrad: [[0, 0], [0.86, 0], [1, 0.25]] });                  // połać wschodnia (przednia)
   return { ridgeA: [xm, y1 + ovE, top], ridgeB: [xm, y0 - ovE, top], eaveZ: zE, xEo, xWo };
 }
 
@@ -206,7 +214,7 @@ function pyramidRoof(sc, o) {
   const a = [x0 - ov, y0 - ov, z - rise * ov / ((x1 - x0) / 2)], b = [x1 + ov, y0 - ov, a[2]], c = [x1 + ov, y1 + ov, a[2]], d = [x0 - ov, y1 + ov, a[2]];
   const quadTri = (p, q, shade) => {
     const U = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], T = [xm, ym, top], V = [T[0] - p[0], T[1] - p[1], T[2] - p[2]];
-    sc.face(p, U, V, mat, { shade, pal, edge: 0.4, clip: [[0, 0], [1, 0], [0, 1]], ppu: o.ppu });
+    sc.face(p, U, V, mat, { shade, pal, edge: 0.4, roof: true, clip: [[0, 0], [1, 0], [0, 1]], ppu: o.ppu });
   };
   quadTri(a, b, LIGHT.roofN); quadTri(d, a, LIGHT.roofW); quadTri(c, d, LIGHT.roofS); quadTri(b, c, LIGHT.roofE);
 }

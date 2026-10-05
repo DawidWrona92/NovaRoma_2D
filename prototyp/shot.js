@@ -1,5 +1,5 @@
 'use strict';
-/* Zrzut ekranu prototypu w Chromium (Playwright):
+/* Zrzut ekranu prototypu w Chromium (Playwright); SETZOOM=0.6 ustawia zoom po załadowaniu:
    node shot.js wyjście.(png|jpg) [zapytanie] [dpr] [szer] [wys] [x,y,w,h]
    zapytanie np. "grid=1", "q=2", "z=2.4"; PERF=1 wypisuje czas wypieku i koszt klatki */
 let pw; try { pw = require('playwright'); } catch (e) { pw = require('/opt/node22/lib/node_modules/playwright'); }
@@ -14,7 +14,10 @@ const path = require('path');
   page.on('console', m => { if (m.type() === 'error') errs.push(m.type() + ': ' + m.text()); });
   await page.goto('file://' + path.join(__dirname, 'grafika_prototyp.html') + (query ? '?' + query : ''));
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 120000 }).catch(() => {});
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(1500);
+  if (process.env.SETZOOM) await page.evaluate(z => window.__setZoom(z), parseFloat(process.env.SETZOOM));   // zoom bezwzględny (np. 0.6 = najdalej na pulpicie)
+  await page.waitForFunction(() => window.__pending === 0, null, { timeout: 180000 }).catch(() => {});
+  await page.waitForTimeout(2000);
   const info = await page.evaluate(() => ({ bake: window.__bakeMs, fps: document.getElementById('fps').textContent, zl: document.getElementById('zl') && document.getElementById('zl').textContent }));
   const clip = process.argv[7] ? (([x, y, w, h]) => ({ x, y, width: w, height: h }))(process.argv[7].split(',').map(Number)) : undefined;
   const shotOpt = { path: out, clip }; if (/\.jpe?g$/i.test(out)) shotOpt.quality = 90;

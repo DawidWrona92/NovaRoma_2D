@@ -80,11 +80,11 @@ GEN.water = () => {
 const TREES = {};
 /* płótno drzewa w px logicznych × F, rysowanie w układzie „autorskim"; zwraca też płótno cienia (rysowane w przebiegu „ziemia") */
 function treeBase(w, h, cx, base, seed, sh = {}) {
-  const F = sh.F ?? 1, R = sh.R ?? RES, pw = Math.ceil(w * F * R), ph = Math.ceil(h * F * R);
-  const c = newCanvas(pw, ph), g = c.getContext('2d'), u = newCanvas(pw, ph), ug = u.getContext('2d');
-  g.setTransform(R * F, 0, 0, R * F, 0, 0); ug.setTransform(R * F, 0, 0, R * F, 0, 0);
+  const F = sh.F ?? 1, R = sh.R ?? RES, Ru = Math.min(R, 1), pw = Math.ceil(w * F * R), ph = Math.ceil(h * F * R);
+  const c = newCanvas(pw, ph), g = c.getContext('2d'), u = newCanvas(Math.ceil(w * F * Ru), Math.ceil(h * F * Ru)), ug = u.getContext('2d');
+  g.setTransform(R * F, 0, 0, R * F, 0, 0); ug.setTransform(Ru * F, 0, 0, Ru * F, 0, 0);
   softFill(ug, gg => gg.ellipse(cx + (sh.dx ?? 30), base + 3, sh.rx ?? 52, sh.ry ?? 14, 0, 0, TAU), `rgba(14,22,8,${sh.a ?? 0.5})`, 9);
-  return { c, g, u, r: rng(seed), out: () => ({ c, u, ax: cx * F, ay: base * F, w: w * F, h: h * F, R }) };
+  return { c, g, u, r: rng(seed), out: () => ({ c, u, ax: cx * F, ay: base * F, w: w * F, h: h * F, R, Ru }) };
 }
 function treeShadeOverlay(g, x0, y0, x1, y1) { // światło z lewej góry, cień z prawej dołu — na całej koronie
   g.save(); g.globalCompositeOperation = 'source-atop';
@@ -230,8 +230,8 @@ function limb(g, x0, y0, x1, y1, w, col) {
 }
 function bakeFigure(st, view, frame, F = 1) {
   const W = 72, H = 108, cx = 36, base = 94, R = Math.max(3, RES * 1.5), c = newCanvas(Math.ceil(W * F * R), Math.ceil(H * F * R)), g = c.getContext('2d');
-  const u = newCanvas(c.width, c.height), ug = u.getContext('2d');
-  g.setTransform(R * F, 0, 0, R * F, 0, 0); ug.setTransform(R * F, 0, 0, R * F, 0, 0);
+  const Ru = Math.min(R, 1), u = newCanvas(Math.ceil(W * F * Ru), Math.ceil(H * F * Ru)), ug = u.getContext('2d');
+  g.setTransform(R * F, 0, 0, R * F, 0, 0); ug.setTransform(Ru * F, 0, 0, Ru * F, 0, 0);
   softFill(ug, gg => gg.ellipse(cx + 7, base + 1, 15, 5, 0, 0, TAU), 'rgba(14,22,8,0.5)', 4);
   const back = view === 'back', sk = hex(st.skin || '#e8c29a'), tun = hex(st.tunic), trim = hex(st.trim), belt = hex(st.belt || '#5a3a1c'), legc = hex(st.legs || '#6a5238'), bootc = hex(st.boots || '#4a3422');
   const hair = hex(st.hair || '#6a4a2a'), sw = frame ? 1 : -1;                       // znak wymachu kończyn
@@ -342,7 +342,7 @@ function bakeFigure(st, view, frame, F = 1) {
 
   // lekkie światło z lewej-góry na całej postaci
   g.save(); g.globalCompositeOperation = 'source-atop'; const lg = g.createLinearGradient(cx - 20, 10, cx + 22, base); lg.addColorStop(0, 'rgba(255,240,190,0.16)'); lg.addColorStop(0.55, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,20,0.18)'); g.fillStyle = lg; g.fillRect(0, 0, 400, 400); g.restore();
-  return { c, u, ax: cx * F, ay: base * F, w: W * F, h: H * F, R };
+  return { c, u, ax: cx * F, ay: base * F, w: W * F, h: H * F, R, Ru };
 }
 
 /* zestawy postaci (styl + rola) — po 2 na nację; każdy: [przód A, przód B, tył A, tył B] */

@@ -25,7 +25,7 @@ canvas{display:block;cursor:grab;touch-action:none}
 </style></head><body>
 <canvas id="cv"></canvas>
 <div id="load"><b style="font-size:22px;letter-spacing:1px">Nova Roma</b><div id="ltxt" style="margin-top:8px;font-size:13px;opacity:.85">Wypiekanie grafiki…</div><div id="lbar"><i></i></div></div>
-<div id="cap"><b>Nova Roma — próbka nowego stylu (v2)</b><div>Każdy budynek mieści się w jednym polu · Słowianie, Frankowie, Saraceni, Wikingowie · wszystko rysowane kodem</div></div>
+<div id="cap"><b>Nova Roma — próbka nowego stylu (v3)</b><div>Budynki o różnych rozmiarach (2×2 … 4×4 pola) · Słowianie, Frankowie, Saraceni, Wikingowie · wszystko rysowane kodem</div></div>
 <div id="st"><span id="fps"></span><br><span id="bake"></span></div>
 <div id="leg">Kółko / szczypanie — zoom · przeciągnięcie — przesuwanie · G — siatka pól</div>
 <div id="ui"><span id="zl"></span><button id="zout" aria-label="Oddal">−</button><button id="zin" aria-label="Przybliż">+</button><button id="zreset" aria-label="Domyślny widok">⟲</button><button id="grid" aria-label="Siatka pól">▦</button></div>
