@@ -31,9 +31,9 @@ Liczbę budowniczych ustawia gracz (przycisk 👷): **domyślnie 3, minimum 2, m
 Tabela: Etapy placu budowy
 | Etap | Co się dzieje | Czas |
 |---|---|---|
-| **0 — wyrównanie** | plac na pochyłym terenie: budowniczowie kopią, materiałów jeszcze nie noszą; po zakończeniu pola obrysu dostają poziom docelowy (`flatten`) i chunk podłoża jest odświeżany | `{{v:Data.RULES.level.per}} min × pola × Δe` (pracy budowniczych; dzielone przez liczbę przydzielonych) |
-| **1 — noszenie** | przydzieleni budowniczowie noszą materiały ze Składu / magazynu; plac czeka, dopóki nie dotrze komplet | `{{v:Build.PIECE_MIN}} min budowniczego na sztukę` |
-| **2 — budowa** | przydzieleni budowniczowie budują razem; po zebraniu `workNeed` powstaje budynek | `({{v:Build.BASE_WORK}} + {{v:Build.PER_PIECE}} × sztuki) × (1 + kara za ciasną zabudowę)` |
+| **0 — wyrównanie** | plac na pochyłym terenie: budowniczowie kopią, materiałów jeszcze nie noszą; po zakończeniu pola obrysu dostają poziom docelowy (`flatten`) i chunk podłoża jest odświeżany | {{v:Data.RULES.level.per}} min × pola × Δe (pracy budowniczych; dzielone przez liczbę przydzielonych) |
+| **1 — noszenie** | przydzieleni budowniczowie noszą materiały ze Składu / magazynu; plac czeka, dopóki nie dotrze komplet | {{v:Build.PIECE_MIN}} min budowniczego na sztukę |
+| **2 — budowa** | przydzieleni budowniczowie budują razem; po zebraniu `workNeed` powstaje budynek | ({{v:Build.BASE_WORK}} + {{v:Build.PER_PIECE}} × sztuki) × (1 + kara za ciasną zabudowę) |
 
 Postęp pokazywany w HUD (`Build.progressOf`) to 50% noszenie + 50% budowa. Na ekranie plac jest rusztowaniem odsłaniającym sprite od dołu, ze stosami materiałów przy rogu; budowniczowie (Walkers) noszą z Dworu na plac i stoją przy obrysie.
 

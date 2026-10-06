@@ -1,4 +1,4 @@
-# Plan prac — Nova Roma (stan po Fazie 8; dokumentacja w budowie)
+# Plan prac — Nova Roma (stan po Fazie 8; dokumentacja w budowie; dodana Faza 9B)
 
 > Ten plik jest kopią planu roboczego i leży w repozytorium, żeby przetrwał restart środowiska. Po każdej bramce faz aktualizujemy tabelę stanu i listy „do zrobienia”. Dokumentacja opisująca grę: `docs/Nova_Roma_dokumentacja.pdf` (budowana z `docs/chapters/*.md`).
 
@@ -8,7 +8,7 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 **Repozytorium (decyzja użytkownika):** pracujemy wyłącznie w `/home/user/novaroma_2d` (https://github.com/DawidWrona92/NovaRoma_2D, origin: `…/novaroma_2d`), gałąź `claude/festive-meitner-ejo4l1`, szkic PR #1 do `main` (aktualizujemy pushem; **nie** tworzymy nowych PR i nie scalamy bez akceptacji). Stopki commitów: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` i `Claude-Session: https://claude.ai/code/session_015jPNpH2st24W1stsX5s45J`. Push przy błędzie 500 powtarzamy z opóźnieniem 2/4/8/16 s.
 
-**Decyzje użytkownika (wiążące):** przerwa między budynkami = 1 pole (twardy zakaz); strefa wydłużonego czasu budowy = pola w odległości 2 i 3 od budynku (+10% za sąsiada, maks. +40%), widoczna przed wyborem miejsca; drogi przyspieszają ruch i A\* je preferuje; wzgórza do wyrównania mają własną grafikę i nie utrudniają startu (obszar startowy ≤ 13,5 pola od Dworu jest płaski); tryb pracy „auto” — działamy bez dopytywania.
+**Decyzje użytkownika (wiążące):** przerwa między budynkami = 1 pole (twardy zakaz); strefa wydłużonego czasu budowy = pola w odległości 2 i 3 od budynku (+10% za sąsiada, maks. +40%), widoczna przed wyborem miejsca; drogi przyspieszają ruch i A\* je preferuje; wzgórza do wyrównania mają własną grafikę i nie utrudniają startu (obszar startowy ≤ 13,5 pola od Dworu jest płaski); tryb pracy „auto” — działamy bez dopytywania; **Chata myśliwego nie wymaga lasu** (poluje na zwierzęta; plon zależy od zwierzyny w łowisku — zmiana wprowadzona po Fazie 8, boty nadal stawiają ją przy lesie, więc testy są bez zmian); **po Fazie 9, a przed 10 i 11: Faza 9B — ożywienie ludzi** (patrz niżej).
 
 **Zasady pracy:** każdą zmianę sprawdzamy od razu (test + zrzut); pełny audyt wizualny dopiero w Fazie 11; globalny strumień `RNG` nietknięty (własne PRNG, wizualne „cienie symulacji”); jedno wejście do gry (`UI.startGame`); bloków `Sprites` i `SPRITE_META` nie edytujemy ręcznie (`node prototyp/build.js && node prototyp/build_game.js`); po każdej bramce commit + push + wersja WIP dla użytkownika (`SendUserFile`, kopia w scratchpadzie).
 
@@ -26,7 +26,8 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | bramka 6–7 | poprawki `pad`/brzeg, `browser_ui`, baseline v4 | ✔ |
 | 8 (8a–8d) | fauna (18 gatunków) i polowanie z łukiem, baseline v5 | ✔ (commit `ee1271d`) |
 | **Dokumentacja PDF** | generator + rozdziały + zrzuty (zadanie przekrojowe, niżej) | ◐ w toku (commit `ee4eaea`) |
-| 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ○ |
+| 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ○ NASTĘPNA |
+| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ○ po fazie 9 |
 | 10 | integracja: legenda UI, spójność Doradcy, regress w repo, dostawa | ○ |
 | 11 | audyt wizualny całości i poprawki | ○ |
 
@@ -40,9 +41,9 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 | Rozdział | Stan |
 |---|---|
-| 1 Wprowadzenie, 2 Architektura, 3 Ekonomia, 4 Ludność, 5 Budowa, 6 Katalog budynków, 7 Nacje, 8 Haracz | ✔ napisane |
-| B Wyniki botów i scenariuszy, C Repozytorium i polecenia, D Procedura aktualizacji | ✔ napisane |
-| 9 Zdarzenia i kryzysy, 10 Teren i mapy, 11 Zasady zabudowy, 12 Ruch/drogi/logistyka, 13 Fauna, 14 Interfejs i Doradca, 15 Grafika, 16 Testy (+ trudność i krzywa nauki), 17 Decyzje i historia, 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — do napisania w tej kolejności |
+| 1 Wprowadzenie, 2 Architektura, 3 Ekonomia, 4 Ludność, 5 Budowa, 6 Katalog budynków, 7 Nacje, 8 Haracz, 9 Zdarzenia, 10 Teren, 12 Ruch/drogi/logistyka | ✔ napisane |
+| B Wyniki botów i scenariuszy, C Repozytorium i polecenia, D Procedura aktualizacji, **E Fizyczna logistyka (analiza i projekt Fazy 9B)** | ✔ napisane |
+| 11 Zasady zabudowy, 13 Fauna, 14 Interfejs i Doradca, 15 Grafika, 16 Testy (+ trudność i krzywa nauki), 17 Decyzje i historia, 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — do napisania w tej kolejności |
 | zrzuty ekranu (`docs/img`, skrypt `docs/shots.js`) i diagramy | ○ |
 
 **Definicja „gotowe” (v1.0 dokumentacji):** wszystkie rozdziały bez zalążków, `node docs/build.js --check` bez problemów, przegląd wizualny wszystkich stron, zrzuty (HUD, tryb budowy ze strefami, klimaty, fauna), wpis w rozdz. 17 o każdej decyzji z tego planu i różnice spec/kod w rozdz. 18.
@@ -66,6 +67,23 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 - **9b — ☰ Menu w grze.** `#btnMenu` jako pierwsze dziecko `#hud` (także na telefonie); nakładka z 70: Wznów · Nowa mapa (ta sama nacja/klimat/typ, nowe ziarno) · Opcje (szare) · Menu główne; pauza przez `speed = 0` z przywróceniem (synchronizacja etykiety `#btnSpeed`); priorytet Esc (zamknij menu → anuluj budowę → otwórz menu); „Nowa mapa” i „Menu główne” przez nawigację (`location.href`), co omija pułapki ponownego wejścia (`gameStarted`, `lastPanel`, `activeCat`, `speed`, `hud.open`); opis mapy w `#hudFaction` i Doradcy.
 - **9c — testy.** `?menu=0` w `goto` testów `browser_ui/play/mobile`; nowy `tools/browser_menu.js` (tylko Piaskownica aktywna; przepływ nacja → klimat → typ → Start dla każdej nacji; `World.state().map.meta` = meta podglądu; blokada Wikingów; pamięć wyboru; telefon; Esc i ☰ Menu; 0 błędów JS); `Minimap` w `headless.js` (kod ładowany przy starcie tylko z atrap DOM).
 - **Dokumentacja:** rozdz. 14 (menu i ekrany), 1 (parametry adresu `?menu=0`), 16 (nowe testy), 17 (decyzje).
+
+## Faza 9B — ożywienie ludzi (fizyczna logistyka)
+
+**Zamówienie użytkownika:** ludzie mają naprawdę wykonywać zadania (drwal ścina konkretne drzewo i niesie pień, cieśla niesie pień do tartaku i piłuje, budowniczy dochodzi na plac i dopiero wtedy buduje, karawana idzie na koniec mapy i wraca), drogi mają być ważniejsze (inspiracja: Knights and Merchants, centralny magazyn), **bez zepsucia bilansu**. Analiza wykonalności, pomiary, model i ryzyka: **aneks E dokumentacji** (`docs/chapters/E_fizyczna_logistyka.md`), zarys mechanizmów: rozdz. 12.
+
+**Wnioski analizy (skrót):** (1) wykonalne, jeśli czas gry zwolni do ok. **12 s na minutę** (dziś 4 s/min wymagałoby chodu 4,5 pola/s) — tempo to stała; (2) osady botów mają mediana 12–13 pól do magazynu, średnia sprawność 0,88–0,90, obciążenie transportu 400–780 szt.·pole/min — nosiciele z ludności odpadają (wolnych ludzi 2–11, potrzeba 7–14), więc sprawność liczymy z cyklu pracy (kalibracja do dzisiejszej krzywej: ładunek 6, v = 18 pól/min, obsługa 0,1 min); (3) bilans chroni `settings.physical` (w testach spec. `false` → 58 scenariuszy bez zmian), zasada „tylko na niekorzyść” (`eff ≤ 1`) i bramka bilansu botów ≥ 90% wyniku bazowego; (4) centralny magazyn = Dwór (już jest), „Duży Skład” tylko jeśli bramki tego zażądają.
+
+| Etap | Zakres | Bramka |
+|---|---|---|
+| **9B-0** | tempo gry (`sekundy na minutę`, domyślnie 12; przyciski ×1/×2/×3/×6; `?tempo=`), prędkości postaci ≈ 18 pól/min | testy bez zmian (dt-based), przegląd ekranu |
+| **9B-1** | role i czynności (wizualne, zsynchronizowane ze stanem logiki): mieszkaniec per budynek, pętle, rekwizyty w `bakeFigure`, wolni obywatele; **zero zmian ekonomii** | scenariusze i `normal` identyczne; nowy `tools/browser_workers.js` |
+| **9B-2** | `settings.physical`: sprawność z cyklu pracy (wyjścia, wejścia), panel „Transport”, status „brak dojścia” | nowy `tools/physical.js`: parytet przy `false`, kalibracja krzywej, czułość na drogę i Skład, determinizm, snapshot |
+| **9B-3** | drwal i leśnik fizycznie (najbliższe drzewo, deterministycznie), budowniczowie (dojście, partie 4 szt.) | bramka bilansu: boty R/D/N ≥ 90% wyniku bazowego; kryzysy do uratowania |
+| **9B-4** | karawany (Saraceni) i statki (Wikingowie): ruch i opóźnienie logiki; napady ilustrowane na trasie | scenariusze Saracenów w zakresie spec., `raids.js` bez zmian średniej straty |
+| **9B-5** | strojenie, opcjonalnie „Duży Skład”/nosiciele, dokumentacja (rozdz. 12, aneks E → stan), WIP, nowy wzorzec regresji | komplet testów, FPS ≥ 85% sprzed zmian |
+
+**Decyzje domyślne do potwierdzenia przez użytkownika (zmiana = zmiana stałej):** tempo bazowe 12 s/min; napady na karawanę nadal ze skarbca (karawana ilustruje i opóźnia sprzedaż); magazyn centralny = Dwór.
 
 ## Faza 10 — integracja końcowa i dostawa
 
@@ -91,6 +109,7 @@ Zasada: każda zmiana sprawdzana od razu, **pełny audyt i podwójna walidacja d
 
 ## Kolejność dalej
 
-1. Dokumentacja: rozdz. 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → A → zrzuty → przegląd stron → commit + push.
+1. Dokumentacja: rozdz. 11 → 13 → 14 → 15 → 16 → 17 → 18 → A → zrzuty → przegląd stron → commit + push (rozdziały wymagające kodu Fazy 9 i 9B uzupełniamy przy ich bramkach).
 2. Faza 9 (9a → 9b → 9c) z bramką i aktualizacją dokumentacji.
-3. Faza 10, potem Faza 11.
+3. **Faza 9B** (9B-0 … 9B-5) z bramką bilansu.
+4. Faza 10, potem Faza 11.

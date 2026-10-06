@@ -440,6 +440,23 @@ GEN.wykres_cen = (arg, state) => {
   return lineChart(state, 'Cena kadzidła po sprzedaży n sztuk naraz: 1 Targ, 2 Targi (lub Karawanseraj), z odnową pomijaną (Tribute.TRADE)', { xs, xticks: [0, 10, 20, 30, 40, 50, 60], series: [{ name: '1 Targ', ys: curve(T['kadzidło'], 1) }, { name: '2 Targi', ys: curve(T['kadzidło'], 2) }, { name: '4 Targi (limit)', ys: curve(T['kadzidło'], 4) }], ymin: 0, ymax: 4.6, xlabel: 'sprzedane sztuki', ylabel: 'cena [zł]' });
 };
 
+/* ---------- fizyczna logistyka (analiza Fazy 9B): model cyklu pracy producenta ---------- */
+const PHYS = { n: 6, h: 0.1, v: 18 };                                   // ładunek [szt.], obsługa [min], prędkość [pola/min] — dopasowanie do krzywej Data.RULES.logistics
+const physEff = (L, v = PHYS.v, n = PHYS.n, h = PHYS.h, ref = game().Data.RULES.logistics.free) => Math.min(1, (n + 2 * ref / v + h) / (n + 2 * L / v + h));
+GEN.sonda_logistyki = (arg, state) => {
+  const probe = require(path.join(ROOT, 'tools/probe_logistyki.js')), g = game(), rows = FIDS.map(f => { const m = probe.measure(g, f)[90]; return [FNAME[f], m.pop, m.producenci, nf(m.mediana), nf(m.p90), nf(m.max), nf(m.sredniaSprawnosc), nf(m.przeplywWyjscia), nf(m.przeplywWejscia), m.obciazenie, m.wolniLudzie, nf(m.nosicieli_v18)]; });
+  return table(state, 'Osady botów R w 90. minucie (bez dróg, logistyka włączona; pomiar tools/probe_logistyki.js): odległość drogi drzwi producenta do najbliższego Składu lub Dworu, sprawność modułu Logistics, przepływy towarów, obciążenie transportu (Σ przepływ × odległość) i liczba nosicieli potrzebnych przy 18 polach/min', ['Nacja', 'Ludność', 'Producenci', 'Mediana [pola]', 'P90', 'Maks.', 'Śr. sprawność', 'Wyjścia [szt./min]', 'Wejścia [szt./min]', 'Obciążenie [szt.·pole/min]', 'Wolni ludzie', 'Nosiciele (v = 18)'], rows, { cls: 'small', align: ['', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center'] });
+};
+GEN.tempo = (arg, state) => {
+  const rows = [[6, 12], [12, 12], [18, 12], [24, 12], [30, 12]].map(([v, L]) => [v, nf(+physEff(L, v).toFixed(3)), nf(+physEff(L * game().Terrain.ROAD_COST, v).toFixed(3)), nf(+(v / 4).toFixed(1)), nf(+(v / 12).toFixed(2)), nf(+(v / 20).toFixed(2))]);
+  return table(state, 'Prędkość chodu ludzi (pola na minutę gry) a sprawność transportu przy odległości 12 pól (ładunek 6 szt., obsługa 0,1 min) i prędkość widoczna na ekranie [pola/s] przy tempie gry 4, 12 i 20 s na minutę', ['v [pola/min]', 'Sprawność bez drogi (12 pól)', 'Sprawność po drodze (7,2 pola)', 'Ekran: 4 s/min [pola/s]', '12 s/min', '20 s/min'], rows, { align: ['center', 'center', 'center', 'center', 'center', 'center'] });
+};
+GEN.wykres_fizyczny = (arg, state) => {
+  const R = game().Data.RULES.logistics, xs = []; for (let d = 0; d <= 40; d += 2) xs.push(d);
+  const lin = L => 1 - (1 - R.min) * Math.max(0, Math.min(1, (L - R.free) / R.span));
+  return lineChart(state, 'Krzywa sprawności dziś (liniowa, Data.RULES.logistics) i jej fizyczna interpretacja: cykl pracy producenta niosącego 6 szt., v = 18 pól/min, obsługa 0,1 min; trzecia linia — ta sama odległość po drodze (koszt pola 0,6)', { xs, xticks: [0, 6, 12, 20, 26, 30, 40], series: [{ name: 'dziś (liniowo)', ys: xs.map(lin) }, { name: 'model fizyczny', ys: xs.map(L => physEff(L)) }, { name: 'po drodze', ys: xs.map(L => physEff(L * game().Terrain.ROAD_COST)) }], ymin: 0.4, ymax: 1.02, xlabel: 'odległość drogi do Składu / Dworu [pola bez drogi]', ylabel: 'sprawność' });
+};
+
 /* diagramy z diagrams.js */
 for (const k of Object.keys(diagrams)) GEN['diagram_' + k] = (arg, state) => diagrams[k](state, game(), arg);
 
