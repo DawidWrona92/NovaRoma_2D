@@ -5226,7 +5226,7 @@ const Terrain = (() => {
   const mineFits = (map, x, y, seen) => !!mineOrigin(map, x, y, seen, false);
   /* rezerwacja obrysu (kopalnia, brzeg): oznacza pola i usuwa z nich drzewa — gracz nie może ich wyciąć, więc generator zostawia miejsce */
   function reserve(map, pad, x, y, w, h) {
-    const N = map.size; for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const i = (y + yy) * N + x + xx; pad[i] = 1; map.tiles[i].trees = 0; }
+    const N = map.size; for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const i = (y + yy) * N + x + xx; pad[i] = 1; map.tiles[i].trees = 0; map.tiles[i].pad = 1; }
   }
   /* ile z: Przystań, 2 Okręty, 4 Chaty rybaków (4×2, 4×2, 4×2, 2×2 ×4) da się ułożyć przy morzu (kolejność spirali od środka, jak boty) */
   function shoreCapacity(map, ignoreTrees, pad) {
@@ -7095,7 +7095,7 @@ const World = (() => {
     const tiles = state.map.tiles;
     for (let tries = 0; tries < 30; tries++) {
       const t = tiles[RNG.int(0, tiles.length - 1)];
-      if (t.h === 1 && !t.occup && !t.road && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }
+      if (t.h === 1 && !t.occup && !t.road && !t.pad && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }   // pad = obrys kopalni/brzegu zarezerwowany przez generator: drzewa tu nie odrastają
     }
     return false;
   }
@@ -8039,6 +8039,7 @@ const TestBots = (() => {
     }
     /* rozsądny gracz: najbliższe miejsca od środka, ale z najmniejszą karą za ciasną zabudowę (Data.RULES.crowd); przeszukuje kilka pierścieni dalej niż pierwsze trafienie */
     const c = Math.floor(size / 2); let best = null, bestScore = Infinity, firstR = -1;
+    const tight = def.req === 'shore' || def.req === 'waterEdge';                // brzeg jest wąski: bot układa tu budynki ciasno (bez wybierania luzu), tak jak generator liczy pojemność brzegu
     const keepFree = new Set();                                                  // bot zostawia miejsce na kopalnie: 7×7 (3×3 kopalni + przerwa) wokół złóż, na których jeszcze nic nie stoi
     for (let i = 0; i < size * size; i++) { const t = s.map.tiles[i]; if (!t.deposit || t.occup != null) continue; const x = i % size, y = (i / size) | 0; for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) keepFree.add((y + yy) * size + x + xx); }
     for (let r = 1; r < size; r++) {
@@ -8048,7 +8049,7 @@ const TestBots = (() => {
         let blocked = false; for (let yy = 0; yy < h && !blocked; yy++) for (let xx = 0; xx < w; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
         if (blocked || !World.canPlace(id, c + dx, c + dy).ok) continue;
         if (firstR < 0) firstR = r;
-        const score = World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
+        const score = tight ? r : World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
         if (score < bestScore) { bestScore = score; best = { x: c + dx, y: c + dy }; }
       }
     }
