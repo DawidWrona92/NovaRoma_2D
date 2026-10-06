@@ -58,6 +58,7 @@ async function bake(nation, onProgress = null, opts = {}) {
   jobs.push(...natureJobs(climate));
   for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
+  for (const kind of faunaKinds(climate)) jobs.push(['Zwierzęta', () => { (SETS.fauna = SETS.fauna || {})[kind] = bakeFauna(kind, 1); }]);   // fauna wg klimatu mapy (foka też — czy się pojawi, rozstrzyga gra)
   let last = 0;
   for (let i = 0; i < jobs.length; i++) {
     if (onProgress && now() - last > 40) { onProgress(i / jobs.length, jobs[i][0]); await nextPaint(); last = now(); }
@@ -81,7 +82,7 @@ return {
   baked: () => bakedFor, bakeMs: () => bakeMs,
   ids: nation => NATIONS[nation].slice(), name: nameOfBuilding, nations: () => Object.keys(NATIONS),
   get: (nation, id) => SPR[spriteName(nation, id)] || null,
-  spr: SPR, sets: SETS, castKeys, cast: key => (SETS.cast || {})[key] || null,
+  spr: SPR, sets: SETS, castKeys, cast: key => (SETS.cast || {})[key] || null, faunaKinds, fauna: kind => (SETS.fauna || {})[kind] || null,
   catalog: catalogJSON,
   makeGround: (map, o) => new Ground(map, o), GCH,
   /* niskopoziomowe elementy silnika dla modułów gry (teren, zwierzęta…): sceny ze zdobieniami terenu, tekstury, generatory */

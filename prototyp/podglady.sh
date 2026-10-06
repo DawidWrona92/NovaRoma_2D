@@ -19,3 +19,4 @@ SETZOOM=0.19 node shot.js $P/scena_telefon_oddalona.jpg "cx=17&cy=12.5" 2 390 84
 for n in franks saracens vikings slavs; do SW=1800 SH=1500 QUERY="cols=4" node sheet.js $P/arkusz_$n.jpg 1 "#sheet-r-$n"; done
 SW=2100 SH=900 QUERY="sprite=franks_keep,saracens_keep,vikings_keep,slavs_keep&zs=1.0&y=0.8" node sheet.js $P/flagowe_dwory.jpg 1 '#x'   # cztery Dwory
 SW=1500 SH=900 node sheet.js $P/arkusz_ludzie.jpg 1 '#sheet-f-1.4'               # mieszkańcy
+SW=1500 SH=2900 node sheet.js $P/arkusz_zwierzeta.jpg 1 '#sheet-a-2'            # zwierzęta (18 rodzajów, klatki chodu / postoju / padnięcia / lotu)

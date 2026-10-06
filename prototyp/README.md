@@ -90,6 +90,10 @@ z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna 
 - **Ślady życia** (`src/25_wear.js`): ziarno, plamy, zacieki, pęknięcia, łaty napraw, mech, odpadający tynk, brakujące dachówki — deterministyczne.
 - **Teren w prototypie:** kafle 512×512 px logicznych wypiekane na żądanie; cienie i place nieruchomych obiektów wypiekane razem z terenem. W grze tę rolę pełni moduł `Ground` (niżej).
 - **Ludzie:** ~70 px wysokości przy zoomie domyślnym, widok z przodu i z tyłu, 2 klatki chodu, strój zależny od nacji i roli.
+- **Zwierzęta (`src/43_fauna.js`):** 18 rodzajów rysowanych kodem (surowy canvas jak drzewa i postacie), profil w prawo — gra odbija go lustrzanie wg kierunku marszu; cień symetryczny.
+  Trzy konstruktory ciała: czworonóg (sarna, królik, zając polarny, królik pustynny, lis, lis polarny, dzik, renifer, łoś, gazela, wielbłąd), ptak (bocian, żuraw, wrona, mewa, sęp — stojący + 3 klatki lotu)
+  i niski korpus (foka, jaszczurka). `bakeFauna(rodzaj)` → `{ walk[4|2], idle[1], dead[1] (czworonogi), fly[3] (ptaki) }`; `faunaKinds(klimat)` — zestaw wypiekany z przyrodą klimatu
+  (`Sprites.bake` → `Sprites.fauna(rodzaj)`). Arkusz do przeglądu: `node sheet.js out.png 1 '#sheet-a-2'` (osoba i pole 1×1 dla skali), gotowy: `podglad/arkusz_zwierzeta.jpg`.
 
 ## Katalog dla integracji (`katalog_budynkow.json`)
 Generuje go `node katalog.js`. Dla każdego `nacja → id`: nazwa sprite'a, nazwa PL, `obrys` [szer, wys] w polach, `wejscie` (strona `S`/`E` i punkt w polach względem środka),

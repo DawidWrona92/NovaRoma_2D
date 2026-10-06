@@ -153,6 +153,7 @@ async function step(label, fn) {
 /* które sprite'y wypiekać: do kontroli jakości i arkuszy — wszystkie lub wskazane; do widoku mapy — tylko te z PLAN (w grze: tylko budynki wybranej nacji) */
 function wantedSprites() {
   const all = Object.keys(BAKED), h = location.hash;
+  if (/^#sheet-a/.test(h)) return [];                                // arkusz zwierząt: bez budynków
   if (LINT || QS.has('all') || /^#sheet-b/.test(h) || h === '#sheet-r' || h === '#sheet') return all;
   if (QS.get('sprite')) return QS.get('sprite').split(',').filter(n => BAKED[n]);
   const m = h.match(/^#sheet-r-([a-z]+)/); if (m && NATIONS[m[1]]) return NATIONS[m[1]].map(id => spriteName(m[1], id)).filter(n => BAKED[n]);
@@ -161,7 +162,7 @@ function wantedSprites() {
 async function bakeAll() {
   let t0 = performance.now();
   const names = wantedSprites(), many = async (label, n, fn) => { const out = []; for (let i = 1; i <= n; i++) out.push(await step(label, () => fn(i))); return out; };
-  TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12;
+  TOTAL = names.length + 12 + 11 + Object.keys(CAST).length + 12 + (/^#sheet-a/.test(location.hash) ? Object.keys(FAUNA).length : 0);
   for (const n of names) { LINT_NAME = n; try { SPR[n] = await step('Budynki', BAKED[n]); } catch (e) { e.message = `[${n}] ${e.message}`; throw e; } }
   window.__lint = LINT_LOG;
   tmark('budynki', t0); t0 = performance.now();
@@ -169,8 +170,10 @@ async function bakeAll() {
   const rocks = await many('Skały', 4, i => bakeRock(400 + i)), tufts = await many('Roślinność', 4, i => bakeTuft(500 + i, 'green')), sandTufts = await many('Roślinność', 3, i => bakeTuft(600 + i, 'sand'));
   tmark('drzewa+skały', t0); t0 = performance.now();
   const cast = {}; for (const key of Object.keys(CAST)) cast[key] = await step('Mieszkańcy', () => bakeCast(key, FIG));
-  tmark('postacie', t0);
-  Object.assign(SETS, { oaks, pines, palms, rocks, tufts, sandTufts, cast });
+  tmark('postacie', t0); t0 = performance.now();
+  const fauna = {}; if (/^#sheet-a/.test(location.hash) || QS.has('fauna')) for (const k of Object.keys(FAUNA)) fauna[k] = await step('Zwierzęta', () => bakeFauna(k, 1));
+  tmark('zwierzęta', t0);
+  Object.assign(SETS, { oaks, pines, palms, rocks, tufts, sandTufts, cast, fauna });
 }
 
 function layoutWorld() {
@@ -409,6 +412,24 @@ function sheetFrame() {
   if (mode === 'b') {
     const items = Object.keys(SPR), cols = Math.ceil(Math.sqrt(items.length * W / H)), rows = Math.ceil(items.length / cols), cw = W / cols, ch = H / rows;
     items.forEach((n, i) => { const spr = SPR[n], z = Math.min(Z * 0.5, cw * 0.95 / spr.w, ch * 0.95 / (spr.h - spr.ay * 0.0)); draw(spr, (i % cols + 0.5) * cw, Math.floor(i / cols) * ch + ch * 0.8, z, ['p', 'u', 'c']); });
+  } else if (mode === 'a') {                                          // zwierzęta: każdy rodzaj w poziomym rzędzie klatek (chód, postój, padnięcie, lot), obok osoba i pole 1×1 dla skali; #sheet-a-2 = skala 2×
+    for (const id of ['cap', 'leg', 'st', 'ui']) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+    const kinds = Object.keys(SETS.fauna), lab = (t, x, y, px, al = 'left') => { ctx.textAlign = al; ctx.font = `${Math.round(px * dpr)}px Georgia, serif`; ctx.lineJoin = 'round'; ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(14,20,8,0.92)'; ctx.strokeText(t, x, y); ctx.fillStyle = '#f6ecd0'; ctx.fillText(t, x, y); };
+    const person = SETS.cast[Object.keys(SETS.cast)[0]].front[0], pad = 10 * dpr, z = Z * 0.5 * 2;
+    let x = pad, y = 30 * dpr, rowH = 0;
+    const blocks = kinds.map(k => { const fs = SETS.fauna[k], fr = [...fs.walk, ...fs.idle, ...(fs.dead || []), ...(fs.fly || [])], w = fr.reduce((a, f) => a + f.w * z + 6 * dpr, 0), up = Math.max(...fr.map(f => f.ay * z)), dn = Math.max(...fr.map(f => (f.h - f.ay) * z)); return { k, fs, fr, w, up, dn }; });
+    const refW = 70 * z * 0.6 + 2 * AX * z * 0.5 + pad;
+    // wzorzec skali: pole 1×1 (romb 128×64) z osobą
+    { const bx = x + AX * z * 0.5 + 6 * dpr, by = y + 60 * z * 0.55; ctx.beginPath(); ctx.moveTo(bx, by - AY * z * 0.5); ctx.lineTo(bx + AX * z * 0.5, by); ctx.lineTo(bx, by + AY * z * 0.5); ctx.lineTo(bx - AX * z * 0.5, by); ctx.closePath(); ctx.fillStyle = 'rgba(255,214,70,0.13)'; ctx.fill(); ctx.lineWidth = 1.5 * dpr; ctx.strokeStyle = 'rgba(255,214,70,0.9)'; ctx.stroke();
+      draw(person, bx, by, z, ['u', 'c']); lab('pole 1×1 + osoba', x, by + AY * z * 0.5 + 18 * dpr, 12); x += AX * z + pad * 2; rowH = by + AY * z * 0.5 + 24 * dpr - y; }
+    for (const b of blocks) {
+      if (x + b.w > W - pad) { x = pad; y += rowH + 30 * dpr; rowH = 0; }
+      const base = y + 20 * dpr + b.up + (b.fs.fly ? 36 * z * 0.5 : 0);
+      lab(b.fs.pl + ' (' + b.k + ')', x, y + 10 * dpr, 13);
+      let cx = x;
+      b.fr.forEach(f => { const fl = b.fs.fly && b.fs.fly.includes(f), alt = fl ? 30 * z * 0.5 : 0; cx += f.ax * z; draw(f, cx, base, z, ['u']); draw(f, cx, base - alt, z, ['c']); cx += (f.w - f.ax) * z + 6 * dpr; });
+      rowH = Math.max(rowH, base - y + b.dn + 6 * dpr); x += b.w + pad * 2;
+    }
   } else if (mode === 'n') {
     const rows = [H * 0.3, H * 0.62, H * 0.93], row1 = [SETS.oaks[0], SETS.oaks[1], SETS.pines[0], SETS.pines[1]], row2 = [SETS.palms[0], SETS.palms[1], SETS.rocks[0], SETS.rocks[1]];
     row1.forEach((t, i) => draw(t, (i + 0.5) * W / 4, rows[0], Z * 0.5, ['u', 'c'])); row2.forEach((t, i) => draw(t, (i + 0.5) * W / 4, rows[1], Z * 0.5, ['u', 'c']));

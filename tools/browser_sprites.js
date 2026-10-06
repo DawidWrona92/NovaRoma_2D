@@ -37,12 +37,27 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     ok(r.empty.length === 0, 'żadna warstwa obiektu nie jest pusta' + (r.empty.length ? ' — ' + r.empty.join(', ') : ''));
     ok(r.baked === n && r.again < 50, `ponowne bake(${n}) nic nie robi (${r.again.toFixed(0)} ms)`);
     ok(r.sets.cast >= 2 && (r.sets.oaks || r.sets.palms || r.sets.pines || r.sets.birches || r.sets.winters) && r.sets.rocks && r.sets.cliffs, 'zestawy przyrody i mieszkańców: ' + JSON.stringify(r.sets));
+    ok(r.sets.fauna >= 6, 'zestaw fauny wypieczony (' + r.sets.fauna + ' rodzajów)');
     console.log(`    czas wypieku ${r.ms.toFixed(0)} ms` + (r.mem ? ` · sterta ${r.mem} MB` : '') + ` · postęp: ${r.prog.map(p => p[0]).join(' ')}`);
   }
   console.log('klimaty (Frankowie, jakość ' + Q + ')');
   for (const cl of ['temperate', 'eastern', 'snow', 'desert']) {
     const sets = await page.evaluate(async cl => { await Sprites.bake('franks', null, { climate: cl }); return Object.fromEntries(Object.entries(Sprites.sets).map(([k, v]) => [k, Array.isArray(v) ? v.length : typeof v === 'object' ? Object.keys(v).length : v])); }, cl);
     ok(sets.climate === cl && sets.cliffs >= 3 && sets.rocks >= 3 && sets.tufts >= 3 && (sets.oaks || sets.palms || sets.pines || sets.birches || sets.winters), cl + ': ' + JSON.stringify(sets));
+    // fauna klimatu: każdy rodzaj ma klatki marszu i postoju, niepuste warstwy 'c' i 'u'; ptaki mają klatki lotu, zwierzyna łowna — leżącą
+    const fa = await page.evaluate(cl => {
+      const out = [], alpha = c => { const t = document.createElement('canvas'); t.width = 32; t.height = 32; const g = t.getContext('2d'); g.drawImage(c, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data; let a = 0; for (let i = 3; i < d.length; i += 4) a += d[i]; return a / (32 * 32 * 255); };
+      for (const k of Sprites.faunaKinds(cl)) {
+        const f = Sprites.fauna(k); if (!f) { out.push(k + ': brak'); continue; }
+        const frames = [...f.walk, ...f.idle, ...(f.dead || []), ...(f.fly || [])];
+        if (f.walk.length < 2 || f.idle.length < 1) out.push(k + ': za mało klatek');
+        if (f.role === 'bird' && (f.fly || []).length < 3) out.push(k + ': brak lotu');
+        if (f.role === 'quad' && !(f.dead || []).length) out.push(k + ': brak klatki leżącej');
+        for (const s of frames) { if (!(s.w > 4 && s.h > 4) || alpha(s.c) < 0.02 || !s.u) { out.push(k + ': pusta warstwa'); break; } }
+      }
+      return out;
+    }, cl);
+    ok(fa.length === 0, cl + ': fauna ' + (fa.length ? fa.join('; ') : 'kompletna'));
   }
   ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close();
