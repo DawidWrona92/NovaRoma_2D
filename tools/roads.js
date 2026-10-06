@@ -20,7 +20,8 @@ ok(r.ok && r.n >= 1 && r.n <= 6 && roadCount(map) === n1 + r.n, `odnoga od istni
 ok(!Roads.lay(8, 30, 18, 30).ok, 'ta sama trasa drugi raz — odmowa („już jest droga”)');
 // 2. odmowy
 const before = roadCount(map), dBefore = s.res.deski;
-s.res.deski = 3; r = Roads.lay(30, 30, 40, 30); ok(!r.ok && /Brak desek/.test(r.reason) && roadCount(map) === before, 'za mało desek — odmowa i brak zmian'); s.res.deski = dBefore;
+const pick = (x0, y0) => { for (let x = x0; x < 44; x++) for (let y = y0; y < 44; y++) if (Roads.free(MapGen.at(map, x, y)) && Roads.free(MapGen.at(map, x + 6, y + 6)) && !map.tiles[y * 48 + x].road) return [x, y]; return [30, 30]; };
+const [fx, fy] = pick(26, 26); s.res.deski = 3; r = Roads.lay(fx, fy, fx + 6, fy + 6); ok(!r.ok && /Brak desek/.test(r.reason) && roadCount(map) === before, `za mało desek — odmowa i brak zmian (${r.reason})`); s.res.deski = dBefore;
 const water = map.tiles.findIndex(t => t.h === 0); if (water >= 0) { r = Roads.lay(water % 48, (water / 48) | 0, 30, 30); ok(!r.ok, 'początek w wodzie — odmowa'); }
 const k = s.keep; r = Roads.lay(k.x, k.y, 30, 30); ok(!r.ok, 'początek na polu Dworu — odmowa');
 // 3. droga na jeziorze: trasa omija wodę

@@ -15,6 +15,12 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/raids.js` | Napady na karawanę (Saraceni): strata średnia po 24 ziarnach ze Strażnicami i bez. |
 | `node tools/store.js` | Wpływ Składu na pojemność haraczu Słowian. |
 | `node tools/terrain.js [plik] [ziarna]` | Generator terenu v2: macierz 4 nacje × 4 klimaty × 6 typów map (Wikingowie: nadmorska) × ziarna — niezmienniki pól kafli, walidacja (łączność, drzewa, złoża, miejsce pod zabudowę, brody, brzeg Wikingów), płaski plac wokół Dworu, liczby drzew i złóż, reguły `canPlace` dla wody i cech terenu, determinizm, izolacja globalnego `RNG` (Terrain.apply go nie dotyka). |
+| `node tools/path.js [plik] [pary]` | Path (A*): koszt = Dijkstra, trasa tylko po polach przechodnich (rzeka tylko brodem / lodem), bez ścinania rogów, wygładzanie, brak RNG, szybkość. |
+| `node tools/walkers.js [plik] [minuty]` | Widoczni piesi (Walkers): symulacja bota na 5 mapach — postacie tylko na wolnych polach przechodnich, nosiciele dochodzą do drzwi, budowniczowie przy placach, logika gry identyczna z Walkers i bez (cień symulacji). |
+| `node tools/roads.js [plik]` | Drogi: koszt tylko za nowe pola, odmowy (woda, brak desek), budowa zdejmuje drogę, A* i prędkość pieszych po drodze, JSON, brak RNG. |
+| `node tools/spacing.js [plik]` | Zasady zabudowy (Data.RULES): przerwa 1 pola, strefy kary 2–3 pola, boty układają całą recepturę mimo przerwy. |
+| `node tools/leveling.js [plik]` | Wyrównywanie terenu: `levelOf`, etap 0 placu, czas budowy na stoku, zakaz rozpiętości ≥ 2, boty wybierają płaskie miejsca, obszar startowy bez stoków, wzgórza decyzyjne. |
+| `node tools/logistics.js [plik]` | Sprawność logistyczna: blisko Składu bez kary, daleko spadek ≥ 70%, drogi i Skład poprawiają, ekonomia produkuje mniej przy słabej logistyce, brak RNG. |
 | `node tools/footprints.js [plik]` | Obrysy budynków (w×h): zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, `canPlace` z pierścieniem sąsiedztwa, złoża pod kopalnią, place budowy (`siteAt`, `cancel`), wyburzenie, Dwór 4×4, miejsca dla botów. |
 
 ## Testy w przeglądarce (Playwright)

@@ -47,6 +47,7 @@ for (const [fid, cl, ty] of SETS) {
   ok(mism === 0, `${tag}: liczba widocznych obywateli ≠ ludność logiki (${mism} kroków)`);
   ok(builders > 0, `${tag}: budowniczowie pojawili się przy placach (${builders} postaci·kroków)`);
   ok(carriers > 0, `${tag}: nosiciele wychodzą z drzwi (${carriers} postaci·kroków)`);
+  ok(carNear > 0 && carFar <= 0.05 * (carNear + carFar), `${tag}: nosiciele dochodzą do drzwi celu (${carNear} z ${carNear + carFar}) — przerwa między budynkami zostawia przejścia`);
   // po zakończeniu wszystkich budów budowniczowie, którzy jeszcze są na mapie, wracają do Dworu
   if (s.sites.length === 0) ok(Walkers.figures().every(a => a.kind !== 'builder' || a.mode === 'home'), `${tag}: po ukończeniu budów budowniczowie wracają do Dworu`);
   // izolacja: te same wyniki logiki z Walkers i bez

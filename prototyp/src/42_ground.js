@@ -14,10 +14,10 @@ const GWATER = k => k >= 10;
 /* materiały gruntu wg klimatu: base — grunt [tekstura, paleta]; vary — wielkoskalowe plamy jaśniejsze/ciemniejsze (zrywają powtarzalność);
    beach/wet — plaża i mokry brzeg; water — paleta wody wg rodzaju; rock — paleta skały pod klifami */
 const GMAT = {
-  temperate: { base: ['grass', 'green'], vary: 'green', varyA: 0.34, beach: ['grass', 'sand'], wet: 'rgba(92,70,40,0.36)', water: { sea: 'sea', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(8,52,84,0.5)' },
-  eastern: { base: ['grass', 'eastern'], vary: 'eastern', varyA: 0.32, beach: ['dirt', '#6a5a38'], wet: 'rgba(40,30,14,0.4)', water: { sea: 'lake', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(10,44,60,0.5)' },
-  snow: { base: ['grass', 'snow'], vary: 'snow', varyA: 0.3, beach: ['gravel', 'gray'], wet: 'rgba(36,42,52,0.34)', water: { sea: 'cold', lake: 'ice', river: 'river' }, rock: 'snow', depth: 'rgba(6,30,52,0.55)' },
-  desert: { base: ['grass', 'sand'], vary: 'sand', varyA: 0.4, beach: ['grass', 'sand'], wet: 'rgba(110,80,40,0.38)', water: { sea: 'sea', lake: 'oasis', river: 'river' }, rock: 'sand', depth: 'rgba(8,60,70,0.45)' }
+  temperate: { base: ['grass', 'green'], vary: 'green', varyA: 0.34, beach: ['grass', 'sand'], wet: 'rgba(92,70,40,0.36)', water: { sea: 'sea', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(8,52,84,0.5)', slope: ['dirt', '#86683c'], riser: ['#5a4328', '#bdab78'] },
+  eastern: { base: ['grass', 'eastern'], vary: 'eastern', varyA: 0.32, beach: ['dirt', '#6a5a38'], wet: 'rgba(40,30,14,0.4)', water: { sea: 'lake', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(10,44,60,0.5)', slope: ['dirt', '#6e5634'], riser: ['#4a3720', '#a39358'] },
+  snow: { base: ['grass', 'snow'], vary: 'snow', varyA: 0.3, beach: ['gravel', 'gray'], wet: 'rgba(36,42,52,0.34)', water: { sea: 'cold', lake: 'ice', river: 'river' }, rock: 'snow', depth: 'rgba(6,30,52,0.55)', slope: ['dirt', '#8a8478'], riser: ['#6a6e78', '#eef3f8'] },
+  desert: { base: ['grass', 'sand'], vary: 'sand', varyA: 0.4, beach: ['grass', 'sand'], wet: 'rgba(110,80,40,0.38)', water: { sea: 'sea', lake: 'oasis', river: 'river' }, rock: 'sand', depth: 'rgba(8,60,70,0.45)', slope: ['dirt', '#b89458'], riser: ['#8e6a3c', '#ead2a0'] }
 };
 
 function gHash(x, y, n) { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(n | 0, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
@@ -95,7 +95,7 @@ class Ground {
     this.px0 = N * AX;                                               // plan: x ∈ [−N·AX, N·AX], y ∈ [0, 2·N·AY]
     this.ncx = Math.ceil(2 * N * AX / GCH); this.ncy = Math.ceil(2 * N * AY / GCH);
     this.chunks = new Array(this.ncx * this.ncy).fill(null);
-    this.kind = new Uint8Array(N * N); this.elev = new Float32Array(N * N); this.shore = new Uint8Array(N * N); this.deep = new Uint8Array(N * N);
+    this.kind = new Uint8Array(N * N); this.elev = new Float32Array(N * N); this.shore = new Uint8Array(N * N); this.deep = new Uint8Array(N * N); this.slope = new Uint8Array(N * N);
     this.analyze();
     this.shadeCv = null;                                             // mapa cieniowania — tworzona przy pierwszym wypieku (nie przy ładowaniu silnika)
     this.queue = []; this.frame = 0; this.pixels = 0; this.budget = o.budget || 26e6; this.vcx = 0; this.vcy = 0;
@@ -108,6 +108,11 @@ class Ground {
       const q = t[i];
       K[i] = q.h === 0 ? (GKIND[q.wk] ?? 10) : q.h === 2 ? 6 : (GKIND_K[q.k] ?? 0);
       this.elev[i] = q.h === 0 ? 1 : Math.max(1, q.e || 1);
+    }
+    this.slope.fill(0);                                               // stoki wymagające wyrównania: pola lądu z sąsiadem (4) o innym poziomie — oba brzegi stopnia
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x, a = t[i]; if (a.h !== 1 || a.k) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) { const nx = x + dx, ny = y + dy; if (nx >= N || ny >= N) continue; const b = t[ny * N + nx]; if (b.h === 1 && !b.k && (b.e | 0) !== (a.e | 0)) { this.slope[i] = 1; this.slope[ny * N + nx] = 1; } }
     }
     const wet = k => k >= 10 && k !== 13 && k !== 14, queue = [];
     this.deep.fill(0);
@@ -148,7 +153,7 @@ class Ground {
       if (tx < tx0) tx0 = tx; if (tx > tx1) tx1 = tx; if (ty < ty0) ty0 = ty; if (ty > ty1) ty1 = ty;
       if (!(bx1 <= X0 || bx0 >= X0 + GCH || by1 <= Y0 || by0 >= Y0 + GCH)) core = true;
     }
-    ch = { id, cx, cy, X0, Y0, tiles, empty: !core, base: [null, null, null], over: [null, null, null], overSig: [NaN, NaN, NaN], sig: 0, sigT: -1e9, used: 0, fx: null, bbox: [tx0, ty0, tx1, ty1] };
+    ch = { id, cx, cy, X0, Y0, tiles, empty: !core, base: [null, null, null], dirty: [false, false, false], over: [null, null, null], overSig: [NaN, NaN, NaN], sig: 0, sigT: -1e9, used: 0, fx: null, bbox: [tx0, ty0, tx1, ty1] };
     this.chunks[id] = ch; return ch;
   }
 
@@ -201,6 +206,12 @@ class Ground {
       const m = gCurve(gMask(sc, polysOf(by[k], k === 6 ? 0.04 : 0.02), blur), k === 6 ? 0.28 : 0.22, k === 6 ? 0.72 : 0.78);
       gPaintTex(sc, m, mat, pal, al); gDrop(m);
     }
+    // stoki wymagające wyrównania (Faza 7): ziemista plama + stopnie (ściany) tam, gdzie wyższe pole leży z tyłu — gracz widzi je, zanim wybierze miejsce
+    const sl = ch.tiles.filter(i => this.slope[i] && K[i] === 0);
+    if (sl.length) {
+      const m = gCurve(gMask(sc, polysOf(sl, 0.04), 26), 0.25, 0.75); gPaintTex(sc, m, M.slope[0], M.slope[1], 0.45); gDrop(m);
+      this.paintRisers(sc, ch, R);
+    }
     // woda: plaża → mokry brzeg → piana → ciało wody (po rodzaju) → głębia; bród: żwir + płytka woda; lód: tafla z grubym brzegiem
     const wet = [].concat(by[10] || [], by[11] || [], by[12] || []);
     const shoreWet = wet.filter(i => this.shore[i]);
@@ -249,6 +260,26 @@ class Ground {
     return sc.pcv;
   }
 
+  /* stopnie terenu: wzdłuż granicy pól o różnym poziomie ściana z ziemi (wysokość ~16 px na poziom) pod krawędzią wyższego pola — widać ją tylko od strony widza (E, S), jak ściany budynków */
+  paintRisers(sc, ch, R) {
+    const N = this.N, T = this.map.tiles, M = this.mat, P = sc.pg, dark = hex(M.riser[0]), lip = M.riser[1];
+    P.save(); P.lineCap = 'round';
+    for (const i of ch.tiles) {
+      const x = i % N, y = (i / N) | 0, a = T[i]; if (a.h !== 1 || a.k) continue;
+      for (const [dx, dy, sh] of [[1, 0, 0.62], [0, 1, 0.86]]) {                    // E: ściana wschodnia (ciemniejsza), S: południowa
+        const nx = x + dx, ny = y + dy; if (nx >= N || ny >= N) continue;
+        const b = T[ny * N + nx]; if (b.h !== 1 || b.k || (a.e | 0) <= (b.e | 0)) continue;
+        const hgt = ((a.e | 0) - (b.e | 0)) * 16;
+        const A = dx ? sc.P(x + 1, y, 0) : sc.P(x, y + 1, 0), B = sc.P(x + 1, y + 1, 0);
+        const gr = P.createLinearGradient(0, A[1], 0, A[1] + hgt); gr.addColorStop(0, css(scaleC(dark, sh * 1.7), 0.97)); gr.addColorStop(0.35, css(scaleC(dark, sh * 1.25), 0.96)); gr.addColorStop(1, css(scaleC(dark, sh * 0.7), 0.92));
+        P.fillStyle = gr; P.beginPath(); P.moveTo(A[0], A[1]); P.lineTo(B[0], B[1]); P.lineTo(B[0], B[1] + hgt); P.lineTo(A[0], A[1] + hgt); P.closePath(); P.fill();
+        P.strokeStyle = lip; P.globalAlpha = 0.9; P.lineWidth = 3; P.beginPath(); P.moveTo(A[0], A[1]); P.lineTo(B[0], B[1]); P.stroke(); P.globalAlpha = 1;
+        P.strokeStyle = 'rgba(20,12,4,0.45)'; P.lineWidth = 1.2; P.beginPath(); P.moveTo(A[0], A[1] + hgt); P.lineTo(B[0], B[1] + hgt); P.stroke();
+      }
+    }
+    P.restore();
+  }
+
   /* ---------- nakładka: place, cienie i niskie dekory obiektów statycznych ---------- */
   bakeOver(ch, li) {
     if (!this.statics) return null;
@@ -272,7 +303,10 @@ class Ground {
   /* wypiek jednego poziomu chunka: grunt (jeśli brak) i nakładka (jeśli nieaktualna) */
   bake(ch, li) {
     const t0 = gNow();
-    if (!ch.base[li]) { ch.base[li] = this.bakeBase(ch, li); this.pixels += ch.base[li].width * ch.base[li].height; this.stats.baked++; }
+    if (!ch.base[li] || ch.dirty[li]) {
+      const old = ch.base[li]; ch.base[li] = this.bakeBase(ch, li); ch.dirty[li] = false; this.stats.baked++;
+      this.pixels += ch.base[li].width * ch.base[li].height; if (old) { this.pixels -= old.width * old.height; gRelease(old); }
+    }
     if (ch.overSig[li] !== ch.sig) {
       const old = ch.over[li]; if (old) { this.pixels -= old.width * old.height; gRelease(old); }
       const o = this.bakeOver(ch, li); ch.over[li] = o; ch.overSig[li] = ch.sig; if (o) this.pixels += o.width * o.height; this.stats.over++;
@@ -343,7 +377,7 @@ class Ground {
       const ch = this.chunk(cx, cy); if (ch.empty) continue;
       ch.used = this.frame; this.refreshSig(ch, now);
       const bi = this.bestLod(ch, li);
-      if (bi !== li || ch.overSig[li] !== ch.sig) this.want(ch, li);
+      if (bi !== li || ch.dirty[li] || ch.overSig[li] !== ch.sig) this.want(ch, li);
       if (bi < 0) continue;
       const R = this.lods[bi], x0 = sx(ch.X0), y0 = sy(ch.Y0), x1 = sx(ch.X0 + GCH), y1 = sy(ch.Y0 + GCH), g = GPAD * R, c = GCH * R;
       ctx.drawImage(ch.base[bi], g, g, c, c, x0, y0, x1 - x0, y1 - y0);
@@ -382,7 +416,7 @@ class Ground {
   invalidate(tx0, ty0, tx1, ty1) {
     this.analyze(); this.shadeCv = null;
     for (const ch of this.chunks) if (ch && ch.bbox[2] >= tx0 && ch.bbox[0] <= tx1 && ch.bbox[3] >= ty0 && ch.bbox[1] <= ty1) {
-      for (let l = 0; l < 3; l++) { for (const k of ['base', 'over']) { const im = ch[k][l]; if (im) { this.pixels -= im.width * im.height; gRelease(im); ch[k][l] = null; } } ch.overSig[l] = NaN; }
+      for (let l = 0; l < 3; l++) { if (ch.base[l]) ch.dirty[l] = true; ch.overSig[l] = NaN; }                    // stare płótno rysuje się do czasu nowego wypieku (brak migotania)
     }
   }
   /* zwolnienie całej pamięci (zmiana mapy / wyjście do menu) */

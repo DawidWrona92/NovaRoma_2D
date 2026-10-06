@@ -198,6 +198,7 @@
   <button id="btnGuard" class="sec" title="Reguła wysyłki: po odjeździe załogi zostaje ≥ 90% potrzebnych robotników">⛵ Zapas załogi: 90%</button>
   <button id="btnRaids" class="sec" title="Napady na karawanę (Saraceni): można wyłączyć w scenariuszu">🏴 Napady: wł.</button>
   <button id="btnCrisis" class="sec">🔥 Kryzysy: wył.</button>
+  <button id="btnLogi" class="sec" title="Sprawność logistyczna: producent daleko od Składu / Dworu daje mniej (do −30%); drogi skracają dystans">🚚 Logistyka: wł.</button>
   <button id="btnSpeed" class="sec">Prędkość: ×1</button>
   <button id="btnAdvisor">🧭 Doradca</button>
   <button id="btnMore">⚙ Więcej</button>
@@ -2601,10 +2602,10 @@ const GWATER = k => k >= 10;
 /* materiały gruntu wg klimatu: base — grunt [tekstura, paleta]; vary — wielkoskalowe plamy jaśniejsze/ciemniejsze (zrywają powtarzalność);
    beach/wet — plaża i mokry brzeg; water — paleta wody wg rodzaju; rock — paleta skały pod klifami */
 const GMAT = {
-  temperate: { base: ['grass', 'green'], vary: 'green', varyA: 0.34, beach: ['grass', 'sand'], wet: 'rgba(92,70,40,0.36)', water: { sea: 'sea', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(8,52,84,0.5)' },
-  eastern: { base: ['grass', 'eastern'], vary: 'eastern', varyA: 0.32, beach: ['dirt', '#6a5a38'], wet: 'rgba(40,30,14,0.4)', water: { sea: 'lake', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(10,44,60,0.5)' },
-  snow: { base: ['grass', 'snow'], vary: 'snow', varyA: 0.3, beach: ['gravel', 'gray'], wet: 'rgba(36,42,52,0.34)', water: { sea: 'cold', lake: 'ice', river: 'river' }, rock: 'snow', depth: 'rgba(6,30,52,0.55)' },
-  desert: { base: ['grass', 'sand'], vary: 'sand', varyA: 0.4, beach: ['grass', 'sand'], wet: 'rgba(110,80,40,0.38)', water: { sea: 'sea', lake: 'oasis', river: 'river' }, rock: 'sand', depth: 'rgba(8,60,70,0.45)' }
+  temperate: { base: ['grass', 'green'], vary: 'green', varyA: 0.34, beach: ['grass', 'sand'], wet: 'rgba(92,70,40,0.36)', water: { sea: 'sea', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(8,52,84,0.5)', slope: ['dirt', '#86683c'], riser: ['#5a4328', '#bdab78'] },
+  eastern: { base: ['grass', 'eastern'], vary: 'eastern', varyA: 0.32, beach: ['dirt', '#6a5a38'], wet: 'rgba(40,30,14,0.4)', water: { sea: 'lake', lake: 'lake', river: 'river' }, rock: 'rock', depth: 'rgba(10,44,60,0.5)', slope: ['dirt', '#6e5634'], riser: ['#4a3720', '#a39358'] },
+  snow: { base: ['grass', 'snow'], vary: 'snow', varyA: 0.3, beach: ['gravel', 'gray'], wet: 'rgba(36,42,52,0.34)', water: { sea: 'cold', lake: 'ice', river: 'river' }, rock: 'snow', depth: 'rgba(6,30,52,0.55)', slope: ['dirt', '#8a8478'], riser: ['#6a6e78', '#eef3f8'] },
+  desert: { base: ['grass', 'sand'], vary: 'sand', varyA: 0.4, beach: ['grass', 'sand'], wet: 'rgba(110,80,40,0.38)', water: { sea: 'sea', lake: 'oasis', river: 'river' }, rock: 'sand', depth: 'rgba(8,60,70,0.45)', slope: ['dirt', '#b89458'], riser: ['#8e6a3c', '#ead2a0'] }
 };
 
 function gHash(x, y, n) { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(n | 0, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
@@ -2682,7 +2683,7 @@ class Ground {
     this.px0 = N * AX;                                               // plan: x ∈ [−N·AX, N·AX], y ∈ [0, 2·N·AY]
     this.ncx = Math.ceil(2 * N * AX / GCH); this.ncy = Math.ceil(2 * N * AY / GCH);
     this.chunks = new Array(this.ncx * this.ncy).fill(null);
-    this.kind = new Uint8Array(N * N); this.elev = new Float32Array(N * N); this.shore = new Uint8Array(N * N); this.deep = new Uint8Array(N * N);
+    this.kind = new Uint8Array(N * N); this.elev = new Float32Array(N * N); this.shore = new Uint8Array(N * N); this.deep = new Uint8Array(N * N); this.slope = new Uint8Array(N * N);
     this.analyze();
     this.shadeCv = null;                                             // mapa cieniowania — tworzona przy pierwszym wypieku (nie przy ładowaniu silnika)
     this.queue = []; this.frame = 0; this.pixels = 0; this.budget = o.budget || 26e6; this.vcx = 0; this.vcy = 0;
@@ -2695,6 +2696,11 @@ class Ground {
       const q = t[i];
       K[i] = q.h === 0 ? (GKIND[q.wk] ?? 10) : q.h === 2 ? 6 : (GKIND_K[q.k] ?? 0);
       this.elev[i] = q.h === 0 ? 1 : Math.max(1, q.e || 1);
+    }
+    this.slope.fill(0);                                               // stoki wymagające wyrównania: pola lądu z sąsiadem (4) o innym poziomie — oba brzegi stopnia
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x, a = t[i]; if (a.h !== 1 || a.k) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) { const nx = x + dx, ny = y + dy; if (nx >= N || ny >= N) continue; const b = t[ny * N + nx]; if (b.h === 1 && !b.k && (b.e | 0) !== (a.e | 0)) { this.slope[i] = 1; this.slope[ny * N + nx] = 1; } }
     }
     const wet = k => k >= 10 && k !== 13 && k !== 14, queue = [];
     this.deep.fill(0);
@@ -2735,7 +2741,7 @@ class Ground {
       if (tx < tx0) tx0 = tx; if (tx > tx1) tx1 = tx; if (ty < ty0) ty0 = ty; if (ty > ty1) ty1 = ty;
       if (!(bx1 <= X0 || bx0 >= X0 + GCH || by1 <= Y0 || by0 >= Y0 + GCH)) core = true;
     }
-    ch = { id, cx, cy, X0, Y0, tiles, empty: !core, base: [null, null, null], over: [null, null, null], overSig: [NaN, NaN, NaN], sig: 0, sigT: -1e9, used: 0, fx: null, bbox: [tx0, ty0, tx1, ty1] };
+    ch = { id, cx, cy, X0, Y0, tiles, empty: !core, base: [null, null, null], dirty: [false, false, false], over: [null, null, null], overSig: [NaN, NaN, NaN], sig: 0, sigT: -1e9, used: 0, fx: null, bbox: [tx0, ty0, tx1, ty1] };
     this.chunks[id] = ch; return ch;
   }
 
@@ -2788,6 +2794,12 @@ class Ground {
       const m = gCurve(gMask(sc, polysOf(by[k], k === 6 ? 0.04 : 0.02), blur), k === 6 ? 0.28 : 0.22, k === 6 ? 0.72 : 0.78);
       gPaintTex(sc, m, mat, pal, al); gDrop(m);
     }
+    // stoki wymagające wyrównania (Faza 7): ziemista plama + stopnie (ściany) tam, gdzie wyższe pole leży z tyłu — gracz widzi je, zanim wybierze miejsce
+    const sl = ch.tiles.filter(i => this.slope[i] && K[i] === 0);
+    if (sl.length) {
+      const m = gCurve(gMask(sc, polysOf(sl, 0.04), 26), 0.25, 0.75); gPaintTex(sc, m, M.slope[0], M.slope[1], 0.45); gDrop(m);
+      this.paintRisers(sc, ch, R);
+    }
     // woda: plaża → mokry brzeg → piana → ciało wody (po rodzaju) → głębia; bród: żwir + płytka woda; lód: tafla z grubym brzegiem
     const wet = [].concat(by[10] || [], by[11] || [], by[12] || []);
     const shoreWet = wet.filter(i => this.shore[i]);
@@ -2836,6 +2848,26 @@ class Ground {
     return sc.pcv;
   }
 
+  /* stopnie terenu: wzdłuż granicy pól o różnym poziomie ściana z ziemi (wysokość ~16 px na poziom) pod krawędzią wyższego pola — widać ją tylko od strony widza (E, S), jak ściany budynków */
+  paintRisers(sc, ch, R) {
+    const N = this.N, T = this.map.tiles, M = this.mat, P = sc.pg, dark = hex(M.riser[0]), lip = M.riser[1];
+    P.save(); P.lineCap = 'round';
+    for (const i of ch.tiles) {
+      const x = i % N, y = (i / N) | 0, a = T[i]; if (a.h !== 1 || a.k) continue;
+      for (const [dx, dy, sh] of [[1, 0, 0.62], [0, 1, 0.86]]) {                    // E: ściana wschodnia (ciemniejsza), S: południowa
+        const nx = x + dx, ny = y + dy; if (nx >= N || ny >= N) continue;
+        const b = T[ny * N + nx]; if (b.h !== 1 || b.k || (a.e | 0) <= (b.e | 0)) continue;
+        const hgt = ((a.e | 0) - (b.e | 0)) * 16;
+        const A = dx ? sc.P(x + 1, y, 0) : sc.P(x, y + 1, 0), B = sc.P(x + 1, y + 1, 0);
+        const gr = P.createLinearGradient(0, A[1], 0, A[1] + hgt); gr.addColorStop(0, css(scaleC(dark, sh * 1.7), 0.97)); gr.addColorStop(0.35, css(scaleC(dark, sh * 1.25), 0.96)); gr.addColorStop(1, css(scaleC(dark, sh * 0.7), 0.92));
+        P.fillStyle = gr; P.beginPath(); P.moveTo(A[0], A[1]); P.lineTo(B[0], B[1]); P.lineTo(B[0], B[1] + hgt); P.lineTo(A[0], A[1] + hgt); P.closePath(); P.fill();
+        P.strokeStyle = lip; P.globalAlpha = 0.9; P.lineWidth = 3; P.beginPath(); P.moveTo(A[0], A[1]); P.lineTo(B[0], B[1]); P.stroke(); P.globalAlpha = 1;
+        P.strokeStyle = 'rgba(20,12,4,0.45)'; P.lineWidth = 1.2; P.beginPath(); P.moveTo(A[0], A[1] + hgt); P.lineTo(B[0], B[1] + hgt); P.stroke();
+      }
+    }
+    P.restore();
+  }
+
   /* ---------- nakładka: place, cienie i niskie dekory obiektów statycznych ---------- */
   bakeOver(ch, li) {
     if (!this.statics) return null;
@@ -2859,7 +2891,10 @@ class Ground {
   /* wypiek jednego poziomu chunka: grunt (jeśli brak) i nakładka (jeśli nieaktualna) */
   bake(ch, li) {
     const t0 = gNow();
-    if (!ch.base[li]) { ch.base[li] = this.bakeBase(ch, li); this.pixels += ch.base[li].width * ch.base[li].height; this.stats.baked++; }
+    if (!ch.base[li] || ch.dirty[li]) {
+      const old = ch.base[li]; ch.base[li] = this.bakeBase(ch, li); ch.dirty[li] = false; this.stats.baked++;
+      this.pixels += ch.base[li].width * ch.base[li].height; if (old) { this.pixels -= old.width * old.height; gRelease(old); }
+    }
     if (ch.overSig[li] !== ch.sig) {
       const old = ch.over[li]; if (old) { this.pixels -= old.width * old.height; gRelease(old); }
       const o = this.bakeOver(ch, li); ch.over[li] = o; ch.overSig[li] = ch.sig; if (o) this.pixels += o.width * o.height; this.stats.over++;
@@ -2930,7 +2965,7 @@ class Ground {
       const ch = this.chunk(cx, cy); if (ch.empty) continue;
       ch.used = this.frame; this.refreshSig(ch, now);
       const bi = this.bestLod(ch, li);
-      if (bi !== li || ch.overSig[li] !== ch.sig) this.want(ch, li);
+      if (bi !== li || ch.dirty[li] || ch.overSig[li] !== ch.sig) this.want(ch, li);
       if (bi < 0) continue;
       const R = this.lods[bi], x0 = sx(ch.X0), y0 = sy(ch.Y0), x1 = sx(ch.X0 + GCH), y1 = sy(ch.Y0 + GCH), g = GPAD * R, c = GCH * R;
       ctx.drawImage(ch.base[bi], g, g, c, c, x0, y0, x1 - x0, y1 - y0);
@@ -2969,7 +3004,7 @@ class Ground {
   invalidate(tx0, ty0, tx1, ty1) {
     this.analyze(); this.shadeCv = null;
     for (const ch of this.chunks) if (ch && ch.bbox[2] >= tx0 && ch.bbox[0] <= tx1 && ch.bbox[3] >= ty0 && ch.bbox[1] <= ty1) {
-      for (let l = 0; l < 3; l++) { for (const k of ['base', 'over']) { const im = ch[k][l]; if (im) { this.pixels -= im.width * im.height; gRelease(im); ch[k][l] = null; } } ch.overSig[l] = NaN; }
+      for (let l = 0; l < 3; l++) { if (ch.base[l]) ch.dirty[l] = true; ch.overSig[l] = NaN; }                    // stare płótno rysuje się do czasu nowego wypieku (brak migotania)
     }
   }
   /* zwolnienie całej pamięci (zmiana mapy / wyjście do menu) */
@@ -4763,6 +4798,11 @@ const Data = (() => {
   const CATS = ['Mieszkania','Jedzenie','Drewno','Surowce','Rzemiosło','Handel','Militaria','Społeczne'];
 
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
+  /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
+     każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 } };   // level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
+  const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
   /* nazwa budynku zależna od nacji (Kościół / Meczet / Kapliczka); bieżąca nacja ustawiana przez World.init */
   const cur = { faction: null };
@@ -4816,7 +4856,7 @@ const Data = (() => {
     return e ? e.in : null;
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -4859,6 +4899,7 @@ const Camera = (() => {
 const Terrain = (() => {
   const CX = 24, CY = 24;                  // środek planu (środek Dworu 4×4), w polach
   const PLAZA_R = 9.5;                     // płaski plac wokół Dworu (promień w polach)
+  const EARLY_R = 13.5;                    // obszar początkowej zabudowy: bez stoków (nic nie utrudnia pierwszych budynków); dalej wzgórza rosną stopniowo
   const BLOCK_K = { bog: 1, dune: 1, quick: 1, cliff: 1, drift: 1 };   // cechy wykluczające zabudowę
   const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const REACH = new WeakMap();             // pamięć podręczna osiągalności (po tablicy kafli)
@@ -4990,7 +5031,7 @@ const Terrain = (() => {
     const U = new Float32Array(N * N); idx.forEach((i, r) => { U[i] = Math.pow(r / (idx.length - 1), 1 / C.amp); });
     for (const i of idx) {
       const x = i % N, y = (i / N) | 0; let u = U[i];
-      u *= sstep(PLAZA_R - 1, PLAZA_R + 5.5, dPlaza(x, y));                                          // płaski plac
+      u *= sstep(EARLY_R - 1, EARLY_R + 4.5, dPlaza(x, y));                                         // płaski obszar startowy
       if (dW[i] >= 0) u = Math.min(u, 0.10 + 0.14 * dW[i]);                                          // nisko przy wodzie (plaże, brzegi)
       if (dR[i] >= 0) u = Math.min(u, 0.08 + 0.10 * dR[i]);                                          // dolina rzeki
       U[i] = u;
@@ -5006,7 +5047,22 @@ const Terrain = (() => {
       }
       for (let i = 0; i < N * N; i++) tiles[i].e = e2[i];
     }
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = tiles[y * N + x]; if (t.h !== 0 && dPlaza(x, y) <= PLAZA_R) t.e = 1; }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = tiles[y * N + x]; if (t.h !== 0 && dPlaza(x, y) <= EARLY_R) t.e = 1; }
+    /* „wzgórza decyzyjne”: kilka płaskowzgórz (e = 2) w pierścieniu 16–24 pól od Dworu (poza obszarem startowym); ich stoki wymagają wyrównania (Faza 7), więc wpływają na wybór miejsc dopiero po rozbudowie osady */
+    { const nH = o.type === 'mountains' ? 0 : o.type === 'wetlands' ? 1 : 2 + Math.floor(rnd() * 3);
+      for (let k = 0, tries = 0; k < nH && tries < 80; tries++) {
+        const a = rnd() * 6.283, rr = 16 + rnd() * 8, cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 2.6 + rnd() * 2.2, p1 = rnd() * 6.28, p2 = rnd() * 6.28, blob = [];
+        if (cx < 4 || cy < 4 || cx > N - 4 || cy > N - 4) continue;
+        let wet = 0;
+        for (let y = Math.floor(cy - rad - 1); y <= Math.ceil(cy + rad + 1); y++) for (let x = Math.floor(cx - rad - 1); x <= Math.ceil(cx + rad + 1); x++) {
+          if (x < 0 || y < 0 || x >= N || y >= N) continue;
+          const ang = Math.atan2(y + 0.5 - cy, x + 0.5 - cx);
+          if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < rad * (1 + 0.2 * Math.sin(2 * ang + p1) + 0.12 * Math.sin(3 * ang + p2))) { blob.push(tiles[y * N + x]); if (tiles[y * N + x].h === 0) wet++; }
+        }
+        if (wet > blob.length * 0.2 || blob.some(t => dPlaza(t.x, t.y) <= EARLY_R + 1.5)) continue;                // nie na wodzie i nie wchodzi w obszar startowy
+        for (const t of blob) if (t.h === 1) t.e = Math.max(t.e, 2);
+        k++;
+      } }
 
     // 3. klify: Δe ≥ 2 między sąsiednimi polami lądu, najbardziej strome stoki (wg udziału T.cliff), nadbrzeżne skarpy nad morzem — z dala od Dworu
     const cand = [];
@@ -5123,18 +5179,19 @@ const Terrain = (() => {
     while (cur > target) { const i = Math.floor(rnd() * tiles.length); if (tiles[i].trees > 0) { tiles[i].trees--; cur--; } }
   }
   function reDeposit(map, rnd, o, seen, pad) {
-    const N = map.size, tiles = map.tiles, bad = [];
+    const N = map.size, tiles = map.tiles, bad = [], block = new Uint8Array(N * N), G = Data.RULES.gap | 0;
+    const hold = org => { reserve(map, pad, org[0], org[1], 3, 3); for (let yy = -G; yy < 3 + G; yy++) for (let xx = -G; xx < 3 + G; xx++) { const bx = org[0] + xx, by = org[1] + yy; if (bx >= 0 && by >= 0 && bx < N && by < N) block[by * N + bx] = 1; } };   // kopalnie 3×3 muszą się zmieścić z przerwą (Data.RULES.gap)
     for (let i = 0; i < N * N; i++) {
       const t = tiles[i]; if (!t.deposit) continue;
-      const x = i % N, y = (i / N) | 0, org = t.h === 1 && !t.k && seen[i] && dPlaza(x, y) > 6 ? mineOrigin(map, x, y, seen) : null;
-      if (org) reserve(map, pad, org[0], org[1], 3, 3); else { bad.push(t.deposit); t.deposit = null; }
+      const x = i % N, y = (i / N) | 0, org = t.h === 1 && !t.k && seen[i] && dPlaza(x, y) > 6 ? mineOrigin(map, x, y, seen, true, block) : null;
+      if (org) hold(org); else { bad.push(t.deposit); t.deposit = null; }
     }
     for (const kind of bad) {
       for (let guard = 0; guard < 6000; guard++) {
         const x = 3 + Math.floor(rnd() * (N - 6)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x, t = tiles[i], d = dPlaza(x, y);
         if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : 30) || (o.type === 'mountains' && t.e < 2 && guard < 3000)) continue;
-        const org = mineOrigin(map, x, y, seen); if (!org) continue;
-        t.deposit = kind; t.trees = 0; reserve(map, pad, org[0], org[1], 3, 3); break;
+        const org = mineOrigin(map, x, y, seen, true, block); if (!org) continue;
+        t.deposit = kind; t.trees = 0; hold(org); break;
       }
     }
   }
@@ -5157,10 +5214,10 @@ const Terrain = (() => {
     return near ? { sea } : null;
   }
   /* kopalnia 3×3 musi móc objąć pole ze złożem (wolny obrys wokół); wybiera ułożenie z najmniejszą liczbą drzew do usunięcia */
-  function mineOrigin(map, x, y, seen, ignoreTrees = true) {
+  function mineOrigin(map, x, y, seen, ignoreTrees = true, used = null) {
     const N = map.size; let best = null, bt = 99;
     for (let oy = y - 2; oy <= y; oy++) for (let ox = x - 2; ox <= x; ox++) {
-      if (!fitAt(map, ox, oy, 3, 3, seen, null, true, ignoreTrees)) continue;
+      if (!fitAt(map, ox, oy, 3, 3, seen, used, true, ignoreTrees)) continue;
       let tr = 0; for (let yy = 0; yy < 3; yy++) for (let xx = 0; xx < 3; xx++) tr += map.tiles[(oy + yy) * N + ox + xx].trees;
       if (tr < bt) { bt = tr; best = [ox, oy]; }
     }
@@ -5179,7 +5236,7 @@ const Terrain = (() => {
       for (let r = 1; r < N && !ok; r++) for (let dy = -r; dy <= r && !ok; dy++) for (let dx = -r; dx <= r && !ok; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = 24 + dx, y = 24 + dy, f = fitAt(map, x, y, w, h, seen, used, false, ignoreTrees);
-        if (f && f.sea) { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) used[(y + yy) * N + x + xx] = 1; if (pad) reserve(map, pad, x, y, w, h); ok = true; placed++; }
+        if (f && f.sea) { const g = Data.RULES.gap | 0; for (let yy = -g; yy < h + g; yy++) for (let xx = -g; xx < w + g; xx++) { const ux = x + xx, uy = y + yy; if (ux >= 0 && uy >= 0 && ux < N && uy < N) used[uy * N + ux] = 1; } if (pad) reserve(map, pad, x, y, w, h); ok = true; placed++; }
       }
     }
     return placed;
@@ -6768,6 +6825,24 @@ const Path = (() => {
     }
     return sum;
   }
+  /* koszt dojścia z najbliższego źródła do każdego pola (Dijkstra wielożródłowy, te same koszty co A*); sources: [[x, y], …] w polach; Infinity = nieosiągalne */
+  function field(map, sources, opts = {}) {
+    const N = map.size, T = map.tiles, D = new Float64Array(N * N).fill(Infinity), done = new Uint8Array(N * N);
+    HK.length = 0; HI.length = 0;
+    for (const [sx, sy] of sources) { const i = Math.min(N - 1, Math.max(0, Math.floor(sy))) * N + Math.min(N - 1, Math.max(0, Math.floor(sx))); if (D[i] > 0) { D[i] = 0; push(0, i); } }
+    while (HK.length) {
+      const i = pop(); if (done[i]) continue; done[i] = 1;
+      const x = i % N, y = (i / N) | 0, e0 = T[i].e || 0;
+      for (const [dx, dy, d] of DIRS) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+        const j = ny * N + nx; if (done[j]) continue;
+        const c = tileCost(T[j], opts); if (c === Infinity) continue;
+        if (dx && dy && (tileCost(T[y * N + nx], opts) === Infinity || tileCost(T[ny * N + x], opts) === Infinity)) continue;
+        const nd = D[i] + d * (c + 0.5 * Math.abs((T[j].e || 0) - e0)); if (nd < D[j]) { D[j] = nd; push(nd, j); }
+      }
+    }
+    return D;
+  }
   /* A* + wygładzenie; (sx, sy) i (gx, gy) w polach (ułamki dozwolone). Zwraca [[x, y], …] albo null */
   function find(map, sx, sy, gx, gy, opts = {}) {
     const N = map.size;
@@ -6813,7 +6888,7 @@ const Path = (() => {
     }
     return [(best % N) + 0.5, ((best / N) | 0) + 0.5];
   }
-  return { find, grid, nearest, closest, tileCost, segCost };
+  return { find, grid, field, nearest, closest, tileCost, segCost };
 })();
 
 /* ============================= MODUL: WORLD =============================== */
@@ -6828,7 +6903,7 @@ const World = (() => {
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6 },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false },
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
     sites: [], builders: 3, buildersActive: 0, buildersWorking: 0, carriers: [],
@@ -6850,7 +6925,7 @@ const World = (() => {
     state.treeFrac = 0; state.plantFrac = 0;
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
-    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6 };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false };
     state.depositLeft = null;
     Data.cur.faction = factionId;
     state.sites = []; state.builders = 3;
@@ -6883,7 +6958,7 @@ const World = (() => {
   function occupy(x, y, w, h, uid) {
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(state.map, x + dx, y + dy);
-      if (t) { t.occup = uid; if (t.road) t.road = 0; }                    // budynek lub plac zdejmuje drogę spod obrysu
+      if (t) { t.occup = uid; if (t.road) { t.road = 0; state.map.roadRev = (state.map.roadRev | 0) + 1; } }                    // budynek lub plac zdejmuje drogę spod obrysu
     }
   }
   function release(x, y, w, h, uid) {
@@ -6902,6 +6977,24 @@ const World = (() => {
     return b;
   }
 
+  /* wyrównanie terenu pod obrys (Faza 7): poziom docelowy = najczęstszy wśród pól obrysu (przy remisie niższy), need = suma |e − cel| (pola × poziomy), minutes = need × Data.RULES.level.per */
+  function levelOf(id, x, y) {
+    const [w, h] = fpOf(id), cnt = {}, es = [];
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) { const t = MapGen.at(state.map, x + dx, y + dy); if (t) { es.push(t.e | 0); cnt[t.e | 0] = (cnt[t.e | 0] || 0) + 1; } }
+    let target = es.length ? es[0] : 1, bc = -1; for (const k of Object.keys(cnt).map(Number).sort((a, b) => a - b)) if (cnt[k] > bc) { bc = cnt[k]; target = k; }
+    const need = es.reduce((a, e) => a + Math.abs(e - target), 0);
+    return { need, target, minutes: need * Data.RULES.level.per };
+  }
+  /* ciasna zabudowa: ilu sąsiadów stoi tuż za przerwą (pierścień `ring` pól za GAP) → kara czasu budowy; zwraca { n, pct } */
+  function crowdOf(id, x, y) {
+    const [w, h] = fpOf(id), R = Data.RULES, g = R.gap | 0, a = g + 1, b = g + R.crowd.ring, uids = new Set();
+    for (let dy = -b; dy < h + b; dy++) for (let dx = -b; dx < w + b; dx++) {
+      const inner = dx >= -g + 0 && dx < w + g && dy >= -g && dy < h + g; if (inner) continue;
+      const t = MapGen.at(state.map, x + dx, y + dy); if (t && t.occup != null) uids.add(t.occup);
+    }
+    void a; return { n: uids.size, pct: Math.min(R.crowd.max, uids.size * R.crowd.per) };
+  }
+
   const K_WHY = { bog: 'Bagno — nie da się tu budować', dune: 'Wydma — zbyt sypki grunt', quick: 'Ruchome piaski!', cliff: 'Klif — urwisko', drift: 'Głęboki śnieg' };
   function canPlace(id, x, y) {
     const def = Data.BUILDINGS[id], [w, h] = fpOf(id), map = state.map;
@@ -6913,6 +7006,7 @@ const World = (() => {
       else if (t.h === 0 && (t.wk === 'lake' || t.wk === 'ice')) hasFishWater = true; // Chata rybaka: także jezioro (i lód)
       if (t.trees > 0) hasForest += t.trees;
     }
+    const GAP = Data.RULES.gap | 0;
     let hasDeposit = false, eMin = 9, eMax = 0;
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(map, x + dx, y + dy);
@@ -6925,6 +7019,10 @@ const World = (() => {
     }
     if (eMax - eMin >= 2) return { ok: false, reason: 'Zbyt nierówny teren (różnica wysokości ≥ 2)' };
     if (!Terrain.ringReachable(map, x, y, w, h)) return { ok: false, reason: 'Brak dojścia — teren odcięty wodą lub klifami' };
+    if (GAP > 0) for (let dy = -GAP; dy < h + GAP; dy++) for (let dx = -GAP; dx < w + GAP; dx++) {       // twarda przerwa: żaden inny budynek ani plac w pierścieniu GAP pól
+      if (dx >= 0 && dx < w && dy >= 0 && dy < h) continue;
+      const t = MapGen.at(map, x + dx, y + dy); if (t && t.occup != null) return { ok: false, reason: 'Za blisko innego budynku — zostaw wolne pole (ulicę)' };
+    }
     if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
     if (def.req === 'shore' && !hasFishWater) return { ok: false, reason: 'Wymaga brzegu morza lub jeziora' };
     if (id === 'fisherhut') {
@@ -7072,7 +7170,7 @@ const World = (() => {
   }
 
   function state$() { return state; }
-  return { init, state: state$, build, placeFree, placeBuilding, canPlace, canAfford, costOf,
+  return { init, state: state$, build, placeFree, placeBuilding, canPlace, crowdOf, levelOf, canAfford, costOf,
            tick, spawnCitizen, treeCount, addTree, takeTrees, footprint: fpOf, occupy, release, centerOf };
 })();
 
@@ -7175,7 +7273,7 @@ const Economy = (() => {
       if (!isFoodOut(b.id)) continue;
       const def = Data.BUILDINGS[b.id];
       if (!def.worker || !working(b)) continue;
-      const k = forestMult(s, def, treeTotal);
+      const k = forestMult(s, def, treeTotal) * Logistics.effOf(s, b);
       for (const [g, r] of outsOf(b.id)) if (FOODS.includes(g)) pot += r * k;
     }
     return pot;
@@ -7289,7 +7387,7 @@ const Economy = (() => {
         const k = treeTotal / (outRate('woodcutter') * sc * dt);
         if (k < frac) { frac = k; b.st = { c: 'in', g: 'drzewa' }; }
       }
-      frac *= forestMult(s, def, treeTotal);
+      frac *= forestMult(s, def, treeTotal) * Logistics.effOf(s, b);     // Puszcza i sprawność logistyczna (transport do Składu / Dworu)
       const hungerK = (starving && !isFoodOut(b.id)) ? 0.75 : 1;
       // pełny magazyn wyjścia zatrzymuje budynek BEZ zużywania wejść (spec.)
       for (const [og, rate] of outs) {
@@ -7421,9 +7519,10 @@ const Build = (() => {
     if ((cost.zl || 0) > s.res.złoto - reserve) return { ok: false, reason: 'Brak złota (rezerwa na żołd)!' };
     s.res.złoto -= (cost.zl || 0); // złoto przy otwarciu placu
     const [w, h] = World.footprint(id);
+    const crowd = World.crowdOf(id, x, y).pct, lv = World.levelOf(id, x, y);    // ciasna zabudowa wydłuża budowę (Data.RULES.crowd); pochyły teren wymaga wyrównania (etap 0)
     const site = { id, x, y, w, h, uid: s.nextId++, need: {}, got: {}, work: 0,
-      gold: cost.zl || 0, pieces: piecesOf(cost),
-      workNeed: BASE_WORK + PER_PIECE * piecesOf(cost), assigned: 0 };
+      gold: cost.zl || 0, pieces: piecesOf(cost), crowd, levelTarget: lv.target, levelTotal: lv.minutes, levelLeft: lv.minutes,
+      workNeed: (BASE_WORK + PER_PIECE * piecesOf(cost)) * (1 + crowd), assigned: 0 };
     for (const k in cost) if (MAT[k]) site.need[MAT[k]] = cost[k];
     s.sites.push(site);
     World.occupy(x, y, w, h, site.uid); // rezerwacja kafli pod plac
@@ -7442,6 +7541,14 @@ const Build = (() => {
     World.release(site.x, site.y, site.w, site.h, site.uid);
     s.sites.splice(s.sites.indexOf(site), 1);
   }
+
+  /* koniec wyrównywania: pola obrysu dostają poziom docelowy; Game odświeża chunki podłoża z listy map.dirty */
+  function flatten(site) {
+    const map = World.state().map;
+    for (let dy = 0; dy < site.h; dy++) for (let dx = 0; dx < site.w; dx++) { const t = MapGen.at(map, site.x + dx, site.y + dy); if (t) t.e = site.levelTarget; }
+    (map.dirty = map.dirty || []).push([site.x, site.y, site.w, site.h]);
+  }
+  function levelProgress(site) { return site.levelTotal > 0 ? Math.max(0, Math.min(1, 1 - site.levelLeft / site.levelTotal)) : 1; }
 
   function complete(site) {
     const s = World.state();
@@ -7464,8 +7571,8 @@ const Build = (() => {
     let left = active, working = 0;
     for (const site of [...s.sites]) { // kopia: complete() usuwa plac z s.sites w trakcie pętli
       site.assigned = 0;
-      const missing = site.pieces - deliveredOf(site);
-      if (missing > 0.0001) {
+      const missing = site.pieces - deliveredOf(site), leveling = site.levelLeft > 0;
+      if (missing > 0.0001 && !leveling) {
         // plac bez ani jednej dostępnej sztuki (po rezerwacji wcześniejszych) nie zajmuje budowniczych
         let any = false;
         for (const g in site.need)
@@ -7479,6 +7586,11 @@ const Build = (() => {
       site.assigned = Math.min(cap, left);
       left -= site.assigned;
       working += site.assigned;
+      if (leveling) {                                                         // etap 0: wyrównywanie terenu — budowniczowie kopią, nie noszą i nie budują
+        site.levelLeft -= site.assigned * dt;
+        if (site.levelLeft <= 1e-9) { site.levelLeft = 0; flatten(site); }
+        continue;
+      }
       // etap 1: noszenie — 0,2 min budowniczego na sztukę
       if (missing > 0.0001) {
         for (const g in site.need)
@@ -7511,7 +7623,7 @@ const Build = (() => {
     return carry * 0.5 + work * 0.5;
   }
 
-  return { enqueue, siteAt, cancel, tick, progressOf };
+  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress };
 })();
 
 /* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
@@ -7925,14 +8037,22 @@ const TestBots = (() => {
       }
       return null;
     }
-    const c = Math.floor(size / 2);
+    /* rozsądny gracz: najbliższe miejsca od środka, ale z najmniejszą karą za ciasną zabudowę (Data.RULES.crowd); przeszukuje kilka pierścieni dalej niż pierwsze trafienie */
+    const c = Math.floor(size / 2); let best = null, bestScore = Infinity, firstR = -1;
+    const keepFree = new Set();                                                  // bot zostawia miejsce na kopalnie: 7×7 (3×3 kopalni + przerwa) wokół złóż, na których jeszcze nic nie stoi
+    for (let i = 0; i < size * size; i++) { const t = s.map.tiles[i]; if (!t.deposit || t.occup != null) continue; const x = i % size, y = (i / size) | 0; for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) keepFree.add((y + yy) * size + x + xx); }
     for (let r = 1; r < size; r++) {
+      if (firstR >= 0 && r > firstR + 5) break;
       for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        if (World.canPlace(id, c + dx, c + dy).ok) return { x: c + dx, y: c + dy };
+        let blocked = false; for (let yy = 0; yy < h && !blocked; yy++) for (let xx = 0; xx < w; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
+        if (blocked || !World.canPlace(id, c + dx, c + dy).ok) continue;
+        if (firstR < 0) firstR = r;
+        const score = World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
+        if (score < bestScore) { bestScore = score; best = { x: c + dx, y: c + dy }; }
       }
     }
-    return null;
+    return best;
   }
 
   function tryBuild(s, id) {
@@ -8092,7 +8212,8 @@ const Advisor = (() => {
       return mk('food', 'warn', 'Stoi: jedzenie tylko z nadwyżki (zapas poniżej 5 min zużycia ludności)');
     if (st && st.c === 'depleted') return mk('depleted', 'warn', 'Złoże wyczerpane — budynek stoi');
     const eff = b.eff != null ? Math.round(b.eff * 100) : 100;
-    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności');
+    const lg = s.settings.logistics && b.logi && b.logi.eff < 0.995 ? ' · transport do Składu ' + (Number.isFinite(b.logi.dist) ? '≈ ' + Math.round(b.logi.dist) + ' pól drogi' : 'niemożliwy') + ' (−' + Math.round((1 - b.logi.eff) * 100) + '%): zbliż budynki lub połóż drogę' : '';
+    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności' + lg);
   }
   function codeOf(b) { // szybki kod statusu (bez tekstu) — używany co klatkę przy rysowaniu znaczników
     const s = World.state(), def = Data.BUILDINGS[b.id];
@@ -8268,11 +8389,44 @@ const Roads = (() => {
   }
   function lay(x0, y0, x1, y1) {
     const p = preview(x0, y0, x1, y1); if (!p.ok) return p;
-    const s = World.state(); s.res.deski -= p.cost; for (const i of p.fresh) s.map.tiles[i].road = 1; s.map.hasRoad = true;
+    const s = World.state(); s.res.deski -= p.cost; for (const i of p.fresh) s.map.tiles[i].road = 1; s.map.hasRoad = true; s.map.roadRev = (s.map.roadRev | 0) + 1;
     return { ok: true, n: p.fresh.length, cost: p.cost };
   }
-  function remove(x, y) { const t = MapGen.at(World.state().map, x, y); if (!t || !t.road) return false; t.road = 0; return true; }
+  function remove(x, y) { const m = World.state().map, t = MapGen.at(m, x, y); if (!t || !t.road) return false; t.road = 0; m.roadRev = (m.roadRev | 0) + 1; return true; }
   return { COST, free, usable, route, preview, lay, remove };
+})();
+
+/* =============================== MODUL: LOGISTICS ===============================
+   Sprawność logistyczna producenta: plon (przerób) × eff, gdzie eff zależy od odległości drogi nosiciela od drzwi budynku do drzwi najbliższego Składu lub Dworu
+   (Path po polach z kosztami terenu — drogi skracają ją, budynki, bagna i woda wydłużają). Do `free` pól brak kary, potem eff spada liniowo do `min` na przestrzeni `span` pól.
+   Włączane ustawieniem state.settings.logistics (domyślnie wył. — scenariusze specyfikacji liczą się bez niej; w grze włącza ją UI). Nie dotyka RNG. */
+const Logistics = (() => {
+  let memo = null;
+  const isProducer = b => { const def = Data.BUILDINGS[b.id], out = def && def.out ? Object.keys(def.out)[0] : null; return b.id !== 'keep' && !!out && out in Economy.LIMIT; };
+  const tileOf = (map, p) => Math.min(map.size - 1, Math.max(0, Math.floor(p[1]))) * map.size + Math.min(map.size - 1, Math.max(0, Math.floor(p[0])));
+  const sigOf = s => s.buildings.length + '|' + s.sites.length + '|' + (s.map.roadRev | 0) + '|' + s.buildings.reduce((a, b) => (a + b.uid) | 0, 0) + '|' + s.time.toFixed(0) % 1;   // przebudowa układu odświeża obliczenia
+  function compute(s) {
+    const R = Data.RULES.logistics, map = s.map, eff = new Map(), opts = { blocked: t => t.occup != null };
+    const dest = s.buildings.filter(b => b.id === 'store' || b.id === 'keep').map(b => Walkers.doorOf(b));
+    const field = dest.length ? Path.field(map, dest, opts) : null;
+    for (const b of s.buildings) {
+      if (!isProducer(b)) continue;
+      const door = Walkers.doorOf(b), dist = field ? field[tileOf(map, door)] : Infinity;
+      const e = Number.isFinite(dist) ? 1 - (1 - R.min) * Math.max(0, Math.min(1, (dist - R.free) / R.span)) : R.min;
+      eff.set(b.uid, { eff: e, dist });
+    }
+    return eff;
+  }
+  /* sprawność budynku b (1 = bez kary); zapisuje b.logi = { eff, dist } dla interfejsu */
+  function effOf(s, b) {
+    if (!s.settings.logistics) { if (b.logi) b.logi = null; return 1; }
+    if (!isProducer(b)) return 1;
+    const sig = sigOf(s);
+    if (!memo || memo.sig !== sig || memo.map !== s.map) memo = { sig, map: s.map, eff: compute(s) };
+    const r = memo.eff.get(b.uid); b.logi = r || null;
+    return r ? r.eff : 1;
+  }
+  return { effOf, compute, isProducer };
 })();
 
 /* ============================ MODUL: BUILDMODE ============================= */
@@ -8343,6 +8497,26 @@ const BuildMode = (() => {
     // tryb budowy zostaje włączony (budowa serii), ESC anuluje
   }
 
+  /* strefy wokół budynków i placów w trybie budowy: czerwona — zakaz (przerwa), bursztynowa — dłuższa budowa (Data.RULES); gracz widzi skutki, zanim wybierze miejsce */
+  function zonesDraw(ctx, s) {
+    const R = Data.RULES, g = R.gap | 0, far = g + R.crowd.ring, N = s.map.size, W = canvas.width / dpr, H = canvas.height / dpr, lv = new Map();
+    for (const b of s.buildings.concat(s.sites)) {
+      for (let ty = b.y - far; ty < b.y + b.h + far; ty++) for (let tx = b.x - far; tx < b.x + b.w + far; tx++) {
+        if (tx < 0 || ty < 0 || tx >= N || ty >= N) continue;
+        const dx = Math.max(b.x - tx, 0, tx - (b.x + b.w - 1)), dy = Math.max(b.y - ty, 0, ty - (b.y + b.h - 1)), d = Math.max(dx, dy);
+        if (d === 0 || d > far) continue;
+        const i = ty * N + tx, l = d <= g ? 1 : 2; if (!lv.has(i) || lv.get(i) > l) lv.set(i, l);
+      }
+    }
+    const hw = 32 * Camera.zoom, hh = 16 * Camera.zoom, red = new Path2D(), amb = new Path2D();
+    for (const [i, l] of lv) {
+      const tx = i % N, ty = (i / N) | 0, c = Camera.worldToScreen(tx + 0.5, ty + 0.5);
+      if (c.x < -hw || c.x > W + hw || c.y < -hh || c.y > H + hh) continue;
+      const P = l === 1 ? red : amb; P.moveTo(c.x, c.y - hh); P.lineTo(c.x + hw, c.y); P.lineTo(c.x, c.y + hh); P.lineTo(c.x - hw, c.y); P.closePath();
+    }
+    ctx.fillStyle = 'rgba(230,60,60,0.30)'; ctx.fill(red); ctx.fillStyle = 'rgba(245,175,50,0.22)'; ctx.fill(amb);
+  }
+
   function draw(ctx) {
     const s = World.state(), z = Camera.zoom;
     if (isTool()) { toolDraw(ctx); return; }
@@ -8351,12 +8525,18 @@ const BuildMode = (() => {
       if (b) Camera.fillPoly(ctx, Camera.footprint(b.x, b.y, b.w, b.h), 'rgba(255,230,140,0.10)', 'rgba(255,230,140,0.8)', Math.max(1.5, 2 * z));
       return;
     }
+    zonesDraw(ctx, s);
     const [w, h] = World.footprint(selected), o = origin(selected);
     const check = World.canPlace(selected, o.x, o.y);
     // przy kolejce budowy wystarczy złoto na otwarcie placu (materiały wnosi budowniczy)
     const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto, ok = check.ok && affordable;
     Camera.fillPoly(ctx, Camera.footprint(o.x, o.y, w, h), ok ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)',
       ok ? 'rgba(170,255,170,0.9)' : 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z));
+    const crowd = check.ok ? World.crowdOf(selected, o.x, o.y) : null, lvl = check.ok ? World.levelOf(selected, o.x, o.y) : null, parts = [];
+    if (crowd && crowd.n) parts.push('+' + Math.round(crowd.pct * 100) + '% czasu budowy (ciasna zabudowa)');
+    if (lvl && lvl.need) parts.push('+' + lvl.minutes.toFixed(1).replace('.', ',') + ' min wyrównania terenu');
+    const note = !check.ok ? check.reason : parts.join(' · ');
+    if (note) { const q = Camera.worldToScreen(o.x + w / 2, o.y + h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = check.ok ? '#ffd890' : '#ffb0a0'; ctx.strokeText(note, q.x, q.y + 34 * z); ctx.fillText(note, q.x, q.y + 34 * z); ctx.textAlign = 'start'; }
     const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, selected) : null;
     ctx.globalAlpha = 0.65; // duch budynku
     if (spr) {
@@ -8550,6 +8730,11 @@ const UI = (() => {
     const updC = () => { btnC.textContent = crisisOn ? '🔥 Kryzysy: harmonogram' : '🔥 Kryzysy: wył.'; };
     btnC.onclick = () => { crisisOn = !crisisOn; UI.flashHint(Events.setCrisis(crisisOn)); updC(); };
     updC();
+    // sprawność logistyczna: w grze domyślnie włączona (?logistics=0 wyłącza); scenariusze specyfikacji liczą się bez niej
+    s.settings.logistics = new URLSearchParams(location.search).get('logistics') !== '0';
+    const btnL = document.getElementById('btnLogi'), updL = () => { btnL.textContent = '🚚 Logistyka: ' + (s.settings.logistics ? 'wł.' : 'wył.'); };
+    btnL.onclick = () => { s.settings.logistics = !s.settings.logistics; updL(); UI.flashHint(s.settings.logistics ? 'Logistyka włączona: odległość do Składu / Dworu zmniejsza plon (drogi pomagają)' : 'Logistyka wyłączona'); };
+    updL();
     upd();
     document.getElementById('resPanel').style.display = 'block';
     syncHudHeight();
@@ -8611,6 +8796,7 @@ const UI = (() => {
         BuildMode.select(id);
         document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
         item.classList.add('selected');
+        UI.flashHint('Czerwone pola: zakaz budowy · bursztynowe: budowa dłuższa (+10% za każdy sąsiedni budynek, maks. +40%)');
       };
       item.onmouseenter = () => showTooltip(id, def, c, item);
       item.onmouseleave = hideTooltip;
@@ -8647,6 +8833,7 @@ const UI = (() => {
     if (def.inp) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
     if (def.out) html += '<div><b>' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</b></div>';
     if (def.forest) html += '<div class="sub">Puszcza: plon × min(1, drzewa/' + Data.FOREST_REF[World.state().factionId] + ')</div>';
+    html += '<div class="sub">' + Data.RULES_NOTE + '</div>';
     if (def.note) html += '<em>' + def.note + '</em>';
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
@@ -8917,7 +9104,7 @@ const Walkers = (() => {
         continue;
       }
       evacCheck(a, map); if (a.evac) { advance(a, a.speed * dt, map); continue; }
-      const carrying = Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
+      const carrying = !(site.levelLeft > 0) && Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
       if (carrying) {
         if (a.mode === 'start' || a.mode === 'work' || a.mode === 'goWork') { a.mode = 'toSite'; a.carry = true; plan(a, wp[0], wp[1], map); }
         if (advance(a, a.speed * dt, map)) {
@@ -9133,6 +9320,10 @@ const Game = (() => {
     // 1. teren: w trybie sprite'ów chunki podłoża (z placami i cieniami obiektów statycznych), w klasycznym kafle; drzewa, złoża i dekory jako obiekty posortowane
     const ground = sprOn && gnd && gnd.map === s.map ? gnd : null, climate = climateOf(s);
     if (sprOn && gnd && gnd.map !== s.map && !gndBusy) { gndBusy = true; initGround().catch(e => console.error('Wypiek terenu nie powiódł się', e)).then(() => { gndBusy = false; }); }   // nowa mapa (World.init / restore)
+    if (ground && s.map.dirty && s.map.dirty.length) {                                   // wyrównany teren: chunki podłoża piekną się od nowa
+      let x0 = 99, y0 = 99, x1 = -1, y1 = -1; for (const [x, y, w, h] of s.map.dirty) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + w); y1 = Math.max(y1, y + h); }
+      s.map.dirty.length = 0; ground.invalidate(x0 - 2, y0 - 2, x1 + 2, y1 + 2);
+    }
     const og = Camera.worldToScreen(0, 0), dec = ground ? decorOf(s.map, climate) : null;
     if (ground) { ground.draw(ctx, og.x, og.y, K, dpr, W, H); ground.drawFx(ctx, t, og.x, og.y, K, W, H); }
     let tx0 = 0, ty0 = 0, tx1 = size - 1, ty1 = size - 1;     // widoczny zakres pól (sprite'y sięgają w górę ekranu — obiekty tuż pod dolną krawędzią też bywają widoczne)
@@ -9295,7 +9486,8 @@ const Game = (() => {
     // pasek postępu
     const w = Math.max(24, (st.w + st.h) * 7) * z, by = it.sy - Math.min(sp.ay * K * 0.7, 120 * z) - hS * 0.2;
     ctx.fillStyle = '#241c12'; ctx.fillRect(it.sx - w / 2, by, w, 4 * z);
-    ctx.fillStyle = '#c8a04e'; ctx.fillRect(it.sx - w / 2 + 0.5 * z, by + 0.5 * z, Math.max(0, (w - z) * p), 3 * z);
+    const lvOn = st.levelLeft > 0;                                                       // etap 0: wyrównywanie terenu (brązowy pasek), potem noszenie i budowa (złoty)
+    ctx.fillStyle = lvOn ? '#a87a48' : '#c8a04e'; ctx.fillRect(it.sx - w / 2 + 0.5 * z, by + 0.5 * z, Math.max(0, (w - z) * (lvOn ? Build.levelProgress(st) : p)), 3 * z);
   }
 
   function drawTile(x, y, scr, tile, objects) {

@@ -11,7 +11,8 @@ const tiles = (x, y, w, h) => { const o = []; for (let dy = 0; dy < h; dy++) for
 /* wolny obrys wg reguł gry: ląd bez drzew, złóż, zajętości i cech blokujących; różnica wysokości < 2; styka się z obszarem osiągalnym z Dworu */
 const freeFp = (s, x, y, w, h) => tiles(x, y, w, h).every(([tx, ty]) => { const t = MapGen.at(s.map, tx, ty); return t && t.h === 1 && !t.occup && !t.trees && !t.deposit && !(t.k && Terrain.BLOCK_K[t.k]); })
   && (() => { const es = tiles(x, y, w, h).map(([tx, ty]) => MapGen.at(s.map, tx, ty).e); return Math.max(...es) - Math.min(...es) < 2; })()
-  && Terrain.ringReachable(s.map, x, y, w, h);
+  && Terrain.ringReachable(s.map, x, y, w, h)
+  && tiles(x - Data.RULES.gap, y - Data.RULES.gap, w + 2 * Data.RULES.gap, h + 2 * Data.RULES.gap).every(([tx, ty]) => { const t = MapGen.at(s.map, tx, ty); return !t || t.occup == null; });   // twarda przerwa (Data.RULES.gap) wokół obrysu
 const occ = (s, x, y) => { const t = MapGen.at(s.map, x, y); return t ? t.occup : undefined; };
 
 for (const fid of FACTIONS) {
