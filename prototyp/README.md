@@ -89,7 +89,7 @@ z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna 
   **Zestaw rekwizytów** (`src/27_kit.js`): tartaczne, górnicze, rolnicze, targowe, wojskowe; **domy** (`src/28_house.js`): wspólny szkielet z dachem, kominem i piętrem.
 - **Ślady życia** (`src/25_wear.js`): ziarno, plamy, zacieki, pęknięcia, łaty napraw, mech, odpadający tynk, brakujące dachówki — deterministyczne.
 - **Teren w prototypie:** kafle 512×512 px logicznych wypiekane na żądanie; cienie i place nieruchomych obiektów wypiekane razem z terenem. W grze tę rolę pełni moduł `Ground` (niżej).
-- **Ludzie:** ~70 px wysokości przy zoomie domyślnym, widok z przodu i z tyłu, 2 klatki chodu, strój zależny od nacji i roli.
+- **Ludzie:** ~70 px wysokości przy zoomie domyślnym, widok z przodu i z tyłu, 2 klatki chodu, strój zależny od nacji i roli; **myśliwi z łukiem i kołczanem** (`frankHunter`, `sarHunter`, `vikHunter`, `slavHunter`) — rekwizyty `bow` i `quiver` w `bakeFigure`.
 - **Zwierzęta (`src/43_fauna.js`):** 18 rodzajów rysowanych kodem (surowy canvas jak drzewa i postacie), profil w prawo — gra odbija go lustrzanie wg kierunku marszu; cień symetryczny.
   Trzy konstruktory ciała: czworonóg (sarna, królik, zając polarny, królik pustynny, lis, lis polarny, dzik, renifer, łoś, gazela, wielbłąd), ptak (bocian, żuraw, wrona, mewa, sęp — stojący + 3 klatki lotu)
   i niski korpus (foka, jaszczurka). `bakeFauna(rodzaj)` → `{ walk[4|2], idle[1], dead[1] (czworonogi), fly[3] (ptaki) }`; `faunaKinds(klimat)` — zestaw wypiekany z przyrodą klimatu

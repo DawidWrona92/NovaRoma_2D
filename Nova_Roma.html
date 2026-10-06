@@ -10102,7 +10102,7 @@ const Game = (() => {
         const p = Camera.worldToScreen(h.x, h.y), dx = h.tx - h.x, dy = h.ty - h.y, sdx = dx - dy, sdy = dx + dy;
         push({ d: h.x + h.y, kind: 'f', fig: { moving: h.moving, phase: h.id * 0.7 }, cast: hcast, view: sdy < -0.001 ? 'back' : 'front', mirror: sdx < -0.001, carry: false, prey: h.carry ? h.prey : null, sx: p.x, sy: p.y, k: K, x: h.x, y: h.y,
           bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
-        if (h.arrow) { const mx = (h.arrow.x0 + h.arrow.x1) / 2, my = (h.arrow.y0 + h.arrow.y1) / 2; push({ d: mx + my + 0.6, kind: 'r', ar: h.arrow, k: K, sx: p.x, sy: p.y, x: mx, y: my, bb: [p.x - 400 * K, p.y - 200 * K, p.x + 400 * K, p.y + 100 * K] }); }
+        if (h.arrow) fliers.push({ kind: 'r', ar: h.arrow, k: K });                    // strzała leci nad sceną — rysowana razem z ptakami w locie
       }
     }
 
@@ -10112,9 +10112,9 @@ const Game = (() => {
       for (const it of list) {
         if (it.kind === 'f') Sprites.draw(ctx, it.cast.front[0], 'u', it.sx, it.sy, it.k, dpr);
         else if (it.kind === 'a') Sprites.draw(ctx, it.pose === 'dead' ? it.fs.dead[0] : it.fs.walk[0], 'u', it.sx, it.sy, it.k, dpr);
-        else if (!ground && it.spr && it.kind !== 's' && it.kind !== 'r') Sprites.draw(ctx, it.spr, 'u', it.sx, it.sy, it.k, dpr);
+        else if (!ground && it.spr && it.kind !== 's') Sprites.draw(ctx, it.spr, 'u', it.sx, it.sy, it.k, dpr);
       }
-      for (const it of fliers) Sprites.draw(ctx, it.fs.fly[0], 'u', it.sx, it.sy, it.k, dpr);
+      for (const it of fliers) if (it.kind === 'a') Sprites.draw(ctx, it.fs.fly[0], 'u', it.sx, it.sy, it.k, dpr);
     }
 
     // 5. obiekty w kolejności głębi
@@ -10130,10 +10130,9 @@ const Game = (() => {
       else if (it.kind === 's') drawSite(it, t, f);
       else if (it.kind === 'f') drawFigure(it, t);
       else if (it.kind === 'a') drawAnimal(it, t);
-      else if (it.kind === 'r') drawArrow(it);
       else Gfx.drawCitizen(ctx, it.fig, it.sx, it.sy, z, fid, f.palette, t);
     }
-    for (const it of fliers) drawAnimal(it, t);
+    for (const it of fliers) { if (it.kind === 'r') drawArrow(it); else drawAnimal(it, t); }
 
     // 6. dym z kominów i otworów dymnych: tylko widoczne, pracujące (obsadzone) budynki
     if (sprOn) {

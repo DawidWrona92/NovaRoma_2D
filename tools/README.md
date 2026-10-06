@@ -21,6 +21,7 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/spacing.js [plik]` | Zasady zabudowy (Data.RULES): przerwa 1 pola, strefy kary 2–3 pola, boty układają całą recepturę mimo przerwy. |
 | `node tools/leveling.js [plik]` | Wyrównywanie terenu: `levelOf`, etap 0 placu, czas budowy na stoku, zakaz rozpiętości ≥ 2, boty wybierają płaskie miejsca, obszar startowy bez stoków, wzgórza decyzyjne. |
 | `node tools/logistics.js [plik]` | Sprawność logistyczna: blisko Składu bez kary, daleko spadek ≥ 70%, drogi i Skład poprawiają, ekonomia produkuje mniej przy słabej logistyce, brak RNG. |
+| `node tools/fauna.js [plik]` | Fauna (Faza 8): zaludnienie 12 map wg klimatu, pozycje zwierząt na polach przechodnich i wolnych przez 120 min gry z botem, zero wywołań globalnego `RNG`, determinizm, snapshot → restore, parytet logiki z fauną i bez, wyprawy myśliwego (fazy, strzała), przetrzebienie przy wielu Chatach i odrodzenie, parytet ekonomii botów (`TestBots.runSync({ fauna: true })`), koszt ticku. |
 | `node tools/footprints.js [plik]` | Obrysy budynków (w×h): zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, `canPlace` z pierścieniem sąsiedztwa, złoża pod kopalnią, place budowy (`siteAt`, `cancel`), wyburzenie, Dwór 4×4, miejsca dla botów. |
 
 ## Testy w przeglądarce (Playwright)
@@ -32,11 +33,12 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/browser_contact.js nacja [id,id…] [skala] [kolumny]` | Kontaktówka sprite'ów budynków nacji z obrysem i podpisem (`CLASSIC=1` — dawne procedury `Gfx.ART`). |
 | `node tools/browser_sprites.js [jakość 1\|2] [nacje]` | Wypiek sprite'ów każdej nacji (`Sprites.bake`): wszystkie budynki, obrysy = katalog, niepuste warstwy, czas, brak błędów JS. |
 | `node tools/browser_terrain.js [nacja] [--fps] [--sheet=plik.png] [--shots=katalog]` | Każda kombinacja klimat × typ mapy startuje przez `?play=…&climate=…&map=…&seed=…`: brak błędów JS, wypieczone chunki podłoża, niepusty obraz, FPS (`--fps`), arkusz kontaktowy 4 klimaty × 6 typów (`--sheet`). |
+| `node tools/browser_fauna.js [--shots=katalog] [--fps]` | Fauna w przeglądarce (4 klimaty × nacje): zaludnienie i sprite'y, myśliwy przechodzi przez fazy wyprawy, strzała w locie, upolowania, brak błędów JS, FPS z fauną vs bez (`--fps`), zrzuty (`--shots`). |
 | `node tools/browser_mobile.js` | Widok telefonu (dotyk): wybór nacji, HUD, Doradca. |
 
-Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów), `?play=nacja&climate=temperate|eastern|snow|desert&map=coast|plain|river|lakes|mountains|wetlands&seed=N` (start bez menu — ta sama ścieżka co przyszła Piaskownica).
+Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów), `?fauna=0` / `?logistics=0` (wyłączają faunę / logistykę), `?play=nacja&climate=temperate|eastern|snow|desert&map=coast|plain|river|lakes|mountains|wetlands&seed=N` (start bez menu — ta sama ścieżka co przyszła Piaskownica).
 
 ## Parametry scenariusza (stan `World.state().settings`)
 
-`raids` (napady na karawanę), `voyageGuard` (reguła 90% robotników Wikingów), `shoreSpots` (miejsca pod Chaty rybaka),
+`raids` (napady na karawanę), `voyageGuard` (reguła 90% robotników Wikingów), `shoreSpots` (miejsca pod Chaty rybaka), `logistics` (sprawność logistyczna; w grze włączana, `?logistics=0` wyłącza), `fauna` (zwierzęta i plon myśliwego zależny od zwierzyny; w grze włączana przez `Fauna.enable`, `?fauna=0` wyłącza; testy spec mają `false`),
 `depositLeft` (opcjonalne skończone złoża, np. `{ clay: 60 }`). Liczby złóż i drzew: `Data.FACTIONS[nacja].deposits / treesTarget`.
