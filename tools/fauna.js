@@ -72,8 +72,8 @@ console.log(`zaludnienie: ${SETS.length} map, pula zwierzyny ≥ ${minPrey.toFix
     const s = sim(fid, cl, ty, seed, 120, { fauna: true, hunters: 2, probe: (s, i) => {
       if (i % 5) return; samples++;
       for (const a of s.animals) {
-        if (a.fl || a.m === Fauna.DEAD || a.m === Fauna.HIDE) continue;                  // ptaki w locie, padlina i nurkujące foki nie są rysowane na polu
-        const t = tileAt(s.map, a.x, a.y), viol = !(t && t.h === 1 && Terrain.passable(t) && t.occup == null), run = viol ? (streak.get(a.id) || 0) + 1 : 0; streak.set(a.id, run);
+        if (a.fl || a.m === Fauna.DEAD || a.m === Fauna.HIDE) continue;                  // ptaki w locie, padlina i nurkujące foki nie są rysowane na polu; lód jest przechodni (mewa lub lis stoją na zamarzniętym morzu)
+        const t = tileAt(s.map, a.x, a.y), viol = !(t && (t.h === 1 || t.wk === 'ice') && Terrain.passable(t) && t.occup == null), run = viol ? (streak.get(a.id) || 0) + 1 : 0; streak.set(a.id, run);
         if (run > 12) bad++;                                         // plac postawiony pod zwierzęciem: chwilowe, do ~3 min symulacji próbkowanych co 0,25 min
         worst = Math.max(worst, run);
       }

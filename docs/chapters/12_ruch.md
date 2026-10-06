@@ -26,13 +26,15 @@ Test `tools/path.js` porównuje A\* z niezależnym Dijkstrą (optymalność), sp
 - **Nosiciele** wychodzą z drzwi producenta i kończą marsz przy drzwiach najbliższego Składu lub Dworu (cel wybiera logika).
 - **Myśliwi** nie są częścią `Walkers`: ich pozycja to czysta funkcja czasu gry (rozdz. {{ref:fauna}}).
 
-Tabela: Prędkości widocznych postaci dziś (pola na minutę gry)
+Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w Fazie 9B-0)
 | Postać | Prędkość | Uwaga |
 |---|---|---|
-| Obywatel (cień) | 0,25 | spacer wokół budynków, cele losuje logika |
-| Nosiciel (cień) | 0,35 | od drzwi producenta do drzwi Składu / Dworu; kosmetyczny (max 12 naraz) |
-| Budowniczy | 1,4 | Dwór → plac; noszenie i budowa |
-| Myśliwy | 2,2 (powrót z łupem × 0,9) | pozycja jako funkcja czasu (`Data.FAUNA_RULES.hunterSpeed`) |
+| Obywatel (cień) | {{v:Data.RULES.clock.secPerMin / 4 * 0.25}} (0,25 × {{v:Data.RULES.clock.secPerMin / 4}}) | spacer wokół budynków, cele losuje logika; przeskalowana, by na ekranie szedł tak jak przy dawnym tempie |
+| Nosiciel (cień) | {{v:Data.RULES.walk.carrier}} | od drzwi producenta do drzwi Składu / Dworu; kosmetyczny (max 12 naraz) |
+| Budowniczy | {{v:Data.RULES.walk.builder}} | Dwór → plac; noszenie i budowa |
+| Myśliwy | {{v:Data.FAUNA_RULES.hunterSpeed}} (powrót z łupem × 0,9) | pozycja jako funkcja czasu (`Data.FAUNA_RULES.hunterSpeed`) |
+
+**Tempo gry.** Minuta gry trwa przy prędkości ×1 **{{v:Data.RULES.clock.secPerMin}} s** (`Data.RULES.clock.secPerMin`; dawniej 4 s), a przyciski prędkości przełączają ×{{v:Data.RULES.clock.speeds.join(' → ×')}}. Prędkość ×3 odpowiada dawnemu ×1, więc dotychczasowe wyniki i terminy haraczu nie zmieniają się — zmienia się wyłącznie liczba sekund na minutę. Parametr adresu `?tempo=N` ustawia własną liczbę sekund (testy przeglądarkowe nie muszą go używać). Prędkość marszu postaci 18 pól/min przy 12 s/min to 1,5 pola/s; zob. aneks {{ref:e-tempo}}.
 
 > [!uwaga] Te prędkości są **kosmetyczne i niespójne z czasem logiki**: logika zakłada, że budowniczy nosi sztukę materiału w 0,2 min niezależnie od odległości, a producent „odkłada” towar w Składzie bez czasu; widoczny budowniczy idzie do placu kilka minut gry. To jedyny powód, dla którego ludzie dziś tylko *wyglądają*, jakby pracowali — dlatego powstała Faza 9B (aneks {{ref:aneks-fizyka}}).
 

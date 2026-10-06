@@ -74,8 +74,12 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     ok((await page.locator('#advisor').innerText()).includes('Ostrzeżenia'), 'panel Doradcy się otwiera');
     await page.click('#advClose');
     ok(await page.locator('#advisor').isHidden(), 'panel Doradcy się zamyka');
+    // 6b) prędkości gry ×1 → ×2 → ×3 → ×6 → ×1 (Data.RULES.clock) i etykieta przycisku; tempo bazowe 12 s na minutę gry
+    const cyc = [await page.evaluate(() => World.state().speed)]; for (let k = 0; k < 4; k++) { await page.click('#btnSpeed'); cyc.push(await page.evaluate(() => World.state().speed)); }
+    ok(JSON.stringify(cyc) === '[2,3,6,1,2]' && (await page.textContent('#btnSpeed')) === 'Prędkość: ×2', 'przycisk prędkości przełącza ×1 → ×2 → ×3 → ×6 (' + JSON.stringify(cyc) + ')');
+    ok(await page.evaluate(() => Data.RULES.clock.secPerMin) === 12, 'tempo bazowe: 12 s na minutę gry');
     // 7) kilka sekund żywej pętli gry bez błędów
-    await page.evaluate(() => { World.state().speed = 4; });
+    await page.evaluate(() => { World.state().speed = 6; });
     await page.waitForTimeout(2500);
     ok(await page.evaluate(() => World.state().time) > 0.5, 'pętla gry biegnie (czas ' + (await page.evaluate(() => World.state().time)).toFixed(1) + ' min)');
     ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.join(' | ') : ''));

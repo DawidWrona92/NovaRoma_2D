@@ -5228,7 +5228,7 @@ const Data = (() => {
   /* zasady: radius — promień łowiska Chaty myśliwego (pola), ref — punkty zwierzyny w łowisku dające pełny plon (gameMult = min(1, Σw / ref)), meat — mięsa z osobnika o wadze 1,
      hunterSpeed — prędkość myśliwego (pola/min), bow — zasięg łuku (pola), aim / arrow / pick — czasy celowania, lotu strzały i podniesienia zwierzyny (min gry),
      minMeat — ile mięsa trzeba zebrać, by myśliwy wyruszył, owed — nadwyżka mięsa, powyżej której kolejne upolowania rozstrzygane są bez wyprawy, carcass — jak długo leży padlina (min) */
-  const FAUNA_RULES = { radius: 16, ref: 5, meat: 4, hunterSpeed: 2.2, bow: 4.5, aim: 0.3, arrow: 0.08, pick: 0.2, minMeat: 1.0, owed: 6, carcass: 3 };
+  const FAUNA_RULES = { radius: 16, ref: 5, meat: 4, hunterSpeed: 6.6, bow: 4.5, aim: 0.3, arrow: 0.08, pick: 0.2, minMeat: 1.0, owed: 6, carcass: 3 };
 
   /* Danina koszykowa Słowian: wartość towaru w osobominutach i jego udział w żądaniu. */
   const DANINA = {
@@ -5299,7 +5299,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 } };   // level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { builder: 18, carrier: 18 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (18 ≈ 1,5 pola/s przy 12 s/min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -10055,15 +10055,15 @@ const Walkers = (() => {
     if (a.gx !== c.tx || a.gy !== c.ty) {                                     // cień wybrał nowy cel: przesuwamy go na najbliższe wolne, przechodnie pole
       a.gx = c.tx; a.gy = c.ty; const g = Path.nearest(map, c.tx, c.ty, OPTS, 6) || [a.x, a.y]; plan(a, g[0], g[1], map);
     }
-    advance(a, c.speed * dt, map);
+    advance(a, a.speed * dt, map);
   }
   function makeCitizen(c, map) {
-    const p = Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y], a = agent('citizen', p[0], p[1], c.speed, c.color, c.phase); a.gx = NaN; return a;
+    const p = Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y], a = agent('citizen', p[0], p[1], c.speed * Data.RULES.clock.secPerMin / 4, c.color, c.phase); a.gx = NaN; return a;
   }
   function makeCarrier(c, s, map) {
     let from = null, bd = 1.3, to = null;
     for (const b of s.buildings) { const k = World.centerOf(b), d = Math.hypot(k.x - c.x, k.y - c.y); if (d < bd) { bd = d; from = b; } if (Math.abs(k.x - c.tx) < 0.01 && Math.abs(k.y - c.ty) < 0.01) to = b; }
-    const a = agent('carrier', c.x, c.y, c.speed, c.color, c.phase); a.carry = true;
+    const a = agent('carrier', c.x, c.y, Data.RULES.walk.carrier, c.color, c.phase); a.carry = true;
     const st = from ? doorOf(from) : (Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y]); a.x = st[0]; a.y = st[1]; a.tx = a.x; a.ty = a.y;
     const g = to ? doorOf(to) : (Path.nearest(map, c.tx, c.ty, OPTS, 6) || [a.x, a.y]);
     a.strict = true;                                                           // bez trasy do drzwi celu nosiciel nie wychodzi (logika i tak dostarczyła towar)
@@ -10080,7 +10080,7 @@ const Walkers = (() => {
     const door = doorOf(s.keep), live = new Set(), color = Data.FACTIONS[s.factionId].palette.citizen, bySite = new Map(s.sites.map(st => [st.uid, st]));
     for (const site of s.sites) for (let i = 0; i < site.assigned; i++) {
       const key = site.uid + ':' + i; live.add(key);
-      if (!builders.has(key)) { const a = agent('builder', door[0], door[1], 1.4, color, (site.uid * 0.37 + i * 1.7) % 6.28); a.site = site.uid; a.i = i; a.mode = 'start'; builders.set(key, a); }
+      if (!builders.has(key)) { const a = agent('builder', door[0], door[1], Data.RULES.walk.builder, color, (site.uid * 0.37 + i * 1.7) % 6.28); a.site = site.uid; a.i = i; a.mode = 'start'; builders.set(key, a); }
     }
     for (const [key, a] of builders) {
       const site = bySite.get(a.site);
@@ -10133,6 +10133,7 @@ const Game = (() => {
   const ctx = canvas.getContext('2d');
   let running = false, lastFrame = 0, lastHudTick = -1;
   let keys = {};
+  const secPerMin = (() => { const q = typeof location !== 'undefined' ? +new URLSearchParams(location.search).get('tempo') : 0; return q >= 0.5 && q <= 120 ? q : Data.RULES.clock.secPerMin; })();   // ?tempo=N — sekundy na minutę gry (testy: ?tempo=4 odtwarza dawne tempo)
 
   function fit() {
     dpr = window.devicePixelRatio || 1;
@@ -10166,9 +10167,9 @@ const Game = (() => {
     if (keys['s'] || keys['arrowdown']) Camera.y -= pan;
     if (keys['a'] || keys['arrowleft']) Camera.x += pan;
     if (keys['d'] || keys['arrowright']) Camera.x -= pan;
-    // zegar gry: 4 s realnych = 1 min gry
+    // zegar gry: Data.RULES.clock.secPerMin s realnych = 1 min gry przy prędkości ×1 (bazowo 12; ?tempo=N zmienia)
     const s = World.state();
-    const gameDt = realDt / 4 * s.speed;
+    const gameDt = realDt / secPerMin * s.speed;
     if (s.factionId) {
       World.tick(gameDt);
       Walkers.update(gameDt);
@@ -10667,7 +10668,8 @@ const Game = (() => {
 
   document.getElementById('btnSpeed').onclick = () => {
     const s = World.state();
-    s.speed = s.speed === 1 ? 2 : s.speed === 2 ? 4 : 1;
+    const sp = Data.RULES.clock.speeds, i = sp.indexOf(s.speed);
+    s.speed = sp[(i + 1) % sp.length];
     document.getElementById('btnSpeed').textContent = 'Prędkość: ×' + s.speed;
   };
 
