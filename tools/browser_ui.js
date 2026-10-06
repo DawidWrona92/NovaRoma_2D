@@ -16,7 +16,7 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(file);
     await page.locator('.factionCard h2', { hasText: names[fac] }).click();
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() => window.__gameReady === true, null, { timeout: 120000 }); // wypiek sprite'ów nacji
     // 1) budowa kliknięciem: wybierz pierwszą pozycję z zakładki „Mieszkania", kliknij na wolne pole obok Dworu
     await page.locator('#buildTabs button', { hasText: 'Mieszkania' }).click();
     await page.locator('.buildItem').first().click();

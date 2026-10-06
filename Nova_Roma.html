@@ -93,6 +93,16 @@
     .factionCard:active { transform: scale(0.97); }
   }
 
+  /* ---------- Ekran ładowania (wypiek sprite'ów wybranej nacji) ---------- */
+  #loading {
+    position: absolute; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse at center, #2a2118 0%, #0d0b08 75%); color: var(--text);
+  }
+  #loading h1 { color: var(--gold); font-size: 42px; letter-spacing: 4px; margin-bottom: 14px; text-shadow: 0 2px 8px #000; }
+  #loading p { color: #a89878; font-style: italic; margin-bottom: 14px; }
+  #loadingBar { width: min(320px, 70vw); height: 12px; margin: 0 auto; border: 2px solid var(--gold); border-radius: 8px; overflow: hidden; background: #2a1c08; }
+  #loadingBar i { display: block; height: 100%; width: 0; background: linear-gradient(#e8c25a, #b8902c); }
+
   /* ---------- Dolny pasek budowy ---------- */
   #buildBar {
     position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
@@ -201,6 +211,7 @@
   <div id="buildItems"></div>
 </div>
 <div id="tooltip"></div>
+<div id="loading"><div class="inner"><h1>NOVA ROMA</h1><p id="loadingTxt">Wypiekanie grafiki…</p><div id="loadingBar"><i></i></div></div></div>
 <div id="factionPick">
   <div class="inner">
     <h1>NOVA ROMA</h1>
@@ -242,6 +253,8 @@ window.addEventListener('error', ev => {
 /* ====================== GLOBALNE (canvas dla Camera) ====================== */
 const canvas = document.getElementById('game');
 let dpr = window.devicePixelRatio || 1;
+/* rozmiar widoku w px CSS: clientWidth/Height dokumentu (zgodne z media queries; innerWidth bywa większe np. w emulacji mobilnej) */
+function viewSize() { const e = document.documentElement; return { w: (e && e.clientWidth) || window.innerWidth, h: (e && e.clientHeight) || window.innerHeight }; }
 
 /* ============================== MODUL: RNG ================================ */
 const RNG = (() => {
@@ -1900,6 +1913,27 @@ BAKED.logs = function () {
   logPile(sc, 0, 0);
   const o = sc.finish({ grain: 0.4 }); o.fw = 1; o.fh = 1; return o;
 };
+
+/* ---- 36_sort.js ---- */
+/* ====================== SORTOWANIE GŁĘBI (wspólne dla sceny pokazowej i gry) ======================
+   Obiekt do narysowania: { d: x+y środka, rect?: {x0,y0,x1,y1,big} obrys w polach, bb: [x0,y0,x1,y1] prostokąt na ekranie, x, y: środek w polach }. */
+/* kolejność rysowania: najpierw wg głębokości środka, potem korekta dla dużych obrysów (budynki) porównaniem prostokątów */
+const behindRect = (a, b) => a.x1 <= b.x0 + 0.02 || a.y1 <= b.y0 + 0.02;
+function cmpRect(a, b) { const ab = behindRect(a, b), ba = behindRect(b, a); return ab && !ba ? -1 : ba && !ab ? 1 : 0; }
+function sortDrawables(list) {
+  list.sort((a, b) => a.d - b.d);
+  const big = list.filter(it => it.rect && it.rect.big);
+  for (let pass = 0; pass < 2; pass++) for (const B of big) {
+    let ib = list.indexOf(B);
+    for (let i = 0; i < list.length; i++) {
+      const O = list[i]; if (O === B) continue;
+      if (B.bb[2] < O.bb[0] || B.bb[0] > O.bb[2] || B.bb[3] < O.bb[1] || B.bb[1] > O.bb[3]) continue;     // nie zachodzą na siebie na ekranie
+      const c = cmpRect(B.rect, O.rect || { x0: O.x, x1: O.x, y0: O.y, y1: O.y });
+      if (c < 0 && i < ib) { list.splice(i, 1); list.splice(ib, 0, O); ib--; i--; }                    // B jest „za" O, a rysowane wcześniej O → przenieś O za B
+      else if (c > 0 && i > ib) { list.splice(i, 1); list.splice(ib, 0, O); ib++; }                    // B jest „przed" O → O ma być przed B
+    }
+  }
+}
 
 /* ---- 40_nature.js ---- */
 /* ====================== PRZYRODA: teren, drzewa, skały, mieszkańcy ====================== */
@@ -3861,11 +3895,26 @@ function natureJobs(climate) {
   jobs.push(...many('rocks', 4, i => bakeRock(400 + i)));
   return jobs;
 }
+/* złoża (kamień, żelazo, węgiel, glina, torf): skała w barwie złoża + znaki rozpoznawcze (rudne żyły, błyski węgla, wilgotny połysk gliny, mech na torfie) */
+const DEPOSIT_COL = { stone: '#8e8c84', iron: '#86594a', coal: '#2c2c32', clay: '#b9774c', peat: '#4a3a2a' };
+function bakeDeposit(kind, seed) {
+  const o = bakeRock(seed, DEPOSIT_COL[kind], 0.8), g = o.c.getContext('2d'), r = rng(seed * 7 + kind.length);
+  g.save(); g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 70; i++) {
+    const x = 40 + r() * 64, y = 40 + r() * 42, l = 2 + r() * 5;
+    if (kind === 'iron') { g.fillStyle = r() < 0.5 ? 'rgba(222,170,98,0.85)' : 'rgba(120,48,28,0.8)'; g.fillRect(x, y, l, 1.4 + r() * 1.6); }
+    else if (kind === 'coal') { g.fillStyle = r() < 0.4 ? 'rgba(210,214,224,0.55)' : 'rgba(0,0,0,0.5)'; g.fillRect(x, y, 1.5 + r() * 2.5, 1.5 + r() * 2.5); }
+    else if (kind === 'clay') { g.fillStyle = r() < 0.5 ? 'rgba(255,214,170,0.35)' : 'rgba(110,52,28,0.4)'; g.beginPath(); g.ellipse(x, y, l, 1.2 + r() * 1.5, 0, 0, TAU); g.fill(); }
+    else if (kind === 'peat') { g.fillStyle = r() < 0.4 ? 'rgba(86,128,50,0.6)' : 'rgba(20,12,6,0.55)'; g.beginPath(); g.ellipse(x, y, l * 0.8, 1.6, 0, 0, TAU); g.fill(); }
+  }
+  g.restore();
+  return o;
+}
 const castKeys = nation => Object.keys(CAST).filter(k => k.startsWith({ franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[nation]));
 
 /* Wypiek sprite'ów wybranej nacji + przyrody jej klimatu + jej mieszkańców. Zwraca Promise; onProgress(0..1, etykieta) co kilkadziesiąt ms.
    Poprzednia nacja jest zwalniana (jedna nacja w pamięci naraz). */
-async function bake(nation, onProgress = null) {
+async function bake(nation, onProgress = null, opts = {}) {
   if (!NATIONS[nation]) throw new Error('Nieznana nacja: ' + nation);
   if (bakedFor === nation) return SPR;
   const t0 = now();
@@ -3875,6 +3924,7 @@ async function bake(nation, onProgress = null) {
   const jobs = [];
   for (const id of NATIONS[nation]) { const n = spriteName(nation, id); if (BAKED[n]) jobs.push(['Budynki', () => { LINT_NAME = n; SPR[n] = BAKED[n](); }]); }
   jobs.push(...natureJobs(CLIMATE[nation]));
+  for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
   let last = 0;
   for (let i = 0; i < jobs.length; i++) {
@@ -3886,15 +3936,16 @@ async function bake(nation, onProgress = null) {
   return SPR;
 }
 
-/* narysowanie warstwy sprite'a ('p' plac, 'u' cień, 'c' obiekt) w punkcie ekranu (sx, sy) = środek obrysu na ziemi; k = px ekranu na px logiczny sprite'a */
-function draw(ctx, spr, layer, sx, sy, k) {
+/* narysowanie warstwy sprite'a ('p' plac, 'u' cień, 'c' obiekt) w punkcie (sx, sy) = środek obrysu na ziemi;
+   k = jednostek płótna na px logiczny sprite'a (przy skali płótna `dpr` — dobór mipmapy liczy się w px urządzenia) */
+function draw(ctx, spr, layer, sx, sy, k, dpr = 1) {
   const im = spr[layer]; if (!im) return;
-  ctx.drawImage(lodPick(im, (layer === 'u' ? (spr.Ru ?? spr.R) : layer === 'p' ? (spr.Rp ?? spr.R) : spr.R) / k), sx - spr.ax * k, sy - spr.ay * k, spr.w * k, spr.h * k);
+  ctx.drawImage(lodPick(im, (layer === 'u' ? (spr.Ru ?? spr.R) : layer === 'p' ? (spr.Rp ?? spr.R) : spr.R) / (k * dpr)), sx - spr.ax * k, sy - spr.ay * k, spr.w * k, spr.h * k);
 }
 
 return {
   version: 'v4', S, AX, AY, VH, FIG,
-  setQuality, quality, bake, draw,
+  setQuality, quality, bake, draw, sort: sortDrawables,
   baked: () => bakedFor, bakeMs: () => bakeMs,
   ids: nation => NATIONS[nation].slice(), name: nameOfBuilding, nations: () => Object.keys(NATIONS),
   get: (nation, id) => SPR[spriteName(nation, id)] || null,
@@ -4034,7 +4085,18 @@ const Data = (() => {
     return (d.names && d.names[fid || cur.faction]) || d.name;
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, nameOf, cur };
+  /* obrys budynku [szerokość, głębokość] w polach i wejście [strona, x, y] względem środka obrysu — z katalogu sprite'ów (SPRITE_META);
+     b.x, b.y każdego budynku / placu to północny róg obrysu */
+  function footprint(id, fid) {
+    const e = (SPRITE_META[fid || cur.faction] || {})[id];
+    return e ? e.fp : [1, 1];
+  }
+  function entrance(id, fid) {
+    const e = (SPRITE_META[fid || cur.faction] || {})[id];
+    return e ? e.in : null;
+  }
+
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, nameOf, footprint, entrance, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -4054,6 +4116,18 @@ const Camera = (() => {
     return { x: (wx - wy) * (TW*api.zoom/2) + api.x + w/2,
              y: (wx + wy) * (TH*api.zoom/2) + api.y + h/2 };
   };
+  /* obrys w×h pól (północny róg x, y) jako 4 punkty ekranu: N, E, S, W */
+  api.footprint = (x, y, w, h) => [api.worldToScreen(x, y), api.worldToScreen(x + w, y), api.worldToScreen(x + w, y + h), api.worldToScreen(x, y + h)];
+  api.fillPoly = (ctx, pts, fill, stroke, lw) => {
+    ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+  };
+  /* zoom: domyślnie ok. 10 pól na szerokość ekranu (pole 100–160 px; telefon ~6,5 pola); oddalanie aż do widoku całej mapy — na telefonie to ratuje czytelność */
+  api.defaultZoom = () => { const w = viewSize().w; return Math.max(56, Math.min(160, w / (w < 720 ? 6.5 : 10))) / TW; }; // telefon: ~6,5 pola na szerokość
+  api.zoomMax = () => api.defaultZoom() * 1.8;
+  api.zoomMin = () => Math.max(0.1, Math.min(api.defaultZoom() * 0.3, 0.97 * viewSize().w / (MapGen.SIZE * TW)));
+  api.clampZoom = z => Math.min(api.zoomMax(), Math.max(api.zoomMin(), z));
   return api;
 })();
 
@@ -4098,14 +4172,14 @@ const MapGen = (() => {
       while (placed < count && guard++ < 500) {
         const x = RNG.int(6, SIZE-3), y = RNG.int(2, SIZE-3);
         const i = y * SIZE + x;
-        const inPlaza = Math.abs(x - c) <= 3 && Math.abs(y - c) <= 3;
+        const inPlaza = x >= c - 4 && x <= c + 3 && y >= c - 4 && y <= c + 3;
         if (tiles[i].h === 1 && !tiles[i].deposit && !inPlaza) {
           tiles[i].deposit = kind; tiles[i].trees = 0; placed++;
         }
       }
     }
-    // Wyczyść plac pod Dwór (środek mapy)
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    // Wyczyść plac pod Dwór 4×4 (środek mapy): 8×8 pól, po 2 pola zapasu wokół Dworu
+    for (let dy = -4; dy <= 3; dy++) for (let dx = -4; dx <= 3; dx++) {
       const t = tiles[(c+dy)*SIZE + (c+dx)];
       if (t) { t.h = 1; t.trees = 0; t.deposit = null; }
     }
@@ -4118,7 +4192,7 @@ const MapGen = (() => {
   function fitTrees(tiles, target, c) {
     let total = 0;
     for (const t of tiles) total += t.trees;
-    const ok = t => t.h === 1 && !t.deposit && !(Math.abs(t.x - c) <= 2 && Math.abs(t.y - c) <= 2);
+    const ok = t => t.h === 1 && !t.deposit && !(t.x >= c - 4 && t.x <= c + 3 && t.y >= c - 4 && t.y <= c + 3);
     for (let guard = 0; total > target && guard < 200000; guard++) {
       const t = tiles[RNG.int(0, tiles.length - 1)];
       if (t.trees > 0) { t.trees--; total--; }
@@ -4180,7 +4254,7 @@ const Gfx = (() => {
   }
 
   /* ============================== TEREN ============================== */
-  function drawTile(ctx, t, sx, sy, z, terrain, coast) {
+  function drawTile(ctx, t, sx, sy, z, terrain, coast, objects = true) {
     const w = Camera.tileW(), h = Camera.tileH();
     let c;
     if (t.h === 0) c = terrain === 'sand' ? '#3a7192' : '#4a7a94';
@@ -4278,7 +4352,8 @@ const Gfx = (() => {
       }
     }
 
-    // drzewa na kafel (1–3 szt.)
+    // drzewa na kafel (1–3 szt.) i złoża — tryb klasyczny; w trybie sprite'ów rysuje je Game.render jako obiekty posortowane
+    if (!objects) return;
     if (t.trees > 0) {
       const spots = [[-0.18, -0.1], [0.12, -0.18], [0.02, 0.1]];
       for (let i = 0; i < t.trees; i++) {
@@ -5489,7 +5564,7 @@ const Gfx = (() => {
     ctx.fillRect(sx - w/2 + 0.5*z, sy - 22.5*z, Math.max(0, (w - z) * progress), 3*z);
   }
 
-  return { drawTile, ART, drawCitizen, drawSite, shade, setAnim };
+  return { drawTile, ART, drawCitizen, drawSite, shade, setAnim, thash };
 })();
 
 /* ============================= MODUL: WORLD =============================== */
@@ -5547,39 +5622,53 @@ const World = (() => {
     state.res.glina = f.start.clay || 0;
     state.res[f.start.foodGood] = f.start.food; // kasza Słowian liczy się jako chleb
     state.res.popularity = 50;
-    // Dwór na środku (2x2)
-    const c = Math.floor(state.map.size / 2) - 1;
-    placeBuilding('keep', c, c, true);
+    // Dwór na środku mapy (obrys z katalogu: 4×4)
+    const [kw, kh] = fpOf('keep');
+    placeBuilding('keep', Math.floor((state.map.size - kw) / 2), Math.floor((state.map.size - kh) / 2), true);
     state.keep = state.buildings[0];
     for (let i = 0; i < state.pop; i++) spawnCitizen();
   }
 
-  function placeBuilding(id, x, y, instant) {
-    const b = { id, x, y, uid: state.nextId++ };
-    state.buildings.push(b);
-    const size = id === 'keep' ? 2 : 1;
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+  /* obrys budynku w×h pól; (x, y) = północny róg. Zajętość kafli (occup) obejmuje cały obrys */
+  const fpOf = id => Data.footprint(id, state.factionId);
+  function occupy(x, y, w, h, uid) {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(state.map, x + dx, y + dy);
-      if (t) t.occup = b.uid;
+      if (t) t.occup = uid;
     }
+  }
+  function release(x, y, w, h, uid) {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      const t = MapGen.at(state.map, x + dx, y + dy);
+      if (t && t.occup === uid) t.occup = null;
+    }
+  }
+  const centerOf = b => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+
+  function placeBuilding(id, x, y, instant) {
+    const [w, h] = fpOf(id);
+    const b = { id, x, y, w, h, uid: state.nextId++ };
+    state.buildings.push(b);
+    occupy(x, y, w, h, b.uid);
     return b;
   }
 
   function canPlace(id, x, y) {
-    const def = Data.BUILDINGS[id];
-    const size = id === 'keep' ? 2 : 1;
+    const def = Data.BUILDINGS[id], [w, h] = fpOf(id);
     let hasWater = false, hasForest = 0;
-    for (let dy = -1; dy <= size; dy++) for (let dx = -1; dx <= size; dx++) {
+    for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { // obrys + pierścień sąsiedztwa (las, brzeg)
       const t = MapGen.at(state.map, x + dx, y + dy);
       if (!t) continue;
       if (t.h === 0) hasWater = true;
       if (t.trees > 0) hasForest += t.trees;
     }
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
+    let hasDeposit = false;
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(state.map, x + dx, y + dy);
       if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: 'Zajęte lub niebudowlane pole' };
       // złoże jest zarezerwowane dla pasującej kopalni
       if (t.deposit && def.req !== 'deposit:' + t.deposit) return { ok: false, reason: 'Złoże — miejsce tylko na kopalnię' };
+      if (t.deposit) hasDeposit = true;
     }
     if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
     if (def.req === 'shore' && !hasWater) return { ok: false, reason: 'Wymaga brzegu morza' };
@@ -5589,11 +5678,8 @@ const World = (() => {
       if (used >= spots) return { ok: false, reason: 'Brzeg pełny: maks. ' + spots + ' Chat rybaka (spec.)' };
     }
     if (def.req === 'waterEdge' && !hasWater) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do wody' };
-    if (def.req && def.req.startsWith('deposit:')) {
-      const kind = def.req.split(':')[1];
-      const t = MapGen.at(state.map, x, y);
-      if (!t.deposit || t.deposit !== kind) return { ok: false, reason: 'Wymaga złoża (' + kind + ')' };
-    }
+    if (def.req && def.req.startsWith('deposit:') && !hasDeposit) // złoże na dowolnym polu obrysu kopalni
+      return { ok: false, reason: 'Wymaga złoża (' + def.req.split(':')[1] + ')' };
     if (id === 'ship' && !state.buildings.some(b => b.id === 'dock'))
       return { ok: false, reason: 'Okręt wymaga Przystani' };
     return { ok: true };
@@ -5636,10 +5722,10 @@ const World = (() => {
 
   function spawnCitizen() {
     const p = Data.FACTIONS[state.factionId].palette;
-    const keep = state.keep;
+    const keep = state.keep, kc = centerOf(keep);
     state.citizens.push({
-      x: keep.x + 1 + RNG.range(-1, 1), y: keep.y + 2 + RNG.range(0, 2),
-      tx: keep.x + 1, ty: keep.y + 2,
+      x: kc.x + RNG.range(-1, 1), y: keep.y + keep.h + RNG.range(0, 2), // przed południową ścianą Dworu
+      tx: kc.x, ty: keep.y + keep.h,
       phase: RNG.range(0, 6.28),
       color: RNG.next() < 0.5 ? p.citizen : p.citizenAlt,
       speed: 0.25
@@ -5689,8 +5775,9 @@ const World = (() => {
       if (dist < 0.05) {
         const anchor = state.buildings.length > 1 && RNG.next() < 0.6
           ? RNG.pick(state.buildings) : state.keep;
-        c.tx = anchor.x + RNG.range(-1.5, 1.5);
-        c.ty = anchor.y + RNG.range(-1.5, 1.5);
+        const ac = centerOf(anchor), r = 1.5 + Math.max(anchor.w, anchor.h) / 2;
+        c.tx = ac.x + RNG.range(-r, r);
+        c.ty = ac.y + RNG.range(-r, r);
       } else {
         c.x += (dx / dist) * c.speed * dt;
         c.y += (dy / dist) * c.speed * dt;
@@ -5707,14 +5794,15 @@ const World = (() => {
       if (b.carrierT > 0 || !state.staffed[b.uid] || state.carriers.length >= 12) continue;
       b.carrierT = 2 + RNG.range(0, 1.5);
       let best = state.keep, bd = 1e9; // najbliższy Skład, w razie braku — Dwór
+      const bc = centerOf(b);
       for (const t of state.buildings) {
         if (t.id !== 'store' && t.id !== 'keep') continue;
-        const d = Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+        const tc = centerOf(t), d = Math.abs(tc.x - bc.x) + Math.abs(tc.y - bc.y);
         if (d < bd) { bd = d; best = t; }
       }
-      const p = Data.FACTIONS[state.factionId].palette;
+      const p = Data.FACTIONS[state.factionId].palette, ec = centerOf(best);
       state.carriers.push({
-        x: b.x + 0.5, y: b.y + 0.5, tx: best.x + 0.5, ty: best.y + 0.5,
+        x: bc.x, y: bc.y, tx: ec.x, ty: ec.y,
         carry: out, phase: RNG.range(0, 6.28),
         color: RNG.next() < 0.5 ? p.citizen : p.citizenAlt, speed: 0.35
       });
@@ -5730,7 +5818,7 @@ const World = (() => {
 
   function state$() { return state; }
   return { init, state: state$, build, placeFree, placeBuilding, canPlace, canAfford, costOf,
-           tick, spawnCitizen, treeCount, addTree, takeTrees };
+           tick, spawnCitizen, treeCount, addTree, takeTrees, footprint: fpOf, occupy, release, centerOf };
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
@@ -6077,22 +6165,18 @@ const Build = (() => {
     const reserve = Tribute.soldierReserve ? Tribute.soldierReserve(s) : 0;
     if ((cost.zl || 0) > s.res.złoto - reserve) return { ok: false, reason: 'Brak złota (rezerwa na żołd)!' };
     s.res.złoto -= (cost.zl || 0); // złoto przy otwarciu placu
-    const site = { id, x, y, uid: s.nextId++, need: {}, got: {}, work: 0,
+    const [w, h] = World.footprint(id);
+    const site = { id, x, y, w, h, uid: s.nextId++, need: {}, got: {}, work: 0,
       gold: cost.zl || 0, pieces: piecesOf(cost),
       workNeed: BASE_WORK + PER_PIECE * piecesOf(cost), assigned: 0 };
     for (const k in cost) if (MAT[k]) site.need[MAT[k]] = cost[k];
     s.sites.push(site);
-    // rezerwacja kafli pod plac
-    const size = id === 'keep' ? 2 : 1;
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
-      const t = MapGen.at(s.map, x + dx, y + dy);
-      if (t) t.occup = site.uid;
-    }
+    World.occupy(x, y, w, h, site.uid); // rezerwacja kafli pod plac
     return { ok: true };
   }
 
-  function siteAt(x, y) {
-    return World.state().sites.find(st => st.x === x && st.y === y) || null;
+  function siteAt(x, y) { // plac zajmujący pole (x, y) — dowolne pole obrysu
+    return World.state().sites.find(st => x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h) || null;
   }
 
   function cancel(site) { // anulowanie placu: materiały i złoto wracają
@@ -6100,11 +6184,7 @@ const Build = (() => {
     for (const g in site.need) s.res[g] += (site.got[g] || 0);
     s.stats.planksSpent -= (site.got.deski || 0);
     s.res.złoto += site.gold;
-    const size = site.id === 'keep' ? 2 : 1;
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
-      const t = MapGen.at(s.map, site.x + dx, site.y + dy);
-      if (t && t.occup === site.uid) t.occup = null;
-    }
+    World.release(site.x, site.y, site.w, site.h, site.uid);
     s.sites.splice(s.sites.indexOf(site), 1);
   }
 
@@ -6481,12 +6561,8 @@ const Events = (() => {
     s.pop = Math.max(10, s.pop - 12);
     msg(s, '☠ Zaraza! Ludność spada z ' + before + ' do ' + Math.floor(s.pop));
   }
-  function destroy(s, b) { // wyburzenie: zwolnij kafle, usuń z listy
-    const size = b.id === 'keep' ? 2 : 1;
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) {
-      const t = MapGen.at(s.map, b.x + dx, b.y + dy);
-      if (t && t.occup === b.uid) t.occup = null;
-    }
+  function destroy(s, b) { // wyburzenie: zwolnij kafle obrysu, usuń z listy
+    World.release(b.x, b.y, b.w, b.h, b.uid);
     s.buildings.splice(s.buildings.indexOf(b), 1);
   }
   function fire(s, ids) { // pożar: po jednym budynku każdego typu z listy
@@ -6579,15 +6655,18 @@ const TestBots = (() => {
     Data.cur.faction = s.factionId; // przebieg bota mógł dotyczyć innej nacji (nazwy budynków zależą od nacji)
   }
 
-  /* szukanie miejsca: złoże / brzeg / las / zwykłe (spirala od Dworu) */
+  /* szukanie miejsca: złoże (dowolne pole obrysu kopalni) / brzeg / las / zwykłe (spirala od środka mapy);
+     wymagania lasu i brzegu sprawdza World.canPlace na obrysie z pierścieniem sąsiedztwa */
   function findPlace(s, id) {
     const def = Data.BUILDINGS[id]; if (!def) return null;
-    const size = s.map.size;
+    const size = s.map.size, [w, h] = Data.footprint(id, s.factionId);
     if (def.req && def.req.startsWith('deposit:')) {
       const kind = def.req.split(':')[1];
       for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
         const t = MapGen.at(s.map, x, y);
-        if (t && t.deposit === kind && World.canPlace(id, x, y).ok) return { x, y };
+        if (!t || t.deposit !== kind) continue;
+        for (let oy = y - h + 1; oy <= y; oy++) for (let ox = x - w + 1; ox <= x; ox++)
+          if (World.canPlace(id, ox, oy).ok) return { x: ox, y: oy };
       }
       return null;
     }
@@ -6595,19 +6674,7 @@ const TestBots = (() => {
     for (let r = 1; r < size; r++) {
       for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        const x = c + dx, y = c + dy; const t = MapGen.at(s.map, x, y);
-        if (!t || t.h !== 1) continue;
-        if ((def.req === 'shore' || def.req === 'waterEdge')) {
-          let water = false;
-          for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const n = MapGen.at(s.map, x+ox, y+oy); if (n && n.h === 0) water = true; }
-          if (!water) continue;
-        }
-        if (def.req === 'forest') {
-          let trees = 0;
-          for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const n = MapGen.at(s.map, x+ox, y+oy); if (n) trees += n.trees; }
-          if (trees < 4) continue;
-        }
-        if (World.canPlace(id, x, y).ok) return { x, y };
+        if (World.canPlace(id, c + dx, c + dy).ok) return { x: c + dx, y: c + dy };
       }
     }
     return null;
@@ -6927,12 +6994,17 @@ const Advisor = (() => {
 /* ============================ MODUL: BUILDMODE ============================= */
 const BuildMode = (() => {
   let selected = null; // id budynku w trybie budowy
-  let hover = { x: -1, y: -1 };
+  let hover = { x: -1, y: -1, fx: -1, fy: -1 }; // pole pod kursorem i dokładny punkt świata
 
   function select(id) { selected = id; }
   function clear() { selected = null; }
   function isSelected() { return selected; }
-  function setHover(wx, wy) { hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
+  function setHover(wx, wy) { hover.fx = wx; hover.fy = wy; hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
+  /* północny róg obrysu budowanego budynku tak, by obrys był wyśrodkowany pod kursorem */
+  function origin(id) {
+    const [w, h] = World.footprint(id);
+    return { x: Math.floor(hover.fx - w / 2 + 0.5), y: Math.floor(hover.fy - h / 2 + 0.5) };
+  }
 
   function buildingAtHover() {
     const s = World.state(), t = s.map && MapGen.at(s.map, hover.x, hover.y);
@@ -6954,33 +7026,39 @@ const BuildMode = (() => {
       return;
     }
     // klik otwiera plac budowy; budowniczowie doniosą materiały i zbudują
-    const res = Build.enqueue(selected, hover.x, hover.y);
+    const o = origin(selected);
+    const res = Build.enqueue(selected, o.x, o.y);
     if (!res.ok) { UI.flashHint(res.reason || 'Nie można tu budować'); return; }
     UI.refreshHUD();
     // tryb budowy zostaje włączony (budowa serii), ESC anuluje
   }
 
   function draw(ctx) {
-    if (!selected) return;
-    const s = World.state();
-    const check = World.canPlace(selected, hover.x, hover.y);
+    const s = World.state(), z = Camera.zoom;
+    if (!selected) { // podświetl obrys budynku / placu pod kursorem
+      const b = buildingAtHover() || Build.siteAt(hover.x, hover.y);
+      if (b) Camera.fillPoly(ctx, Camera.footprint(b.x, b.y, b.w, b.h), 'rgba(255,230,140,0.10)', 'rgba(255,230,140,0.8)', Math.max(1.5, 2 * z));
+      return;
+    }
+    const [w, h] = World.footprint(selected), o = origin(selected);
+    const check = World.canPlace(selected, o.x, o.y);
     // przy kolejce budowy wystarczy złoto na otwarcie placu (materiały wnosi budowniczy)
-    const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto;
-    const p = Data.FACTIONS[s.factionId].palette;
-    const pos = Camera.worldToScreen(hover.x + 0.5, hover.y + 0.5);
-    const w = Camera.tileW(), h = Camera.tileH();
-    ctx.fillStyle = check.ok && affordable ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)';
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y - h/2); ctx.lineTo(pos.x + w/2, pos.y);
-    ctx.lineTo(pos.x, pos.y + h/2); ctx.lineTo(pos.x - w/2, pos.y);
-    ctx.closePath(); ctx.fill();
+    const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto, ok = check.ok && affordable;
+    Camera.fillPoly(ctx, Camera.footprint(o.x, o.y, w, h), ok ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)',
+      ok ? 'rgba(170,255,170,0.9)' : 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z));
+    const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, selected) : null;
     ctx.globalAlpha = 0.65; // duch budynku
-    const art = Gfx.ART[Data.BUILDINGS[selected].art];
-    if (art) art(ctx, pos.x, pos.y, Camera.zoom, p, performance.now() / 1000);
+    if (spr) {
+      const K = Camera.zoom * 64 / (2 * Sprites.AX);
+      Sprites.draw(ctx, spr, 'u', p.x, p.y, K, dpr); Sprites.draw(ctx, spr, 'c', p.x, p.y, K, dpr);
+    } else {
+      const art = Gfx.ART[Data.BUILDINGS[selected].art];
+      if (art) art(ctx, p.x, p.y, z * (1 + 0.3 * (Math.max(w, h) - 1)), Data.FACTIONS[s.factionId].palette, performance.now() / 1000);
+    }
     ctx.globalAlpha = 1;
   }
 
-  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, hover: () => hover };
+  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, origin, hover: () => hover };
 })();
 
 /* ================================ MODUL: UI ================================ */
@@ -7054,17 +7132,33 @@ const UI = (() => {
   }
   window.addEventListener('resize', syncHudHeight);
 
-  function startGame(fid) {
+  /* wypiek sprite'ów wybranej nacji z paskiem postępu; ?q=1|2 wymusza jakość (domyślnie ostro na ekranach HiDPI), ?classic=1 pomija sprite'y;
+     przy błędzie gra rusza w trybie klasycznym (Gfx.ART) */
+  async function bakeGraphics(fid) {
+    const q = new URLSearchParams(location.search), box = document.getElementById('loading');
+    if (q.get('classic') === '1') return;
+    const bar = box.querySelector('i'), txt = document.getElementById('loadingTxt');
+    box.style.display = 'flex';
+    Sprites.setQuality(+q.get('q') || ((window.devicePixelRatio || 1) >= 1.5 ? 2 : 1));
+    try {
+      await Sprites.bake(fid, (f, label) => { bar.style.width = Math.round(f * 100) + '%'; txt.textContent = label + '…'; }, { deposits: Object.keys(Data.FACTIONS[fid].deposits || {}) });
+    } catch (e) { console.error('Wypiek grafiki nie powiódł się — tryb klasyczny', e); }
+    box.style.display = 'none';
+  }
+
+  async function startGame(fid) {
     if (gameStarted) return;
     gameStarted = true;
     document.getElementById('factionPick').style.display = 'none';
+    await bakeGraphics(fid);
     hud.style.display = 'flex';
     buildBar.style.display = 'block';
     document.getElementById('hint').style.display = 'block';
     World.init(fid);
     document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b>';
-    // kamera na Dwór
+    // kamera na Dwór (środek mapy)
     const c = MapGen.SIZE / 2;
+    Camera.zoom = Camera.defaultZoom();
     Camera.x = 0; Camera.y = 0;
     const target = Camera.worldToScreen(c, c);
     Camera.x -= target.x - canvas.width / dpr / 2;
@@ -7141,6 +7235,7 @@ const UI = (() => {
     document.getElementById('resPanel').style.display = 'block';
     syncHudHeight();
     Game.start();
+    window.__gameReady = true;
   }
 
   function buildTabsUi() {
@@ -7170,13 +7265,18 @@ const UI = (() => {
       item.className = 'buildItem';
       if (BuildMode.isSelected() === id) item.classList.add('selected');
       const mini = document.createElement('canvas');
-      mini.width = 62; mini.height = 44;
+      mini.width = 124; mini.height = 88; // 2× gęściej niż rozmiar CSS (62×44) — ostre ikony
       const mctx = mini.getContext('2d');
+      mctx.scale(2, 2);
       const p = Data.FACTIONS[fid].palette;
       mctx.fillStyle = p.terrain === 'sand' ? '#d8c090' : p.terrain === 'tundra' ? '#6a7a4c' : '#5a8a3c';
       mctx.fillRect(0, 0, 62, 44);
-      const art = Gfx.ART[def.art];
-      if (art) art(mctx, 31, 38, 0.85, p, 0);
+      const sp = Sprites.baked() === fid ? Sprites.get(fid, id) : null;
+      if (sp) { // sprite budynku wpisany w pole ikony
+        const k = Math.min(58 / sp.w, 40 / sp.h);
+        mctx.imageSmoothingQuality = 'high';
+        mctx.drawImage(Sprites.engine.lodPick(sp.c, sp.R / (k * 2)), 31 - sp.w * k / 2, 42 - sp.h * k, sp.w * k, sp.h * k);
+      } else { const art = Gfx.ART[def.art]; if (art) art(mctx, 31, 38, 0.85, p, 0); }
       item.appendChild(mini);
       const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = Data.nameOf(id, fid); item.appendChild(nm);
       const cost = document.createElement('div'); cost.className = 'bcost';
@@ -7390,10 +7490,11 @@ const Game = (() => {
 
   function fit() {
     dpr = window.devicePixelRatio || 1;
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
+    const v = viewSize();
+    canvas.width = v.w * dpr;
+    canvas.height = v.h * dpr;
+    canvas.style.width = v.w + 'px';
+    canvas.style.height = v.h + 'px';
   }
   window.addEventListener('resize', () => fit());
 
@@ -7427,77 +7528,149 @@ const Game = (() => {
     requestAnimationFrame(loop);
   }
 
+  /* ============================== RENDER ==============================
+     Tryb sprite'ów (Sprites.baked() === nacja): budynki, drzewa, złoża i mieszkańcy to sprite'y silnika Sprites, rysowane w kolejności
+     głębi (prostokąty obrysów); warstwy „plac" i „cień" idą pod obiekty. Tryb klasyczny (Gfx.ART) to zapas na wypadek nieudanego wypieku.
+     Stan wizualny (widok postaci, dym) żyje poza stanem gry i ma własny PRNG — render nie rusza RNG logiki. */
+  const looks = new WeakMap();                 // widok / odbicie postaci
+  const puffs = [], emitT = new WeakMap();     // dym z kominów (cząstki, liczniki emisji budynków)
+  let fxSeed = 20240607, lastT = 0;
+  const fxRand = () => { fxSeed = (fxSeed + 0x6D2B79F5) | 0; let q = Math.imul(fxSeed ^ (fxSeed >>> 15), 1 | fxSeed); q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q; return ((q ^ (q >>> 14)) >>> 0) / 4294967296; };
+  const spriteMode = () => Sprites.baked() === World.state().factionId;
+  const skOf = () => Camera.zoom * 64 / (2 * Sprites.AX);       // px ekranu na px logiczny sprite'a
+  const TREE_SPOTS = [[0.28, 0.30], [0.72, 0.38], [0.45, 0.76]];
+
+  function lookOf(c) {                         // widok z przodu / z tyłu i odbicie wg kierunku marszu (w osiach ekranu)
+    let l = looks.get(c); if (!l) looks.set(c, l = { view: 'front', mirror: false });
+    const dx = c.tx - c.x, dy = c.ty - c.y, sdx = dx - dy, sdy = dx + dy;
+    if (Math.abs(sdx) + Math.abs(sdy) > 0.02) { l.view = sdy < -0.001 ? 'back' : 'front'; if (Math.abs(sdx) > 0.001) l.mirror = sdx < 0; }
+    return l;
+  }
+
   function render(t) {
     Gfx.setAnim(t);
     const s = World.state();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    const W = canvas.width / dpr, H = canvas.height / dpr;
+    ctx.clearRect(0, 0, W, H);
     if (!s.map) return;
-    const f = Data.FACTIONS[s.factionId];
+    const fid = s.factionId, f = Data.FACTIONS[fid], z = Camera.zoom, size = s.map.size, K = skOf(), sprOn = spriteMode();
+    const dt = Math.min(0.1, Math.max(0, t - lastT)); lastT = t;
     ctx.fillStyle = '#10140f';
-    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-    const z = Camera.zoom;
-    const size = s.map.size;
-    const byUid = new Map();
-    for (const b of s.buildings) byUid.set(b.uid, b);
-    // zbierz obiekty do posortowania po głębi (y świata)
-    const drawables = [];
+    ctx.fillRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low'; // mipmapę dobiera Sprites.draw (lodPick) — wystarczy filtr dwuliniowy, 'high' kosztuje ~2× klatki
+    const inView = bb => bb[2] > -20 && bb[0] < W + 20 && bb[3] > -20 && bb[1] < H + 20;
+    const bbOf = (sp, sx, sy, k) => [sx - sp.ax * k, sy - sp.ay * k, sx + (sp.w - sp.ax) * k, sy + (sp.h - sp.ay) * k];
+    const list = [];
+    const push = (it) => { if (inView(it.bb)) list.push(it); };
+    const SETS = Sprites.sets, gm = 34 * z + 8, terrain = f.palette.terrain;
+
+    // 1. teren (widoczne kafle) + drzewa i złoża jako obiekty posortowane (tryb klasyczny rysuje je w kaflu)
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const tile = s.map.tiles[y * size + x];
         tile.x = x; tile.y = y;
         const scr = Camera.worldToScreen(x + 0.5, y + 0.5);
-        if (scr.x < -80 || scr.x > canvas.width / dpr + 80 || scr.y < -80 || scr.y > canvas.height / dpr + 80) continue;
-        drawTile(x, y, scr, tile);
-        if (tile.occup) {
-          const b = byUid.get(tile.occup);
-          // budynek rysujemy raz, z kafla początkowego (Dwór 2x2 zajmuje cztery kafle)
-          if (b && b.x === x && b.y === y) {
-            const big = b.id === 'keep';
-            drawables.push({ depth: x + y + (big ? 2.5 : 0.5), b,
-              scr: big ? Camera.worldToScreen(x + 1.25, y + 1.25) : scr });
-          }
+        if (scr.x > -gm && scr.x < W + gm && scr.y > -gm && scr.y < H + gm) drawTile(x, y, scr, tile, !sprOn);
+        if (!sprOn || (!tile.trees && !tile.deposit)) continue;
+        if (tile.deposit && SETS.deposits && SETS.deposits[tile.deposit]) {
+          const sp = SETS.deposits[tile.deposit], p = Camera.worldToScreen(x + 0.5, y + 0.55);
+          push({ d: x + y + 1.05, kind: 'd', spr: sp, sx: p.x, sy: p.y, k: K, bb: bbOf(sp, p.x, p.y, K), x: x + 0.5, y: y + 0.55 });
+        }
+        const set = terrain === 'sand' ? SETS.palms : null, h0 = Gfx.thash(x, y, 77);
+        for (let i = 0; i < tile.trees; i++) {
+          const arr = set || (terrain === 'tundra' ? (Gfx.thash(x, y, 80 + i) < 0.78 ? SETS.pines : SETS.oaks) : (Gfx.thash(x, y, 80 + i) < 0.55 ? SETS.oaks : SETS.pines));
+          if (!arr || !arr.length) continue;
+          const sp = arr[Math.floor(Gfx.thash(x, y, 90 + i) * arr.length)], k = K * (0.9 + 0.2 * Gfx.thash(x, y, 100 + i));
+          const fx = tile.trees === 1 ? 0.3 + 0.4 * h0 : TREE_SPOTS[i][0] + (Gfx.thash(x, y, 110 + i) - 0.5) * 0.16;
+          const fy = tile.trees === 1 ? 0.3 + 0.4 * Gfx.thash(x, y, 78) : TREE_SPOTS[i][1] + (Gfx.thash(x, y, 120 + i) - 0.5) * 0.16;
+          const p = Camera.worldToScreen(x + fx, y + fy);
+          push({ d: x + y + fx + fy, kind: 't', spr: sp, sx: p.x, sy: p.y, k, bb: bbOf(sp, p.x, p.y, k), x: x + fx, y: y + fy, ph: Gfx.thash(x, y, 130 + i) * 6.28 });
         }
       }
     }
-    // obywatele i nosiciele
-    for (const c of s.citizens) {
-      const scr = Camera.worldToScreen(c.x, c.y);
-      drawables.push({ depth: c.x + c.y, citizen: c, scr });
-    }
-    for (const c of s.carriers) {
-      const scr = Camera.worldToScreen(c.x, c.y);
-      drawables.push({ depth: c.x + c.y, citizen: c, scr });
-    }
-    drawables.sort((a, b) => a.depth - b.depth);
-    for (const d of drawables) {
-      if (d.b) {
-        const def = Data.BUILDINGS[d.b.id];
-        const art = Gfx.ART[def.art];
-        if (art) art(ctx, d.scr.x, d.scr.y, z, f.palette, t);
-      } else {
-        Gfx.drawCitizen(ctx, d.citizen, d.scr.x, d.scr.y, z, s.factionId, f.palette, t);
-      }
-    }
-    // place budowy z budowniczymi
-    for (const st of s.sites) {
-      const scr = Camera.worldToScreen(st.x + 0.5, st.y + 0.5);
-      if (scr.x < -80 || scr.x > canvas.width / dpr + 80 || scr.y < -80 || scr.y > canvas.height / dpr + 80) continue;
-      Gfx.drawSite(ctx, scr.x, scr.y, z, f.palette, Build.progressOf(st));
-      for (let i = 0; i < st.assigned; i++) {
-        const ang = i * 2.1 + st.uid;
-        const bx = scr.x + Math.cos(ang) * 12 * z;
-        const by = scr.y + Math.sin(ang) * 6 * z + 3 * z;
-        Gfx.drawCitizen(ctx, { phase: t * 2 + i, color: f.palette.citizen },
-                        bx, by, z, s.factionId, f.palette, t);
-      }
-    }
-    // znaczniki statusu: ! brak wejścia · T narzędzie · P pracownik · Z pełny magazyn · J jedzenie (spec: „brak wejścia” na budynku)
+
+    // 2. budynki i place budowy (obrys → prostokąt do sortowania)
     for (const b of s.buildings) {
-      const badge = Advisor.badgeOf(b); if (!badge) continue;
-      const scr = Camera.worldToScreen(b.x + 0.5, b.y + 0.5);
-      if (scr.x < -40 || scr.x > canvas.width / dpr + 40 || scr.y < -40 || scr.y > canvas.height / dpr + 40) continue;
-      const bx = scr.x + 13 * z, by = scr.y - 36 * z, r = 6.5 * z;
+      const c = World.centerOf(b), p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, b.id) : null, cs = 1 + 0.3 * (Math.max(b.w, b.h) - 1);
+      push({ d: c.x + c.y, kind: 'b', b, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
+        bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 70 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
+        rect: { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h, big: true } });
+    }
+    const cast = sprOn ? Sprites.castKeys(fid).map(k => Sprites.cast(k)) : [];
+    for (const st of s.sites) {
+      const c = World.centerOf(st), p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, st.id) : null, cs = 1 + 0.3 * (Math.max(st.w, st.h) - 1);
+      push({ d: c.x + c.y, kind: 's', st, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
+        bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 60 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
+        rect: { x0: st.x, y0: st.y, x1: st.x + st.w, y1: st.y + st.h, big: true } });
+      for (let i = 0; i < st.assigned; i++) { // budowniczowie krążą wokół obrysu
+        const ang = i * 2.1 + st.uid, wx = c.x + Math.cos(ang) * (st.w / 2 + 0.55), wy = c.y + Math.sin(ang) * (st.h / 2 + 0.55), q = Camera.worldToScreen(wx, wy);
+        const fig = { phase: t * 0.6 + i, color: f.palette.citizen };
+        if (sprOn) push({ d: wx + wy, kind: 'f', fig, cast: cast[0], view: 'front', mirror: i % 2 === 1, sx: q.x, sy: q.y, k: K, x: wx, y: wy, bb: [q.x - 40 * K, q.y - 100 * K, q.x + 40 * K, q.y + 10 * K] });
+        else push({ d: wx + wy, kind: 'c', fig, sx: q.x, sy: q.y, x: wx, y: wy, bb: [q.x - 30 * z, q.y - 40 * z, q.x + 30 * z, q.y + 10 * z] });
+      }
+    }
+
+    // 3. mieszkańcy i nosiciele (wewnątrz obrysu budynku — niewidoczni: „weszli do środka")
+    const addFigure = (c, carry) => {
+      const tile = MapGen.at(s.map, Math.floor(c.x), Math.floor(c.y));
+      if (tile && tile.occup) return;
+      const p = Camera.worldToScreen(c.x, c.y);
+      if (sprOn) {
+        const l = lookOf(c);
+        push({ d: c.x + c.y, kind: 'f', fig: c, cast: cast[c.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y,
+          bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
+      } else push({ d: c.x + c.y, kind: 'c', fig: c, sx: p.x, sy: p.y, x: c.x, y: c.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
+    };
+    for (const c of s.citizens) addFigure(c, false);
+    for (const c of s.carriers) addFigure(c, true);
+
+    // 4. warstwy podłoża sprite'ów: plac / decale, cienie (pod wszystkimi obiektami)
+    if (sprOn) {
+      for (const it of list) if (it.spr && (it.kind === 'b' || it.kind === 't' || it.kind === 'd')) Sprites.draw(ctx, it.spr, 'p', it.sx, it.sy, it.k, dpr);
+      for (const it of list) {
+        if (it.kind === 'f') Sprites.draw(ctx, it.cast.front[0], 'u', it.sx, it.sy, it.k, dpr);
+        else if (it.spr && it.kind !== 's') Sprites.draw(ctx, it.spr, 'u', it.sx, it.sy, it.k, dpr);
+      }
+    }
+
+    // 5. obiekty w kolejności głębi
+    Sprites.sort(list);
+    for (const it of list) {
+      if (it.kind === 'b') drawBuilding(it, t, f);
+      else if (it.kind === 't') {
+        const sw = (Math.sin(t * 1.25 + it.ph) * 0.010 + Math.sin(t * 0.43 + it.ph * 1.7) * 0.008);      // lekkie kołysanie koron
+        ctx.save(); ctx.transform(1, 0, -sw, 1, sw * it.sy, 0); Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr); ctx.restore();
+      } else if (it.kind === 'd') Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr);
+      else if (it.kind === 's') drawSite(it, t, f);
+      else if (it.kind === 'f') drawFigure(it, t);
+      else Gfx.drawCitizen(ctx, it.fig, it.sx, it.sy, z, fid, f.palette, t);
+    }
+
+    // 6. dym z kominów i otworów dymnych: tylko widoczne, pracujące (obsadzone) budynki
+    if (sprOn) {
+      for (const it of list) {
+        if (it.kind !== 'b' || puffs.length > 160) continue;
+        const m = (SPRITE_META[fid] || {})[it.b.id]; if (!m || !m.smoke.length) continue;
+        if (Data.BUILDINGS[it.b.id].worker && !s.staffed[it.b.uid]) continue;
+        let tm = emitT.get(it.b); if (!tm) emitT.set(it.b, tm = m.smoke.map(() => fxRand() * 0.8));
+        m.smoke.forEach((a, n) => { tm[n] -= dt; if (tm[n] < 0) { tm[n] += 0.5 + fxRand() * 0.25; puffs.push({ x: it.x + a[0], y: it.y + a[1], z: a[2], a: 0, ph: fxRand() * 6.28 }); } });
+      }
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i]; p.a += dt; p.z += dt * 0.3; p.x += dt * 0.12; p.y -= dt * 0.05;
+      if (p.a > 4) { puffs.splice(i, 1); continue; }
+      const q = Camera.worldToScreen(p.x + Math.sin(p.a * 1.6 + p.ph) * 0.03, p.y), u = p.a / 4, sy = q.y - p.z * Sprites.VH * K, rad = (5 + u * 17) * z * 0.6, al = (1 - u) * 0.62 * Math.min(1, p.a * 3);
+      const gr = ctx.createRadialGradient(q.x, sy, 0, q.x, sy, rad);
+      gr.addColorStop(0, 'rgba(214,210,204,' + al + ')'); gr.addColorStop(0.55, 'rgba(206,202,196,' + al * 0.55 + ')'); gr.addColorStop(1, 'rgba(200,196,190,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(q.x, sy, rad, 0, 7); ctx.fill();
+    }
+
+    // 7. znaczniki statusu nad dachem: ! brak wejścia · T narzędzie · P pracownik · Z pełny magazyn · J jedzenie (spec: „brak wejścia” na budynku)
+    for (const it of list) {
+      if (it.kind !== 'b') continue;
+      const badge = Advisor.badgeOf(it.b); if (!badge) continue;
+      const bx = it.sx + 13 * z, by = it.spr ? it.sy - Math.max(30, it.spr.ay - 50) * it.k : it.sy - 36 * z * it.cs, r = 6.5 * z;
       ctx.fillStyle = badge[1]; ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = Math.max(1, z); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(8, Math.round(9 * z)) + 'px sans-serif';
@@ -7506,7 +7679,63 @@ const Game = (() => {
     BuildMode.draw(ctx);
   }
 
-  function drawTile(x, y, scr, tile) {
+  function drawBuilding(it, t, f) {
+    if (it.spr) {
+      if (it.b.id === 'ship') { // okręt kołysze się na wodzie
+        const by = Math.sin(t * 1.4 + it.x) * 1.6 * Camera.zoom, rot = Math.sin(t * 1.1 + 1) * 0.012;
+        ctx.save(); ctx.translate(it.sx, it.sy + by); ctx.rotate(rot); Sprites.draw(ctx, it.spr, 'c', 0, 0, it.k, dpr); ctx.restore();
+      } else Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr);
+      return;
+    }
+    const art = Gfx.ART[Data.BUILDINGS[it.b.id].art];
+    if (art) art(ctx, it.sx, it.sy, Camera.zoom * it.cs, f.palette, t);
+  }
+
+  function drawFigure(it, t) {
+    const frame = Math.floor(t * 3.6 + it.fig.phase) % 2, sp = it.cast[it.view][frame], bob = Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom;
+    ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
+    Sprites.draw(ctx, sp, 'c', 0, 0, it.k, dpr); ctx.restore();
+    if (it.carry) { // nosiciel: skrzynka z towarem na głowie
+      const k = it.k, bx = it.sx, by = it.sy - bob - 74 * k;
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(bx - 6 * k, by - 8 * k, 12 * k, 8 * k);
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = Math.max(1, 0.9 * k); ctx.strokeRect(bx - 6 * k, by - 8 * k, 12 * k, 8 * k);
+      ctx.beginPath(); ctx.moveTo(bx, by - 8 * k); ctx.lineTo(bx, by); ctx.stroke();
+    }
+  }
+
+  /* plac budowy: grunt na obrysie, słupki z liną, stosy materiałów (etap noszenia), potem sprite „wyrasta" od ziemi pod rusztowaniem; pasek postępu */
+  function drawSite(it, t, f) {
+    const st = it.st, p = Build.progressOf(st), z = Camera.zoom, sp = it.spr, K = it.k;
+    if (!sp) { Gfx.drawSite(ctx, it.sx, it.sy, z * it.cs, f.palette, p); return; }
+    const pts = Camera.footprint(st.x, st.y, st.w, st.h);
+    Camera.fillPoly(ctx, pts, 'rgba(122,92,56,0.62)', 'rgba(52,34,16,0.8)', Math.max(1, 1.4 * z));
+    const inner = Camera.footprint(st.x + 0.18, st.y + 0.18, st.w - 0.36, st.h - 0.36);
+    Camera.fillPoly(ctx, inner, 'rgba(86,62,34,0.35)', null);
+    const delivered = Math.min(1, p * 2), grow = Math.max(0, (p - 0.5) * 2);
+    // stosy materiałów przy południowym rogu (rosną w etapie noszenia, znikają w budowie)
+    const piles = Math.round(delivered * (1 - grow) * (st.w + st.h));
+    for (let i = 0; i < piles; i++) {
+      const q = Camera.worldToScreen(st.x + st.w * (0.2 + 0.6 * ((i * 0.37) % 1)), st.y + st.h * (0.62 + 0.28 * ((i * 0.53) % 1)));
+      ctx.fillStyle = i % 3 === 2 ? '#9a9a92' : '#c8a878'; ctx.fillRect(q.x - 7 * z, q.y - 3 * z, 14 * z, 3 * z);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(q.x - 7 * z, q.y - 0.4 * z, 14 * z, 1.2 * z);
+    }
+    // sprite odsłaniany od dołu
+    const top = it.sy - sp.ay * K, bot = it.sy + (sp.h - sp.ay) * K, cut = bot - (bot - top) * grow;
+    if (grow > 0) { ctx.save(); ctx.beginPath(); ctx.rect(it.sx - sp.w * K, cut, sp.w * K * 2, bot - cut + 6 * z); ctx.clip(); Sprites.draw(ctx, sp, 'c', it.sx, it.sy, K, dpr); ctx.restore(); }
+    // rusztowanie: słupki w narożnikach do wysokości odsłoniętej części + belka
+    const hS = 16 * z + grow * Math.min(sp.ay * K * 0.8, 150 * z);
+    ctx.strokeStyle = '#7a5c3a'; ctx.lineWidth = Math.max(1, 1.8 * z);
+    ctx.beginPath(); for (const q of pts) { ctx.moveTo(q.x, q.y); ctx.lineTo(q.x, q.y - hS); }
+    ctx.moveTo(pts[3].x, pts[3].y - hS); ctx.lineTo(pts[2].x, pts[2].y - hS); ctx.lineTo(pts[1].x, pts[1].y - hS); ctx.stroke();
+    ctx.strokeStyle = 'rgba(205,180,130,0.8)'; ctx.lineWidth = Math.max(1, 0.9 * z);
+    ctx.beginPath(); ctx.moveTo(pts[3].x, pts[3].y - hS * 0.5); ctx.lineTo(pts[2].x, pts[2].y - hS * 0.5); ctx.lineTo(pts[1].x, pts[1].y - hS * 0.5); ctx.stroke();
+    // pasek postępu
+    const w = Math.max(24, (st.w + st.h) * 7) * z, by = it.sy - Math.min(sp.ay * K * 0.7, 120 * z) - hS * 0.2;
+    ctx.fillStyle = '#241c12'; ctx.fillRect(it.sx - w / 2, by, w, 4 * z);
+    ctx.fillStyle = '#c8a04e'; ctx.fillRect(it.sx - w / 2 + 0.5 * z, by + 0.5 * z, Math.max(0, (w - z) * p), 3 * z);
+  }
+
+  function drawTile(x, y, scr, tile, objects) {
     let coast = 0;
     if (tile.h === 0) {
       const s2 = World.state();
@@ -7516,7 +7745,7 @@ const Game = (() => {
         if (n && n.h !== 0) coast |= (1 << i);
       }
     }
-    Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.FACTIONS[World.state().factionId].palette.terrain, coast);
+    Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.FACTIONS[World.state().factionId].palette.terrain, coast, objects);
   }
 
   /* --- input --- */
@@ -7555,7 +7784,7 @@ const Game = (() => {
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
     const before = Camera.screenToWorld(e.clientX, e.clientY);
-    Camera.zoom = Math.min(2.2, Math.max(0.5, Camera.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+    Camera.zoom = Camera.clampZoom(Camera.zoom * (e.deltaY < 0 ? 1.1 : 0.9));
     const after = Camera.worldToScreen(before.x, before.y);
     Camera.x += e.clientX - after.x;
     Camera.y += e.clientY - after.y;
@@ -7601,7 +7830,7 @@ const Game = (() => {
     } else if (touchMode === 'pinch' && e.touches.length === 2) {
       // zoom względem środka uszczypnięcia
       const d = tDist(e.touches);
-      const zoomNew = Math.min(2.2, Math.max(0.5, pinchZoomStart * (d / pinchStart.dist)));
+      const zoomNew = Camera.clampZoom(pinchZoomStart * (d / pinchStart.dist));
       const mid = tMid(e.touches);
       const before = Camera.screenToWorld(mid.x, mid.y);
       Camera.zoom = zoomNew;

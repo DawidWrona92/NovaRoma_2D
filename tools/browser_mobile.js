@@ -14,7 +14,7 @@ const file = 'file://' + path.resolve('Nova_Roma.html');
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'm_picker.png') });
   await page.locator('.factionCard h2', { hasText: 'Wikingowie' }).tap();
-  await page.waitForTimeout(500);
+  await page.waitForFunction(() => window.__gameReady === true, null, { timeout: 120000 }); // wypiek sprite'ów nacji
   await page.evaluate(() => { const s = World.state(), plan = TestBots.RECIPE.vikings.slice(); let pi = 0, nd = 0; for (let t = 0; t < 50; t += 0.1) { World.tick(0.1); if (t >= nd) { nd = t + 0.5; if (pi < plan.length) { const r = TestBots.tryBuild(s, plan[pi]); if (r === 'built' || r === 'noplace') pi++; } } } UI.refreshHUD(); });
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(SHOTS, 'm_game.png') });

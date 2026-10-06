@@ -17,10 +17,10 @@ const minutes = +(process.argv[3] || 70);
     page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
     await page.goto(file);
     await page.locator('.factionCard h2', { hasText: names[fac] }).click();
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() => window.__gameReady === true, null, { timeout: 120000 }); // wypiek sprite'ów nacji
     // wybór poziomu haraczu przez select (jak gracz)
     await page.selectOption('#btnTribute', 'easy');
-    const info = await page.evaluate(({ minutes }) => {
+    const info = await page.evaluate(({ minutes, zoom }) => {
       const s = World.state(), plan = TestBots.RECIPE[s.factionId].slice();
       let pi = 0, nd = 0;
       for (let t = 0; t < minutes; t += 0.1) {
@@ -29,11 +29,11 @@ const minutes = +(process.argv[3] || 70);
       }
       UI.refreshHUD();
       s.speed = 0;
-      Camera.zoom = 1.0;
-      const k = s.keep, c = Camera.worldToScreen(k.x + 1, k.y + 1);
+      if (zoom) Camera.zoom = zoom; // domyślnie zoom ustawiony przy starcie gry (ZOOM=… wymusza inny)
+      const k = s.keep, c = Camera.worldToScreen(k.x + k.w / 2, k.y + k.h / 2);
       Camera.x -= c.x - (innerWidth - 190) / 2; Camera.y -= c.y - innerHeight / 2 + 30;
       return { t: Math.round(s.time), pop: Math.floor(s.pop), buildings: s.buildings.length, sites: s.sites.length, tribute: Tribute.labelOf(s.tribute) };
-    }, { minutes });
+    }, { minutes, zoom: +process.env.ZOOM || 0 });
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(SHOTS, `play_${fac}.png`) });
     // doradca
@@ -45,8 +45,8 @@ const minutes = +(process.argv[3] || 70);
     const pos = await page.evaluate(() => {
       const s = World.state();
       const b = s.buildings.find(b => b.id !== 'keep' && b.id !== 'hut' && Data.BUILDINGS[b.id].worker) || s.keep;
-      const sc = Camera.worldToScreen(b.x + 0.5, b.y + 0.5);
-      return { x: sc.x, y: sc.y - 8, id: b.id };
+      const sc = Camera.worldToScreen(b.x + b.w / 2, b.y + b.h / 2);
+      return { x: sc.x, y: sc.y - 10, id: b.id };
     });
     await page.mouse.move(pos.x, pos.y);
     await page.waitForTimeout(250);

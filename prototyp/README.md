@@ -1,8 +1,8 @@
-# Próbka nowego stylu graficznego (prototyp, v4 — komplet budynków wszystkich nacji)
+# Nowy styl graficzny (prototyp v4 — komplet budynków wszystkich nacji, osadzony w grze)
 
-Samodzielny prototyp — **nie zmienia gry** (`Nova_Roma.html`). Pokazuje, jak wygląda render w stylu Settlers IV / Twierdzy / AoE2 bez żadnych
-plików graficznych: wszystko jest rysowane kodem i wypiekane do sprite'ów. Od v4 narysowany jest **każdy budynek z katalogu gry
-(`Data.BUILDINGS`) dla każdej z czterech nacji — 87 sprite'ów** — z własnym obrysem (2×2 … 4×4 pola).
+Render w stylu Settlers IV / Twierdzy / AoE2 bez żadnych plików graficznych: wszystko jest rysowane kodem i wypiekane do sprite'ów.
+Narysowany jest **każdy budynek z katalogu gry (`Data.BUILDINGS`) dla każdej z czterech nacji — 88 sprite'ów** (Frankowie 24, Saraceni 23, Wikingowie 21, Słowianie 20)
+z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna próbka do oglądania; **silnik sprite'ów jest też osadzony w grze** (`Nova_Roma.html`, moduł `Sprites`) — patrz „Osadzenie w grze".
 
 ![scena](podglad/scena.jpg)
 
@@ -16,7 +16,7 @@ plików graficznych: wszystko jest rysowane kodem i wypiekane do sprite'ów. Od 
 - Podglądy: `podglad/*.jpg` (odświeża je `sh podglady.sh`).
 
 ## Co jest w v4
-1. **Komplet budynków:** Frankowie 24, Saraceni 23, Wikingowie 20, Słowianie 20 (tabele niżej) — każdy pod swój obrys, z rekwizytami pasującymi do funkcji
+1. **Komplet budynków:** Frankowie 24, Saraceni 23, Wikingowie 21, Słowianie 20 (tabele niżej) — każdy pod swój obrys, z rekwizytami pasującymi do funkcji
    (tartak z piłą, kopalnia z torami i wózkiem, kaszarnia ze stępą, garbarnia z kadziami, qanat z szybami, okręt z tarczami, …).
 2. **Koniec „halucynacji" — budynki składane z brył, nie malowane „na oko".** Każdy budynek to zbiór brył (`src/26_build.js`, klasa `Build`):
    prostopadłościany, walce, dachy dwu-/czterospadowe/pulpitowe, kopuły, rekwizyty — każda z własnym obrysem w przestrzeni.
@@ -25,9 +25,10 @@ plików graficznych: wszystko jest rysowane kodem i wypiekane do sprite'ów. Od 
    - **cienie** liczone z sumy brył (zakładki nie ciemnieją podwójnie);
    - **okna i drzwi układa `facade()`**: równe odstępy, nie nachodzą na narożniki ani na siebie, liczba okien jest ograniczona szerokością ściany;
    - **kontrola jakości `?lint=1`** (`node lint.js [nazwy]`): przenikanie się brył, zła kolejność, okna poza ścianą / nachodzące / zbyt gęste (>50% szerokości),
-     elementy wystające poza obrys, ucięcie na brzegu płótna, nierozwiązywalne cykle głębi. **Wszystkie 87 budynków przechodzi z 0 ostrzeżeń.**
+     elementy wystające poza obrys, ucięcie na brzegu płótna, nierozwiązywalne cykle głębi. **Wszystkie 88 budynków przechodzi z 0 ostrzeżeń.**
 3. **Uwagi z przeglądu zrealizowane:** u Franków 2–3 okna na ścianę (ciemne szyby, jeden kolor okiennic, ryglówka dopasowana do okien), kościół przeprojektowany
    (nawa + przypory + 3 witraże + prosta wieża z iglicą — bez zegara, rozety i pinakli), u Wikingów kościół słupowy (nawa, nawy boczne, wieża), u Słowian „Święty krąg".
+   **Smocze głowy** występują tylko u Wikingów i zawsze patrzą od budynku (na obu końcach kalenicy: `dragonEnd`, `side = s2·d`); budynki Słowian nie mają żadnych głów.
 4. **Okrągła cegła na okrągłych bryłach** (wieże, studnie, kopuły bębnów, młyn): tekstura jest mapowana walcowo (`cylTexture`) — cegły zwężają się ku krawędziom
    i układają w łuki, zamiast płaskiej siatki jak na ścianach.
 5. **Zużycie dopasowane do materiału:** łaty napraw na ciemnych deskach i gontach są tylko trochę jaśniejsze (nie rażą), na jasnych — wyraźne.
@@ -70,7 +71,7 @@ plików graficznych: wszystko jest rysowane kodem i wypiekane do sprite'ów. Od 
 | dock / ship | Przystań, Okręt | 4×2 / 4×2 | pomost na palach z żurawikiem; okręt z tarczami, żaglem i smoczą głową |
 | smelter / toolforge / armory | Huta, Kuźnia, Zbrojownia | 3×3 / 2×3 / 3×2 | piec szybowy z żarem; otwarta kuźnia; rzędy tarcz |
 
-### Słowianie — zrąb, strzecha, koniki na kalenicy, drewniane bożki
+### Słowianie — zrąb, strzecha, drewniane bożki (bez rzeźbionych głów na dachach)
 | id | Budynek | Obrys | Uwagi |
 |---|---|---|---|
 | keep | Gród (dwór) | 4×4 | wał z bali z częstokołem, brama z nadbudówką, dwupiętrowy dwór, dom gościnny, studnia-żuraw, bożek |
@@ -97,10 +98,14 @@ Generuje go `node katalog.js`. Dla każdego `nacja → id`: nazwa sprite'a, nazw
 ## Pomiary (Chromium headless, render programowy, bez GPU)
 Patrz sekcja „Pomiary" na końcu — liczby poniżej to wypiek **jednej nacji** (tyle potrzebuje gra) i wszystkich czterech.
 
-## Co trzeba zmienić w grze, żeby użyć tych sprite'ów
-Dziś w `Nova_Roma.html` budynek ma 1 pole (poza Zamkiem 2×2: `size = id === 'keep' ? 2 : 1` w kilku miejscach). Potrzebne:
-- `footprint: [w, h]` w `Data.BUILDINGS` (z katalogu) i użycie go w kolizjach, obsadzaniu pól, podglądzie budowy, drogach/„adjacency", AI botów;
-- wejścia (punkt dojścia pracowników) z katalogu zamiast „środka pola";
-- sortowanie głębi z prostokątami obrysów (jest w `src/90_main.js: sortDrawables`);
-- wypiek sprite'ów **tylko wybranej nacji** przy starcie z paskiem postępu (`BAKED.<nacja>_<id>`, funkcja `wantedSprites()` pokazuje wzorzec);
-- animowany dym z kotwic `sprite.smoke` (emisja tylko dla widocznych budynków — `drawFrame` w `src/90_main.js`).
+## Osadzenie w grze
+Gra pozostaje **jednym plikiem** `Nova_Roma.html`; źródłem prawdy jest `prototyp/src`. Bloki w grze generuje skrypt (nie edytuje się ich ręcznie):
+- `node prototyp/build_game.js` — wkleja do `Nova_Roma.html` (znaczniki `SPRITES:BEGIN/END`, `SPRITE_META:BEGIN/END` przed modułem DATA):
+  moduł **`Sprites`** (IIFE: `src/00…54` + `game_api.js`, bez `90_main.js`) oraz **`SPRITE_META`** (obrys, wejście, dym, rozmiar sprite'a każdego budynku z `katalog_budynkow.json`).
+  `--check` sprawdza, czy bloki są aktualne. Silnik ładuje się bez DOM (testy headless widzą obrysy bez wypieku); skrypt przerywa, gdy katalog nie obejmuje wszystkich budynków nacji.
+- `Sprites.bake(nacja, postęp, { deposits })` wypieka **tylko wybraną nację** + przyrodę jej klimatu + jej mieszkańców (ekran „Wypiekanie grafiki"; q=1 ≈ 1–1,5 s, q=2 ≈ 2,5–3,5 s);
+  `Sprites.get(nacja, id)`, `Sprites.draw(ctx, sprite, warstwa, x, y, k, dpr)` (warstwy `p` plac, `u` cień, `c` obiekt; dobór mipmapy), `Sprites.sort(lista)` (głębia wg prostokątów obrysów, `src/36_sort.js`),
+  `Sprites.engine` (`Scene`, `tex`, generatory — dla modułów terenu/zwierząt).
+- W grze: `Data.footprint(id)` (obrys z katalogu) zastępuje stałe rozmiary; `World/Build/Events/TestBots` operują na pełnym obrysie; Dwór 4×4 na środku mapy; `Game.render` rysuje sprite'y
+  (budynki, drzewa, złoża, mieszkańcy, place budowy, duch budynku, dym z kominów, plakietki). `?classic=1` — dawne procedury `Gfx.ART` (zapas), `?q=1|2` — jakość wypieku.
+- Po zmianie obrysu / wejścia / komina: `node build.js` → `node katalog.js` → `node build_game.js`; test: `node tools/browser_sprites.js` i `node tools/footprints.js`.
