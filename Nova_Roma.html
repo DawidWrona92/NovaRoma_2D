@@ -5716,7 +5716,7 @@ const Terrain = (() => {
     return false;
   }
 
-  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, CX, CY, PLAZA_R, fbm, hash2, prng };
+  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, CX, CY, PLAZA_R, EARLY_R, fbm, hash2, prng };
 })();
 
 /* ============================= MODUL: MAPGEN ============================== */
@@ -7893,7 +7893,7 @@ const Economy = (() => {
   }
 
   return { tick, LIMIT, FOODS, MINE_EATERS, DOBRO, popularity, housing, capOf, potentialFood, foodReport, foodRate,
-           totalFood, outsOf, outGood, isFoodOut, forestMult, orderOf };
+           totalFood, outsOf, outGood, isFoodOut, forestMult, orderOf, RATIONS_POP, TAX_POP, TAX_INCOME, FOOD_PRIORITY, PROD_ORDER, VIK_RATE };
 })();
 
 /* ====================== MODUL: BUILD (Etap 3: logistyka) =================== */
@@ -8033,7 +8033,7 @@ const Build = (() => {
     return carry * 0.5 + work * 0.5;
   }
 
-  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress };
+  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress, PIECE_MIN, BASE_WORK, PER_PIECE };
 })();
 
 /* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
@@ -8283,7 +8283,7 @@ const Tribute = (() => {
   }
 
   return { set, tick, soldierReserve, requiredCum, labelOf, missingChain, basketStatus,
-           PRESET_LABEL, PRESET_LEVEL, FIRST_TERM, RATE, UNIT, TERM_EVERY };
+           PRESET_LABEL, PRESET_LEVEL, FIRST_TERM, RATE, UNIT, TERM_EVERY, TRADE, NEED_LIST };
 })();
 
 /* ==================== MODUL: EVENTS (Etap 5: świat dynamiczny) =================== */
@@ -8386,7 +8386,7 @@ const Events = (() => {
     }
   }
 
-  return { tick, plague, fire, priceCrash, deforest, forestFire, destroy, setCrisis, guardsActive, msg };
+  return { tick, plague, fire, priceCrash, deforest, forestFire, destroy, setCrisis, guardsActive, msg, GUARD_UPKEEP, GUARD_MAX };
 })();
 
 /* ===================== MODUL: TESTBOTS (boty R/D/N, Etap 5-testy) ============ */
