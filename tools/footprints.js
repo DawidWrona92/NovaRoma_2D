@@ -2,12 +2,16 @@
 // złoża pod kopalnią na dowolnym polu obrysu, place budowy (siteAt / cancel), wyburzenie, start Dworu 4×4 i miejsca dla botów.
 // Użycie: node tools/footprints.js [plik.html]
 const G = require('./headless').load(process.argv[2] || 'Nova_Roma.html');
-const { World, Data, Build, Events, MapGen, TestBots } = G;
+const { World, Data, Build, Events, MapGen, TestBots } = G, Terrain = G.run('Terrain');
 let fails = 0, checks = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log('  ✘ ' + msg); } return c; };
 const FACTIONS = ['slavs', 'franks', 'vikings', 'saracens'];
 const idsOf = fid => Object.keys(Data.BUILDINGS).filter(id => id !== 'keep' && (!Data.BUILDINGS[id].factions || Data.BUILDINGS[id].factions.includes(fid)));
 const tiles = (x, y, w, h) => { const o = []; for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) o.push([x + dx, y + dy]); return o; };
+/* wolny obrys wg reguł gry: ląd bez drzew, złóż, zajętości i cech blokujących; różnica wysokości < 2; styka się z obszarem osiągalnym z Dworu */
+const freeFp = (s, x, y, w, h) => tiles(x, y, w, h).every(([tx, ty]) => { const t = MapGen.at(s.map, tx, ty); return t && t.h === 1 && !t.occup && !t.trees && !t.deposit && !(t.k && Terrain.BLOCK_K[t.k]); })
+  && (() => { const es = tiles(x, y, w, h).map(([tx, ty]) => MapGen.at(s.map, tx, ty).e); return Math.max(...es) - Math.min(...es) < 2; })()
+  && Terrain.ringReachable(s.map, x, y, w, h);
 const occ = (s, x, y) => { const t = MapGen.at(s.map, x, y); return t ? t.occup : undefined; };
 
 for (const fid of FACTIONS) {
@@ -81,20 +85,18 @@ for (const fid of FACTIONS) {
   const s3 = World.state(), hunter = Data.BUILDINGS.hunter;
   let forestOk = 0, forestWrong = 0;
   for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {
-    const [w, h] = Data.footprint('hunter', fid); let trees = 0, free = true;
+    const [w, h] = Data.footprint('hunter', fid); let trees = 0;
     for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t) trees += t.trees; }
-    for (const [tx, ty] of tiles(x, y, w, h)) { const t = MapGen.at(s3.map, tx, ty); if (!t || t.h !== 1 || t.occup || t.trees || t.deposit) free = false; }
-    const expect = free && trees >= 4, got = World.canPlace('hunter', x, y).ok;
+    const expect = freeFp(s3, x, y, w, h) && trees >= 4, got = World.canPlace('hunter', x, y).ok;
     if (expect === got) forestOk++; else forestWrong++;
   }
   ok(hunter.req === 'forest' && forestWrong === 0, 'wymóg lasu liczony w pierścieniu wokół obrysu (' + forestOk + ' pól zgodnych, ' + forestWrong + ' różnic)');
   if (fid === 'vikings') {
     let shoreOk = 0, shoreBad = 0;
     for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {
-      const [w, h] = Data.footprint('dock', fid); let water = false, free = true;
-      for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t && t.h === 0) water = true; }
-      for (const [tx, ty] of tiles(x, y, w, h)) { const t = MapGen.at(s3.map, tx, ty); if (!t || t.h !== 1 || t.occup || t.trees || t.deposit) free = false; }
-      if ((free && water) === World.canPlace('dock', x, y).ok) shoreOk++; else shoreBad++;
+      const [w, h] = Data.footprint('dock', fid); let sea = false;
+      for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t && t.wk === 'sea') sea = true; }
+      if ((freeFp(s3, x, y, w, h) && sea) === World.canPlace('dock', x, y).ok) shoreOk++; else shoreBad++;
     }
     ok(shoreBad === 0, 'Przystań 4×2: dostęp do wody liczony w pierścieniu (' + shoreOk + ' zgodnych, ' + shoreBad + ' różnic)');
   }
@@ -104,7 +106,7 @@ for (const fid of FACTIONS) {
   const s4 = World.state(); s4.res.deski = 99999; s4.res.kamień = 999; s4.res.glina = 999; s4.res.złoto = 99999;
   let noplace = [];
   for (const id of TestBots.RECIPE[fid]) {
-    if (id === 'ship' && !s4.buildings.some(b => b.id === 'dock')) { World.placeFree('dock', ...Object.values(TestBots.findPlace(s4, 'dock') || { x: 0, y: 0 })); }
+    if (id === 'ship' && !s4.buildings.some(b => b.id === 'dock')) { const d = TestBots.findPlace(s4, 'dock'); ok(!!d, 'Przystań ma miejsce na brzegu morza'); if (d) World.placeFree('dock', d.x, d.y); }
     const p = TestBots.findPlace(s4, id);
     if (!p) { noplace.push(id); continue; }
     World.placeBuilding(id, p.x, p.y);

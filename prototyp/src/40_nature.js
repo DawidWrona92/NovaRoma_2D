@@ -6,7 +6,9 @@ GEN.grass = (pal = 'green') => {
   const sets = {
     green: { stops: [[0, '#2c5520'], [0.35, '#44782a'], [0.65, '#5c9533'], [1, '#8ab648']], blades: ['#22481a', '#336322', '#4a8a2c', '#6aa83c', '#9bc653', '#c3d86a'], dirt: '#7a6232' },
     sand: { stops: [[0, '#b99c62'], [0.4, '#cdb27a'], [0.7, '#dcc48e'], [1, '#e8d6a4']], blades: ['#9c8248', '#b89c60', '#cfb77c', '#e4d3a0', '#a3a06a'], dirt: '#a8884e' },
-    tundra: { stops: [[0, '#3a5a34'], [0.4, '#52743e'], [0.7, '#6a8a48'], [1, '#8da358']], blades: ['#2c4a2a', '#406038', '#587a42', '#7a9850', '#a3b46a'], dirt: '#6a5a3a' }
+    tundra: { stops: [[0, '#3a5a34'], [0.4, '#52743e'], [0.7, '#6a8a48'], [1, '#8da358']], blades: ['#2c4a2a', '#406038', '#587a42', '#7a9850', '#a3b46a'], dirt: '#6a5a3a' },
+    eastern: { stops: [[0, '#3b5a2a'], [0.35, '#5b7d35'], [0.65, '#7f9540'], [1, '#aab058']], blades: ['#2c4a22', '#47692b', '#6d8a37', '#98a649', '#c0b868', '#8a7c40'], dirt: '#4a3a24' },
+    snow: { stops: [[0, '#bccbda'], [0.4, '#d6e2ec'], [0.7, '#e9f1f7'], [1, '#fbfdff']], blades: ['#a6b8c8', '#c0cfdb', '#dde8f0', '#f4f9fc', '#8a9a7a', '#a89870'], dirt: '#807a6c' }
   }[pal];
   const st = sets.stops.map(([p, h]) => [p, hex(h)]);
   const n1 = fbm(N, 3, 4, 7), n2 = fbm(N, 10, 3, 19), n3 = periodicNoise(N, 40, 31);
@@ -26,7 +28,7 @@ GEN.grass = (pal = 'green') => {
     wrapDraw(B, x - 8, y - 8, 16, 16, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); });
   }
   g.globalAlpha = 1;
-  if (pal !== 'sand') for (let i = 0; i < 36; i++) { // kwiatki
+  if (pal !== 'sand' && pal !== 'snow') for (let i = 0; i < (pal === 'eastern' ? 22 : 36); i++) { // kwiatki
     const x = r() * B, y = r() * B, col = ['#f4efe0', '#f0d84a', '#e87a9a', '#c9a0e8'][(r() * 4) | 0];
     g.fillStyle = col; g.globalAlpha = 0.75; g.beginPath(); g.arc(x, y, 1.1 + r() * 0.9, 0, TAU); g.fill();
   }
@@ -62,16 +64,28 @@ GEN.field = (kind = 'wheat') => {
   }
   return { c, ppu: 64 * T };
 };
-GEN.water = () => {
+GEN.water = (pal = 'sea') => {
+  const V = {
+    sea: { st: [[0, '#1d6a8c'], [0.5, '#2f8ba6'], [1, '#5cc0c8']], wave: '235,250,255' },
+    lake: { st: [[0, '#25606c'], [0.5, '#3a8a8c'], [1, '#78cdbd']], wave: '235,252,246' },
+    river: { st: [[0, '#2a6f96'], [0.5, '#4690b2'], [1, '#8ac9de']], wave: '240,252,255' },
+    oasis: { st: [[0, '#1f8f95'], [0.5, '#35b6b0'], [1, '#8ee6d4']], wave: '240,255,250' },
+    ice: { st: [[0, '#a6c6da'], [0.5, '#d0e5f0'], [1, '#f6fbff']], wave: '255,255,255' }
+  }[pal] || null;
   const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, n1 = fbm(N, 4, 4, 41), n2 = periodicNoise(N, 20, 43);
-  const st = [[0, hex('#1d6a8c')], [0.5, hex('#2f8ba6')], [1, hex('#5cc0c8')]], lut = lutRamp(st);
+  const lut = lutRamp(V.st.map(([p0, h]) => [p0, hex(h)]));
   for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] * 0.8 + n2[i] * 0.3 - 0.1) * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); g.scale(T, T);
-  const r = rng(47);
-  for (let i = 0; i < 260; i++) { // fale
+  const r = rng(47 + pal.length);
+  for (let i = 0; i < (pal === 'ice' ? 60 : 260); i++) { // fale (na lodzie — rzadkie połyski)
     const x = r() * B, y = r() * B, rx = 6 + r() * 16;
-    g.strokeStyle = `rgba(235,250,255,${0.1 + r() * 0.2})`; g.lineWidth = 1 + r();
+    g.strokeStyle = `rgba(${V.wave},${0.1 + r() * 0.2})`; g.lineWidth = 1 + r();
     wrapDraw(B, x - rx, y - 4, rx * 2, 8, (ox, oy) => { g.beginPath(); g.ellipse(x + ox, y + oy, rx, 1.5 + r() * 2, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); });
+  }
+  if (pal === 'ice') for (let i = 0; i < 26; i++) { // pęknięcia lodu
+    let x = r() * B, y = r() * B, a = r() * TAU; const pts = [[x, y]];
+    for (let k = 0; k < 6; k++) { a += (r() - 0.5) * 1.3; x += Math.cos(a) * (6 + r() * 12); y += Math.sin(a) * (6 + r() * 12); pts.push([x, y]); }
+    wrapDraw(B, pts[0][0] - 40, pts[0][1] - 40, 80, 80, (ox, oy) => { g.strokeStyle = 'rgba(70,110,150,0.45)'; g.lineWidth = 1.1; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox, py + oy) : g.moveTo(px + ox, py + oy)); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 0.6; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox + 0.8, py + oy + 0.8) : g.moveTo(px + ox + 0.8, py + oy + 0.8)); g.stroke(); });
   }
   return { c, ppu: 64 * T };
 };
@@ -116,7 +130,7 @@ TREES.oak = (seed, F = 0.8) => {
   treeShadeOverlay(g, cx - 70, cyc - 60, cx + 70, cyc + 50);
   return T.out();
 };
-TREES.pine = (seed, F = 0.8) => {
+TREES.pine = (seed, F = 0.8, o = {}) => {
   const W = 170, H = 280, cx = 85, base = 244, T = treeBase(W, H, cx, base, seed, { F }), { g, r } = T;
   g.fillStyle = '#3d2a1a'; g.fillRect(cx - 5, base - 30, 10, 34);
   const n = 8;
@@ -132,6 +146,12 @@ TREES.pine = (seed, F = 0.8) => {
       const x = cx - wd + r() * wd * 2, y = yB - hh + r() * (hh + 8), lit = x < cx + (r() - 0.5) * 14;
       g.strokeStyle = lit ? `rgba(150,214,110,${0.25 + r() * 0.3})` : `rgba(6,28,12,${0.25 + r() * 0.3})`; g.lineWidth = 1;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + (x < cx ? -3 : 3), y + 4); g.stroke();
+    }
+    if (o.snow) { // śnieg na górnych krawędziach pięter i na końcach gałęzi
+      g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = 'rgba(250,253,255,0.96)'; g.lineWidth = 7 - i * 0.4;
+      g.beginPath(); g.moveTo(cx - wd * 0.9, yB - 3); g.lineTo(cx, yB - hh + 4); g.lineTo(cx + wd * 0.9, yB - 3); g.stroke();
+      g.fillStyle = 'rgba(244,250,255,0.92)'; for (let q = 0; q < 7; q++) { const px = cx - wd * 0.85 + r() * wd * 1.7, py = yB - hh * (0.15 + r() * 0.5); g.beginPath(); g.ellipse(px, py, 3 + r() * 4, 2 + r() * 2, 0, 0, TAU); g.fill(); }
+      g.strokeStyle = 'rgba(210,225,240,0.7)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx - wd * 0.85, yB - 1); g.lineTo(cx + wd * 0.85, yB - 1); g.stroke();
     }
     g.restore();
   }
@@ -210,7 +230,7 @@ function bakeRock(seed, col = '#8e8c84', F = 0.8) {
 function bakeTuft(seed, pal, F = 0.7) {
   const W = 40, H = 36, R = RES, c = newCanvas(Math.ceil(W * F * R), Math.ceil(H * F * R)), g = c.getContext('2d'), r = rng(seed), cx = 20, base = 30;
   g.setTransform(R * F, 0, 0, R * F, 0, 0);
-  const cols = pal === 'sand' ? ['#9c8248', '#b89c60', '#d4bd84'] : ['#2f6a22', '#4f9030', '#7bb544', '#a6cf5a'];
+  const cols = pal === 'sand' ? ['#9c8248', '#b89c60', '#d4bd84'] : pal === 'snow' ? ['#8a7a58', '#a89a70', '#cfc3a0', '#f2f7fa'] : pal === 'steppe' ? ['#6b7a38', '#8c9a48', '#b0b868', '#cfca80'] : ['#2f6a22', '#4f9030', '#7bb544', '#a6cf5a'];
   for (let i = 0; i < 9; i++) {
     const a = -Math.PI / 2 + (r() - 0.5) * 1.7, len = 12 + r() * 14, x = cx + (r() - 0.5) * 10;
     g.strokeStyle = cols[(r() * cols.length) | 0]; g.lineWidth = 1.6 + r(); g.lineCap = 'round';

@@ -36,8 +36,13 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     ok(r.mism.length === 0, 'obrysy sprite\'ów = katalog' + (r.mism.length ? ' — ' + r.mism.join('; ') : ''));
     ok(r.empty.length === 0, 'żadna warstwa obiektu nie jest pusta' + (r.empty.length ? ' — ' + r.empty.join(', ') : ''));
     ok(r.baked === n && r.again < 50, `ponowne bake(${n}) nic nie robi (${r.again.toFixed(0)} ms)`);
-    ok(r.sets.cast >= 2 && (r.sets.oaks || r.sets.palms) && r.sets.rocks, 'zestawy przyrody i mieszkańców: ' + JSON.stringify(r.sets));
+    ok(r.sets.cast >= 2 && (r.sets.oaks || r.sets.palms || r.sets.pines || r.sets.birches || r.sets.winters) && r.sets.rocks && r.sets.cliffs, 'zestawy przyrody i mieszkańców: ' + JSON.stringify(r.sets));
     console.log(`    czas wypieku ${r.ms.toFixed(0)} ms` + (r.mem ? ` · sterta ${r.mem} MB` : '') + ` · postęp: ${r.prog.map(p => p[0]).join(' ')}`);
+  }
+  console.log('klimaty (Frankowie, jakość ' + Q + ')');
+  for (const cl of ['temperate', 'eastern', 'snow', 'desert']) {
+    const sets = await page.evaluate(async cl => { await Sprites.bake('franks', null, { climate: cl }); return Object.fromEntries(Object.entries(Sprites.sets).map(([k, v]) => [k, Array.isArray(v) ? v.length : typeof v === 'object' ? Object.keys(v).length : v])); }, cl);
+    ok(sets.climate === cl && sets.cliffs >= 3 && sets.rocks >= 3 && sets.tufts >= 3 && (sets.oaks || sets.palms || sets.pines || sets.birches || sets.winters), cl + ': ' + JSON.stringify(sets));
   }
   ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close();

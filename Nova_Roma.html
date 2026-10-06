@@ -1944,7 +1944,9 @@ GEN.grass = (pal = 'green') => {
   const sets = {
     green: { stops: [[0, '#2c5520'], [0.35, '#44782a'], [0.65, '#5c9533'], [1, '#8ab648']], blades: ['#22481a', '#336322', '#4a8a2c', '#6aa83c', '#9bc653', '#c3d86a'], dirt: '#7a6232' },
     sand: { stops: [[0, '#b99c62'], [0.4, '#cdb27a'], [0.7, '#dcc48e'], [1, '#e8d6a4']], blades: ['#9c8248', '#b89c60', '#cfb77c', '#e4d3a0', '#a3a06a'], dirt: '#a8884e' },
-    tundra: { stops: [[0, '#3a5a34'], [0.4, '#52743e'], [0.7, '#6a8a48'], [1, '#8da358']], blades: ['#2c4a2a', '#406038', '#587a42', '#7a9850', '#a3b46a'], dirt: '#6a5a3a' }
+    tundra: { stops: [[0, '#3a5a34'], [0.4, '#52743e'], [0.7, '#6a8a48'], [1, '#8da358']], blades: ['#2c4a2a', '#406038', '#587a42', '#7a9850', '#a3b46a'], dirt: '#6a5a3a' },
+    eastern: { stops: [[0, '#3b5a2a'], [0.35, '#5b7d35'], [0.65, '#7f9540'], [1, '#aab058']], blades: ['#2c4a22', '#47692b', '#6d8a37', '#98a649', '#c0b868', '#8a7c40'], dirt: '#4a3a24' },
+    snow: { stops: [[0, '#bccbda'], [0.4, '#d6e2ec'], [0.7, '#e9f1f7'], [1, '#fbfdff']], blades: ['#a6b8c8', '#c0cfdb', '#dde8f0', '#f4f9fc', '#8a9a7a', '#a89870'], dirt: '#807a6c' }
   }[pal];
   const st = sets.stops.map(([p, h]) => [p, hex(h)]);
   const n1 = fbm(N, 3, 4, 7), n2 = fbm(N, 10, 3, 19), n3 = periodicNoise(N, 40, 31);
@@ -1964,7 +1966,7 @@ GEN.grass = (pal = 'green') => {
     wrapDraw(B, x - 8, y - 8, 16, 16, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); });
   }
   g.globalAlpha = 1;
-  if (pal !== 'sand') for (let i = 0; i < 36; i++) { // kwiatki
+  if (pal !== 'sand' && pal !== 'snow') for (let i = 0; i < (pal === 'eastern' ? 22 : 36); i++) { // kwiatki
     const x = r() * B, y = r() * B, col = ['#f4efe0', '#f0d84a', '#e87a9a', '#c9a0e8'][(r() * 4) | 0];
     g.fillStyle = col; g.globalAlpha = 0.75; g.beginPath(); g.arc(x, y, 1.1 + r() * 0.9, 0, TAU); g.fill();
   }
@@ -2000,16 +2002,28 @@ GEN.field = (kind = 'wheat') => {
   }
   return { c, ppu: 64 * T };
 };
-GEN.water = () => {
+GEN.water = (pal = 'sea') => {
+  const V = {
+    sea: { st: [[0, '#1d6a8c'], [0.5, '#2f8ba6'], [1, '#5cc0c8']], wave: '235,250,255' },
+    lake: { st: [[0, '#25606c'], [0.5, '#3a8a8c'], [1, '#78cdbd']], wave: '235,252,246' },
+    river: { st: [[0, '#2a6f96'], [0.5, '#4690b2'], [1, '#8ac9de']], wave: '240,252,255' },
+    oasis: { st: [[0, '#1f8f95'], [0.5, '#35b6b0'], [1, '#8ee6d4']], wave: '240,255,250' },
+    ice: { st: [[0, '#a6c6da'], [0.5, '#d0e5f0'], [1, '#f6fbff']], wave: '255,255,255' }
+  }[pal] || null;
   const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, n1 = fbm(N, 4, 4, 41), n2 = periodicNoise(N, 20, 43);
-  const st = [[0, hex('#1d6a8c')], [0.5, hex('#2f8ba6')], [1, hex('#5cc0c8')]], lut = lutRamp(st);
+  const lut = lutRamp(V.st.map(([p0, h]) => [p0, hex(h)]));
   for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] * 0.8 + n2[i] * 0.3 - 0.1) * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); g.scale(T, T);
-  const r = rng(47);
-  for (let i = 0; i < 260; i++) { // fale
+  const r = rng(47 + pal.length);
+  for (let i = 0; i < (pal === 'ice' ? 60 : 260); i++) { // fale (na lodzie — rzadkie połyski)
     const x = r() * B, y = r() * B, rx = 6 + r() * 16;
-    g.strokeStyle = `rgba(235,250,255,${0.1 + r() * 0.2})`; g.lineWidth = 1 + r();
+    g.strokeStyle = `rgba(${V.wave},${0.1 + r() * 0.2})`; g.lineWidth = 1 + r();
     wrapDraw(B, x - rx, y - 4, rx * 2, 8, (ox, oy) => { g.beginPath(); g.ellipse(x + ox, y + oy, rx, 1.5 + r() * 2, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); });
+  }
+  if (pal === 'ice') for (let i = 0; i < 26; i++) { // pęknięcia lodu
+    let x = r() * B, y = r() * B, a = r() * TAU; const pts = [[x, y]];
+    for (let k = 0; k < 6; k++) { a += (r() - 0.5) * 1.3; x += Math.cos(a) * (6 + r() * 12); y += Math.sin(a) * (6 + r() * 12); pts.push([x, y]); }
+    wrapDraw(B, pts[0][0] - 40, pts[0][1] - 40, 80, 80, (ox, oy) => { g.strokeStyle = 'rgba(70,110,150,0.45)'; g.lineWidth = 1.1; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox, py + oy) : g.moveTo(px + ox, py + oy)); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 0.6; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox + 0.8, py + oy + 0.8) : g.moveTo(px + ox + 0.8, py + oy + 0.8)); g.stroke(); });
   }
   return { c, ppu: 64 * T };
 };
@@ -2054,7 +2068,7 @@ TREES.oak = (seed, F = 0.8) => {
   treeShadeOverlay(g, cx - 70, cyc - 60, cx + 70, cyc + 50);
   return T.out();
 };
-TREES.pine = (seed, F = 0.8) => {
+TREES.pine = (seed, F = 0.8, o = {}) => {
   const W = 170, H = 280, cx = 85, base = 244, T = treeBase(W, H, cx, base, seed, { F }), { g, r } = T;
   g.fillStyle = '#3d2a1a'; g.fillRect(cx - 5, base - 30, 10, 34);
   const n = 8;
@@ -2070,6 +2084,12 @@ TREES.pine = (seed, F = 0.8) => {
       const x = cx - wd + r() * wd * 2, y = yB - hh + r() * (hh + 8), lit = x < cx + (r() - 0.5) * 14;
       g.strokeStyle = lit ? `rgba(150,214,110,${0.25 + r() * 0.3})` : `rgba(6,28,12,${0.25 + r() * 0.3})`; g.lineWidth = 1;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + (x < cx ? -3 : 3), y + 4); g.stroke();
+    }
+    if (o.snow) { // śnieg na górnych krawędziach pięter i na końcach gałęzi
+      g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = 'rgba(250,253,255,0.96)'; g.lineWidth = 7 - i * 0.4;
+      g.beginPath(); g.moveTo(cx - wd * 0.9, yB - 3); g.lineTo(cx, yB - hh + 4); g.lineTo(cx + wd * 0.9, yB - 3); g.stroke();
+      g.fillStyle = 'rgba(244,250,255,0.92)'; for (let q = 0; q < 7; q++) { const px = cx - wd * 0.85 + r() * wd * 1.7, py = yB - hh * (0.15 + r() * 0.5); g.beginPath(); g.ellipse(px, py, 3 + r() * 4, 2 + r() * 2, 0, 0, TAU); g.fill(); }
+      g.strokeStyle = 'rgba(210,225,240,0.7)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx - wd * 0.85, yB - 1); g.lineTo(cx + wd * 0.85, yB - 1); g.stroke();
     }
     g.restore();
   }
@@ -2148,7 +2168,7 @@ function bakeRock(seed, col = '#8e8c84', F = 0.8) {
 function bakeTuft(seed, pal, F = 0.7) {
   const W = 40, H = 36, R = RES, c = newCanvas(Math.ceil(W * F * R), Math.ceil(H * F * R)), g = c.getContext('2d'), r = rng(seed), cx = 20, base = 30;
   g.setTransform(R * F, 0, 0, R * F, 0, 0);
-  const cols = pal === 'sand' ? ['#9c8248', '#b89c60', '#d4bd84'] : ['#2f6a22', '#4f9030', '#7bb544', '#a6cf5a'];
+  const cols = pal === 'sand' ? ['#9c8248', '#b89c60', '#d4bd84'] : pal === 'snow' ? ['#8a7a58', '#a89a70', '#cfc3a0', '#f2f7fa'] : pal === 'steppe' ? ['#6b7a38', '#8c9a48', '#b0b868', '#cfca80'] : ['#2f6a22', '#4f9030', '#7bb544', '#a6cf5a'];
   for (let i = 0; i < 9; i++) {
     const a = -Math.PI / 2 + (r() - 0.5) * 1.7, len = 12 + r() * 14, x = cx + (r() - 0.5) * 10;
     g.strokeStyle = cols[(r() * cols.length) | 0]; g.lineWidth = 1.6 + r(); g.lineCap = 'round';
@@ -2295,6 +2315,203 @@ const CAST = {
   vikFisher: { tunic: '#3a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#d8b060', beard: true, beardCol: '#d8b060', head: 'fur', headCol: '#7a6a5a', props: ['sack'] }
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
+
+/* ---- 41_climate.js ---- */
+/* ====================== KLIMATY: tekstury gruntu i roślinność (śnieg, pustynia, Europa Wschodnia) ======================
+   Tekstury kafelkowalne (jak GEN.grass): wydmy, bagno, ruchome piaski, zaspy. Sprite'y: brzoza, drzewo zimowe (nagie, ośnieżone), krzewy,
+   kaktus, trzcina, bloki klifów (skała / piaskowiec / ośnieżona). Wszystko rysowane kodem, deterministycznie z ziarna. */
+
+/* wydmy: asymetryczne grzbiety (łagodny stok nawietrzny, stromy zawietrzny w cieniu); okres całkowity → bezszwowy kafelek */
+GEN.dune = () => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const n1 = fbm(N, 3, 3, 71), wp = fbm(N, 5, 3, 73), lut = lutRamp([[0, hex('#b6975a')], [0.45, hex('#d0b278')], [0.8, hex('#e2c98e')], [1, hex('#efdcaa')]]);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, s = (2 * x + y) / N + (wp[i] - 0.5) * 0.9, f = s - Math.floor(s);
+    const b = f < 0.7 ? 0.9 + 0.24 * (f / 0.7) : 0.6 + 0.3 * ((f - 0.7) / 0.3), k = Math.min(1, Math.abs(f - 0.7) / 0.025), bb = k < 1 ? lerp(0.78, b, k) : b;   // wygładzony grzbiet
+    const col = lut[clamp(((n1[i] * 0.9 - 0.05) * 255) | 0, 0, 255)];
+    d[i * 4] = col[0] * bb; d[i * 4 + 1] = col[1] * bb; d[i * 4 + 2] = col[2] * bb; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(75);
+  for (let i = 0; i < 700; i++) { const x = r() * B, y = r() * B; g.fillStyle = r() < 0.5 ? 'rgba(255,240,200,0.25)' : 'rgba(120,90,50,0.22)'; g.fillRect(x, y, 1 + r() * 1.6, 1); }   // ziarenka piasku
+  return { c, ppu: 64 * T };
+};
+/* zaspy: miękkie śnieżne garby z niebieskawym cieniem */
+GEN.drift = () => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const n1 = fbm(N, 3, 3, 91), wp = fbm(N, 6, 3, 93), lut = lutRamp([[0, hex('#c4d4e4')], [0.5, hex('#e4eef6')], [1, hex('#ffffff')]]);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, s = (x + 2 * y) / N + (wp[i] - 0.5) * 1.2, f = s - Math.floor(s);
+    const b = f < 0.65 ? 0.96 + 0.08 * (f / 0.65) : 0.82 + 0.18 * ((f - 0.65) / 0.35), col = lut[clamp(((n1[i] - 0.1) * 1.4 * 255) | 0, 0, 255)];
+    d[i * 4] = col[0] * b * 0.97; d[i * 4 + 1] = col[1] * b; d[i * 4 + 2] = Math.min(255, col[2] * b * 1.03); d[i * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(95); for (let i = 0; i < 500; i++) { g.fillStyle = r() < 0.6 ? 'rgba(255,255,255,0.5)' : 'rgba(150,175,205,0.28)'; g.fillRect(r() * B, r() * B, 1 + r() * 1.4, 1); }
+  return { c, ppu: 64 * T };
+};
+/* bagno: mchy, kałuże, kępy turzycy */
+GEN.bog = () => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const n1 = fbm(N, 4, 4, 81), n2 = periodicNoise(N, 24, 83), n3 = fbm(N, 6, 3, 85), lut = lutRamp([[0, hex('#26331c')], [0.5, hex('#43552c')], [1, hex('#6c7c3e')]]);
+  for (let i = 0; i < N * N; i++) {
+    let col = lut[clamp(((n1[i] * 0.8 + n2[i] * 0.4 - 0.1) * 255) | 0, 0, 255)];
+    const p = clamp((n3[i] - 0.58) / 0.1, 0, 1);                                                // kałuże
+    if (p > 0) col = mixc(col, mixc(hex('#27434a'), hex('#4a7a82'), clamp((n2[i] - 0.3) * 1.5, 0, 1)), p * 0.9);
+    d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(87);
+  for (let i = 0; i < 520; i++) { const x = r() * B, y = r() * B, a = -Math.PI / 2 + (r() - 0.5) * 0.9, l = 2 + r() * 5; g.strokeStyle = ['#1e2c16', '#4c6a2c', '#7a9a44', '#9ab25a'][(r() * 4) | 0]; g.globalAlpha = 0.3 + r() * 0.5; g.lineWidth = 0.8 + r() * 0.8;
+    wrapDraw(B, x - 6, y - 8, 12, 14, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); }); }
+  g.globalAlpha = 1;
+  return { c, ppu: 64 * T };
+};
+/* ruchome piaski: ciemniejszy, wilgotny piach z kręgami i połyskiem */
+GEN.quick = () => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const n1 = fbm(N, 4, 3, 61), lut = lutRamp([[0, hex('#6e5a34')], [0.5, hex('#8c7448')], [1, hex('#b09a68')]]);
+  for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] - 0.15) * 1.6 * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(63);
+  for (let i = 0; i < 9; i++) { const x = r() * B, y = r() * B; for (let k = 1; k <= 5; k++) { const rad = k * (5 + r() * 3);
+    wrapDraw(B, x - rad, y - rad * 0.6, rad * 2, rad * 1.2, (ox, oy) => { g.strokeStyle = k % 2 ? 'rgba(56,40,20,0.38)' : 'rgba(230,208,150,0.3)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x + ox, y + oy, rad, rad * 0.55, 0, 0, TAU); g.stroke(); }); } }
+  for (let i = 0; i < 200; i++) { g.fillStyle = 'rgba(255,240,190,0.28)'; g.fillRect(r() * B, r() * B, 1.6, 0.8); }
+  return { c, ppu: 64 * T };
+};
+
+/* ---------- drzewa i krzewy ---------- */
+/* brzoza: biały pień z czarnymi przewężeniami, jasna, ażurowa korona */
+TREES.birch = (seed, F = 0.8) => {
+  const W = 190, H = 250, cx = 95, base = 214, T = treeBase(W, H, cx, base, seed, { F, dx: 22, rx: 42, ry: 12 }), { g, r } = T;
+  const lean = (r() - 0.5) * 8, topX = cx + lean, topY = base - 112;
+  const tg = g.createLinearGradient(cx - 8, 0, cx + 8, 0); tg.addColorStop(0, '#f7f4ec'); tg.addColorStop(0.55, '#dad5c7'); tg.addColorStop(1, '#8c877c');
+  g.fillStyle = tg; g.beginPath(); g.moveTo(cx - 6.5, base + 2); g.quadraticCurveTo(cx - 4 + lean * 0.3, base - 58, topX - 3, topY); g.lineTo(topX + 3, topY); g.quadraticCurveTo(cx + 4 + lean * 0.3, base - 58, cx + 6.5, base + 2); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(30,24,18,0.4)'; g.lineWidth = 1; g.stroke();
+  for (let k = 0; k < 18; k++) { const t = k / 18, y = base - 4 - t * (base - topY - 8), x = lerp(cx, topX, t * t), w = lerp(6.2, 3, t); g.fillStyle = `rgba(26,22,18,${0.55 + r() * 0.35})`; g.fillRect(x - w + (r() < 0.5 ? 0 : w * 0.6), y, w * (0.5 + r() * 0.8), 1.5 + r() * 1.5); }
+  g.strokeStyle = '#d3cdbd'; g.lineWidth = 2.4; g.lineCap = 'round';
+  for (const [dx, dy, by] of [[-30, -24, 46], [28, -30, 58], [-16, -52, 24], [20, -54, 32]]) { g.beginPath(); g.moveTo(lerp(cx, topX, 0.7), topY + by); g.lineTo(topX + dx, topY + dy + by * 0.1); g.stroke(); }
+  const cyc = topY - 6, blobs = [];
+  for (let i = 0; i < 26; i++) { const a = r() * TAU, d = Math.sqrt(r()); blobs.push({ x: topX + Math.cos(a) * d * 46, y: cyc + 10 + Math.sin(a) * d * 52, r: 11 + r() * 8 }); }
+  blobs.sort((a, b) => a.y - b.y);
+  for (const b of blobs) {
+    const gr = g.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.45, b.r * 0.1, b.x, b.y, b.r * 1.1);
+    gr.addColorStop(0, '#dff08e'); gr.addColorStop(0.32, '#aad352'); gr.addColorStop(0.72, '#66a03a'); gr.addColorStop(1, '#3b7228');
+    g.fillStyle = gr; g.beginPath(); g.arc(b.x, b.y, b.r, 0, TAU); g.fill();
+  }
+  g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 900; i++) { const b = blobs[(r() * blobs.length) | 0], a = r() * TAU, d = Math.sqrt(r()) * b.r * 0.95, x = b.x + Math.cos(a) * d, y = b.y + Math.sin(a) * d, lit = (topX - x) * 0.5 + (cyc - y) * 0.6 + (r() - 0.5) * 40 > 0;
+    g.fillStyle = lit ? `rgba(236,248,150,${0.2 + r() * 0.3})` : `rgba(22,56,18,${0.2 + r() * 0.3})`; g.beginPath(); g.ellipse(x, y, 1.6 + r() * 2.2, 1.1 + r() * 1.4, r() * 3, 0, TAU); g.fill(); }
+  g.globalCompositeOperation = 'source-over';
+  treeShadeOverlay(g, topX - 60, cyc - 60, topX + 60, cyc + 60);
+  return T.out();
+};
+/* drzewo zimowe: nagie, rozgałęzione, ze śniegiem na gałęziach */
+TREES.winter = (seed, F = 0.8) => {
+  const W = 200, H = 250, cx = 100, base = 214, T = treeBase(W, H, cx, base, seed, { F, dx: 24, rx: 44, ry: 12 }), { g, r } = T;
+  const lean = (r() - 0.5) * 0.25;
+  const tg = g.createLinearGradient(cx - 10, 0, cx + 10, 0); tg.addColorStop(0, '#7a6a58'); tg.addColorStop(0.5, '#5a4c3e'); tg.addColorStop(1, '#2c241c');
+  g.fillStyle = tg; g.beginPath(); g.moveTo(cx - 12, base + 2); g.quadraticCurveTo(cx - 6, base - 20, cx - 5, base - 70); g.lineTo(cx + 5, base - 70); g.quadraticCurveTo(cx + 6, base - 20, cx + 13, base + 2); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(250,253,255,0.9)'; g.beginPath(); g.ellipse(cx, base + 1, 15, 4.5, 0, 0, TAU); g.fill();
+  g.lineCap = 'round';
+  const br = (x, y, a, len, w, depth) => {
+    const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+    g.strokeStyle = depth < 2 ? '#4a3e32' : '#5e5042'; g.lineWidth = w; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke();
+    g.strokeStyle = 'rgba(250,253,255,0.92)'; g.lineWidth = Math.max(1, w * 0.5); g.beginPath(); g.moveTo(x - 0.8, y - w * 0.35); g.lineTo(x2 - 0.8, y2 - w * 0.35); g.stroke();
+    if (depth < 4) { const n = depth < 2 ? 3 : 2; for (let k = 0; k < n; k++) br(x2, y2, a + (k - (n - 1) / 2) * (0.5 + r() * 0.3) + (r() - 0.5) * 0.3, len * (0.68 + r() * 0.1), Math.max(1.2, w * 0.62), depth + 1); }
+  };
+  br(cx, base - 68, -Math.PI / 2 + lean, 54, 9, 0);
+  treeShadeOverlay(g, cx - 70, 30, cx + 70, base);
+  return T.out();
+};
+/* krzew: zielony / suchy (pustynia) / ośnieżony */
+TREES.shrub = (seed, pal = 'green', F = 0.8) => {
+  const W = 120, H = 90, cx = 60, base = 72, T = treeBase(W, H, cx, base, seed, { F, dx: 14, rx: 32, ry: 8, a: 0.4 }), { g, r } = T;
+  const P = { green: ['#b2d868', '#62a038', '#2f6a22'], dry: ['#d8cc86', '#a09c5a', '#5e6a38'], snow: ['#8aa878', '#4e6e4e', '#2c4a3a'] }[pal] || ['#b2d868', '#62a038', '#2f6a22'], blobs = [];
+  for (let i = 0; i < 9; i++) { const a = r() * TAU, d = Math.sqrt(r()); blobs.push({ x: cx + Math.cos(a) * d * 34, y: base - 14 + Math.sin(a) * d * 11, r: 10 + r() * 9 }); }
+  blobs.sort((a, b) => a.y - b.y);
+  for (const b of blobs) {
+    const gr = g.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.45, b.r * 0.1, b.x, b.y, b.r * 1.1);
+    gr.addColorStop(0, P[0]); gr.addColorStop(0.55, P[1]); gr.addColorStop(1, P[2]);
+    g.fillStyle = gr; g.beginPath(); g.arc(b.x, b.y, b.r, 0, TAU); g.fill();
+    if (pal === 'snow') { g.fillStyle = 'rgba(248,252,255,0.95)'; g.beginPath(); g.ellipse(b.x - b.r * 0.1, b.y - b.r * 0.55, b.r * 0.85, b.r * 0.42, 0, 0, TAU); g.fill(); }
+  }
+  g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 160; i++) { const b = blobs[(r() * blobs.length) | 0], a = r() * TAU, d = Math.sqrt(r()) * b.r * 0.9; g.fillStyle = r() < 0.5 ? 'rgba(255,255,220,0.22)' : 'rgba(10,30,10,0.25)'; g.beginPath(); g.ellipse(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d, 1.4 + r() * 1.6, 1 + r() * 1, r() * 3, 0, TAU); g.fill(); }
+  g.globalCompositeOperation = 'source-over';
+  if (pal === 'dry') { g.strokeStyle = 'rgba(70,56,30,0.7)'; g.lineWidth = 1; for (let i = 0; i < 22; i++) { const b = blobs[(r() * blobs.length) | 0], a = -Math.PI / 2 + (r() - 0.5) * 2.4; g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(b.x + Math.cos(a) * (b.r + 5), b.y + Math.sin(a) * (b.r + 5)); g.stroke(); } }
+  else if (pal === 'green') { for (let i = 0; i < 8; i++) { const b = blobs[(r() * blobs.length) | 0]; g.fillStyle = ['#e0506a', '#f2d24a', '#c0408a'][(r() * 3) | 0]; g.beginPath(); g.arc(b.x + (r() - 0.5) * b.r, b.y + (r() - 0.5) * b.r * 0.7, 1.7, 0, TAU); g.fill(); } }
+  return T.out();
+};
+/* kaktus: kolumna z żebrami, ramiona, ciernie, kwiat */
+TREES.cactus = (seed, F = 0.8) => {
+  const W = 110, H = 150, cx = 55, base = 132, T = treeBase(W, H, cx, base, seed, { F, dx: 16, rx: 22, ry: 6, a: 0.4 }), { g, r } = T;
+  const col = (w, a, b2, c2) => { const gr = g.createLinearGradient(cx - w, 0, cx + w, 0); gr.addColorStop(0, a); gr.addColorStop(0.45, b2); gr.addColorStop(1, c2); return gr; };
+  const arm = (side, y0, up) => {
+    const pts = [[cx + side * 7, y0], [cx + side * 24, y0], [cx + side * 24, y0 - up]];
+    for (const [w, c2] of [[15, 'rgba(14,38,14,0.95)'], [12.5, col(12, '#78b050', '#3f7e36', '#26562a')]]) { g.strokeStyle = c2; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); }
+    g.strokeStyle = 'rgba(170,220,120,0.5)'; g.lineWidth = 2; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x - 3, y) : g.moveTo(x - 3, y)); g.stroke();
+  };
+  arm(-1, base - 42 - r() * 8, 24 + r() * 10); if (r() < 0.8) arm(1, base - 54 - r() * 10, 18 + r() * 12);
+  const top = base - 92 - r() * 10;
+  g.fillStyle = 'rgba(14,38,14,0.95)'; g.beginPath(); g.moveTo(cx - 13, base + 1); g.lineTo(cx - 13, top + 12); g.quadraticCurveTo(cx, top - 10, cx + 13, top + 12); g.lineTo(cx + 13, base + 1); g.closePath(); g.fill();
+  g.fillStyle = col(12, '#7db455', '#3f8038', '#235428'); g.beginPath(); g.moveTo(cx - 11.5, base); g.lineTo(cx - 11.5, top + 12); g.quadraticCurveTo(cx, top - 7, cx + 11.5, top + 12); g.lineTo(cx + 11.5, base); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(14,50,20,0.55)'; g.lineWidth = 1.2; for (const k of [-6, -2, 2, 6]) { g.beginPath(); g.moveTo(cx + k * 0.9, base - 2); g.quadraticCurveTo(cx + k * 1.15, (base + top) / 2, cx + k * 0.8, top + 8); g.stroke(); }
+  g.fillStyle = 'rgba(250,240,200,0.8)'; for (let i = 0; i < 40; i++) g.fillRect(cx - 10 + r() * 20, top + 10 + r() * (base - top - 14), 1.2, 1.2);
+  g.fillStyle = '#e8508a'; g.beginPath(); g.arc(cx + (r() - 0.5) * 8, top + 2, 3.4, 0, TAU); g.fill(); g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(cx, top + 2, 1.4, 0, TAU); g.fill();
+  return T.out();
+};
+/* trzcina / pałki wodne: kępa (jak kępa trawy — bez osobnej warstwy cienia) */
+function bakeReeds(seed, F = 0.8) {
+  const W = 72, H = 96, R = RES, c = newCanvas(Math.ceil(W * F * R), Math.ceil(H * F * R)), g = c.getContext('2d'), r = rng(seed), cx = 36, base = 86;
+  g.setTransform(R * F, 0, 0, R * F, 0, 0); g.lineCap = 'round';
+  const stems = []; for (let i = 0; i < 10; i++) stems.push({ x: cx + (r() - 0.5) * 20, a: -Math.PI / 2 + (r() - 0.5) * 0.7, len: 46 + r() * 30, head: r() < 0.5 });
+  stems.sort((a, b) => a.a - b.a);
+  for (const s of stems) {
+    const ex = s.x + Math.cos(s.a) * s.len, ey = base + Math.sin(s.a) * s.len, mx = (s.x + ex) / 2 + (r() - 0.5) * 8, my = (base + ey) / 2;
+    g.strokeStyle = '#4c5a2a'; g.lineWidth = 2.6; g.beginPath(); g.moveTo(s.x, base); g.quadraticCurveTo(mx, my, ex, ey); g.stroke();
+    g.strokeStyle = ['#8aa04a', '#a6b85e', '#6f8a3a'][(r() * 3) | 0]; g.lineWidth = 1.5; g.beginPath(); g.moveTo(s.x - 0.5, base); g.quadraticCurveTo(mx - 0.5, my, ex - 0.5, ey); g.stroke();
+    if (s.head) { g.fillStyle = '#5b3a1e'; g.strokeStyle = '#2c1c0c'; g.lineWidth = 0.8; g.beginPath(); g.ellipse(ex, ey + 1, 2.7, 8, s.a + Math.PI / 2, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = '#9a7a46'; g.lineWidth = 1; g.beginPath(); g.moveTo(ex, ey - 8); g.lineTo(ex, ey - 13); g.stroke(); }
+  }
+  for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + (r() - 0.5) * 2.2, len = 26 + r() * 20, x = cx + (r() - 0.5) * 24; g.strokeStyle = '#6f8a3a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, base); g.quadraticCurveTo(x + Math.cos(a) * len * 0.5, base + Math.sin(a) * len * 0.8, x + Math.cos(a) * len, base + Math.sin(a) * len); g.stroke(); }
+  return { c, ax: cx * F, ay: base * F, w: W * F, h: H * F, R };
+}
+
+/* ---------- klify: blok skalny 1 pole, wysoki; pal: rock (szara skała z mchem), sand (piaskowiec z pasami), snow (skała z czapą śniegu) ---------- */
+function bakeCliff(seed, pal = 'rock', F = 0.8) {
+  const W = 200, H = 200, cx = 100, base = 158, T = treeBase(W, H, cx, base, seed, { F, dx: 28, rx: 58, ry: 16, a: 0.5 }), { g, r } = T;
+  const tone = { rock: hex('#8e8c84'), sand: hex('#c9a46a'), snow: hex('#8c8e92') }[pal] || hex('#8e8c84');
+  const parts = [[-40, 12, 0.62, 0.78], [42, 10, 0.58, 0.72], [0, 0, 1, 1]];                // ([przesunięcie x, y], skala, wysokość) — duży blok na końcu (na wierzchu)
+  for (const [ox, oy, k, hs] of parts) {
+    const n = 10, rx = 54 * k, ry = 28 * k, hgt = (66 + r() * 26) * hs, px = cx + ox, py = base + oy - 6 * k, lo = [], hi = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU + (r() - 0.5) * 0.3, kk = 0.84 + r() * 0.26, kt = pal === 'sand' ? 0.9 + r() * 0.08 : 0.62 + r() * 0.18;
+      lo.push([px + Math.cos(a) * rx * kk, py + Math.sin(a) * ry * kk, a]);
+      hi.push([px + Math.cos(a) * rx * kk * kt - 2 * k, py - hgt + Math.sin(a) * ry * kk * kt, a]);
+    }
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n, am = (lo[i][2] + (lo[j][2] < lo[i][2] ? lo[j][2] + TAU : lo[j][2])) / 2, light = Math.cos(am - Math.PI * 1.25) * 0.5 + 0.5, f = 0.56 + 0.66 * light + (r() - 0.5) * 0.1;
+      g.beginPath(); g.moveTo(lo[i][0], lo[i][1]); g.lineTo(lo[j][0], lo[j][1]); g.lineTo(hi[j][0], hi[j][1]); g.lineTo(hi[i][0], hi[i][1]); g.closePath();
+      const gr = g.createLinearGradient(0, hi[i][1], 0, lo[i][1]); gr.addColorStop(0, css(scaleC(tone, f * 1.12))); gr.addColorStop(1, css(scaleC(tone, f * 0.78)));
+      g.fillStyle = gr; g.fill();
+      g.save(); g.clip();
+      if (pal === 'sand') for (let b2 = 0; b2 < 6; b2++) { const t = (b2 + r() * 0.6) / 6, y = lerp(hi[i][1], lo[i][1], t); g.fillStyle = b2 % 2 ? 'rgba(120,80,40,0.28)' : 'rgba(255,230,170,0.2)'; g.fillRect(Math.min(lo[i][0], lo[j][0]) - 4, y, Math.abs(lo[j][0] - lo[i][0]) + 8, 3 + r() * 5); }
+      g.strokeStyle = 'rgba(10,8,6,0.3)'; g.lineWidth = 1; for (let q = 0; q < 3; q++) { const t = (q + 0.5) / 3, x0 = lerp(lo[i][0], lo[j][0], t), x1 = lerp(hi[i][0], hi[j][0], t); g.beginPath(); g.moveTo(x0 + (r() - 0.5) * 3, lo[i][1] + (lo[j][1] - lo[i][1]) * t); g.lineTo(x1 + (r() - 0.5) * 4, hi[i][1] + (hi[j][1] - hi[i][1]) * t); g.stroke(); }
+      if (pal === 'snow') { g.fillStyle = 'rgba(246,250,255,0.94)'; g.beginPath(); g.moveTo(hi[i][0] - 2, hi[i][1] - 2); g.lineTo(hi[j][0] + 2, hi[j][1] - 2); for (let q = 4; q >= 0; q--) { const t = q / 4; g.lineTo(lerp(hi[j][0], hi[i][0], 1 - t), hi[i][1] + (hi[j][1] - hi[i][1]) * (1 - t) + (4 + (r() * 18) * (q % 2 ? 1 : 0.5))); } g.closePath(); g.fill(); }
+      g.restore();
+      g.strokeStyle = 'rgba(14,12,10,0.55)'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(lo[i][0], lo[i][1]); g.lineTo(hi[i][0], hi[i][1]); g.stroke();
+    }
+    g.beginPath(); hi.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath();
+    const tg = g.createLinearGradient(px - rx * 0.5, py - hgt - ry * 0.5, px + rx * 0.5, py - hgt + ry * 0.5);
+    if (pal === 'snow') { tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, '#d5e3f0'); } else { tg.addColorStop(0, css(scaleC(tone, 1.5))); tg.addColorStop(1, css(scaleC(tone, 1.1))); }
+    g.fillStyle = tg; g.fill(); g.strokeStyle = 'rgba(14,12,10,0.6)'; g.lineWidth = 1.1; g.stroke();
+    if (pal === 'rock') { g.save(); g.clip(); g.fillStyle = 'rgba(96,140,56,0.4)'; g.beginPath(); g.ellipse(px + 4 * k, py - hgt + 2 * k, rx * 0.5, ry * 0.4, 0, 0, TAU); g.fill(); g.restore(); }
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < 100; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,240,0.1)' : 'rgba(0,0,0,0.13)'; g.fillRect(px - rx + r() * rx * 2, py - hgt - ry + r() * (hgt + ry * 2), 1 + r() * 2, 1 + r() * 2); }
+    const mg = g.createLinearGradient(0, py - 8 * k, 0, py + ry); mg.addColorStop(0, 'rgba(0,0,0,0)'); mg.addColorStop(1, pal === 'snow' ? 'rgba(235,245,255,0.5)' : pal === 'sand' ? 'rgba(220,190,130,0.4)' : 'rgba(96,140,56,0.45)');
+    g.fillStyle = mg; g.fillRect(px - rx * 1.2, py - 8 * k, rx * 2.4, ry * 1.7); g.restore();
+  }
+  return T.out();
+}
 
 /* ---- 51_franks.js ---- */
 /* ====================== FRANKOWIE: kamień, ryglówka, dachówka, łupek ======================
@@ -3875,9 +4092,9 @@ BAKED.slavs_sauna = function () {
    Ten plik jest doklejany do silnika WYŁĄCZNIE przez build_game.js (blok `Sprites` w Nova_Roma.html) — grafika_prototyp.html go nie zawiera.
    Silnik (00_util … 54_slavs) ładuje się bez DOM i bez wypieku; sprite'y powstają dopiero w bake(), po wyborze nacji. */
 const SPR = {}, SETS = {};                                          // wypieczone sprite'y budynków (nazwa → sprite) i zestawy przyrody / postaci
-const CLIMATE = { franks: 'grass', slavs: 'grass', vikings: 'tundra', saracens: 'sand' };
+const NATIVE = { franks: 'temperate', saracens: 'desert', vikings: 'snow', slavs: 'eastern' };      // domyślny klimat nacji
 const FIG = 0.85;                                                   // skala postaci względem sprite'ów budynków
-let bakedFor = null, bakeMs = 0;                                    // nacja, której sprite'y leżą w pamięci; czas ostatniego wypieku
+let bakedFor = null, bakedKey = null, bakeMs = 0;                  // nacja, której sprite'y leżą w pamięci (klucz: nacja|klimat); czas ostatniego wypieku
 
 /* jakość: 2 = ostre duże budynki także po przybliżeniu (pulpit), 1 = lżej (telefon, mało pamięci) */
 function setQuality(q) { RES = q >= 2 ? 2 : 1; TEXRES = RES >= 2 ? 2 : 1; }
@@ -3885,14 +4102,17 @@ const quality = () => RES;
 const nextPaint = () => new Promise(r => { let ok = false; const f = () => { if (!ok) { ok = true; r(); } }; if (typeof requestAnimationFrame === 'function') requestAnimationFrame(f); setTimeout(f, 60); });
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-/* zestaw przyrody dla klimatu nacji: [nazwa zestawu, liczba, generator] */
+/* zestaw przyrody dla klimatu mapy: [nazwa zestawu, liczba, generator]; zestawy: oaks, pines, birches, winters, palms (drzewa), shrubs, cacti, reeds (rośliny),
+   cliffs (bloki klifów), rocks (głazy), tufts (kępy trawy) */
 function natureJobs(climate) {
   const many = (set, n, fn) => Array.from({ length: n }, (_, i) => ['Przyroda', () => { (SETS[set] = SETS[set] || []).push(fn(i + 1)); }]);
+  const cliffPal = { temperate: 'rock', eastern: 'rock', snow: 'snow', desert: 'sand' }[climate] || 'rock';
   const jobs = [];
-  if (climate === 'grass') jobs.push(...many('oaks', 5, i => TREES.oak(100 + i)), ...many('pines', 4, i => TREES.pine(200 + i)), ...many('tufts', 4, i => bakeTuft(500 + i, 'green')));
-  else if (climate === 'tundra') jobs.push(...many('pines', 6, i => TREES.pine(200 + i)), ...many('oaks', 2, i => TREES.oak(100 + i)), ...many('tufts', 4, i => bakeTuft(500 + i, 'green')));
-  else jobs.push(...many('palms', 4, i => TREES.palm(300 + i)), ...many('tufts', 3, i => bakeTuft(600 + i, 'sand')));
-  jobs.push(...many('rocks', 4, i => bakeRock(400 + i)));
+  if (climate === 'temperate') jobs.push(...many('oaks', 5, i => TREES.oak(100 + i)), ...many('pines', 4, i => TREES.pine(200 + i)), ...many('shrubs', 3, i => TREES.shrub(800 + i, 'green')), ...many('tufts', 4, i => bakeTuft(500 + i, 'green')), ...many('reeds', 3, i => bakeReeds(900 + i)));
+  else if (climate === 'eastern') jobs.push(...many('birches', 5, i => TREES.birch(150 + i)), ...many('pines', 4, i => TREES.pine(200 + i)), ...many('oaks', 3, i => TREES.oak(100 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'green')), ...many('tufts', 4, i => bakeTuft(520 + i, 'steppe')), ...many('reeds', 4, i => bakeReeds(900 + i)));
+  else if (climate === 'snow') jobs.push(...many('pines', 6, i => TREES.pine(200 + i, 0.8, { snow: true })), ...many('winters', 3, i => TREES.winter(250 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'snow')), ...many('tufts', 3, i => bakeTuft(540 + i, 'snow')));
+  else jobs.push(...many('palms', 4, i => TREES.palm(300 + i)), ...many('shrubs', 4, i => TREES.shrub(800 + i, 'dry')), ...many('cacti', 3, i => TREES.cactus(850 + i)), ...many('tufts', 3, i => bakeTuft(600 + i, 'sand')), ...many('reeds', 3, i => bakeReeds(900 + i)));
+  jobs.push(...many('cliffs', 4, i => bakeCliff(950 + i, cliffPal)), ...many('rocks', 4, i => bakeRock(400 + i)));
   return jobs;
 }
 /* złoża (kamień, żelazo, węgiel, glina, torf): skała w barwie złoża + znaki rozpoznawcze (rudne żyły, błyski węgla, wilgotny połysk gliny, mech na torfie) */
@@ -3912,18 +4132,19 @@ function bakeDeposit(kind, seed) {
 }
 const castKeys = nation => Object.keys(CAST).filter(k => k.startsWith({ franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[nation]));
 
-/* Wypiek sprite'ów wybranej nacji + przyrody jej klimatu + jej mieszkańców. Zwraca Promise; onProgress(0..1, etykieta) co kilkadziesiąt ms.
-   Poprzednia nacja jest zwalniana (jedna nacja w pamięci naraz). */
+/* Wypiek sprite'ów wybranej nacji + przyrody klimatu mapy (opts.climate: temperate|eastern|snow|desert; domyślnie klimat nacji) + jej mieszkańców.
+   opts.deposits — rodzaje złóż do wypieku. Zwraca Promise; onProgress(0..1, etykieta) co kilkadziesiąt ms. Jedna nacja w pamięci naraz. */
 async function bake(nation, onProgress = null, opts = {}) {
   if (!NATIONS[nation]) throw new Error('Nieznana nacja: ' + nation);
-  if (bakedFor === nation) return SPR;
+  const climate = opts.climate || NATIVE[nation], key = nation + '|' + climate;
+  if (bakedKey === key) return SPR;
   const t0 = now();
   for (const k of Object.keys(SPR)) delete SPR[k];
   for (const k of Object.keys(SETS)) delete SETS[k];
-  bakedFor = null;
+  bakedFor = null; bakedKey = null;
   const jobs = [];
   for (const id of NATIONS[nation]) { const n = spriteName(nation, id); if (BAKED[n]) jobs.push(['Budynki', () => { LINT_NAME = n; SPR[n] = BAKED[n](); }]); }
-  jobs.push(...natureJobs(CLIMATE[nation]));
+  jobs.push(...natureJobs(climate));
   for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
   let last = 0;
@@ -3932,7 +4153,7 @@ async function bake(nation, onProgress = null, opts = {}) {
     jobs[i][1]();
   }
   if (onProgress) onProgress(1, 'Gotowe');
-  bakedFor = nation; bakeMs = now() - t0;
+  bakedFor = nation; bakedKey = key; SETS.climate = climate; bakeMs = now() - t0;
   return SPR;
 }
 
@@ -3952,7 +4173,7 @@ return {
   spr: SPR, sets: SETS, castKeys, cast: key => (SETS.cast || {})[key] || null,
   catalog: catalogJSON,
   /* niskopoziomowe elementy silnika dla modułów gry (teren, zwierzęta…): sceny ze zdobieniami terenu, tekstury, generatory */
-  engine: { Scene, tex, GEN, TREES, CAST, bakeCast, bakeRock, bakeTuft, newCanvas, lodPick, rng, hex, css, mixc, scaleC, clamp, lerp, TAU, BAKED, softFill, fbm, periodicNoise }
+  engine: { Scene, tex, GEN, TREES, CAST, bakeCast, bakeRock, bakeTuft, bakeCliff, bakeReeds, newCanvas, lodPick, rng, hex, css, mixc, scaleC, clamp, lerp, TAU, BAKED, softFill, fbm, periodicNoise }
 };
 
 })();
@@ -3965,7 +4186,7 @@ const Data = (() => {
 
   const FACTIONS = {
     franks: {
-      id: 'franks', name: 'Frankowie', tagline: 'Kamień, chleb i żelazo',
+      id: 'franks', name: 'Frankowie', tagline: 'Kamień, chleb i żelazo', climate: 'temperate',
       desc: ['Pełny zestaw 23 budynków', 'Łańcuch chleba i broni', 'Haracz w żołnierzach (Etap 4)'],
       palette: { terrain: 'grass', wall:'#e0d2ac', timber:'#6b4a2f', roof:'#a05238',
                  roofAlt:'#7d4a34', stone:'#9a9a92', accent:'#4865a0', metal:'#8b9aa5',
@@ -3975,7 +4196,7 @@ const Data = (() => {
       start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Chleb', foodGood: 'chleb', wood: 30, stone: 12 }
     },
     saracens: {
-      id: 'saracens', name: 'Saraceni', tagline: 'Woda, daktyle i handel',
+      id: 'saracens', name: 'Saraceni', tagline: 'Woda, daktyle i handel', climate: 'desert',
       desc: ['Handel kadzidłem, tkaniną i ceramiką', 'Qanat zamiast wielu nosiwodów', 'Haracz w złocie (Etap 4)'],
       palette: { terrain: 'sand', wall:'#ecdfc0', timber:'#8a6a45', roof:'#cdb488',
                  roofAlt:'#b89a68', stone:'#d8c8a0', accent:'#2f8a70', metal:'#c9a84a',
@@ -3985,7 +4206,7 @@ const Data = (() => {
       start: { pop: 14, gold: 100, tools: 8, food: 36, foodKind: 'Daktyle', foodGood: 'daktyle', wood: 30, clay: 12 }
     },
     vikings: {
-      id: 'vikings', name: 'Wikingowie', tagline: 'Drewno, morze i wyprawy',
+      id: 'vikings', name: 'Wikingowie', tagline: 'Drewno, morze i wyprawy', climate: 'snow',
       desc: ['Rybołówstwo i wyprawy okrętów', 'Wypalarki zamiast kopalń węgla', 'Haracz w wyprawach (Etap 4)'],
       palette: { terrain: 'tundra', wall:'#5c4835', timber:'#3a2c1e', roof:'#7d6a48',
                  roofAlt:'#6a563a', stone:'#8a8a84', accent:'#b8c2c8', metal:'#b8c2c8',
@@ -3995,7 +4216,7 @@ const Data = (() => {
       start: { pop: 14, gold: 80, tools: 14, food: 36, foodKind: 'Ryby', foodGood: 'ryby', wood: 40 }
     },
     slavs: {
-      id: 'slavs', name: 'Słowianie', tagline: 'Puszcza, bartnictwo i futra',
+      id: 'slavs', name: 'Słowianie', tagline: 'Puszcza, bartnictwo i futra', climate: 'eastern',
       desc: ['Zbieractwo, barcie i futra z puszczy', 'Danina koszykowa: futra, miód i wosk', 'Nacja wprowadzająca (najłatwiejsza)'],
       palette: { terrain: 'grass', logs: true, wall:'#a98457', timber:'#6b4a2f', roof:'#d3bf78',
                  roofAlt:'#b59a52', stone:'#8f8f86', accent:'#b83a3a', metal:'#9aa4aa',
@@ -4085,6 +4306,40 @@ const Data = (() => {
     return (d.names && d.names[fid || cur.faction]) || d.name;
   }
 
+  /* ---------- Klimaty i typy map (teren v2) ----------
+     Klimat zmienia teren, wygląd i faunę — nie ekonomię. Domyślny klimat nacji: Data.FACTIONS[id].climate. */
+  const CLIMATES = {
+    temperate: { id: 'temperate', name: 'Umiarkowany', region: 'Europa Zachodnia', native: 'franks', classic: 'grass',
+      desc: 'Łąki i dąbrowy, łagodne wzgórza, błękitne rzeki z brodami.',
+      amp: 1.0, bog: 0.02, drift: 0, dune: 0, quick: 0, oasis: 0, ice: false },
+    eastern: { id: 'eastern', name: 'Europa Wschodnia', region: 'Puszcza i step', native: 'slavs', classic: 'grass',
+      desc: 'Puszcza i brzozy, rozlewiska, wolne rzeki ze starorzeczami.',
+      amp: 0.7, bog: 0.05, drift: 0, dune: 0, quick: 0, oasis: 0, ice: false },
+    snow: { id: 'snow', name: 'Śnieżny', region: 'Północ', native: 'vikings', classic: 'snow',
+      desc: 'Śnieg i sosny, zamarznięte jeziora, fiordy i lodowe klify.',
+      amp: 1.15, bog: 0.01, drift: 0.05, dune: 0, quick: 0, oasis: 0, ice: true },
+    desert: { id: 'desert', name: 'Pustynny', region: 'Bliski Wschód', native: 'saracens', classic: 'sand',
+      desc: 'Wydmy, oazy, dolina rzeki, mesy i ruchome piaski.',
+      amp: 0.9, bog: 0, drift: 0, dune: 0.18, quick: 0.01, oasis: 2, ice: false }
+  };
+  /* typy map: sea — pas morza przy zachodniej krawędzi (dotychczasowy układ); levels — liczba poziomów wysokości; amp/ridge — amplituda i grzbiety;
+     rivers — rzeka główna (0/1); lakes/ponds — [min, max]; bog — mnożnik bagien; passes — przełęcze (górzysta) */
+  const MAPTYPES = {
+    coast:     { id: 'coast',     name: 'Nadmorska', sea: true,  shares: [0.72, 0.28], cliff: 0.06, amp: 0.55, ridge: 0.05, rivers: 0, lakes: [0, 1], ponds: [1, 3], bog: 1.0, desc: 'Morze przy zachodniej krawędzi, plaże, zatoki i klify.' },
+    plain:     { id: 'plain',     name: 'Nizinna',   sea: false, shares: [0.66, 0.34], cliff: 0.04, amp: 0.50, ridge: 0.10, rivers: 0, lakes: [0, 1], ponds: [2, 4], bog: 1.0, desc: 'Łagodne wzgórza, stawy i dużo miejsca pod zabudowę.' },
+    river:     { id: 'river',     name: 'Rzeczna',   sea: false, shares: [0.70, 0.30], cliff: 0.05, amp: 0.55, ridge: 0.10, rivers: 1, lakes: [0, 1], ponds: [0, 2], bog: 1.0, desc: 'Rzeka z meandrami i brodami — przeszkoda i szlak.' },
+    lakes:     { id: 'lakes',     name: 'Jeziorna',  sea: false, shares: [0.68, 0.32], cliff: 0.04, amp: 0.55, ridge: 0.10, rivers: 0, lakes: [3, 5], ponds: [1, 3], bog: 1.2, desc: 'Kilka jezior, półwyspy i przesmyki.' },
+    mountains: { id: 'mountains', name: 'Górzysta',  sea: false, shares: [0.30, 0.28, 0.24, 0.18], cliff: 0.30, amp: 1.00, ridge: 0.60, rivers: 0, lakes: [0, 1], ponds: [0, 1], bog: 0.5, desc: 'Grzbiety, płaskowyże i klify; ruch tylko przełęczami.' },
+    wetlands:  { id: 'wetlands',  name: 'Bagnista',  sea: false, shares: [1], cliff: 0, amp: 0.25, ridge: 0.00, rivers: 0, lakes: [1, 2], ponds: [4, 7], bog: 6.0, desc: 'Rozległe bagna z wyspami suchego lądu.' }
+  };
+  /* nazwy typów map zależne od klimatu (pustynia: dolina rzeki, wydmy i oazy…) */
+  const MAPTYPE_NAMES = {
+    desert: { river: 'Dolina rzeki', lakes: 'Oazy', wetlands: 'Wydmy i oazy', mountains: 'Mesy i kaniony', coast: 'Wybrzeże' },
+    snow: { lakes: 'Jeziorna (zamarznięta)', wetlands: 'Torfowiska', mountains: 'Górzysta (lodowa)', coast: 'Fiordy' },
+    eastern: { wetlands: 'Rozlewiska', plain: 'Step i puszcza' }
+  };
+  function mapTypeName(type, climate) { return ((MAPTYPE_NAMES[climate] || {})[type]) || MAPTYPES[type].name; }
+
   /* obrys budynku [szerokość, głębokość] w polach i wejście [strona, x, y] względem środka obrysu — z katalogu sprite'ów (SPRITE_META);
      b.x, b.y każdego budynku / placu to północny róg obrysu */
   function footprint(id, fid) {
@@ -4096,7 +4351,7 @@ const Data = (() => {
     return e ? e.in : null;
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, nameOf, footprint, entrance, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, FOREST_REF, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -4131,13 +4386,425 @@ const Camera = (() => {
   return api;
 })();
 
+/* ============================= MODUL: TERRAIN ==============================
+   Teren v2: nakładka (post-pass) na mapę ze starego generatora. Własny PRNG (mulberry32) — globalny RNG gry się nie rusza,
+   więc stary układ drzew/złóż i przeplot losowań logiki pozostają takie jak dotąd.
+   Pola kafla: h (0 woda / 1 ląd / 2 skała — jak dotąd), e (wysokość 0–4; woda 0), wk (rodzaj wody: sea|lake|river|ford|ice),
+   k (cecha: bog|dune|quick|oasis|cliff|drift). Brody i lód: h = 0, ale przechodnie. */
+const Terrain = (() => {
+  const CX = 24, CY = 24;                  // środek planu (środek Dworu 4×4), w polach
+  const PLAZA_R = 9.5;                     // płaski plac wokół Dworu (promień w polach)
+  const BLOCK_K = { bog: 1, dune: 1, quick: 1, cliff: 1, drift: 1 };   // cechy wykluczające zabudowę
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const REACH = new WeakMap();             // pamięć podręczna osiągalności (po tablicy kafli)
+
+  function prng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function hash2(x, y, s) { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  const smooth = t => t * t * (3 - 2 * t), clamp01 = v => Math.max(0, Math.min(1, v));
+  const sstep = (a, b, v) => smooth(clamp01((v - a) / (b - a)));
+  function vnoise(x, y, s) {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
+    const a = hash2(ix, iy, s), b = hash2(ix + 1, iy, s), c = hash2(ix, iy + 1, s), d = hash2(ix + 1, iy + 1, s);
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  }
+  function fbm(x, y, s, oct = 3) { let v = 0, a = 1, f = 1, t = 0; for (let o = 0; o < oct; o++) { v += vnoise(x * f, y * f, s + o * 31) * a; t += a; a *= 0.5; f *= 2; } return v / t; }
+  function strHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; }
+
+  /* ---------- predykaty (używane też przez World.canPlace, Path, Fauna) ---------- */
+  const isWater = t => t.h === 0;
+  const isDeepWater = t => t.h === 0 && t.wk !== 'ford' && t.wk !== 'ice';
+  const passable = t => t.h !== 2 && t.k !== 'cliff' && t.k !== 'quick' && (t.h === 1 || t.wk === 'ford' || t.wk === 'ice');
+  const buildable = t => t.h === 1 && !BLOCK_K[t.k];
+  const COST = { ford: 3, ice: 2, bog: 3, dune: 1.5, drift: 2 };
+  function cost(t) { if (!passable(t)) return Infinity; return (t.h === 0 ? COST[t.wk] : COST[t.k]) || 1; }
+
+  /* ---------- pomocnicze ---------- */
+  function distField(N, tiles, isSrc, maxD = 99) {
+    const d = new Int16Array(N * N).fill(-1), q = [];
+    for (let i = 0; i < N * N; i++) if (isSrc(tiles[i])) { d[i] = 0; q.push(i); }
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h], x = i % N, y = (i / N) | 0;
+      if (d[i] >= maxD) continue;
+      for (const [dx, dy] of N4) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const j = ny * N + nx; if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); } }
+    }
+    return d;
+  }
+  function reach(map, passFn = passable) {
+    const N = map.size, t = map.tiles, seen = new Uint8Array(N * N), q = [];
+    const s = (CY - 1) * N + (CX - 1); seen[s] = 1; q.push(s);
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h], x = i % N, y = (i / N) | 0;
+      for (const [dx, dy] of N4) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const j = ny * N + nx; if (!seen[j] && passFn(t[j])) { seen[j] = 1; q.push(j); } }
+    }
+    return seen;
+  }
+  const dPlaza = (x, y) => Math.hypot(x + 0.5 - CX, y + 0.5 - CY);
+
+  /* ---------- woda: jeziora, stawy, rzeka z brodami ---------- */
+  function blobWater(map, rnd, cx, cy, r, kind) {
+    const N = map.size, p1 = rnd() * 6.28, p2 = rnd() * 6.28, p3 = rnd() * 6.28, R = Math.ceil(r * 1.5) + 1;
+    for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(N - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(N - 1, Math.ceil(cx + R)); x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, a = Math.atan2(dy, dx), rr = r * (1 + 0.22 * Math.sin(2 * a + p1) + 0.14 * Math.sin(3 * a + p2) + 0.08 * Math.sin(5 * a + p3));
+      if (Math.hypot(dx, dy) < rr) { const t = map.tiles[y * N + x]; t.h = 0; t.wk = kind; t.trees = 0; }
+    }
+  }
+  function placeLakes(map, rnd, C, T, kind, count, rMin, rMax) {
+    const N = map.size, placed = [];
+    for (let n = 0, tries = 0; n < count && tries < 200; tries++) {
+      const r = rMin + rnd() * (rMax - rMin), cx = r + 3 + rnd() * (N - 2 * r - 6), cy = r + 3 + rnd() * (N - 2 * r - 6);
+      if (Math.hypot(cx - CX, cy - CY) < PLAZA_R + r + 2.5) continue;
+      if (placed.some(([px, py, pr]) => Math.hypot(cx - px, cy - py) < r + pr + 3)) continue;
+      let wet = false;                                            // nie na pasie morza i nie na istniejącej wodzie
+      for (let a = 0; a < 6.28 && !wet; a += 0.6) { const t = map.tiles[Math.max(0, Math.min(N - 1, Math.floor(cy + Math.sin(a) * r))) * N + Math.max(0, Math.min(N - 1, Math.floor(cx + Math.cos(a) * r)))]; if (t.h === 0) wet = true; }
+      if (wet) continue;
+      blobWater(map, rnd, cx, cy, r, kind); placed.push([cx, cy, r]); n++;
+    }
+    return placed;
+  }
+  /* rzeka: meandrująca krzywa w poprzek mapy, w odległości ≥ 9,5 pola od Dworu; szerokość 1,6–2,6; brody (przechodnie płycizny) */
+  function makeRiver(map, rnd, C) {
+    const N = map.size, horiz = rnd() < 0.5, side = rnd() < 0.5 ? -1 : 1, ph1 = rnd() * 6.28, ph2 = rnd() * 6.28, ph3 = rnd() * 6.28, slope = (rnd() - 0.5) * 0.3;
+    const A1 = C.id === 'desert' ? 2.2 : C.id === 'eastern' ? 4.2 : 3.4, A2 = C.id === 'desert' ? 0.8 : 1.5;
+    let off = 11 + rnd() * 3, pts;
+    for (let it = 0; it < 8; it++) {
+      pts = [];
+      for (let s = -3; s <= N + 3; s += 0.5) {
+        const m = A1 * Math.sin(s / 7.5 + ph1) + A2 * Math.sin(s / 3.3 + ph2) + slope * (s - N / 2), across = (horiz ? CY : CX) + side * off + m;
+        pts.push(horiz ? [s, across, 0] : [across, s, 0]);
+      }
+      const dmin = Math.min(...pts.map(([x, y]) => Math.hypot(x - CX, y - CY)));
+      if (dmin >= PLAZA_R + 1.6) break;
+      off += (PLAZA_R + 1.6 - dmin) + 0.4;
+    }
+    const baseW = C.id === 'desert' ? 2.3 : C.id === 'eastern' ? 2.2 : 2.0;
+    const tilesOf = [];
+    for (const p of pts) {
+      const w = Math.max(1.6, baseW + 0.5 * Math.sin(p[horiz ? 0 : 1] / 5 + ph3)); p[2] = w;
+      const r = w / 2;
+      for (let y = Math.max(0, Math.floor(p[1] - r - 1)); y <= Math.min(N - 1, Math.ceil(p[1] + r + 1)); y++) for (let x = Math.max(0, Math.floor(p[0] - r - 1)); x <= Math.min(N - 1, Math.ceil(p[0] + r + 1)); x++) {
+        if (Math.hypot(x + 0.5 - p[0], y + 0.5 - p[1]) < r) { const t = map.tiles[y * N + x]; if (t.h !== 0) { t.h = 0; t.wk = 'river'; t.trees = 0; tilesOf.push(t); } }
+      }
+    }
+    // brody: najbliższy Dworowi punkt rzeki + po jednym w odległości ~12–18 pól wzdłuż biegu
+    const inMap = pts.map(([x, y], i) => [x, y, i]).filter(([x, y]) => x >= 2 && y >= 2 && x <= N - 2 && y <= N - 2);
+    let i0 = inMap.reduce((b, p) => (Math.hypot(p[0] - CX, p[1] - CY) < Math.hypot(b[0] - CX, b[1] - CY) ? p : b), inMap[0])[2];
+    const fordAt = [i0], gap = 24 + Math.floor(rnd() * 10);
+    for (const dir of [1, -1]) { const j = i0 + dir * gap; if (pts[j] && pts[j][0] > 2 && pts[j][1] > 2 && pts[j][0] < N - 2 && pts[j][1] < N - 2) fordAt.push(j); }
+    for (const i of fordAt) {
+      const [fx, fy] = pts[i];
+      for (let y = Math.max(0, Math.floor(fy - 3)); y <= Math.min(N - 1, Math.ceil(fy + 3)); y++) for (let x = Math.max(0, Math.floor(fx - 3)); x <= Math.min(N - 1, Math.ceil(fx + 3)); x++) {
+        const t = map.tiles[y * N + x]; if (t.wk === 'river' && Math.hypot(x + 0.5 - fx, y + 0.5 - fy) < 1.8) t.wk = 'ford';
+      }
+    }
+    return { pts, fords: fordAt.map(i => [pts[i][0], pts[i][1]]) };
+  }
+
+  /* ---------- kroki generatora ---------- */
+  function build(map, o, C, T, seed, fid, target) {
+    const N = map.size, tiles = map.tiles, rnd = prng(seed), meta = map.meta;
+    // 1. woda: pas morza (stary generator) → wk=sea; jeziora, stawy, rzeka
+    for (const t of tiles) { if (t.h === 0) t.wk = 'sea'; }
+    const lake = 'lake';       // w klimacie śnieżnym jeziora zamarzną poniżej (ice)
+    const nLakes = T.lakes[0] + Math.floor(rnd() * (T.lakes[1] - T.lakes[0] + 1)), nPonds = T.ponds[0] + Math.floor(rnd() * (T.ponds[1] - T.ponds[0] + 1));
+    const lakesPlaced = placeLakes(map, rnd, C, T, lake, nLakes, o.type === 'lakes' ? 3.2 : 2.6, o.type === 'lakes' ? 6.0 : 4.2);
+    const ponds = placeLakes(map, rnd, C, T, lake, nPonds, 1.3, 2.3);
+    if (T.rivers) meta.river = makeRiver(map, rnd, C);
+    // zamarznięcie: jeziora i stawy w klimacie śnieżnym to lód (przechodni); morze i rzeki zostają
+    if (C.ice) for (const t of tiles) if (t.wk === 'lake') t.wk = 'ice';
+
+    // 2. wysokości: szum → rangi (udział poziomów wg typu mapy), płaski plac wokół Dworu, doliny przy rzece i wodzie
+    const dW = distField(N, tiles, isDeepWater, 12), dR = distField(N, tiles, t => t.wk === 'river' || t.wk === 'ford', 8);
+    const raw = new Float32Array(N * N), idx = [], th = rnd() * 6.28;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x; if (tiles[i].h === 0) continue;
+      const n1 = fbm(x / 13, y / 13, seed + 1, 3), n2 = fbm(x / 6, y / 6, seed + 2, 2), rr = 1 - Math.abs(2 * fbm(x / 16, y / 16, seed + 3, 3) - 1);
+      raw[i] = (0.65 * n1 + 0.35 * n2) * (1 - T.ridge) + rr * T.ridge; idx.push(i);
+    }
+    idx.sort((a, b) => raw[a] - raw[b]);
+    const U = new Float32Array(N * N); idx.forEach((i, r) => { U[i] = Math.pow(r / (idx.length - 1), 1 / C.amp); });
+    for (const i of idx) {
+      const x = i % N, y = (i / N) | 0; let u = U[i];
+      u *= sstep(PLAZA_R - 1, PLAZA_R + 5.5, dPlaza(x, y));                                          // płaski plac
+      if (dW[i] >= 0) u = Math.min(u, 0.10 + 0.14 * dW[i]);                                          // nisko przy wodzie (plaże, brzegi)
+      if (dR[i] >= 0) u = Math.min(u, 0.08 + 0.10 * dR[i]);                                          // dolina rzeki
+      U[i] = u;
+    }
+    const cum = []; { let c = 0; for (const sh of T.shares) { c += sh; cum.push(c); } }
+    for (let i = 0; i < N * N; i++) { const t = tiles[i]; t.e = 0; if (t.h !== 0) { let l = 0; while (l < cum.length - 1 && U[i] > cum[l]) l++; t.e = 1 + l; } }
+    for (let pass = 0; pass < 2; pass++) {                                                           // usunięcie pojedynczych kolców wysokości
+      const e2 = tiles.map(t => t.e);
+      for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+        const t = tiles[y * N + x]; if (t.h === 0) continue;
+        const ns = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const n = tiles[(y + dy) * N + x + dx]; if (n.h !== 0) ns.push(n.e); }
+        if (ns.length >= 5 && ns.filter(v => v === t.e).length <= 1) { ns.sort((a, b) => a - b); e2[y * N + x] = ns[ns.length >> 1]; }
+      }
+      for (let i = 0; i < N * N; i++) tiles[i].e = e2[i];
+    }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = tiles[y * N + x]; if (t.h !== 0 && dPlaza(x, y) <= PLAZA_R) t.e = 1; }
+
+    // 3. klify: Δe ≥ 2 między sąsiednimi polami lądu, najbardziej strome stoki (wg udziału T.cliff), nadbrzeżne skarpy nad morzem — z dala od Dworu
+    const cand = [];
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+      const i = y * N + x, t = tiles[i]; if (t.h !== 1) continue;
+      let low = false;
+      for (const [dx, dy] of N4) {
+        const n = tiles[(y + dy) * N + x + dx]; if (n.h === 2) continue;
+        if (n.h === 1 && t.e - n.e >= 2) { t.k = 'cliff'; low = false; break; }
+        if (n.h === 1 && n.e < t.e) low = true;
+        if (n.wk === 'sea' && t.e >= 2 && dPlaza(x, y) > 13.5 && fbm(x / 4, y / 4, seed + 9, 2) > 0.58) { t.k = 'cliff'; low = false; break; }
+      }
+      if (low && !t.k && dPlaza(x, y) > 12) cand.push([Math.hypot(U[i + 1] - U[i - 1], U[i + N] - U[i - N]), i]);
+    }
+    cand.sort((a, b) => b[0] - a[0]);
+    for (const [, i] of cand.slice(0, Math.round(T.cliff * cand.length))) tiles[i].k = 'cliff';
+    // 4. cechy klimatu: bagna, zaspy, wydmy, ruchome piaski, oazy
+    const land = [];                                              // pola dla cech blokujących; przy wodzie w pobliżu Dworu zostaje miejsce pod Przystań, Okręt i rybaków
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x, t = tiles[i], d = dPlaza(x, y);
+      if (t.h === 1 && !t.k && d > PLAZA_R + 0.5 && !(dW[i] >= 0 && dW[i] <= 2 && d < 20)) land.push([x, y, i]);
+    }
+    const byNoise = (share, nx, ny, s, oct, pred = () => true) => {                               // top-`share` pól wg szumu (kwantyl), spośród dopuszczalnych
+      const cand = land.filter(([x, y, i]) => !tiles[i].k && pred(tiles[i], x, y)); const sc = cand.map(c => [fbm(c[0] / nx, c[1] / ny, s, oct), c]).sort((a, b) => b[0] - a[0]);
+      return sc.slice(0, Math.round(share * land.length)).map(v => v[1]);
+    };
+    const bogShare = C.bog ? Math.min(0.45, o.type === 'wetlands' ? Math.max(0.22, C.bog * T.bog) : C.bog * T.bog) : 0;
+    if (bogShare > 0.005) for (const [, , i] of byNoise(bogShare, 5.5, 5.5, seed + 40, 2, t => t.e === 1)) tiles[i].k = 'bog';
+    if (C.drift) for (const [, , i] of byNoise(C.drift * (o.type === 'wetlands' ? 1.5 : 1), 6, 6, seed + 41, 2, t => t.e <= 2)) tiles[i].k = 'drift';
+    meta.fx = { theta: th, lambda: 4.5 + rnd() * 2 };
+    if (C.dune) {
+      const mul = o.type === 'wetlands' ? 2.2 : o.type === 'mountains' ? 0.45 : o.type === 'river' || o.type === 'lakes' ? 0.8 : 1;
+      for (const [, , i] of byNoise(C.dune * mul, 9, 5, seed + 42, 2)) tiles[i].k = 'dune';
+    }
+    if (C.oasis) {                                                // pustynia: każde jezioro i staw to oaza (zielony pierścień), plus dodatkowe oazy
+      const n = C.oasis + (o.type === 'wetlands' ? 2 : 0) + (o.type === 'lakes' ? 1 : 0), oases = placeLakes(map, rnd, C, T, 'lake', n, 1.5, 2.3);
+      for (const [cx, cy, r] of oases.concat(ponds, lakesPlaced)) for (let y = Math.max(0, Math.floor(cy - r - 3)); y <= Math.min(N - 1, Math.ceil(cy + r + 3)); y++) for (let x = Math.max(0, Math.floor(cx - r - 3)); x <= Math.min(N - 1, Math.ceil(cx + r + 3)); x++) {
+        const t = tiles[y * N + x]; if (t.h === 1 && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < r + 2.2) { t.k = 'oasis'; }
+      }
+    }
+    if (C.quick) {
+      const n = Math.max(1, Math.round(C.quick * land.length / 4));
+      for (let c = 0, tries = 0; c < n && tries < 100; tries++) {
+        const [qx, qy] = land[Math.floor(rnd() * land.length)], t0 = tiles[qy * N + qx];
+        if (t0.k || dPlaza(qx, qy) < 11.5) continue;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const t = tiles[(qy + dy) * N + qx + dx]; if (t && t.h === 1 && !t.k && rnd() < 0.8) t.k = 'quick'; }
+        c++;
+      }
+    }
+    // czyszczenie: pole z cechą blokującą nie może mieć drzew ani złóż (przeniesiemy je niżej)
+    return { ponds };
+  }
+
+  /* ---------- łączność: przełęcze, groble, płycizny ---------- */
+  function ensureConnected(map) {
+    const N = map.size, t = map.tiles;
+    for (let iter = 0; iter < 4; iter++) {
+      const seen = reach(map), comp = new Int32Array(N * N).fill(-1), comps = [];
+      for (let s = 0; s < N * N; s++) {
+        if (t[s].h !== 1 || seen[s] || comp[s] >= 0) continue;
+        const list = [s]; comp[s] = comps.length;
+        for (let h = 0; h < list.length; h++) { const i = list[h], x = i % N, y = (i / N) | 0; for (const [dx, dy] of N4) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const j = ny * N + nx; if (t[j].h === 1 && !seen[j] && comp[j] < 0) { comp[j] = comps.length; list.push(j); } } }
+        comps.push(list);
+      }
+      const todo = comps.filter(c => c.length >= 6);
+      if (!todo.length) return;
+      for (const c of todo) {                                   // najkrótsza ścieżka (Dijkstra po koszcie przeszkód) do obszaru osiągalnego
+        const dist = new Float32Array(N * N).fill(1e9), prev = new Int32Array(N * N).fill(-1), q = [];
+        for (const i of c) { dist[i] = 0; q.push(i); }
+        let goal = -1;
+        while (q.length && goal < 0) {
+          let bi = 0; for (let k = 1; k < q.length; k++) if (dist[q[k]] < dist[q[bi]]) bi = k;
+          const i = q[bi]; q.splice(bi, 1);
+          if (seen[i] && !c.includes(i)) { goal = i; break; }
+          const x = i % N, y = (i / N) | 0;
+          for (const [dx, dy] of N4) {
+            const nx = x + dx, ny = y + dy; if (nx < 1 || ny < 1 || nx >= N - 1 || ny >= N - 1) continue; const j = ny * N + nx, n = t[j];
+            if (n.wk === 'sea' || n.h === 2) continue;
+            const w = n.h === 0 ? (n.wk === 'ford' || n.wk === 'ice' ? 1 : 4) : n.k === 'cliff' ? 5 : n.k ? 2 : 1;
+            if (dist[i] + w < dist[j]) { dist[j] = dist[i] + w; prev[j] = i; q.push(j); }
+          }
+        }
+        for (let i = goal; i >= 0 && dist[i] > 0; i = prev[i]) {          // przekop ścieżki
+          const n = t[i];
+          if (n.h === 0) n.wk = 'ford'; else if (n.k) { if (n.k === 'cliff') { n.e = Math.min(n.e, 2); } n.k = null; }
+        }
+      }
+    }
+  }
+
+  /* ---------- drzewa i złoża na nowym terenie ---------- */
+  function treeWeight(map, C, i, x, y, dW, seed) {
+    const t = map.tiles[i];
+    if (t.h !== 1 || t.k && t.k !== 'oasis' || t.deposit || dPlaza(x, y) <= PLAZA_R - 1) return 0;
+    const clump = sstep(0.42, 0.68, fbm(x / 4, y / 4, seed + 60, 2));
+    let w = 0.12 + 0.88 * clump;
+    if (C.id === 'desert') { w = (0.015 + 0.985 * clump) * (dW[i] >= 0 ? Math.exp(-dW[i] / 2.6) : 0.05); if (t.k === 'oasis') w += 1.2; }
+    else if (C.id === 'eastern') w *= 1.25; else if (C.id === 'snow') w *= 0.9;
+    if (t.e >= 3) w *= 0.6;
+    return w;
+  }
+  function rePlant(map, rnd, C, o, fid, target, seed, reachSet, pad) {
+    const N = map.size, tiles = map.tiles, native = C.native === fid && o.type === 'coast';
+    const dW = distField(N, tiles, isDeepWater, 12), ok = (t, i) => t.h === 1 && (!t.k || t.k === 'oasis') && !t.deposit && !t.occup && reachSet[i] && !pad[i];
+    let removed = 0;
+    for (let i = 0; i < N * N; i++) { const t = tiles[i]; if (t.trees && (!ok(t, i) || !native)) { removed += t.trees; t.trees = 0; } }
+    let cur = 0; for (const t of tiles) cur += t.trees;
+    const cand = [], cum = []; let sum = 0;
+    for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0, w = ok(tiles[i], i) ? treeWeight(map, C, i, x, y, dW, seed) : 0; if (w > 0) { sum += w; cand.push(i); cum.push(sum); } }
+    for (let guard = 0; cur < target && guard < 200000 && cand.length; guard++) {
+      const r = rnd() * sum; let lo = 0, hi = cum.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] < r) lo = m + 1; else hi = m; }
+      const t = tiles[cand[lo]]; if (t.trees < 3) { t.trees++; cur++; }
+    }
+    while (cur > target) { const i = Math.floor(rnd() * tiles.length); if (tiles[i].trees > 0) { tiles[i].trees--; cur--; } }
+  }
+  function reDeposit(map, rnd, o, seen, pad) {
+    const N = map.size, tiles = map.tiles, bad = [];
+    for (let i = 0; i < N * N; i++) {
+      const t = tiles[i]; if (!t.deposit) continue;
+      const x = i % N, y = (i / N) | 0, org = t.h === 1 && !t.k && seen[i] && dPlaza(x, y) > 6 ? mineOrigin(map, x, y, seen) : null;
+      if (org) reserve(map, pad, org[0], org[1], 3, 3); else { bad.push(t.deposit); t.deposit = null; }
+    }
+    for (const kind of bad) {
+      for (let guard = 0; guard < 6000; guard++) {
+        const x = 3 + Math.floor(rnd() * (N - 6)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x, t = tiles[i], d = dPlaza(x, y);
+        if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : 30) || (o.type === 'mountains' && t.e < 2 && guard < 3000)) continue;
+        const org = mineOrigin(map, x, y, seen); if (!org) continue;
+        t.deposit = kind; t.trees = 0; reserve(map, pad, org[0], org[1], 3, 3); break;
+      }
+    }
+  }
+
+  /* wolny obrys w×h na (x, y): ląd bez drzew, złóż i cech blokujących, różnica wysokości < 2; zwraca też, czy w pierścieniu jest morze i osiągalny ląd */
+  function fitAt(map, x, y, w, h, seen, used, ignoreDep, ignoreTrees) {
+    const N = map.size, t = map.tiles; if (x < 0 || y < 0 || x + w > N || y + h > N) return null;
+    let eMin = 9, eMax = 0;
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      const i = (y + yy) * N + x + xx, tt = t[i];
+      if ((used && used[i]) || tt.h !== 1 || (tt.trees && !ignoreTrees) || (tt.deposit && !ignoreDep) || !buildable(tt)) return null;
+      if (tt.e < eMin) eMin = tt.e; if (tt.e > eMax) eMax = tt.e;
+    }
+    if (eMax - eMin >= 2) return null;
+    let sea = false, near = false;
+    for (let yy = -1; yy <= h; yy++) for (let xx = -1; xx <= w; xx++) {
+      const nx = x + xx, ny = y + yy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const i = ny * N + nx; if (t[i].wk === 'sea') sea = true; if (seen[i]) near = true;
+    }
+    return near ? { sea } : null;
+  }
+  /* kopalnia 3×3 musi móc objąć pole ze złożem (wolny obrys wokół); wybiera ułożenie z najmniejszą liczbą drzew do usunięcia */
+  function mineOrigin(map, x, y, seen, ignoreTrees = true) {
+    const N = map.size; let best = null, bt = 99;
+    for (let oy = y - 2; oy <= y; oy++) for (let ox = x - 2; ox <= x; ox++) {
+      if (!fitAt(map, ox, oy, 3, 3, seen, null, true, ignoreTrees)) continue;
+      let tr = 0; for (let yy = 0; yy < 3; yy++) for (let xx = 0; xx < 3; xx++) tr += map.tiles[(oy + yy) * N + ox + xx].trees;
+      if (tr < bt) { bt = tr; best = [ox, oy]; }
+    }
+    return best;
+  }
+  const mineFits = (map, x, y, seen) => !!mineOrigin(map, x, y, seen, false);
+  /* rezerwacja obrysu (kopalnia, brzeg): oznacza pola i usuwa z nich drzewa — gracz nie może ich wyciąć, więc generator zostawia miejsce */
+  function reserve(map, pad, x, y, w, h) {
+    const N = map.size; for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const i = (y + yy) * N + x + xx; pad[i] = 1; map.tiles[i].trees = 0; }
+  }
+  /* ile z: Przystań, 2 Okręty, 4 Chaty rybaków (4×2, 4×2, 4×2, 2×2 ×4) da się ułożyć przy morzu (kolejność spirali od środka, jak boty) */
+  function shoreCapacity(map, ignoreTrees, pad) {
+    const N = map.size, seen = reachSet(map), used = new Uint8Array(N * N); let placed = 0;
+    for (const [w, h] of [[4, 2], [4, 2], [4, 2], [4, 2], [4, 2], [2, 2], [2, 2], [2, 2], [2, 2]]) {
+      let ok = false;
+      for (let r = 1; r < N && !ok; r++) for (let dy = -r; dy <= r && !ok; dy++) for (let dx = -r; dx <= r && !ok; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = 24 + dx, y = 24 + dy, f = fitAt(map, x, y, w, h, seen, used, false, ignoreTrees);
+        if (f && f.sea) { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) used[(y + yy) * N + x + xx] = 1; if (pad) reserve(map, pad, x, y, w, h); ok = true; placed++; }
+      }
+    }
+    return placed;
+  }
+
+  /* ---------- walidacja i statystyki ---------- */
+  function stats(map) {
+    const N = map.size, t = map.tiles, seen = reach(map), s = { water: 0, sea: 0, lake: 0, ice: 0, river: 0, ford: 0, cliff: 0, bog: 0, dune: 0, quick: 0, oasis: 0, drift: 0, hills: 0, rock: 0, land: 0, landReach: 0, trees: 0, treesReach: 0, depTotal: 0, depReach: 0, buildNear: 0, shoreNear: 0, shoreNearest: 99, nearestFord: 99 };
+    for (let i = 0; i < N * N; i++) {
+      const x = i % N, y = (i / N) | 0, tt = t[i], d = Math.hypot(x + 0.5 - CX, y + 0.5 - CY);
+      if (tt.h === 0) { s.water++; if (tt.wk) s[tt.wk]++; if (tt.wk === 'ford') s.nearestFord = Math.min(s.nearestFord, d); }
+      else if (tt.h === 2) s.rock++;
+      else { s.land++; if (seen[i]) s.landReach++; if (tt.e >= 2) s.hills++; if (tt.k) s[tt.k]++; }
+      s.trees += tt.trees; if (seen[i]) s.treesReach += tt.trees;
+      if (tt.deposit) { s.depTotal++; if (seen[i]) s.depReach++; }
+      if (tt.h === 1 && seen[i] && !tt.trees && !tt.deposit && buildable(tt) && d <= 14) s.buildNear++;
+      if (tt.h === 1 && seen[i] && !tt.trees && !tt.deposit && buildable(tt) && d <= 16) {
+        let w = false; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = t[(y + dy) * N + x + dx]; if (n && n.wk === 'sea') w = true; }
+        if (w) { s.shoreNear++; s.shoreNearest = Math.min(s.shoreNearest, d); }
+      }
+    }
+    return s;
+  }
+  function validate(map, o, fid) {
+    const s = stats(map), why = [];
+    if (s.landReach < 0.8 * s.land - s.cliff - s.quick) why.push('łączność lądu ' + s.landReach + '/' + s.land);
+    if (s.depReach < s.depTotal) why.push('złoża nieosiągalne');
+    if (s.treesReach < 0.85 * s.trees) why.push('drzewa nieosiągalne');
+    if (s.buildNear < 280) why.push('za mało miejsca pod zabudowę: ' + s.buildNear);
+    if ((s.river + s.ford) && (!s.ford || s.nearestFord > 16)) why.push('brak brodu w pobliżu');
+    if (fid === 'vikings' && o.type === 'coast') {
+      if (s.shoreNear < 12 || s.shoreNearest > 13) why.push('mało brzegu dla Wikingów: ' + s.shoreNear + ' @' + s.shoreNearest.toFixed(1));
+      const cap = shoreCapacity(map); s.shoreCap = cap; if (cap < 9) why.push('brzeg mieści tylko ' + cap + '/9 budynków nadmorskich');
+    }
+    let noFit = 0; map.tiles.forEach((t, i) => { if (t.deposit && !mineFits(map, i % map.size, (i / map.size) | 0, reachSet(map))) noFit++; });
+    if (noFit) why.push('złoża bez miejsca na kopalnię: ' + noFit);
+    return { ok: !why.length, why, s };
+  }
+
+  /* ---------- wejście: nakładka na mapę starego generatora ---------- */
+  function apply(map, o, fid, target) {
+    const N = map.size, tiles = map.tiles, C = Data.CLIMATES[o.climate], T = Data.MAPTYPES[o.type];
+    const base = tiles.map(t => [t.h, t.trees, t.deposit]);
+    let res = null;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      tiles.forEach((t, i) => { t.h = base[i][0]; t.trees = base[i][1]; t.deposit = base[i][2]; t.e = 0; t.wk = null; t.k = null; });
+      map.meta = { climate: o.climate, type: o.type, seed: o.seed, fid, attempt };
+      const seed = (strHash(o.climate + '|' + o.type) ^ Math.imul(o.seed + attempt * 7919, 2654435761)) >>> 0, rnd = prng(seed ^ 0x9E3779B9);
+      build(map, o, C, T, seed, fid, target);
+      ensureConnected(map);
+      REACH.delete(map.tiles); const seen = reachSet(map), pad = new Uint8Array(N * N);       // osiągalność liczona od nowa po zmianie terenu
+      reDeposit(map, rnd, o, seen, pad);
+      if (fid === 'vikings' && o.type === 'coast') {                                              // miejsce na Przystań, Okręty i rybaków: pas brzegu bez drzew (gracz nie wytnie ich sam)
+        const dSea = distField(N, tiles, t => t.wk === 'sea', 4);
+        for (let i = 0; i < N * N; i++) if (dSea[i] >= 0 && dSea[i] <= 3 && tiles[i].h === 1 && dPlaza(i % N, (i / N) | 0) <= 20) { tiles[i].trees = 0; pad[i] = 1; }
+      }
+      rePlant(map, rnd, C, o, fid, target, seed, seen, pad);
+      res = validate(map, o, fid);
+      if (res.ok) break;
+    }
+    map.meta.valid = res.ok; map.meta.why = res.why; map.meta.stats = res.s;
+    REACH.delete(map.tiles);
+    return map;
+  }
+
+  /* osiągalność z Dworu liczona raz na mapę (pamięć podręczna po tablicy kafli — kopia ze snapshot/restore liczy się od nowa) */
+  function reachSet(map) { let r = REACH.get(map.tiles); if (!r) REACH.set(map.tiles, r = reach(map)); return r; }
+  function ringReachable(map, x, y, w, h) {                     // obrys z pierścieniem sąsiedztwa musi stykać się z obszarem osiągalnym
+    if (!map.meta) return true;
+    const N = map.size, r = reachSet(map);
+    for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < N && ny < N && r[ny * N + nx]) return true; }
+    return false;
+  }
+
+  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, CX, CY, PLAZA_R, fbm, hash2, prng };
+})();
+
 /* ============================= MODUL: MAPGEN ============================== */
 /* Kafel: { h: typ terenu (0 woda, 1 piasek/trawa, 2 skała), trees: 0..3,
            deposit: null|'stone'|'iron'|'coal'|'clay'|'peat', occup: uid|null } */
 const MapGen = (() => {
   const SIZE = 48;
-  function generate(factionId) {
-    RNG.seed({ franks: 777, saracens: 888, vikings: 999, slavs: 1111 }[factionId]);
+  const LEGACY_SEED = { franks: 777, saracens: 888, vikings: 999, slavs: 1111 };
+  /* opts: { climate, type, seed } — domyślnie klimat nacji, mapa nadmorska i dotychczasowe ziarno (układ drzew i złóż jak dotąd); Wikingowie zawsze nadmorska.
+     Teren v2 (wysokości, woda, klify, cechy klimatu) nakłada Terrain.apply własnym PRNG — globalny RNG pozostaje nietknięty. */
+  function generate(factionId, opts = {}) {
+    const o = { climate: Data.CLIMATES[opts.climate] ? opts.climate : Data.FACTIONS[factionId].climate,
+      type: factionId === 'vikings' || !Data.MAPTYPES[opts.type] ? 'coast' : opts.type,
+      seed: Number.isFinite(opts.seed) ? opts.seed >>> 0 : LEGACY_SEED[factionId] };
+    const coastal = o.type === 'coast';
+    RNG.seed(o.seed);
     const c = Math.floor(SIZE/2);
     const tiles = new Array(SIZE * SIZE);
     for (let i = 0; i < SIZE * SIZE; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null, x: i % SIZE, y: Math.floor(i / SIZE) };
@@ -4150,7 +4817,7 @@ const MapGen = (() => {
         // Wikingowie: szerokie morze tuż przy osadzie (start zawsze nad morzem); inne nacje: zatoka przy krawędzi
         const coast = 5 + Math.sin(y * 0.35) * 2.5 + RNG.range(-0.8, 0.8)
                       + (factionId === 'vikings' ? 7.5 : 3.5);
-        if (x < coast) tiles[i].h = 0;
+        if (coastal && x < coast) tiles[i].h = 0;
         const mtn = Math.sin(nx*9)*Math.cos(ny*7)*0.9 + Math.sin((nx+ny)*13)*0.5;
         if (mtn > 0.92 && tiles[i].h === 1 && Math.hypot(x - c, y - c) > 9) tiles[i].h = 2; // skały nie na starcie
       }
@@ -4184,7 +4851,9 @@ const MapGen = (() => {
       if (t) { t.h = 1; t.trees = 0; t.deposit = null; }
     }
     fitTrees(tiles, f.treesTarget, c);
-    return { size: SIZE, tiles };
+    const map = { size: SIZE, tiles };
+    Terrain.apply(map, o, factionId, f.treesTarget);
+    return map;
   }
 
   /* Liczba drzew na mapie = parametr generatora z danych nacji (300 / 150 / 450 / 300).
@@ -4257,10 +4926,13 @@ const Gfx = (() => {
   function drawTile(ctx, t, sx, sy, z, terrain, coast, objects = true) {
     const w = Camera.tileW(), h = Camera.tileH();
     let c;
-    if (t.h === 0) c = terrain === 'sand' ? '#3a7192' : '#4a7a94';
-    else if (t.h === 2) c = terrain === 'sand' ? '#a89880' : '#75746c';
-    else c = terrain === 'grass' ? '#4f7c3a' : terrain === 'sand' ? '#cbb684' : '#63724a';
-    ctx.fillStyle = shade(c, 0.96 + ((t.x + t.y) % 2) * 0.04);
+    if (t.h === 0) c = ({ lake: '#4f8a8c', river: '#4f86a8', ford: '#7fa6b0', ice: '#cfe2ea' })[t.wk] || (terrain === 'sand' ? '#3a7192' : '#4a7a94');
+    else if (t.h === 2) c = terrain === 'sand' ? '#a89880' : terrain === 'snow' ? '#9aa0a8' : '#75746c';
+    else {
+      c = terrain === 'grass' ? '#4f7c3a' : terrain === 'sand' ? '#cbb684' : terrain === 'snow' ? '#dfe7ec' : '#63724a';
+      const kc = ({ bog: '#4c5e38', dune: '#c4aa6e', quick: '#8c7650', oasis: '#58903e', drift: '#eef3f5', cliff: '#7c7a72' })[t.k]; if (kc) c = kc;
+    }
+    ctx.fillStyle = shade(c, (0.96 + ((t.x + t.y) % 2) * 0.04) * (1 + 0.05 * ((t.e || 1) - 1)));
     ctx.beginPath();
     ctx.moveTo(sx, sy - h/2); ctx.lineTo(sx + w/2, sy);
     ctx.lineTo(sx, sy + h/2); ctx.lineTo(sx - w/2, sy);
@@ -4381,7 +5053,7 @@ const Gfx = (() => {
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; // cień korony
     ctx.beginPath(); ctx.ellipse(x + 2.2*s, y + 1.2*s, 7*s, 2.6*s, 0, 0, 7); ctx.fill();
     const trunk = terrain === 'sand' ? '#8a6a45' : '#5c4630';
-    const leaf = terrain === 'sand' ? '#5a8a4a' : terrain === 'tundra' ? '#3e6a44' : '#3a7a34';
+    const leaf = terrain === 'sand' ? '#5a8a4a' : terrain === 'tundra' ? '#3e6a44' : terrain === 'snow' ? '#2f5a46' : '#3a7a34';
     ctx.fillStyle = trunk;
     ctx.fillRect(x - 1.5*s, y - 8*s, 3*s, 8*s);
     ctx.fillStyle = leaf;
@@ -5590,9 +6262,9 @@ const World = (() => {
     raids: { count: 0, lost: 0, next: 40 }, crisis: null, eventMsgs: []
   };
 
-  function init(factionId) {
+  function init(factionId, opts) {
     state.factionId = factionId;
-    state.map = MapGen.generate(factionId);
+    state.map = MapGen.generate(factionId, opts);
     state.buildings = []; state.citizens = [];
     state.time = 0; state.nextId = 1;
     state.pop = 14; state.controls = { rations: 1, tax: 1 };
@@ -5653,31 +6325,37 @@ const World = (() => {
     return b;
   }
 
+  const K_WHY = { bog: 'Bagno — nie da się tu budować', dune: 'Wydma — zbyt sypki grunt', quick: 'Ruchome piaski!', cliff: 'Klif — urwisko', drift: 'Głęboki śnieg' };
   function canPlace(id, x, y) {
-    const def = Data.BUILDINGS[id], [w, h] = fpOf(id);
-    let hasWater = false, hasForest = 0;
+    const def = Data.BUILDINGS[id], [w, h] = fpOf(id), map = state.map;
+    let hasSea = false, hasFishWater = false, hasForest = 0;
     for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { // obrys + pierścień sąsiedztwa (las, brzeg)
-      const t = MapGen.at(state.map, x + dx, y + dy);
+      const t = MapGen.at(map, x + dx, y + dy);
       if (!t) continue;
-      if (t.h === 0) hasWater = true;
+      if (t.h === 0 && t.wk === 'sea') hasSea = hasFishWater = true;           // Przystań i Okręt: tylko morze
+      else if (t.h === 0 && (t.wk === 'lake' || t.wk === 'ice')) hasFishWater = true; // Chata rybaka: także jezioro (i lód)
       if (t.trees > 0) hasForest += t.trees;
     }
-    let hasDeposit = false;
+    let hasDeposit = false, eMin = 9, eMax = 0;
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
-      const t = MapGen.at(state.map, x + dx, y + dy);
+      const t = MapGen.at(map, x + dx, y + dy);
       if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: 'Zajęte lub niebudowlane pole' };
+      if (t.k && Terrain.BLOCK_K[t.k]) return { ok: false, reason: K_WHY[t.k] };
       // złoże jest zarezerwowane dla pasującej kopalni
       if (t.deposit && def.req !== 'deposit:' + t.deposit) return { ok: false, reason: 'Złoże — miejsce tylko na kopalnię' };
       if (t.deposit) hasDeposit = true;
+      if (t.e < eMin) eMin = t.e; if (t.e > eMax) eMax = t.e;
     }
+    if (eMax - eMin >= 2) return { ok: false, reason: 'Zbyt nierówny teren (różnica wysokości ≥ 2)' };
+    if (!Terrain.ringReachable(map, x, y, w, h)) return { ok: false, reason: 'Brak dojścia — teren odcięty wodą lub klifami' };
     if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
-    if (def.req === 'shore' && !hasWater) return { ok: false, reason: 'Wymaga brzegu morza' };
+    if (def.req === 'shore' && !hasFishWater) return { ok: false, reason: 'Wymaga brzegu morza lub jeziora' };
     if (id === 'fisherhut') {
       const spots = state.settings.shoreSpots ?? 6; // miejsca pod Chaty rybaka na wybrzeżu (parametr generatora map)
       const used = state.buildings.filter(b => b.id === 'fisherhut').length + state.sites.filter(st => st.id === 'fisherhut').length;
       if (used >= spots) return { ok: false, reason: 'Brzeg pełny: maks. ' + spots + ' Chat rybaka (spec.)' };
     }
-    if (def.req === 'waterEdge' && !hasWater) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do wody' };
+    if (def.req === 'waterEdge' && !hasSea) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do morza' };
     if (def.req && def.req.startsWith('deposit:') && !hasDeposit) // złoże na dowolnym polu obrysu kopalni
       return { ok: false, reason: 'Wymaga złoża (' + def.req.split(':')[1] + ')' };
     if (id === 'ship' && !state.buildings.some(b => b.id === 'dock'))
@@ -5742,7 +6420,7 @@ const World = (() => {
     const tiles = state.map.tiles;
     for (let tries = 0; tries < 30; tries++) {
       const t = tiles[RNG.int(0, tiles.length - 1)];
-      if (t.h === 1 && !t.occup && t.trees < 3 && !t.deposit) { t.trees++; return true; }
+      if (t.h === 1 && !t.occup && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }
     }
     return false;
   }
@@ -7134,27 +7812,28 @@ const UI = (() => {
 
   /* wypiek sprite'ów wybranej nacji z paskiem postępu; ?q=1|2 wymusza jakość (domyślnie ostro na ekranach HiDPI), ?classic=1 pomija sprite'y;
      przy błędzie gra rusza w trybie klasycznym (Gfx.ART) */
-  async function bakeGraphics(fid) {
+  async function bakeGraphics(fid, opts) {
     const q = new URLSearchParams(location.search), box = document.getElementById('loading');
     if (q.get('classic') === '1') return;
     const bar = box.querySelector('i'), txt = document.getElementById('loadingTxt');
     box.style.display = 'flex';
     Sprites.setQuality(+q.get('q') || ((window.devicePixelRatio || 1) >= 1.5 ? 2 : 1));
     try {
-      await Sprites.bake(fid, (f, label) => { bar.style.width = Math.round(f * 100) + '%'; txt.textContent = label + '…'; }, { deposits: Object.keys(Data.FACTIONS[fid].deposits || {}) });
+      await Sprites.bake(fid, (f, label) => { bar.style.width = Math.round(f * 100) + '%'; txt.textContent = label + '…'; }, { deposits: Object.keys(Data.FACTIONS[fid].deposits || {}), climate: opts && Data.CLIMATES[opts.climate] ? opts.climate : Data.FACTIONS[fid].climate });
     } catch (e) { console.error('Wypiek grafiki nie powiódł się — tryb klasyczny', e); }
     box.style.display = 'none';
   }
 
-  async function startGame(fid) {
+  /* opts: { climate, type, seed } — klimat i typ mapy (Piaskownica / skrót ?play=…); bez opts: klimat nacji, mapa nadmorska */
+  async function startGame(fid, opts) {
     if (gameStarted) return;
     gameStarted = true;
     document.getElementById('factionPick').style.display = 'none';
-    await bakeGraphics(fid);
+    await bakeGraphics(fid, opts);
     hud.style.display = 'flex';
     buildBar.style.display = 'block';
     document.getElementById('hint').style.display = 'block';
-    World.init(fid);
+    World.init(fid, opts);
     document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b>';
     // kamera na Dwór (środek mapy)
     const c = MapGen.SIZE / 2;
@@ -7563,7 +8242,7 @@ const Game = (() => {
     const bbOf = (sp, sx, sy, k) => [sx - sp.ax * k, sy - sp.ay * k, sx + (sp.w - sp.ax) * k, sy + (sp.h - sp.ay) * k];
     const list = [];
     const push = (it) => { if (inView(it.bb)) list.push(it); };
-    const SETS = Sprites.sets, gm = 34 * z + 8, terrain = f.palette.terrain;
+    const SETS = Sprites.sets, gm = 34 * z + 8, terrain = Data.CLIMATES[(s.map.meta || {}).climate || f.climate].classic;
 
     // 1. teren (widoczne kafle) + drzewa i złoża jako obiekty posortowane (tryb klasyczny rysuje je w kaflu)
     for (let y = 0; y < size; y++) {
@@ -7579,7 +8258,7 @@ const Game = (() => {
         }
         const set = terrain === 'sand' ? SETS.palms : null, h0 = Gfx.thash(x, y, 77);
         for (let i = 0; i < tile.trees; i++) {
-          const arr = set || (terrain === 'tundra' ? (Gfx.thash(x, y, 80 + i) < 0.78 ? SETS.pines : SETS.oaks) : (Gfx.thash(x, y, 80 + i) < 0.55 ? SETS.oaks : SETS.pines));
+          const arr = set || (terrain === 'tundra' || terrain === 'snow' ? (Gfx.thash(x, y, 80 + i) < 0.78 ? SETS.pines : SETS.oaks) : (Gfx.thash(x, y, 80 + i) < 0.55 ? SETS.oaks : SETS.pines));
           if (!arr || !arr.length) continue;
           const sp = arr[Math.floor(Gfx.thash(x, y, 90 + i) * arr.length)], k = K * (0.9 + 0.2 * Gfx.thash(x, y, 100 + i));
           const fx = tile.trees === 1 ? 0.3 + 0.4 * h0 : TREE_SPOTS[i][0] + (Gfx.thash(x, y, 110 + i) - 0.5) * 0.16;
@@ -7745,7 +8424,8 @@ const Game = (() => {
         if (n && n.h !== 0) coast |= (1 << i);
       }
     }
-    Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.FACTIONS[World.state().factionId].palette.terrain, coast, objects);
+    const s3 = World.state();
+    Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.CLIMATES[(s3.map.meta || {}).climate || Data.FACTIONS[s3.factionId].climate].classic, coast, objects);
   }
 
   /* --- input --- */
@@ -7876,6 +8556,11 @@ const Game = (() => {
 
   fit();
   UI.buildFactionCards();
+  /* skrót do testów i zrzutów: ?play=franks&climate=snow&map=river&seed=7 omija wybór nacji (to samo wejście co Piaskownica: UI.startGame) */
+  if (typeof location !== 'undefined') {
+    const q = new URLSearchParams(location.search), p = q.get('play');
+    if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined });
+  }
   return { start };
 })();
 </script>
