@@ -174,11 +174,69 @@
   }
   #bInfo h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
   #bInfo .sub { color: #a89878; font-size: 11px; }
+
+  /* --- menu główne, Piaskownica i menu w grze (Faza 9) --- */
+  #mainMenu, #sandbox { position: absolute; inset: 0; z-index: 52; display: none; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #0d0b08 center bottom / cover no-repeat; color: var(--text); }
+  #mainMenu { flex-direction: column; }
+  #mainMenu .mmBox { text-align: center; padding: 16px 20px; width: min(440px, 94vw); margin: auto; }
+  #mainMenu h1 { white-space: nowrap; color: var(--gold); font-size: 52px; letter-spacing: 6px; text-shadow: 0 3px 12px #000, 0 0 30px rgba(232,200,96,.25); margin-bottom: 2px; }
+  #mainMenu p.sub { color: #b9a982; font-style: italic; margin-bottom: 18px; text-shadow: 0 1px 6px #000; }
+  #mmList { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  #mmList button, #pauseMenu button.mi { width: 100%; padding: 9px 18px; font: inherit; font-size: 17px; letter-spacing: 1px; color: var(--text); background: rgba(40,30,18,.88); border: 1px solid var(--panel-border); border-radius: 4px; cursor: pointer; text-align: center; transition: background .12s, border-color .12s, transform .12s; }
+  #mmList button:hover:not([aria-disabled="true"]), #mmList button.focus, #pauseMenu button.mi:hover:not([aria-disabled="true"]), #pauseMenu button.mi.focus { background: rgba(110,78,34,.95); border-color: var(--gold); transform: translateX(3px); }
+  #mmList button[aria-disabled="true"], #pauseMenu button.mi[aria-disabled="true"] { color: #7d715c; cursor: not-allowed; background: rgba(28,22,14,.78); }
+  #mmList button small, #pauseMenu button.mi small { display: block; font-size: 11px; letter-spacing: .5px; color: #8a7d62; margin-top: 2px; }
+  #mainMenu .mmFoot { margin-top: 22px; font-size: 12px; color: #7d715c; }
+  #sandbox { align-items: flex-start; justify-content: center; background: radial-gradient(ellipse at top, #2a2118 0%, #0d0b08 75%); }
+  #sandbox .sbBox { width: min(1040px, 100%); padding: 22px 20px 36px; }
+  #sandbox h2 { color: var(--gold); font-size: 30px; letter-spacing: 3px; margin-bottom: 14px; text-shadow: 0 2px 8px #000; }
+  #sandbox h3 { color: #c8a860; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 6px; }
+  #sandbox .sbCols { display: flex; gap: 22px; align-items: flex-start; }
+  #sandbox .sbLeft { flex: 1 1 auto; min-width: 0; }
+  #sandbox .sbRight { flex: 0 0 236px; background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 12px; border-radius: 4px; position: sticky; top: 12px; }
+  #sbPreview { width: 212px; height: 212px; display: block; background: #10130f; border: 1px solid #000; image-rendering: pixelated; margin: 0 auto 8px; }
+  #sbDesc { color: var(--gold); font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+  #sbSummary { font-size: 12px; color: #c8bda8; line-height: 1.5; margin-bottom: 10px; min-height: 54px; }
+  #sandbox label { font-size: 12px; color: #a89878; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  #sandbox input[type=number] { width: 100%; padding: 6px 8px; font: inherit; font-size: 14px; color: var(--text); background: #1a140c; border: 1px solid var(--panel-border); border-radius: 3px; }
+  #sandbox button { font: inherit; color: var(--text); background: #3a2c1c; border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px 12px; cursor: pointer; font-size: 14px; }
+  #sandbox button:hover { background: #55412a; }
+  #sandbox button.primary { background: #7a5a24; border-color: var(--gold); color: #fff3d0; font-weight: bold; }
+  #sandbox button.primary:hover { background: #9a7230; }
+  #sandbox .sbBtns { display: flex; gap: 8px; margin-top: 10px; } #sandbox .sbBtns button { flex: 1; }
+  #sbRandom { width: 100%; margin-bottom: 8px; }
+  .sbCards { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sbCards .factionCard { width: 150px; padding: 8px; }
+  .sbCards .factionCard canvas { height: 70px; }
+  #sandbox .sbCards .factionCard h2 { font-size: 17px; letter-spacing: 0; margin: 6px 0 0; text-shadow: none; }
+  .sbCards .factionCard .tagline { font-size: 11px; margin-bottom: 0; }
+  .factionCard.sel { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(232,200,96,.45), 0 8px 24px rgba(0,0,0,.6); }
+  .sbTiles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sbTiles button.tile { width: 158px; text-align: left; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
+  .sbTiles button.tile b { font-size: 14px; } .sbTiles button.tile span { font-size: 11px; color: #a89878; line-height: 1.3; }
+  .sbTiles button.tile.sel { border-color: var(--gold); background: #5a4222; box-shadow: 0 0 0 2px rgba(232,200,96,.4); }
+  .sbTiles button.tile.native::after { content: "klimat nacji"; font-size: 10px; color: #c8a860; }
+  .sbTiles button.tile:disabled { opacity: .42; cursor: not-allowed; }
+  #sbNote { font-size: 12px; color: #e8b060; min-height: 18px; margin-top: 8px; }
+  #pauseMenu { position: absolute; inset: 0; z-index: 70; display: none; align-items: center; justify-content: center; background: rgba(8,6,3,.72); }
+  #pauseMenu .pmBox { width: min(340px, 90vw); background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
+  #pauseMenu h2 { color: var(--gold); letter-spacing: 3px; margin-bottom: 6px; }
+  #pauseMenu .pmInfo { font-size: 12px; color: #a89878; margin-bottom: 6px; }
+  #hud .mapdesc { color: #a89878; font-size: 12px; margin-left: 6px; font-weight: normal; }
+  @media (max-width: 720px), (max-height: 640px) {
+    #mainMenu h1 { font-size: 36px; letter-spacing: 4px; } #mainMenu .mmBox { padding-top: calc(12px + var(--safe-top)); }
+    #mmList button { padding: 14px 18px; touch-action: manipulation; }
+    #sandbox .sbCols { flex-direction: column; } #sandbox .sbRight { flex: 1 1 auto; width: 100%; position: static; order: -1; }
+    #sbPreview { width: 160px; height: 160px; }
+    .sbCards .factionCard { width: calc(50% - 5px); } .sbTiles button.tile { width: calc(50% - 4px); }
+    #hud .mapdesc { display: none; }
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 <div id="hud" style="display:none">
+  <button id="btnMenu" title="Menu (Esc)">☰ Menu</button>
   <span class="title">NOVA ROMA</span>
   <span class="stat" id="hudFaction"></span>
   <span class="stat">⏱ <b id="hudTime">0</b> min</span>
@@ -218,6 +276,41 @@
     <h1>NOVA ROMA</h1>
     <p class="sub">v7 — Wybierz nację — każda buduje inaczej, wygląda inaczej i żyje inaczej.</p>
     <div class="factionCards" id="factionCards"></div>
+  </div>
+</div>
+<div id="mainMenu">
+  <div class="mmBox">
+    <h1>NOVA ROMA</h1>
+    <p class="sub">Cztery nacje, jedna osada, jeden senior żądający haraczu</p>
+    <ul id="mmList" role="menu"></ul>
+    <div class="mmFoot">Gra strategiczno-ekonomiczna · ↑↓ Enter — wybór</div>
+  </div>
+</div>
+<div id="sandbox">
+  <div class="sbBox">
+    <h2>Piaskownica</h2>
+    <div class="sbCols">
+      <div class="sbLeft">
+        <h3>1. Nacja</h3><div id="sbFactions" class="sbCards"></div>
+        <h3>2. Klimat</h3><div id="sbClimates" class="sbTiles"></div>
+        <h3>3. Typ mapy</h3><div id="sbTypes" class="sbTiles"></div>
+        <div id="sbNote"></div>
+      </div>
+      <div class="sbRight">
+        <canvas id="sbPreview" width="192" height="192"></canvas>
+        <div id="sbDesc"></div><div id="sbSummary"></div>
+        <label>Ziarno mapy <input id="sbSeed" type="number" min="0" step="1"></label>
+        <button id="sbRandom">🎲 Losuj mapę</button>
+        <div class="sbBtns"><button id="sbBack">‹ Wstecz</button><button id="sbStart" class="primary">▶ Start</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="pauseMenu">
+  <div class="pmBox">
+    <h2>MENU</h2>
+    <div class="pmInfo" id="pmInfo"></div>
+    <div id="pmList" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </div>
 
@@ -8760,6 +8853,7 @@ const Advisor = (() => {
   function render() {
     const s = World.state();
     let h = '<div class="advHead"><b>🧭 Doradca</b><span class="advClose" id="advClose">✕</span></div>';
+    if (s.map && s.map.meta) h += '<div class="advRow" style="color:' + COLOR.info + '">🗺 Mapa: ' + esc(Minimap.describe(s.map.meta)) + '</div>';
     const ws = warnings(s);
     h += '<h4>Ostrzeżenia</h4>';
     if (!ws.length) h += '<div class="advRow" style="color:' + COLOR.good + '">Brak — osada działa bez zastrzeżeń.</div>';
@@ -8977,6 +9071,58 @@ const BuildMode = (() => {
   return { select, clear, isSelected, setHover, click, draw, buildingAtHover, origin, hover: () => hover };
 })();
 
+/* ============================== MODUL: MINIMAP ==============================
+   Podgląd mapy w menu Piaskownicy: opis („Rzeczna · Śnieżny · ziarno 1234”), podsumowanie liczb z walidacji generatora i rysunek 1 pole = kilka pikseli.
+   Moduł jest czysty: tylko czyta mapę (MapGen.generate zasiewa globalny RNG, ale World.init robi to od nowa, więc podgląd nie zmienia przebiegu gry). */
+const Minimap = (() => {
+  const LAND = { temperate: ['#6f9a52', '#a7bf7c'], eastern: ['#5f8a4c', '#93b070'], snow: ['#dfe8ee', '#ffffff'], desert: ['#d9bf86', '#ecd8a8'] };
+  const WATER = { sea: '#2f5f8f', lake: '#3d78a8', river: '#4a86b8', ford: '#9fc0b0', ice: '#bcd8e8' };
+  const FEAT = { bog: '#5c5a38', dune: '#c8a860', quick: '#b08838', oasis: '#4f9a52', cliff: '#6a6660', drift: '#f4f8fb' };
+  const DEP = { stone: '#c8c8c0', iron: '#b0583a', coal: '#1a1a1a', clay: '#c06a3c', peat: '#5a3a28' };
+  const pl = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? b : c;
+
+  function describe(meta) {
+    if (!meta) return '';
+    const c = Data.CLIMATES[meta.climate];
+    return Data.mapTypeName(meta.type, meta.climate) + ' · ' + (c ? c.name : meta.climate) + ' · ziarno ' + meta.seed;
+  }
+  /* podsumowanie mapy: { lines, valid } z map.meta.stats (Terrain.validate) i listy złóż */
+  function summary(map) {
+    const st = (map.meta && map.meta.stats) || Terrain.stats(map), N = map.size * map.size, dep = {};
+    for (const t of map.tiles) if (t.deposit) dep[t.deposit] = (dep[t.deposit] || 0) + 1;
+    const pct = v => Math.round(100 * v / N), lines = [];
+    lines.push('Woda ' + pct(st.water) + '% · wzgórza ' + pct(st.hills) + '% · drzewa ' + st.trees);
+    const rv = [];
+    if (st.river + st.ford) rv.push('rzeka z ' + Math.max(1, Math.round(st.ford / 6)) + ' ' + pl(Math.max(1, Math.round(st.ford / 6)), 'brodem', 'brodami', 'brodami'));
+    if (st.lake + st.ice) rv.push((st.ice ? 'zamarznięte jeziora' : 'jeziora i stawy'));
+    if (st.sea) rv.push('morze');
+    if (rv.length) lines.push(rv.join(' · '));
+    const feats = ['bog', 'dune', 'quick', 'oasis', 'drift', 'cliff'].filter(k => st[k] > 0).map(k => ({ bog: 'bagna', dune: 'wydmy', quick: 'ruchome piaski', oasis: 'oazy', drift: 'zaspy', cliff: 'klify' }[k]));
+    if (feats.length) lines.push('Teren: ' + feats.join(', '));
+    const names = { stone: 'kamień', iron: 'żelazo', coal: 'węgiel', clay: 'glina', peat: 'ruda darniowa' };
+    const ds = Object.keys(dep).map(k => names[k]); lines.push('Złoża: ' + (ds.length ? ds.join(', ') : 'brak'));
+    return { lines, valid: !map.meta || map.meta.valid !== false };
+  }
+  /* rysuje mapę na kanwie (kwadrat; 1 pole = canvas.width / rozmiar pikseli); Dwór oznaczony białą ramką */
+  function draw(canvas, map) {
+    const ctx = canvas.getContext('2d'), N = map.size, k = canvas.width / N, climate = (map.meta && map.meta.climate) || 'temperate', lc = LAND[climate] || LAND.temperate;
+    const mix = (a, b, t) => { const pa = [1, 3, 5].map(i => parseInt(a.substr(i, 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16)); return 'rgb(' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t)).join(',') + ')'; };
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const t = map.tiles[y * N + x]; let col;
+      if (t.h === 0) col = WATER[t.wk] || WATER.sea;
+      else if (t.h === 2) col = '#7a766e';
+      else if (t.k) col = FEAT[t.k] || lc[0];
+      else { col = mix(lc[0], lc[1], Math.min(1, ((t.e || 1) - 1) / 3)); if (t.trees) col = mix('#2f5a2a', '#40702f', Math.min(1, t.trees / 3)); }
+      if (t.deposit) col = DEP[t.deposit] || col;
+      ctx.fillStyle = col; ctx.fillRect(Math.floor(x * k), Math.floor(y * k), Math.ceil(k), Math.ceil(k));
+    }
+    const c = N / 2 - 2; ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, k * 0.5); ctx.strokeRect(c * k, c * k, 4 * k, 4 * k);
+  }
+  /* mapa do podglądu: te same dane wejściowe co World.init, więc gra wystartuje na tej samej mapie */
+  function generate(fid, opts) { return MapGen.generate(fid, opts); }
+  return { describe, summary, draw, generate, LAND, WATER };
+})();
+
 /* ================================ MODUL: UI ================================ */
 const UI = (() => {
   const hud = document.getElementById('hud');
@@ -8990,14 +9136,15 @@ const UI = (() => {
   let hintTimer = null;
   let gameStarted = false;
 
-  function buildFactionCards() {
-    const wrap = document.getElementById('factionCards');
+  /* karty nacji: wrap — kontener (domyślnie ekran wyboru nacji), onPick(fid) — wybór (domyślnie start gry), compact — małe karty Piaskownicy; zwraca mapę nacja → karta */
+  function buildFactionCards(wrap, onPick, compact) {
+    wrap = wrap || document.getElementById('factionCards'); onPick = onPick || (fid => startGame(fid)); const cards = new Map();
     // kolejność kampanii (spec): Słowianie, Frankowie, Wikingowie, Saraceni — trudniejsza nacja później
     const order = Object.keys(Data.FACTIONS).sort((a, b) => Data.FACTIONS[a].campaign.order - Data.FACTIONS[b].campaign.order);
     for (const fid of order) {
       const f = Data.FACTIONS[fid];
       const card = document.createElement('div');
-      card.className = 'factionCard';
+      card.className = 'factionCard' + (compact ? ' compact' : ''); cards.set(fid, card);
       const mini = document.createElement('canvas');
       mini.width = 220; mini.height = 130;
       card.appendChild(mini);
@@ -9009,7 +9156,7 @@ const UI = (() => {
       const ul = document.createElement('ul');
       f.desc.forEach(d => { const li = document.createElement('li'); li.textContent = d; ul.appendChild(li); });
       card.appendChild(ul);
-      card.onclick = () => startGame(fid);
+      card.onclick = () => onPick(fid);
       // dotyk: tap bez przesunięcia startuje grę, przesunięcie przewija listę kart
       let tapStart = null;
       card.addEventListener('touchstart', ev => {
@@ -9023,7 +9170,7 @@ const UI = (() => {
         tapStart = null;
         if (moved) return;
         ev.preventDefault(); // blokuje syntetyczny click (bez podwójnego startu)
-        startGame(fid);
+        onPick(fid);
       }, { passive: false });
       wrap.appendChild(card);
       // miniatura: budynek + obywatel na tle terenu
@@ -9038,6 +9185,7 @@ const UI = (() => {
       const fake = { phase: 1, color: f.palette.citizen };
       Gfx.drawCitizen(mctx, fake, 175, 110, 1.3, fid, f.palette, 0);
     }
+    return cards;
   }
 
   /* HUD zawija się do kilku wierszy: pozostałe panele przesuwają się o jego faktyczną wysokość */
@@ -9067,12 +9215,13 @@ const UI = (() => {
     if (gameStarted) return;
     gameStarted = true;
     document.getElementById('factionPick').style.display = 'none';
+    Menu.hideAll();
     await bakeGraphics(fid, opts);
     hud.style.display = 'flex';
     buildBar.style.display = 'block';
     document.getElementById('hint').style.display = 'block';
     World.init(fid, opts);
-    document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b>';
+    document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b><span class="mapdesc">' + Minimap.describe(World.state().map.meta) + '</span>';
     // kamera na Dwór (środek mapy)
     const c = MapGen.SIZE / 2;
     Camera.zoom = Camera.defaultZoom();
@@ -9434,7 +9583,129 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned };
+})();
+
+/* ================================ MODUL: MENU ================================
+   Menu główne (lista pionowa, ↑↓ Enter, dotyk), Piaskownica (nacja → klimat → typ mapy → podgląd z Minimap → ziarno → Start; Wikingowie tylko nadmorska; wybór w localStorage)
+   i menu w grze (przycisk ☰ i Esc: Wznów · Nowa mapa · Opcje · Menu główne; pauza przez speed = 0). „Nowa mapa” i „Menu główne” nawigują (location.href) — to omija pułapki ponownego wejścia do gry. */
+const Menu = (() => {
+  const $ = id => document.getElementById(id), KEY = 'novaroma.sandbox';
+  const store = { get() { try { return typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(KEY)) : null; } catch (e) { return null; } },
+                  set(v) { try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* tryb prywatny — bez pamięci */ } } };
+  const ITEMS = [['campaign', 'Kampania'], ['skirmish', 'Potyczka'], ['sandbox', 'Piaskownica', 'Nację, klimat i typ mapy wybierasz sam'], ['multi', 'Wieloosobowa'], ['tutorial', 'Samouczek'], ['editor', 'Edytor map'], ['settings', 'Ustawienia'], ['credits', 'Twórcy'], ['exit', 'Wyjście']];
+  const TYPE_ICON = { coast: '🌊', plain: '🌾', river: '🏞', lakes: '💧', mountains: '⛰', wetlands: '🪷' };
+  let mode = null, built = false, sb = null, regenT = null, focus = 0, prevSpeed = 1, paused = false, cards = null;
+
+  function hideAll() { for (const id of ['mainMenu', 'sandbox', 'pauseMenu']) $(id).style.display = 'none'; mode = null; }
+  function backdrop() {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2433"/><stop offset=".55" stop-color="#6b4a3a"/><stop offset="1" stop-color="#d49a52"/></linearGradient></defs>' +
+      '<rect width="1200" height="600" fill="url(#g)"/><circle cx="880" cy="330" r="70" fill="#f3d38a" opacity=".55"/><path d="M0 430 C150 380 260 410 380 385 S640 360 780 400 S1060 390 1200 360 V600 H0Z" fill="#3a3326"/>' +
+      '<path d="M0 470 C180 430 300 470 470 440 S760 420 900 450 S1100 440 1200 425 V600 H0Z" fill="#2a251b"/><g fill="#1a160f"><rect x="560" y="380" width="120" height="70"/><rect x="548" y="350" width="30" height="100"/><rect x="662" y="340" width="34" height="110"/><rect x="598" y="330" width="44" height="60"/><path d="M548 350 l15 -26 l15 26Z M662 340 l17 -30 l17 30Z M598 330 l22 -34 l22 34Z"/></g>' +
+      '<path d="M0 520 C220 490 330 530 520 505 S860 490 1000 520 S1130 515 1200 500 V600 H0Z" fill="#14110b"/></svg>';
+    $('mainMenu').style.backgroundImage = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
+  }
+  /* ---------- menu główne ---------- */
+  function showMain() {
+    $('factionPick').style.display = 'none'; $('sandbox').style.display = 'none'; $('pauseMenu').style.display = 'none'; $('mainMenu').style.display = 'flex'; mode = 'main';
+    if (!built) {
+      built = true; backdrop(); const ul = $('mmList');
+      ITEMS.forEach(([id, label, hint], i) => {
+        const li = document.createElement('li'), b = document.createElement('button'), on = id === 'sandbox'; b.setAttribute('data-id', id); b.setAttribute('role', 'menuitem');
+        b.innerHTML = label + (on ? (hint ? '<small>' + hint + '</small>' : '') : '<small>Wkrótce</small>');
+        if (!on) { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; }
+        b.onclick = () => { if (on) showSandbox(); }; b.onmouseenter = () => { if (on) setFocus(i); };           // nieaktywne pozycje nie przejmują fokusu (kursor po nawigacji bywa nad nimi)
+        li.appendChild(b); ul.appendChild(li);
+      });
+    }
+    setFocus(ITEMS.findIndex(x => x[0] === 'sandbox'));
+  }
+  const mmButtons = () => [...document.querySelectorAll('#mmList button')];
+  function setFocus(i) { focus = i; mmButtons().forEach((b, k) => b.classList.toggle('focus', k === i)); }
+  function moveFocus(d) { const n = ITEMS.length; let i = focus; for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (ITEMS[i][0] === 'sandbox') break; } setFocus(i); }
+
+  /* ---------- Piaskownica ---------- */
+  function clampSb() {
+    if (sb.fid === 'vikings') sb.type = 'coast';                               // Wikingowie zawsze startują nad morzem
+    if (!Data.CLIMATES[sb.climate]) sb.climate = Data.FACTIONS[sb.fid].climate;
+    if (!Data.MAPTYPES[sb.type]) sb.type = 'plain';
+    if (!Number.isFinite(sb.seed)) sb.seed = Math.floor(Math.random() * 1e6);
+  }
+  function renderTiles() {
+    const cl = $('sbClimates'), ty = $('sbTypes'); cl.innerHTML = ''; ty.innerHTML = '';
+    for (const c of Object.values(Data.CLIMATES)) {
+      const b = document.createElement('button'); b.className = 'tile' + (c.id === sb.climate ? ' sel' : '') + (c.id === Data.FACTIONS[sb.fid].climate ? ' native' : ''); b.setAttribute('data-id', c.id);
+      b.innerHTML = '<b>' + c.name + '</b><span>' + c.region + ' — ' + c.desc + '</span>'; b.onclick = () => { sb.climate = c.id; sb.climateTouched = true; sync(); }; cl.appendChild(b);
+    }
+    for (const t of Object.values(Data.MAPTYPES)) {
+      const b = document.createElement('button'); b.className = 'tile' + (t.id === sb.type ? ' sel' : ''); b.setAttribute('data-id', t.id);
+      const locked = sb.fid === 'vikings' && t.id !== 'coast'; b.disabled = locked; if (locked) b.title = 'Wikingowie zawsze zaczynają nad morzem';
+      b.innerHTML = '<b>' + (TYPE_ICON[t.id] || '') + ' ' + Data.mapTypeName(t.id, sb.climate) + '</b><span>' + t.desc + '</span>'; b.onclick = () => { sb.type = t.id; sync(); }; ty.appendChild(b);
+    }
+    $('sbNote').textContent = sb.fid === 'vikings' ? 'Wikingowie zawsze zaczynają nad morzem — typ mapy: nadmorska.' : '';
+  }
+  function sync() {
+    clampSb(); renderTiles();
+    if (cards) cards.forEach((el, fid) => el.classList.toggle('sel', fid === sb.fid));
+    $('sbSeed').value = sb.seed; clearTimeout(regenT); regenT = setTimeout(regen, 60);
+  }
+  function regen() {
+    let map = null, seed = sb.seed;
+    for (let k = 0; k < 8; k++) { map = Minimap.generate(sb.fid, { climate: sb.climate, type: sb.type, seed }); if (map.meta.valid) break; seed++; }   // niepoprawna mapa → następne ziarno
+    if (seed !== sb.seed) { sb.seed = seed; $('sbSeed').value = seed; }
+    Minimap.draw($('sbPreview'), map); $('sbDesc').textContent = Minimap.describe(map.meta);
+    $('sbSummary').innerHTML = Minimap.summary(map).lines.map(l => l.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>'); sb.meta = map.meta;
+  }
+  function showSandbox() {
+    $('mainMenu').style.display = 'none'; $('sandbox').style.display = 'flex'; mode = 'sandbox';
+    if (!sb) {
+      const saved = store.get() || {}, fid = Data.FACTIONS[saved.fid] ? saved.fid : 'franks';
+      sb = { fid, climate: saved.climate, type: saved.type || 'plain', seed: Number.isFinite(saved.seed) ? saved.seed : NaN, climateTouched: !!saved.climate && saved.climate !== Data.FACTIONS[fid].climate };
+      if (!saved.climate) sb.climate = Data.FACTIONS[fid].climate;
+      cards = UI.buildFactionCards($('sbFactions'), fid => { const was = Data.FACTIONS[sb.fid].climate; sb.fid = fid; if (!sb.climateTouched || sb.climate === was) { sb.climate = Data.FACTIONS[fid].climate; sb.climateTouched = false; } sync(); }, true);
+      $('sbRandom').onclick = () => { sb.seed = Math.floor(Math.random() * 1e6); sync(); };
+      $('sbSeed').onchange = () => { const v = parseInt($('sbSeed').value, 10); sb.seed = Number.isFinite(v) && v >= 0 ? v : Math.floor(Math.random() * 1e6); sync(); };
+      $('sbBack').onclick = showMain; $('sbStart').onclick = start;
+    }
+    sync();
+  }
+  function start() {
+    clampSb(); if (sb.meta && sb.meta.seed !== sb.seed) sb.seed = sb.meta.seed;
+    store.set({ fid: sb.fid, climate: sb.climate, type: sb.type, seed: sb.seed });
+    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed });
+  }
+
+  /* ---------- menu w grze ---------- */
+  function navigate(mutate) { const u = new URL(location.href); mutate(u.searchParams); location.href = u.toString(); }
+  function openPause() {
+    const s = World.state(); if (!s.factionId || paused) return;
+    paused = true; prevSpeed = s.speed || 1; s.speed = 0; $('btnSpeed').textContent = 'Pauza';
+    const meta = s.map.meta || {}; $('pmInfo').textContent = Data.FACTIONS[s.factionId].name + ' · ' + Minimap.describe(meta);
+    const list = $('pmList'); list.innerHTML = '';
+    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('seed', String(Math.floor(Math.random() * 1e6))); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu']) p.delete(k); })]];
+    items.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'mi' + (i === 0 ? ' focus' : ''); b.textContent = label; b.setAttribute('data-id', ['resume', 'newmap', 'options', 'main'][i]);
+      if (fn) b.onclick = fn; else { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; b.innerHTML = label + '<small>Wkrótce</small>'; } list.appendChild(b); });
+    $('pauseMenu').style.display = 'flex'; mode = 'pause';
+  }
+  function closePause() {
+    if (!paused) return; paused = false; const s = World.state(); s.speed = prevSpeed; $('btnSpeed').textContent = 'Prędkość: ×' + s.speed; $('pauseMenu').style.display = 'none'; mode = null;
+  }
+  /* Esc w grze: zamknij menu → anuluj budowę / kartę → otwórz menu; true = obsłużone tutaj */
+  function escape() {
+    if (paused) { closePause(); return true; }
+    if (!World.state().factionId) return false;
+    if (BuildMode.isSelected() || UI.pinned()) return false;
+    openPause(); return true;
+  }
+  function key(e) {
+    if (mode === 'main') {
+      if (e.key === 'ArrowDown') { moveFocus(1); e.preventDefault(); } else if (e.key === 'ArrowUp') { moveFocus(-1); e.preventDefault(); }
+      else if (e.key === 'Enter') { const b = mmButtons()[focus]; if (b && b.getAttribute('aria-disabled') !== 'true') b.click(); }
+    } else if (mode === 'sandbox') { if (e.key === 'Escape') showMain(); else if (e.key === 'Enter' && document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'BUTTON') start(); }
+    else if (mode === 'pause' && e.key === 'Enter') { const b = document.querySelector('#pmList button.focus'); if (b && b.getAttribute('aria-disabled') !== 'true') b.click(); }
+  }
+  function init() { $('btnMenu').onclick = () => (paused ? closePause() : openPause()); window.addEventListener('keydown', key); }
+  return { init, showMain, showSandbox, hideAll, openPause, closePause, escape, pauseOpen: () => paused, mode: () => mode, state: () => sb };
 })();
 
 /* ============================== MODUL: FAUNA ==============================
@@ -9890,6 +10161,7 @@ const Game = (() => {
     lastFrame = now;
     // ruch kamery
     const pan = 420 * realDt;
+    if (Menu.pauseOpen()) { for (const k in keys) keys[k] = false; }                       // menu w grze: klawisze kamery ignorowane
     if (keys['w'] || keys['arrowup']) Camera.y += pan;
     if (keys['s'] || keys['arrowdown']) Camera.y -= pan;
     if (keys['a'] || keys['arrowleft']) Camera.x += pan;
@@ -10385,6 +10657,7 @@ const Game = (() => {
   window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
     if (e.key === 'Escape') {
+      if (Menu.escape()) return;
       BuildMode.clear();
       UI.pinBuilding(null);
       document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
@@ -10400,10 +10673,12 @@ const Game = (() => {
 
   fit();
   UI.buildFactionCards();
+  Menu.init();
   /* skrót do testów i zrzutów: ?play=franks&climate=snow&map=river&seed=7 omija wybór nacji (to samo wejście co Piaskownica: UI.startGame) */
   if (typeof location !== 'undefined') {
     const q = new URLSearchParams(location.search), p = q.get('play');
     if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined });
+    else if (q.get('menu') !== '0') Menu.showMain();                       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
   }
   return { start, initGround, groundInfo: () => gnd ? { baked: gnd.stats.baked, over: gnd.stats.over, ms: Math.round(gnd.stats.ms), mpx: +(gnd.pixels / 1e6).toFixed(1), queue: gnd.queue.length } : null };
 })();

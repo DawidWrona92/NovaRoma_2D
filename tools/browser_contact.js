@@ -14,7 +14,7 @@ const K = +(process.argv[4] || 0.3), COLS = +(process.argv[5] || 5), classic = p
   const page = await (await browser.newContext({ viewport: { width: 1400, height: 1000 } })).newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  await page.goto(file);
+  await page.goto(file + '?menu=0');
   const n = await page.evaluate(async ({ fac, only, K, COLS, classic }) => {
     document.getElementById('factionPick').style.display = 'none';
     const f = Data.FACTIONS[fac], p = f.palette;

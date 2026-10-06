@@ -12,7 +12,7 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
   const browser = await chromium.launch({ args: ['--no-sandbox'] });
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 820 } })).newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(file);
+  await page.goto(file + '?menu=0');
   ok(await page.evaluate(() => typeof Sprites === 'object' && typeof SPRITE_META === 'object'), 'moduł Sprites i SPRITE_META są załadowane');
   await page.evaluate(q => Sprites.setQuality(q), Q);
   for (const n of nations) {

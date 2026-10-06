@@ -10,7 +10,7 @@ const file = 'file://' + path.resolve('Nova_Roma.html');
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  await page.goto(file);
+  await page.goto(file + '?menu=0');
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'm_picker.png') });
   await page.locator('.factionCard h2', { hasText: 'Wikingowie' }).tap();

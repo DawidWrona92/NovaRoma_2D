@@ -23,6 +23,8 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/logistics.js [plik]` | Sprawność logistyczna: blisko Składu bez kary, daleko spadek ≥ 70%, drogi i Skład poprawiają, ekonomia produkuje mniej przy słabej logistyce, brak RNG. |
 | `node tools/fauna.js [plik]` | Fauna (Faza 8): zaludnienie 12 map wg klimatu, pozycje zwierząt na polach przechodnich i wolnych przez 120 min gry z botem, zero wywołań globalnego `RNG`, determinizm, snapshot → restore, parytet logiki z fauną i bez, wyprawy myśliwego (fazy, strzała), przetrzebienie przy wielu Chatach i odrodzenie, parytet ekonomii botów (`TestBots.runSync({ fauna: true })`), koszt ticku. |
 | `node tools/footprints.js [plik]` | Obrysy budynków (w×h): zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, `canPlace` z pierścieniem sąsiedztwa, złoża pod kopalnią, place budowy (`siteAt`, `cancel`), wyburzenie, Dwór 4×4, miejsca dla botów. |
+| `node tools/minimap.js [plik]` | Podgląd mapy (Minimap, Faza 9): opis i podsumowanie 24 kombinacji klimat × typ, rysunek na atrapie kanwy, podgląd = mapa gry (to samo ziarno, pole po polu), mapa niepoprawna / bez `meta`. |
+| `node tools/probe_logistyki.js [nacja]` | Sonda logistyki: odległości producentów od Składu / Dworu w osadach botów (używana przez dokumentację). |
 
 ## Testy w przeglądarce (Playwright)
 
@@ -35,8 +37,9 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/browser_terrain.js [nacja] [--fps] [--sheet=plik.png] [--shots=katalog]` | Każda kombinacja klimat × typ mapy startuje przez `?play=…&climate=…&map=…&seed=…`: brak błędów JS, wypieczone chunki podłoża, niepusty obraz, FPS (`--fps`), arkusz kontaktowy 4 klimaty × 6 typów (`--sheet`). |
 | `node tools/browser_fauna.js [--shots=katalog] [--fps]` | Fauna w przeglądarce (4 klimaty × nacje): zaludnienie i sprite'y, myśliwy przechodzi przez fazy wyprawy, strzała w locie, upolowania, brak błędów JS, FPS z fauną vs bez (`--fps`), zrzuty (`--shots`). |
 | `node tools/browser_mobile.js` | Widok telefonu (dotyk): wybór nacji, HUD, Doradca. |
+| `node tools/browser_menu.js` | Menu główne i Piaskownica (Faza 9): lista z jedną aktywną pozycją, klawiatura, przepływ nacja → klimat → typ → Start dla 4 nacji, mapa gry = meta podglądu, blokada Wikingów, ☰ Menu / Esc, „Nowa mapa” i „Menu główne”, pamięć wyboru, `?menu=0`, `?play=`, telefon, 0 błędów JS. |
 
-Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów), `?fauna=0` / `?logistics=0` (wyłączają faunę / logistykę), `?play=nacja&climate=temperate|eastern|snow|desert&map=coast|plain|river|lakes|mountains|wetlands&seed=N` (start bez menu — ta sama ścieżka co przyszła Piaskownica).
+Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?menu=0` (dawny ekran wyboru nacji — testy `browser_*` wchodzą przez niego), `?play=nacja&climate=&map=&seed=` (start bez menu), `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów), `?fauna=0` / `?logistics=0` (wyłączają faunę / logistykę), `?play=nacja&climate=temperate|eastern|snow|desert&map=coast|plain|river|lakes|mountains|wetlands&seed=N` (start bez menu — ta sama ścieżka co przyszła Piaskownica).
 
 ## Parametry scenariusza (stan `World.state().settings`)
 

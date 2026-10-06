@@ -15,7 +15,7 @@ const minutes = +(process.argv[3] || 70);
     const errors = [];
     page.on('pageerror', e => errors.push('pageerror: ' + e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-    await page.goto(file);
+    await page.goto(file + '?menu=0');
     await page.locator('.factionCard h2', { hasText: names[fac] }).click();
     await page.waitForFunction(() => window.__gameReady === true, null, { timeout: 120000 }); // wypiek sprite'ów nacji
     // wybór poziomu haraczu przez select (jak gracz)
