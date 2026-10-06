@@ -41,7 +41,8 @@ Tabela: Fazy projektu
 | 6, 6b, 6c | A\* i piesi (cień symulacji), drogi, przerwa i kara za ciasną zabudowę, sprawność logistyczna | ✔ |
 | 7 | wyrównywanie terenu pod budynki, wzgórza decyzyjne | ✔ |
 | 8 | fauna (18 gatunków) i polowanie z łukiem | ✔ |
-| 9 | menu główne RTS i Piaskownica (nacja, klimat, typ mapy), ☰ Menu w grze | w toku |
+| 9 | menu główne RTS i Piaskownica (nacja, klimat, typ mapy), ☰ Menu w grze | ✔ |
+| 9B | ożywienie ludzi: fizyczna logistyka, role i czynności, karawany (aneks {{ref:aneks-fizyka}}) | następna |
 | 10 | integracja: legenda, spójność Doradcy, zestaw regresji w repozytorium, dostawa | planowane |
 | 11 | audyt wizualny całości i poprawki | planowane |
 
@@ -52,7 +53,7 @@ Szczegółowy stan na okładce dokumentu pochodzi z pliku `docs/meta.json`; ten 
 Tabela: Zawartość repozytorium
 | Ścieżka | Zawartość |
 |---|---|
-| `Nova_Roma.html` | **gra** — cały kod w jednym pliku (ok. 10 400 linii; bloki `Sprites` i `SPRITE_META` są generowane) |
+| `Nova_Roma.html` | **gra** — cały kod w jednym pliku (ok. 10 700 linii; bloki `Sprites` i `SPRITE_META` są generowane) |
 | `README.md` | opis projektu i zasad dodanych w nowym stylu |
 | `tools/` | testy silnika bez przeglądarki (`node:vm` + atrapy DOM), testy w Playwright, `headless.js` (harness) |
 | `prototyp/` | źródła silnika grafiki (`src/*.js`), `build.js`, `build_game.js` (osadza sprite'y w grze), `grafika_prototyp.html`, podglądy |
@@ -62,12 +63,13 @@ Gałąź robocza to `claude/festive-meitner-ejo4l1`, szkic pull requestu #1 do `
 
 ## Uruchamianie i parametry adresu {#uruchamianie}
 
-Grę otwiera się z pliku (`file://`) w nowoczesnej przeglądarce; po wyborze nacji następuje wypiek grafiki (1–3 s), wypiek podłoża mapy i start. Parametry adresu (wszystkie opcjonalne):
+Grę otwiera się z pliku (`file://`) w nowoczesnej przeglądarce; pokazuje się **menu główne** (rozdz. {{ref:menu}}), z którego Piaskownica prowadzi do wyboru nacji, klimatu i typu mapy. Po Starcie następuje wypiek grafiki (1–3 s), wypiek podłoża mapy i gra. Parametry adresu (wszystkie opcjonalne):
 
 Tabela: Parametry adresu (query string)
 | Parametr | Działanie |
 |---|---|
-| `?play=nacja` | pomija ekran wyboru nacji: `franks`, `saracens`, `vikings`, `slavs` (ta sama ścieżka `UI.startGame` co wybór kartą) |
+| `?menu=0` | pomija menu główne i pokazuje dawny ekran wyboru nacji czterema kartami (kontrakt dla testów przeglądarkowych) |
+| `?play=nacja` | pomija menu i ekran wyboru nacji: `franks`, `saracens`, `vikings`, `slavs` (ta sama ścieżka `UI.startGame` co wybór kartą) |
 | `&climate=` | klimat: `temperate`, `eastern`, `snow`, `desert` (domyślnie klimat nacji) |
 | `&map=` | typ mapy: `coast`, `plain`, `river`, `lakes`, `mountains`, `wetlands` (Wikingowie zawsze `coast`) |
 | `&seed=N` | ziarno mapy (liczba całkowita); bez niego stałe ziarno nacji (777 / 888 / 999 / 1111) |
@@ -76,6 +78,6 @@ Tabela: Parametry adresu (query string)
 | `?fauna=0` | wyłącza faunę i polowanie (domyślnie włączone w grze) |
 | `?logistics=0` | wyłącza sprawność logistyczną (domyślnie włączona w grze) |
 
-Plan na fazę 9 dodaje `?menu=0` (stary wybór nacji kartami — dla testów); szczegóły w rozdz. {{ref:ui}}.
+Przycisk „Nowa mapa” w menu w grze i „Menu główne” działają przez zmianę parametrów adresu (rozdz. {{ref:menu-gry}}).
 
 > [!uwaga] Parametry `?play=` oraz `?menu=0` są kontraktem dla testów przeglądarkowych — nie wolno zmieniać ich znaczenia bez aktualizacji `tools/browser_*.js`.

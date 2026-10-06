@@ -1,4 +1,4 @@
-# Plan prac — Nova Roma (stan po Fazie 8; dokumentacja w budowie; dodana Faza 9B)
+# Plan prac — Nova Roma (stan po Fazie 9; dokumentacja w budowie; następna Faza 9B)
 
 > Ten plik jest kopią planu roboczego i leży w repozytorium, żeby przetrwał restart środowiska. Po każdej bramce faz aktualizujemy tabelę stanu i listy „do zrobienia”. Dokumentacja opisująca grę: `docs/Nova_Roma_dokumentacja.pdf` (budowana z `docs/chapters/*.md`).
 
@@ -26,8 +26,8 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | bramka 6–7 | poprawki `pad`/brzeg, `browser_ui`, baseline v4 | ✔ |
 | 8 (8a–8d) | fauna (18 gatunków) i polowanie z łukiem, baseline v5 | ✔ (commit `ee1271d`) |
 | **Dokumentacja PDF** | generator + rozdziały + zrzuty (zadanie przekrojowe, niżej) | ◐ w toku (commit `ee4eaea`) |
-| 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ○ NASTĘPNA |
-| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ○ po fazie 9 |
+| 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ✔ (menu główne, Piaskownica z podglądem `Minimap`, ☰ Menu, `browser_menu.js`, `minimap.js`) |
+| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ○ NASTĘPNA |
 | 10 | integracja: legenda UI, spójność Doradcy, regress w repo, dostawa | ○ |
 | 11 | audyt wizualny całości i poprawki | ○ |
 
@@ -43,7 +43,8 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 |---|---|
 | 1 Wprowadzenie, 2 Architektura, 3 Ekonomia, 4 Ludność, 5 Budowa, 6 Katalog budynków, 7 Nacje, 8 Haracz, 9 Zdarzenia, 10 Teren, 12 Ruch/drogi/logistyka | ✔ napisane |
 | B Wyniki botów i scenariuszy, C Repozytorium i polecenia, D Procedura aktualizacji, **E Fizyczna logistyka (analiza i projekt Fazy 9B)** | ✔ napisane |
-| 11 Zasady zabudowy, 13 Fauna, 14 Interfejs i Doradca, 15 Grafika, 16 Testy (+ trudność i krzywa nauki), 17 Decyzje i historia, 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — do napisania w tej kolejności |
+| 14 Interfejs, menu i Doradca, 16 Testy (+ trudność i krzywa nauki), 17 Decyzje i historia | ✔ napisane (po Fazie 9) |
+| 11 Zasady zabudowy, 13 Fauna, 15 Grafika, 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — do napisania w tej kolejności |
 | zrzuty ekranu (`docs/img`, skrypt `docs/shots.js`) i diagramy | ○ |
 
 **Definicja „gotowe” (v1.0 dokumentacji):** wszystkie rozdziały bez zalążków, `node docs/build.js --check` bez problemów, przegląd wizualny wszystkich stron, zrzuty (HUD, tryb budowy ze strefami, klimaty, fauna), wpis w rozdz. 17 o każdej decyzji z tego planu i różnice spec/kod w rozdz. 18.
@@ -59,7 +60,7 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 7. Wersja WIP gry (`Nova_Roma_stan_po_fazieN.html`) wysłana użytkownikowi do przeklikania + krótki raport po polsku.
 8. Odhaczenie fazy w tym planie.
 
-## Faza 9 — menu główne RTS i Piaskownica
+## Faza 9 — menu główne RTS i Piaskownica (✔ zrealizowana)
 
 **Założenia (z badania kodu):** dziś ekran startowy to `#factionPick` (karty z `UI.buildFactionCards`; kliknięcie = `startGame(fid)`), a `UI.startGame(fid, opts)` jest jednorazowe (`gameStarted`) i jest jedyną ścieżką startu (używa jej także `?play=`); `localStorage` nie jest nigdzie używany (potrzebne `typeof` + `try/catch`); nie ma minimapy ani podglądu; `MapGen.generate` działa bez gry (10–25 ms) i zwraca `meta.stats`; z-index: `#factionPick` 50, `#loading` 55, panel botów 60 → menu przed grą 52–54, nakładka w grze 70.
 
@@ -109,7 +110,6 @@ Zasada: każda zmiana sprawdzana od razu, **pełny audyt i podwójna walidacja d
 
 ## Kolejność dalej
 
-1. Dokumentacja: rozdz. 11 → 13 → 14 → 15 → 16 → 17 → 18 → A → zrzuty → przegląd stron → commit + push (rozdziały wymagające kodu Fazy 9 i 9B uzupełniamy przy ich bramkach).
-2. Faza 9 (9a → 9b → 9c) z bramką i aktualizacją dokumentacji.
-3. **Faza 9B** (9B-0 … 9B-5) z bramką bilansu.
-4. Faza 10, potem Faza 11.
+1. **Faza 9B** (9B-0 … 9B-5) z bramką bilansu i aktualizacją dokumentacji (rozdz. 12, 14, aneks E).
+2. Dokumentacja do v1.0: rozdz. 11 → 13 → 15 → 18 → A → zrzuty → przegląd stron (równolegle do faz; Faza 10 domyka).
+3. Faza 10, potem Faza 11.
