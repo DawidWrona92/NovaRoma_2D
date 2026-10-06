@@ -1951,6 +1951,14 @@ function bakeFigure(st, view, frame, F = 1) {
   // plecy: kosz / worek / tarcza na plecach (za tułowiem)
   if (back && has('basket')) { g.fillStyle = '#9a6e34'; g.strokeStyle = out; g.lineWidth = 1.2; g.beginPath(); g.ellipse(cx, sh + 8, 11, 13, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = 'rgba(60,36,12,0.55)'; for (let i = -9; i <= 9; i += 3) { g.beginPath(); g.moveTo(cx + i, sh - 3); g.lineTo(cx + i * 1.1, sh + 19); g.stroke(); } for (let j = 0; j < 5; j++) { g.beginPath(); g.moveTo(cx - 10, sh + j * 4.2); g.lineTo(cx + 10, sh + j * 4.2); g.stroke(); } }
 
+  // kołczan ze strzałami: za tułowiem (z przodu wystaje zza prawego barku, z tyłu leży na plecach)
+  if (has('quiver')) {
+    g.save(); g.translate(back ? cx + 1 : cx + 9, sh + 6); g.rotate(back ? -0.14 : 0.32); g.fillStyle = '#7a5230'; g.strokeStyle = out; g.lineWidth = 1.1; g.beginPath(); g.rect(-3.4, -4, 6.8, 22); g.fill(); g.stroke();
+    g.strokeStyle = 'rgba(60,34,14,0.6)'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(-3.4, 6); g.lineTo(3.4, 6); g.moveTo(-3.4, 12); g.lineTo(3.4, 12); g.stroke();
+    g.fillStyle = '#ece4ce'; g.strokeStyle = 'rgba(16,10,6,0.8)'; g.lineWidth = 0.7; for (const dx of [-2, 0.4, 2.4]) { g.beginPath(); g.moveTo(dx, -4); g.lineTo(dx - 1, -10); g.lineTo(dx + 1, -9.4); g.closePath(); g.fill(); g.stroke(); }
+    g.restore();
+  }
+
   // nogi i obuwie
   if (!st.dress) {
     for (const [lx, lift] of [[-4.2, sw > 0 ? 3.5 : 0], [4.2, sw > 0 ? 0 : 3.5]]) {
@@ -1980,7 +1988,7 @@ function bakeFigure(st, view, frame, F = 1) {
   // ręce (z rękawami / kolczugą) i dłonie
   const slv = st.mail ? hex('#8a9096') : (st.sleeve ? hex(st.sleeve) : scaleC(tun, 0.95));
   const handL = [cx - 12.5, sh + 19 + sw * 2.4], handR = [cx + 12.5, sh + 19 - sw * 2.4];
-  const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar');
+  const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar') || has('bow');
   const hr2 = raiseR ? [cx + 13.5, sh + 14] : handR, hl2 = holdL && !back ? [cx - 13.5, sh + 14] : handL;
   limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv);
   if (st.mail) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
@@ -2014,6 +2022,13 @@ function bakeFigure(st, view, frame, F = 1) {
     g.fillStyle = '#b8352b'; g.beginPath(); g.moveTo(0, -54); g.lineTo(6.5, -51); g.lineTo(0, -48); g.closePath(); g.fill(); g.restore();
   }
   if (has('scimitar')) { g.save(); g.translate(cx - 11, hem - 3); g.rotate(0.16); g.fillStyle = '#4a3422'; g.strokeStyle = out; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-2, 0); g.quadraticCurveTo(-5, 12, 1, 20); g.lineTo(3.4, 19); g.quadraticCurveTo(0, 11, 2.6, 0); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#d8b44a'; g.fillRect(-3.4, -4, 7, 3); g.restore(); }
+
+  if (has('bow') && !back) {                                          // łuk w lewej dłoni: pionowy łuk z cięciwą
+    const bx = hl2[0] - 1, by = hl2[1] + 1; g.save(); g.lineCap = 'round';
+    g.strokeStyle = out; g.lineWidth = 3.6; g.beginPath(); g.moveTo(bx + 1, by - 24); g.quadraticCurveTo(bx - 12, by, bx + 1, by + 24); g.stroke();
+    g.strokeStyle = '#8a5a2c'; g.lineWidth = 2.1; g.stroke(); g.strokeStyle = 'rgba(255,230,180,0.5)'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(bx - 0.5, by - 22); g.quadraticCurveTo(bx - 8.5, by, bx - 0.5, by + 22); g.stroke();
+    g.strokeStyle = 'rgba(245,240,225,0.9)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(bx + 1, by - 24); g.lineTo(bx + 1, by + 24); g.stroke(); g.restore();
+  }
 
   // głowa
   const gradHead = g.createRadialGradient(cx - 2.4, hy - 2.4, 1, cx, hy, hr + 1); gradHead.addColorStop(0, css(scaleC(sk, 1.12))); gradHead.addColorStop(1, css(scaleC(sk, 0.82)));
@@ -2062,7 +2077,12 @@ const CAST = {
   sarMerchant: { tunic: '#efe6d0', trim: '#2f6ea8', belt: '#b8352b', sash: '#b8352b', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', dress: true, head: 'turban', headCol: '#f1ead8', turbanStripe: '#2f6ea8', props: ['jar'] },
   sarGuard: { tunic: '#2f7a72', trim: '#d8a830', belt: '#d8a830', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#b8352b', turbanStripe: '#e8d8a0', props: ['scimitar', 'shield-round'], shieldSegs: ['#d8a830', '#2f7a72'] },
   vikWarrior: { tunic: '#8a3a2a', trim: '#e0b840', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'conical', fur: '#d8d0c0', props: ['axe', 'shield-round'], shieldSegs: ['#b8352b', '#e8d8a0'] },
-  vikFisher: { tunic: '#3a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#d8b060', beard: true, beardCol: '#d8b060', head: 'fur', headCol: '#7a6a5a', props: ['sack'] }
+  vikFisher: { tunic: '#3a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#d8b060', beard: true, beardCol: '#d8b060', head: 'fur', headCol: '#7a6a5a', props: ['sack'] },
+  /* myśliwi z łukiem (Faza 8) — dopisani na końcu, by nie przesunąć indeksów 0 i 1 wybieranych w grze po kolorze stroju */
+  frankHunter: { tunic: '#6a7a3a', trim: '#c8b060', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#4a3020', head: 'hood', headCol: '#4a5a2a', props: ['bow', 'quiver'] },
+  sarHunter: { tunic: '#b8946a', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#d8c8a0', turbanStripe: '#8a3a22', dress: false, props: ['bow', 'quiver'] },
+  vikHunter: { tunic: '#5a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#6a5a4a', fur: '#d8d0c0', props: ['bow', 'quiver'] },
+  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] }
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 

@@ -2206,6 +2206,14 @@ function bakeFigure(st, view, frame, F = 1) {
   // plecy: kosz / worek / tarcza na plecach (za tułowiem)
   if (back && has('basket')) { g.fillStyle = '#9a6e34'; g.strokeStyle = out; g.lineWidth = 1.2; g.beginPath(); g.ellipse(cx, sh + 8, 11, 13, 0, 0, TAU); g.fill(); g.stroke(); g.strokeStyle = 'rgba(60,36,12,0.55)'; for (let i = -9; i <= 9; i += 3) { g.beginPath(); g.moveTo(cx + i, sh - 3); g.lineTo(cx + i * 1.1, sh + 19); g.stroke(); } for (let j = 0; j < 5; j++) { g.beginPath(); g.moveTo(cx - 10, sh + j * 4.2); g.lineTo(cx + 10, sh + j * 4.2); g.stroke(); } }
 
+  // kołczan ze strzałami: za tułowiem (z przodu wystaje zza prawego barku, z tyłu leży na plecach)
+  if (has('quiver')) {
+    g.save(); g.translate(back ? cx + 1 : cx + 9, sh + 6); g.rotate(back ? -0.14 : 0.32); g.fillStyle = '#7a5230'; g.strokeStyle = out; g.lineWidth = 1.1; g.beginPath(); g.rect(-3.4, -4, 6.8, 22); g.fill(); g.stroke();
+    g.strokeStyle = 'rgba(60,34,14,0.6)'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(-3.4, 6); g.lineTo(3.4, 6); g.moveTo(-3.4, 12); g.lineTo(3.4, 12); g.stroke();
+    g.fillStyle = '#ece4ce'; g.strokeStyle = 'rgba(16,10,6,0.8)'; g.lineWidth = 0.7; for (const dx of [-2, 0.4, 2.4]) { g.beginPath(); g.moveTo(dx, -4); g.lineTo(dx - 1, -10); g.lineTo(dx + 1, -9.4); g.closePath(); g.fill(); g.stroke(); }
+    g.restore();
+  }
+
   // nogi i obuwie
   if (!st.dress) {
     for (const [lx, lift] of [[-4.2, sw > 0 ? 3.5 : 0], [4.2, sw > 0 ? 0 : 3.5]]) {
@@ -2235,7 +2243,7 @@ function bakeFigure(st, view, frame, F = 1) {
   // ręce (z rękawami / kolczugą) i dłonie
   const slv = st.mail ? hex('#8a9096') : (st.sleeve ? hex(st.sleeve) : scaleC(tun, 0.95));
   const handL = [cx - 12.5, sh + 19 + sw * 2.4], handR = [cx + 12.5, sh + 19 - sw * 2.4];
-  const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar');
+  const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar') || has('bow');
   const hr2 = raiseR ? [cx + 13.5, sh + 14] : handR, hl2 = holdL && !back ? [cx - 13.5, sh + 14] : handL;
   limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv);
   if (st.mail) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
@@ -2269,6 +2277,13 @@ function bakeFigure(st, view, frame, F = 1) {
     g.fillStyle = '#b8352b'; g.beginPath(); g.moveTo(0, -54); g.lineTo(6.5, -51); g.lineTo(0, -48); g.closePath(); g.fill(); g.restore();
   }
   if (has('scimitar')) { g.save(); g.translate(cx - 11, hem - 3); g.rotate(0.16); g.fillStyle = '#4a3422'; g.strokeStyle = out; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-2, 0); g.quadraticCurveTo(-5, 12, 1, 20); g.lineTo(3.4, 19); g.quadraticCurveTo(0, 11, 2.6, 0); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#d8b44a'; g.fillRect(-3.4, -4, 7, 3); g.restore(); }
+
+  if (has('bow') && !back) {                                          // łuk w lewej dłoni: pionowy łuk z cięciwą
+    const bx = hl2[0] - 1, by = hl2[1] + 1; g.save(); g.lineCap = 'round';
+    g.strokeStyle = out; g.lineWidth = 3.6; g.beginPath(); g.moveTo(bx + 1, by - 24); g.quadraticCurveTo(bx - 12, by, bx + 1, by + 24); g.stroke();
+    g.strokeStyle = '#8a5a2c'; g.lineWidth = 2.1; g.stroke(); g.strokeStyle = 'rgba(255,230,180,0.5)'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(bx - 0.5, by - 22); g.quadraticCurveTo(bx - 8.5, by, bx - 0.5, by + 22); g.stroke();
+    g.strokeStyle = 'rgba(245,240,225,0.9)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(bx + 1, by - 24); g.lineTo(bx + 1, by + 24); g.stroke(); g.restore();
+  }
 
   // głowa
   const gradHead = g.createRadialGradient(cx - 2.4, hy - 2.4, 1, cx, hy, hr + 1); gradHead.addColorStop(0, css(scaleC(sk, 1.12))); gradHead.addColorStop(1, css(scaleC(sk, 0.82)));
@@ -2317,7 +2332,12 @@ const CAST = {
   sarMerchant: { tunic: '#efe6d0', trim: '#2f6ea8', belt: '#b8352b', sash: '#b8352b', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', dress: true, head: 'turban', headCol: '#f1ead8', turbanStripe: '#2f6ea8', props: ['jar'] },
   sarGuard: { tunic: '#2f7a72', trim: '#d8a830', belt: '#d8a830', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#b8352b', turbanStripe: '#e8d8a0', props: ['scimitar', 'shield-round'], shieldSegs: ['#d8a830', '#2f7a72'] },
   vikWarrior: { tunic: '#8a3a2a', trim: '#e0b840', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'conical', fur: '#d8d0c0', props: ['axe', 'shield-round'], shieldSegs: ['#b8352b', '#e8d8a0'] },
-  vikFisher: { tunic: '#3a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#d8b060', beard: true, beardCol: '#d8b060', head: 'fur', headCol: '#7a6a5a', props: ['sack'] }
+  vikFisher: { tunic: '#3a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#d8b060', beard: true, beardCol: '#d8b060', head: 'fur', headCol: '#7a6a5a', props: ['sack'] },
+  /* myśliwi z łukiem (Faza 8) — dopisani na końcu, by nie przesunąć indeksów 0 i 1 wybieranych w grze po kolorze stroju */
+  frankHunter: { tunic: '#6a7a3a', trim: '#c8b060', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#4a3020', head: 'hood', headCol: '#4a5a2a', props: ['bow', 'quiver'] },
+  sarHunter: { tunic: '#b8946a', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#d8c8a0', turbanStripe: '#8a3a22', dress: false, props: ['bow', 'quiver'] },
+  vikHunter: { tunic: '#5a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#6a5a4a', fur: '#d8d0c0', props: ['bow', 'quiver'] },
+  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] }
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 
@@ -5087,6 +5107,35 @@ const Data = (() => {
      Frankowie, Saraceni i Wikingowie: tylko Chata myśliwego (80); Słowianie: wszystkie budynki leśne (200). */
   const FOREST_REF = { franks: 80, saracens: 80, vikings: 80, slavs: 200 };
 
+  /* Fauna (Faza 8). role: prey — zwierzyna łowna (jedyna, na której pracuje Chata myśliwego), roamer — wałęsające się, bird — ptaki (kosmetyczne przeloty).
+     w — waga w puli zwierzyny łownej (sarna = 1; upolowany osobnik daje 4·w mięsa), n — liczba początkowa na mapę 48×48, den — liczba legowisk (miejsc odradzania),
+     herd — wielkość stada przy legowisku, br — odradzanie (osobników/min przy pustym legowisku), sp — prędkość spaceru (pól/min gry), flee — prędkość ucieczki,
+     hab — siedlisko: forest (skraje lasów), open (otwarty ląd), shore (brzeg morza i lodu), water (okolice wody), sand (piasek i wydmy), any. Klimat zmienia zestaw gatunków, nie ekonomię. */
+  const FAUNA = {
+    roe:          { pl: 'Sarna',           role: 'prey',   w: 1,    n: 32, den: 8, herd: [3, 6], br: 0.18, sp: 0.5,  flee: 3.2, hab: 'forest', climates: ['temperate', 'eastern'] },
+    rabbit:       { pl: 'Królik',          role: 'prey',   w: 0.3,  n: 36, den: 9, herd: [3, 7], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['temperate', 'eastern'] },
+    reindeer:     { pl: 'Renifer',         role: 'prey',   w: 1.2,  n: 24, den: 6, herd: [3, 6], br: 0.15, sp: 0.45, flee: 3.0, hab: 'forest', climates: ['snow'] },
+    hare:         { pl: 'Zając polarny',   role: 'prey',   w: 0.35, n: 30, den: 7, herd: [3, 6], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['snow'] },
+    gazelle:      { pl: 'Gazela',          role: 'prey',   w: 0.9,  n: 26, den: 7, herd: [3, 6], br: 0.18, sp: 0.55, flee: 3.6, hab: 'open',   climates: ['desert'] },
+    desertRabbit: { pl: 'Królik pustynny', role: 'prey',   w: 0.3,  n: 32, den: 8, herd: [3, 7], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['desert'] },
+    fox:          { pl: 'Lis',             role: 'roamer', n: 3, sp: 0.5,  flee: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'desert'] },
+    arcticFox:    { pl: 'Lis polarny',     role: 'roamer', n: 3, sp: 0.5,  flee: 2.6, hab: 'open',   climates: ['snow'] },
+    boar:         { pl: 'Dzik',            role: 'roamer', n: 4, sp: 0.4,  flee: 2.4, hab: 'forest', climates: ['temperate', 'eastern'], herd: [1, 3] },
+    elk:          { pl: 'Łoś',             role: 'roamer', n: 3, sp: 0.4,  flee: 2.2, hab: 'forest', climates: ['eastern'] },
+    camel:        { pl: 'Wielbłąd',        role: 'roamer', n: 5, sp: 0.3,  flee: 1.4, hab: 'sand',   climates: ['desert'], herd: [2, 3] },
+    seal:         { pl: 'Foka',            role: 'roamer', n: 5, sp: 0.18, flee: 0.5, hab: 'shore',  climates: ['snow'], herd: [2, 3] },
+    lizard:       { pl: 'Jaszczurka',      role: 'roamer', n: 6, sp: 0.5,  flee: 2.2, hab: 'sand',   climates: ['desert'] },
+    stork:        { pl: 'Bocian',          role: 'bird',   n: 3, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['temperate'] },
+    crane:        { pl: 'Żuraw',           role: 'bird',   n: 3, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['eastern'] },
+    crow:         { pl: 'Wrona',           role: 'bird',   n: 5, sp: 0.4,  fly: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'snow'] },
+    gull:         { pl: 'Mewa',            role: 'bird',   n: 6, sp: 0.4,  fly: 2.6, hab: 'shore',  climates: ['snow'] },
+    vulture:      { pl: 'Sęp',             role: 'bird',   n: 3, sp: 0.3,  fly: 1.8, hab: 'any',    climates: ['desert'], soar: true }
+  };
+  /* zasady: radius — promień łowiska Chaty myśliwego (pola), ref — punkty zwierzyny w łowisku dające pełny plon (gameMult = min(1, Σw / ref)), meat — mięsa z osobnika o wadze 1,
+     hunterSpeed — prędkość myśliwego (pola/min), bow — zasięg łuku (pola), aim / arrow / pick — czasy celowania, lotu strzały i podniesienia zwierzyny (min gry),
+     minMeat — ile mięsa trzeba zebrać, by myśliwy wyruszył, owed — nadwyżka mięsa, powyżej której kolejne upolowania rozstrzygane są bez wyprawy, carcass — jak długo leży padlina (min) */
+  const FAUNA_RULES = { radius: 16, ref: 5, meat: 4, hunterSpeed: 2.2, bow: 4.5, aim: 0.3, arrow: 0.08, pick: 0.2, minMeat: 1.0, owed: 6, carcass: 3 };
+
   /* Danina koszykowa Słowian: wartość towaru w osobominutach i jego udział w żądaniu. */
   const DANINA = {
     values: { 'futro wyprawione': 2.8, 'miód': 1.5, 'wosk': 3.0 },
@@ -5101,7 +5150,7 @@ const Data = (() => {
     woodcutter:{ name:'Chata drwala', cat:'Drewno', art:'woodcutter', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ pień:1.0 }, note:'Pierwsza darmowa' },
     forester: { name:'Leśniczówka', cat:'Drewno', art:'forester', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ 'sadzonki':1.0 }, note:'Sadzi drzewa' },
     sawmill:  { name:'Tartak', cat:'Drewno', art:'sawmill', worker:1, tool:true, inp:{ pień:1.0 }, out:{ deski:2.0 }, costs:{ franks:{d:6,k:2}, saracens:{d:4,gl:2}, vikings:{d:9}, slavs:{d:8} } },
-    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', forest:true, inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, note:'Plon × min(1, drzewa/próg lasu)' },
+    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', forest:true, game:true, inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, note:'Plon × min(1, drzewa/próg lasu) × min(1, zwierzyna w łowisku/próg) — wychodzi na łowy z łukiem' },
     dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6}, slavs:{d:6} } },
     orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} } },
     watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} } },
@@ -5212,7 +5261,7 @@ const Data = (() => {
     return e ? e.in : null;
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -7259,7 +7308,8 @@ const World = (() => {
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false },
+    animals: [], fauna: null,                                  // zwierzęta (Faza 8): lista JSON-owa i stan modułu Fauna (włączane przez Fauna.enable)
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
     sites: [], builders: 3, buildersActive: 0, buildersWorking: 0, carriers: [],
@@ -7281,7 +7331,8 @@ const World = (() => {
     state.treeFrac = 0; state.plantFrac = 0;
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
-    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false };
+    state.animals = []; state.fauna = null;
     state.depositLeft = null;
     Data.cur.faction = factionId;
     state.sites = []; state.builders = 3;
@@ -7474,6 +7525,7 @@ const World = (() => {
     Build.tick(dt); // kolejka placów, budowniczowie (po Economy — zna obsadę)
     Tribute.tick(dt); // haracz, sprzedaż na Targu, wyprawy Wikingów
     Events.tick(dt); // napady na karawany, kryzysy
+    Fauna.tick(dt); // zwierzęta i wyprawy myśliwych (własne PRNG; przy wyłączonej faunie nic nie robi)
     // liczba figurek = ludność
     const target = Math.floor(state.pop);
     while (state.citizens.length < target) spawnCitizen();
@@ -7574,8 +7626,9 @@ const Economy = (() => {
     return World.state().factionId === 'vikings' ? (VIK_RATE[id] || 1) : 1;
   }
   /* gęstość lasu: plon × min(1, drzewa / próg nacji) dla budynków z flagą forest */
-  function forestMult(s, def, treeTotal) {
-    return def.forest ? Math.min(1, treeTotal / Data.FOREST_REF[s.factionId]) : 1;
+  function forestMult(s, def, treeTotal, b) {
+    const m = def.forest ? Math.min(1, treeTotal / Data.FOREST_REF[s.factionId]) : 1;
+    return def.game && b ? m * Fauna.gameMult(s, b) : m;                     // Chata myśliwego: także zwierzyna w łowisku (Faza 8; 1 przy wyłączonej faunie)
   }
 
   function totalFood(res) { return FOODS.reduce((a, g) => a + (res[g] || 0), 0); }
@@ -7629,7 +7682,7 @@ const Economy = (() => {
       if (!isFoodOut(b.id)) continue;
       const def = Data.BUILDINGS[b.id];
       if (!def.worker || !working(b)) continue;
-      const k = forestMult(s, def, treeTotal) * Logistics.effOf(s, b);
+      const k = forestMult(s, def, treeTotal, b) * Logistics.effOf(s, b);
       for (const [g, r] of outsOf(b.id)) if (FOODS.includes(g)) pot += r * k;
     }
     return pot;
@@ -7743,7 +7796,7 @@ const Economy = (() => {
         const k = treeTotal / (outRate('woodcutter') * sc * dt);
         if (k < frac) { frac = k; b.st = { c: 'in', g: 'drzewa' }; }
       }
-      frac *= forestMult(s, def, treeTotal) * Logistics.effOf(s, b);     // Puszcza i sprawność logistyczna (transport do Składu / Dworu)
+      frac *= forestMult(s, def, treeTotal, b) * Logistics.effOf(s, b);  // Puszcza, zwierzyna w łowisku i sprawność logistyczna (transport do Składu / Dworu)
       const hungerK = (starving && !isFoodOut(b.id)) ? 0.75 : 1;
       // pełny magazyn wyjścia zatrzymuje budynek BEZ zużywania wejść (spec.)
       for (const [og, rate] of outs) {
@@ -7773,6 +7826,7 @@ const Economy = (() => {
         if (dk && s.depositLeft && s.depositLeft[dk] !== undefined) { made = Math.min(made, s.depositLeft[dk]); s.depositLeft[dk] -= made; }
         res[og] += made;
         if (b.id === 'woodcutter') World.takeTrees(made);
+        if (def.game && og === 'mięso') Fauna.take(s, b, made);          // myśliwy zużywa zwierzynę łowną (upolowania liczy moduł Fauna)
       }
     }
     s.welfare = fed;
@@ -8427,6 +8481,7 @@ const TestBots = (() => {
     const snap = snapshot();
     World.init(cfg.faction);
     const s = World.state();
+    if (cfg.fauna) Fauna.enable(s);                      // opcjonalnie: bot gra z fauną (Faza 8); domyślnie bez — jak scenariusze specyfikacji
     if (cfg.tax != null) s.controls.tax = cfg.tax;
     Tribute.set(cfg.preset || 'normal');
     const plan = (RECIPE[cfg.faction] || []).slice();
@@ -8570,7 +8625,9 @@ const Advisor = (() => {
     if (st && st.c === 'depleted') return mk('depleted', 'warn', 'Złoże wyczerpane — budynek stoi');
     const eff = b.eff != null ? Math.round(b.eff * 100) : 100;
     const lg = s.settings.logistics && b.logi && b.logi.eff < 0.995 ? ' · transport do Składu ' + (Number.isFinite(b.logi.dist) ? '≈ ' + Math.round(b.logi.dist) + ' pól drogi' : 'niemożliwy') + ' (−' + Math.round((1 - b.logi.eff) * 100) + '%): zbliż budynki lub połóż drogę' : '';
-    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności' + lg);
+    const gst = def.game && s.settings.fauna ? Fauna.stock(s, b) : null;
+    const gm = gst && gst.pts < gst.ref * 0.995 ? ' · zwierzyna w łowisku: ' + gst.pts.toFixed(1).replace('.', ',') + ' z ' + gst.ref + ' pkt (plon ×' + Math.min(1, gst.pts / gst.ref).toFixed(2).replace('.', ',') + '): postaw Chatę bliżej zwierzyny albo poczekaj na odrodzenie' : '';
+    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności' + lg + gm);
   }
   function codeOf(b) { // szybki kod statusu (bez tekstu) — używany co klatkę przy rysowaniu znaczników
     const s = World.state(), def = Data.BUILDINGS[b.id];
@@ -8601,6 +8658,10 @@ const Advisor = (() => {
         else
           w.push({ sev: 'warn', text: 'Imigracja wstrzymana: produkcja jedzenia ' + f1(rep.potential) + ' < 110% zużycia (' + f1(rep.consumption) + '). Maks. ludność ≈ ' + rep.pmax + '.' });
       }
+    }
+    if (s.settings.fauna && s.fauna) {                                           // zwierzyna łowna (Faza 8)
+      const poor = s.buildings.filter(b => Data.BUILDINGS[b.id].game && s.staffed[b.uid] && Fauna.gameMult(s, b) < 0.7);
+      if (poor.length) w.push({ sev: 'warn', text: poor.length + '× ' + Data.nameOf('hunter') + ': zwierzyna w łowisku przetrzebiona (plon ×' + Math.min(...poor.map(b => Fauna.gameMult(s, b))).toFixed(2).replace('.', ',') + ') — zwierzyna odradza się przy legowiskach; rozłóż Chaty po różnych lasach.' });
     }
     if (s.pop >= Economy.housing(s)) w.push({ sev: 'warn', text: 'Brak miejsc w domach (' + Math.floor(s.pop) + '/' + Economy.housing(s) + ') — zbuduj Chaty.' });
     if (s.waitingForTool) w.push({ sev: 'warn', text: 'Budynek czeka na narzędzie — postaw Targ (kupno 20 zł)' + (s.factionId === 'franks' || s.factionId === 'vikings' ? ' lub Kuźnię narzędzi.' : '.') });
@@ -9092,6 +9153,8 @@ const UI = (() => {
     const btnL = document.getElementById('btnLogi'), updL = () => { btnL.textContent = '🚚 Logistyka: ' + (s.settings.logistics ? 'wł.' : 'wył.'); };
     btnL.onclick = () => { s.settings.logistics = !s.settings.logistics; updL(); UI.flashHint(s.settings.logistics ? 'Logistyka włączona: odległość do Składu / Dworu zmniejsza plon (drogi pomagają)' : 'Logistyka wyłączona'); };
     updL();
+    // fauna (Faza 8): w grze domyślnie włączona (?fauna=0 wyłącza); scenariusze specyfikacji liczą się bez niej
+    if (new URLSearchParams(location.search).get('fauna') !== '0') Fauna.enable(s);
     upd();
     document.getElementById('resPanel').style.display = 'block';
     syncHudHeight();
@@ -9187,9 +9250,10 @@ const UI = (() => {
     html += '<div class="' + (afford ? 'affordable' : 'expensive') + '">Koszt: ' + (costStr || '—') + '</div>';
     if (def.tool) html += '<div class="expensive">Wymaga narzędzia</div>';
     if (def.worker) html += '<div>Pracownik: ' + def.worker + '</div>';
-    if (def.inp) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
+    if (def.inp && Object.keys(def.inp).length) html += '<div>Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
     if (def.out) html += '<div><b>' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</b></div>';
     if (def.forest) html += '<div class="sub">Puszcza: plon × min(1, drzewa/' + Data.FOREST_REF[World.state().factionId] + ')</div>';
+    if (def.game) html += '<div class="sub">Łowisko: plon × min(1, zwierzyna łowna w promieniu ' + Data.FAUNA_RULES.radius + ' pól / ' + Data.FAUNA_RULES.ref + ' pkt) — sarna = 1 pkt, królik 0,3</div>';
     html += '<div class="sub">' + Data.RULES_NOTE + '</div>';
     if (def.note) html += '<em>' + def.note + '</em>';
     tooltip.innerHTML = html;
@@ -9229,7 +9293,7 @@ const UI = (() => {
     const def = Data.BUILDINGS[b.id], st = Advisor.statusOf(b), lbl = g => Advisor.goodLabel(def, g);
     let h = '<h3>' + Data.nameOf(b.id) + '</h3>';
     h += '<div style="color:' + { bad: '#e08484', warn: '#e8b060', info: '#a8b8a8', good: '#8fce8f' }[st.sev] + '">' + st.text + '</div>';
-    if (def.inp) h += '<div class="sub">Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
+    if (def.inp && Object.keys(def.inp).length) h += '<div class="sub">Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
     if (def.out) h += '<div class="sub">Wyjście: ' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</div>';
     if (def.tool) h += '<div class="sub">Wymaga narzędzia' + (World.state().tooled[b.uid] ? ' (obsadzony)' : '') + '</div>';
     return h;
@@ -9364,6 +9428,293 @@ const UI = (() => {
   }
 
   return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor };
+})();
+
+/* ============================== MODUL: FAUNA ==============================
+   Zwierzęta (Faza 8): zwierzyna łowna (sarny i króliki; w śnieżnym renifery i zające polarne; na pustyni gazele i króliki pustynne), wałęsające się (lis, dzik, łoś, wielbłąd, foka, jaszczurka)
+   i ptaki (bocian, żuraw, wrona, mewa, sęp). Stan należy do gry (state.animals — lista JSON-owa; state.fauna — legowiska, wyprawy, liczniki i stan własnego PRNG), bo upolowana
+   zwierzyna wpływa na plon Chaty myśliwego: plon × min(1, Σ wag zwierzyny w łowisku / ref). Moduł NIGDY nie woła globalnego RNG (własny mulberry32 w state.fauna.rs)
+   i nie robi nic przy wyłączonym settings.fauna (testy spec). Odradzanie: legowiska (stały punkt, odrodzenie ∝ wolnemu miejscu w stadzie), więc wytrzebiona okolica się odbudowuje.
+   Wyprawa myśliwego jest czystą funkcją czasu gry (Fauna.hunters): idzie ścieżką Path do stojącej zwierzyny, celuje z zasięgu łuku, zwierzę pada w chwili trafienia, myśliwy podchodzi,
+   bierze zwierzynę i wraca; mięso jest naliczane przez Economy jak dotąd — wyprawy (b.huntAcc) tylko „wyjaśniają" ubytek zwierzyny. */
+const Fauna = (() => {
+  const R = Data.FAUNA_RULES, KINDS = Data.FAUNA, OPTS = { blocked: t => t.occup != null };
+  const IDLE = 0, WALK = 1, FLEE = 2, DEAD = 3, HUNTED = 4, HIDE = 5;              // tryby zwierzęcia (a.m); a.fl: 0 ziemia, 1 lot, 2 lądowanie
+  const rnd = f => { f.rs = (f.rs + 0x6D2B79F5) | 0; let t = Math.imul(f.rs ^ (f.rs >>> 15), 1 | f.rs); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const rr = (f, a, b) => a + rnd(f) * (b - a);
+  const tileAt = (map, x, y) => { const N = map.size, ix = Math.floor(x), iy = Math.floor(y); return ix < 0 || iy < 0 || ix >= N || iy >= N ? null : map.tiles[iy * N + ix]; };
+  const landOk = t => !!t && t.h === 1 && t.occup == null && Terrain.passable(t);   // pole, na którym zwierzę może stać
+  const spawnTile = t => landOk(t) && t.k !== 'bog' && t.k !== 'quick' && t.k !== 'cliff';
+  const near = (map, x, y, r, pred) => { let n = 0; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const t = tileAt(map, x + dx, y + dy); if (t && pred(t)) n++; } return n; };
+  const WATER4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const HAB = {                                                                   // siedlisko: czy punkt (x, y) pasuje do trybu życia gatunku
+    forest: (m, x, y) => near(m, x, y, 2, t => t.trees > 0) >= 3,
+    open: (m, x, y) => near(m, x, y, 2, t => t.trees > 0) <= 4,
+    sand: (m, x, y) => near(m, x, y, 2, t => t.trees > 0) <= 2,
+    shore: (m, x, y) => WATER4.some(([dx, dy]) => { const t = tileAt(m, x + dx, y + dy); return !!t && t.h === 0 && (t.wk === 'sea' || t.wk === 'ice'); }),
+    water: (m, x, y) => near(m, x, y, 3, t => t.h === 0 && t.wk !== 'ford') >= 1,
+    any: () => true
+  };
+  const centerOfB = b => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+  const live = a => a.m !== DEAD && a.m !== HIDE;
+  const prey = a => KINDS[a.k].role === 'prey' && a.m !== DEAD && a.m !== HUNTED && a.m !== HIDE;
+
+  function addAnimal(s, f, k, x, y, d) {
+    const a = { id: f.nid++, k, x, y, tx: x, ty: y, m: IDLE, t: +rr(f, 0.2, 3).toFixed(2), z: 0, fl: 0, ph: +(rnd(f) * 6.28).toFixed(2), c: +(rnd(f) * 0.12).toFixed(3), d: d == null ? -1 : d };
+    s.animals.push(a); return a;
+  }
+
+  /* ---------- zaludnienie mapy ---------- */
+  function populate(s) {
+    const map = s.map, meta = map.meta || {}, climate = meta.climate || Data.FACTIONS[s.factionId].climate, N = map.size, reach = Terrain.reachSet(map), kc = centerOfB(s.keep);
+    const f = s.fauna = { rs: (Math.imul((meta.seed | 0) + 17, 2654435761) ^ 0xFA11A5) >>> 0, nid: 1, bt: 0, dens: [], hunts: [], kills: 0 };
+    s.animals = [];
+    const distK = (x, y) => Math.hypot(x - kc.x, y - kc.y);
+    const okAt = (x, y, hab, minK, ground) => { const t = tileAt(map, x, y); return spawnTile(t) && (!ground || reach[Math.floor(y) * N + Math.floor(x)]) && distK(x, y) >= minK && HAB[hab](map, x, y); };
+    const pick = (hab, minK, maxK, avoid, ground = true) => {
+      for (let g = 0; g < 700; g++) {
+        const x = rr(f, 1, N - 1), y = rr(f, 1, N - 1), d = distK(x, y);
+        if (d < minK || d > maxK || !okAt(x, y, hab, minK, ground)) continue;
+        if (avoid && avoid.some(p => Math.hypot(p.x - x, p.y - y) < 7)) continue;
+        return [x, y];
+      }
+      return null;
+    };
+    const around = (cx, cy, r, ground = true) => { for (let g = 0; g < 30; g++) { const a = rnd(f) * 6.283, d = Math.sqrt(rnd(f)) * r, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d, t = tileAt(map, x, y); if (spawnTile(t) && (!ground || reach[Math.floor(y) * N + Math.floor(x)])) return [x, y]; } return null; };
+    for (const k of Object.keys(KINDS)) {
+      const K = KINDS[k]; if (!K.climates.includes(climate)) continue;
+      if (K.role === 'prey') {
+        const dens = [], per = Math.max(1, Math.round(K.n / K.den));
+        for (let i = 0; i < K.den; i++) {
+          const p = pick(K.hab, 11, 26, dens) || pick('any', 11, 28, dens); if (!p) continue;
+          const d = { k, x: p[0], y: p[1], acc: 0 }; dens.push(d); f.dens.push(d);
+          const didx = f.dens.length - 1;
+          for (let j = 0; j < per; j++) { const q = around(d.x, d.y, 3); if (q) addAnimal(s, f, k, q[0], q[1], didx); }
+        }
+      } else if (K.role === 'roamer') {
+        let left = K.n;
+        while (left > 0) {
+          const p = pick(K.hab, 10, 30, null) || (K.hab === 'shore' ? null : pick('any', 10, 30, null)); if (!p) break;
+          const grp = Math.min(left, K.herd ? Math.max(1, Math.round(rr(f, K.herd[0], K.herd[1] + 0.49))) : 1);
+          for (let j = 0; j < grp; j++) { const q = around(p[0], p[1], 2.5); if (q) { addAnimal(s, f, k, q[0], q[1], -1); left--; } else left--; }
+        }
+      } else {                                                                    // ptaki: część stoi na ziemi, część jest w locie
+        for (let i = 0; i < K.n; i++) {
+          const p = pick(K.hab, 8, 34, null, false) || (K.hab === 'shore' || K.hab === 'water' ? null : pick('any', 8, 34, null, false)); if (!p) continue;
+          const a = addAnimal(s, f, k, p[0], p[1], -1);
+          if (K.soar || rnd(f) < 0.4) { a.fl = 1; a.z = +rr(f, 0.45, 0.85).toFixed(2); a.m = WALK; flyTarget(s, f, a, K); }
+        }
+      }
+    }
+    return s.animals.length;
+  }
+  function flyTarget(s, f, a, K) {
+    const N = s.map.size; let tx, ty;
+    if (K.soar) { tx = N / 2 + rr(f, -16, 16); ty = N / 2 + rr(f, -16, 16); }
+    else { const ang = rnd(f) * 6.283, d = rr(f, 10, 22); tx = Math.max(1, Math.min(N - 1, a.x + Math.cos(ang) * d)); ty = Math.max(1, Math.min(N - 1, a.y + Math.sin(ang) * d)); }
+    a.tx = tx; a.ty = ty;
+  }
+  function enable(s) { s = s || World.state(); s.settings.fauna = true; return populate(s); }
+  function disable(s) { s = s || World.state(); s.settings.fauna = false; s.animals = []; s.fauna = null; }
+
+  /* ---------- ruch ---------- */
+  function clearLine(map, x0, y0, x1, y1) {
+    const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 0.7));
+    for (let i = 1; i <= n; i++) { const t = tileAt(map, x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n); if (!landOk(t) || t.k === 'quick') return false; }
+    return true;
+  }
+  function wanderTo(s, f, a, K, r0, r1) {
+    for (let g = 0; g < 5; g++) {
+      let cx = a.x, cy = a.y, rad = rr(f, r0, r1);
+      const den = a.d >= 0 ? f.dens[a.d] : null;
+      if (den && Math.hypot(a.x - den.x, a.y - den.y) > 5) { cx = den.x; cy = den.y; rad = rr(f, 0, 4); }       // zbyt daleko od legowiska — wraca w jego okolice
+      const ang = rnd(f) * 6.283, tx = cx + Math.cos(ang) * rad, ty = cy + Math.sin(ang) * rad;
+      if (K.hab === 'shore' && !HAB.shore(s.map, tx, ty)) continue;
+      if (clearLine(s.map, a.x, a.y, tx, ty)) { a.tx = tx; a.ty = ty; a.m = WALK; return true; }
+    }
+    a.m = IDLE; a.t = +rr(f, 0.5, 2).toFixed(2); return false;
+  }
+  const thr = [], thTmp = { x: 0, y: 0 };                                          // pozycje zagrożeń (obywatele, myśliwi) jako płaska lista x, y — odświeżana raz na tick
+  function buildThreats(s, f) {
+    thr.length = 0;
+    for (const c of s.citizens) thr.push(c.x, c.y);
+    for (const h of f.hunts) { if (h.picked) continue; const p = poseOf(h, s.time); thr.push(p.x, p.y); }
+  }
+  function threatOf(a, rad) {
+    const r2 = rad * rad;
+    for (let i = 0; i < thr.length; i += 2) { const dx = thr[i] - a.x, dy = thr[i + 1] - a.y; if (dx * dx + dy * dy < r2) { thTmp.x = thr[i]; thTmp.y = thr[i + 1]; return thTmp; } }
+    return null;
+  }
+  function flee(s, f, a, K, th) {
+    const dx = a.x - th.x, dy = a.y - th.y, d = Math.hypot(dx, dy) || 1, base = Math.atan2(dy / d, dx / d), dist = rr(f, 5, 8);
+    if (K.role === 'bird') { a.fl = 1; a.m = WALK; a.z = Math.max(a.z, 0.05); const ang = base + rr(f, -0.5, 0.5); a.tx = Math.max(1, Math.min(s.map.size - 1, a.x + Math.cos(ang) * 14)); a.ty = Math.max(1, Math.min(s.map.size - 1, a.y + Math.sin(ang) * 14)); a.t = 99; return; }
+    for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
+      const tx = a.x + Math.cos(base + da) * dist, ty = a.y + Math.sin(base + da) * dist;
+      if (clearLine(s.map, a.x, a.y, tx, ty)) { a.tx = tx; a.ty = ty; a.m = FLEE; a.t = 3; return; }
+    }
+  }
+  /* jeden krok zwierzęcia; false = usuń z listy */
+  function step(s, f, a, dt) {
+    const K = KINDS[a.k], map = s.map, flying = a.fl > 0;
+    if (a.m === DEAD) return s.time - a.t0 < R.carcass || f.hunts.some(h => h.a === a.id);
+    if (a.m === HUNTED) return true;
+    a.t -= dt; a.c -= dt;
+    if (a.m === HIDE) {                                                           // foka nurkuje i wynurza się przy innym fragmencie brzegu
+      if (a.t <= 0) {
+        for (let g = 0; g < 14; g++) { const ang = rnd(f) * 6.283, rad = rr(f, 1, 5), x = a.x + Math.cos(ang) * rad, y = a.y + Math.sin(ang) * rad; if (spawnTile(tileAt(map, x, y)) && HAB.shore(map, x, y)) { a.x = x; a.y = y; a.tx = x; a.ty = y; break; } }
+        a.m = IDLE; a.t = +rr(f, 4, 10).toFixed(2);
+      }
+      return true;
+    }
+    if (a.c <= 0) {                                                               // co ~0,15 min: pole zajęte budową (ewakuacja) i ucieczka przed obywatelami / myśliwym
+      a.c = 0.1 + rnd(f) * 0.1;
+      if (!flying) { const t = tileAt(map, a.x, a.y); if (!t || t.occup != null) { const p = Path.nearest(map, a.x, a.y, OPTS, 6); if (!p) return false; a.x = p[0]; a.y = p[1]; a.tx = a.x; a.ty = a.y; a.m = IDLE; a.t = 1; } }
+      if (!flying || a.fl === 2) {
+        const rad = K.role === 'prey' ? 3.8 : K.role === 'bird' ? 2.6 : (a.k === 'seal' ? 2.0 : 3.0);
+        if (a.m !== FLEE || flying) { const th = threatOf(a, rad); if (th) flee(s, f, a, K, th); }
+      }
+    }
+    if (a.m === IDLE) {
+      if (a.t > 0) return true;
+      if (K.role === 'bird') {
+        if (a.fl === 0 && rnd(f) < 0.5) { a.fl = 1; a.z = 0.05; flyTarget(s, f, a, K); a.m = WALK; return true; }
+        if (!wanderTo(s, f, a, K, 1.5, 3.5)) a.t = +rr(f, 3, 8).toFixed(2);
+        return true;
+      }
+      if (a.k === 'seal' && rnd(f) < 0.35) { a.m = HIDE; a.t = +rr(f, 2, 4).toFixed(2); return true; }
+      if (a.k === 'lizard') wanderTo(s, f, a, K, 1.5, 3.5); else wanderTo(s, f, a, K, 2.5, K.role === 'prey' ? 6 : 8);
+      return true;
+    }
+    // WALK / FLEE: ruch do celu
+    const speed = a.m === FLEE ? K.flee : (flying ? K.fly : (a.k === 'lizard' ? 1.1 : K.sp)), dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
+    if (flying) {                                                                 // lot: bez terenu, wysokość rośnie / maleje płynnie
+      const stp = Math.min(d, speed * dt);
+      if (d > 0.01) { a.x += dx / d * stp; a.y += dy / d * stp; }
+      if (a.fl === 1) a.z = Math.min(K.soar ? 0.85 : 0.7, a.z + dt * 0.9); else a.z = Math.min(a.z, d * 0.18);
+      if (d < 0.25) {
+        if (a.fl === 2) { a.fl = 0; a.z = 0; a.m = IDLE; a.t = +rr(f, 3, 8).toFixed(2); return true; }
+        if (!K.soar && rnd(f) < 0.65) {                                           // lądowanie w pobliżu celu (w siedlisku gatunku; bez miejsca — leci dalej)
+          let landed = false;
+          for (let g = 0; g < 14 && !landed; g++) { const ang = rnd(f) * 6.283, rad = rr(f, 0, 5), x = a.x + Math.cos(ang) * rad, y = a.y + Math.sin(ang) * rad, t = tileAt(map, x, y); if (spawnTile(t) && HAB[K.hab](map, x, y)) { a.fl = 2; a.tx = x; a.ty = y; landed = true; } }
+          if (!landed) flyTarget(s, f, a, K);
+        } else flyTarget(s, f, a, K);
+      }
+      return true;
+    }
+    if (d < 0.08) { a.m = IDLE; a.t = +(K.role === 'prey' ? rr(f, 1.5, 5) : rr(f, 2, 7)).toFixed(2); return true; }
+    const nx0 = a.x + dx / d * Math.min(d, speed * dt), ny0 = a.y + dy / d * Math.min(d, speed * dt), nt = tileAt(map, nx0, ny0);
+    if (!landOk(nt)) { a.m = IDLE; a.t = +rr(f, 0.3, 1.2).toFixed(2); return true; }
+    const k = 1 / Math.sqrt(Math.max(1, Terrain.cost(nt)));                       // wolniej po bagnie, wydmach i zaspach
+    const st = Math.min(d, speed * dt * k); a.x += dx / d * st; a.y += dy / d * st;
+    if (a.m === FLEE && a.t <= 0) { a.m = IDLE; a.t = +rr(f, 1, 3).toFixed(2); }
+    return true;
+  }
+  function births(s, f, dtb) {
+    for (const d of f.dens) {
+      const K = KINDS[d.k], cap = K.herd[1] + 1; let cnt = 0;
+      for (const a of s.animals) if (a.k === d.k && a.m !== DEAD && Math.abs(a.x - d.x) < 7 && Math.abs(a.y - d.y) < 7) cnt++;
+      if (cnt >= cap) { d.acc = 0; continue; }
+      d.acc += dtb * K.br * (1 - cnt / cap);
+      if (d.acc < 1) continue;
+      d.acc -= 1;
+      for (let g = 0; g < 12; g++) { const ang = rnd(f) * 6.283, rad = Math.sqrt(rnd(f)) * 3, x = d.x + Math.cos(ang) * rad, y = d.y + Math.sin(ang) * rad; if (spawnTile(tileAt(s.map, x, y))) { addAnimal(s, f, d.k, x, y, f.dens.indexOf(d)); break; } }
+    }
+  }
+
+  /* ---------- polowanie ---------- */
+  function along(h, d) {                                                          // punkt ścieżki wyprawy w odległości d od drzwi
+    const P = h.path, C = h.cum; d = Math.max(0, Math.min(h.L, d)); let i = 1;
+    while (i < C.length - 1 && C[i] < d) i++;
+    const seg = C[i] - C[i - 1] || 1, u = Math.max(0, Math.min(1, (d - C[i - 1]) / seg));
+    return [P[i - 1][0] + (P[i][0] - P[i - 1][0]) * u, P[i - 1][1] + (P[i][1] - P[i - 1][1]) * u];
+  }
+  function poseOf(h, time) {                                                      // pozycja i tryb myśliwego — czysta funkcja czasu gry
+    const t = time - h.t0, v = R.hunterSpeed, dShot = Math.max(0, h.L - R.bow);
+    let dist, mode;
+    if (t < h.tGo) { dist = v * t; mode = 'go'; }
+    else if (t < h.tShot) { dist = dShot; mode = 'aim'; }
+    else if (t < h.tShot + (h.L - dShot) / v) { dist = dShot + (t - h.tShot) * v; mode = 'approach'; }
+    else if (t < h.tPick) { dist = h.L; mode = 'pick'; }
+    else { dist = h.L - (t - h.tPick) * v * 0.9; mode = 'back'; }
+    const p = along(h, dist), q = mode === 'aim' || mode === 'pick' ? [h.ax, h.ay] : along(h, dist + (mode === 'back' ? -0.5 : 0.5));   // w czasie celowania patrzy na zwierzynę
+    return { x: p[0], y: p[1], tx: q[0], ty: q[1], mode, carry: mode === 'back', moving: mode !== 'aim' && mode !== 'pick', t };
+  }
+  function killAnimal(s, f, b, a) {                                               // upolowanie: ubytek zwierzyny i rozliczenie mięsa wyprawy
+    f.kills++; b.huntAcc = Math.max(-R.owed, (b.huntAcc || 0) - R.meat * KINDS[a.k].w);
+  }
+  function chooseTarget(s, b) {
+    const c = centerOfB(b); let best = null, bs = Infinity;
+    for (const a of s.animals) {
+      if (!prey(a)) continue;
+      const d = Math.hypot(a.x - c.x, a.y - c.y); if (d > R.radius) continue;
+      const sc = d - (KINDS[a.k].w >= 0.9 ? 5 : 0);
+      if (sc < bs) { bs = sc; best = a; }
+    }
+    return best;
+  }
+  function startHunt(s, f, b, a) {
+    const door = Walkers.doorOf(b), path = Path.find(s.map, door[0], door[1], a.x, a.y, OPTS);
+    if (!path || path.length < 2) { const j = s.animals.indexOf(a); if (j >= 0) s.animals.splice(j, 1); killAnimal(s, f, b, a); return false; }
+    const P = path.map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]), cum = [0];
+    for (let i = 1; i < P.length; i++) cum.push(+(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])).toFixed(2));
+    const L = cum[cum.length - 1], v = R.hunterSpeed, dShot = Math.max(0, L - R.bow), tGo = dShot / v, tShot = tGo + R.aim, tPick = tShot + (L - dShot) / v + R.pick;
+    f.hunts.push({ b: b.uid, a: a.id, k: a.k, ax: a.x, ay: a.y, t0: +s.time.toFixed(3), path: P, cum, L, tGo, tShot, tPick, tEnd: tPick + L / (v * 0.9), shot: false, picked: false });
+    a.m = HUNTED; a.tx = a.x; a.ty = a.y; return true;
+  }
+  function updateHunts(s, f) {
+    const list = s.animals;
+    for (let i = f.hunts.length - 1; i >= 0; i--) {
+      const h = f.hunts[i], b = s.buildings.find(x => x.uid === h.b), a = list.find(x => x.id === h.a), t = s.time - h.t0;
+      if (!b || !a) { if (a && a.m === HUNTED) { a.m = IDLE; a.t = 1; } f.hunts.splice(i, 1); continue; }   // budynek zburzony lub zwierzyna zniknęła — wyprawa przerwana
+      if (!h.shot && t >= h.tShot) { h.shot = true; a.m = DEAD; a.t0 = s.time; killAnimal(s, f, b, a); }
+      if (!h.picked && t >= h.tPick) { h.picked = true; const j = list.indexOf(a); if (j >= 0) list.splice(j, 1); }
+      if (t >= h.tEnd) f.hunts.splice(i, 1);
+    }
+    for (const b of s.buildings) {
+      const def = Data.BUILDINGS[b.id]; if (!def.game || !s.staffed[b.uid]) continue;
+      const owed = b.huntAcc || 0; if (owed < R.minMeat) continue;
+      const busy = f.hunts.some(h => h.b === b.uid), a = chooseTarget(s, b); if (!a) continue;
+      if (!busy) startHunt(s, f, b, a);
+      else if (owed > R.owed) { const j = list.indexOf(a); if (j >= 0) list.splice(j, 1); killAnimal(s, f, b, a); }   // myśliwy nie nadąża — kolejne upolowania bez wyprawy
+    }
+  }
+
+  function tick(dt) {
+    const s = World.state(), f = s.fauna;
+    if (!s.settings.fauna || !f || !s.map || !(dt > 0)) return;
+    updateHunts(s, f); buildThreats(s, f);
+    f.bt += dt; if (f.bt >= 1) { births(s, f, f.bt); f.bt = 0; }
+    const list = s.animals;
+    for (let i = list.length - 1; i >= 0; i--) if (!step(s, f, list[i], dt)) list.splice(i, 1);
+  }
+
+  /* ---------- interfejs dla ekonomii, doradcy i rysowania ---------- */
+  function stock(s, b) {                                                          // punkty zwierzyny łownej w łowisku budynku
+    if (!s.settings.fauna || !s.fauna) return null;
+    const c = centerOfB(b); let pts = 0;
+    for (const a of s.animals) { const K = KINDS[a.k]; if (K.role === 'prey' && a.m !== DEAD && Math.hypot(a.x - c.x, a.y - c.y) <= R.radius) pts += K.w; }
+    return { pts, ref: R.ref };
+  }
+  function gameMult(s, b) { const st = stock(s, b); return st ? Math.min(1, st.pts / st.ref) : 1; }
+  function take(s, b, made) { if (s.settings.fauna && s.fauna) b.huntAcc = (b.huntAcc || 0) + made; }
+  function hunters(s) {                                                           // wyprawy do narysowania: pozycja myśliwego, strzała, cel
+    if (!s.settings.fauna || !s.fauna) return [];
+    const out = [];
+    for (const h of s.fauna.hunts) {
+      const a = s.animals.find(x => x.id === h.a), p = poseOf(h, s.time), t = p.t, rel = h.tShot - R.arrow;
+      const o = { uid: h.b, id: h.a, prey: h.k, x: p.x, y: p.y, tx: p.tx, ty: p.ty, mode: p.mode, carry: p.carry, moving: p.moving, arrow: null };
+      if (a && t >= rel && t < h.tShot) o.arrow = { x0: p.x, y0: p.y, x1: a.x, y1: a.y, u: (t - rel) / R.arrow };
+      if (a) { o.aimx = a.x; o.aimy = a.y; }
+      out.push(o);
+    }
+    return out;
+  }
+  function stats(s) {
+    const by = {}; let prey = 0;
+    for (const a of s.animals) { by[a.k] = (by[a.k] || 0) + 1; if (KINDS[a.k].role === 'prey' && a.m !== DEAD) prey += KINDS[a.k].w; }
+    return { total: s.animals.length, by, prey: +prey.toFixed(2), kills: s.fauna ? s.fauna.kills : 0, hunts: s.fauna ? s.fauna.hunts.length : 0, dens: s.fauna ? s.fauna.dens.length : 0 };
+  }
+  return { enable, disable, tick, gameMult, stock, take, hunters, stats, poseOf, IDLE, WALK, FLEE, DEAD, HUNTED, HIDE };
 })();
 
 /* ============================== MODUL: WALKERS ==============================
@@ -9733,13 +10084,37 @@ const Game = (() => {
       } else push({ d: a.x + a.y, kind: 'c', fig: a, sx: p.x, sy: p.y, x: a.x, y: a.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
     }
 
+    // 3b. zwierzęta i myśliwi z łukiem (Faza 8): stan z logiki (Fauna); profil w prawo odbijany wg kierunku na ekranie; ptaki w locie rysowane osobno, nad wszystkim
+    const fliers = [];
+    if (sprOn && s.settings.fauna && s.fauna) {
+      for (const a of s.animals) {
+        if (a.m === Fauna.HIDE) continue;
+        const fs = Sprites.fauna(a.k); if (!fs) continue;
+        const dead = a.m === Fauna.DEAD, air = a.fl > 0 && a.z > 0.02, base = dead ? (fs.dead && fs.dead[0]) : (air ? fs.fly[0] : fs.walk[0]);
+        if (!base || K * base.w < 7) continue;
+        const p = Camera.worldToScreen(a.x, a.y), l = lookOf(a), alt = air ? a.z * Sprites.VH * K : 0;
+        const it = { d: a.x + a.y, kind: 'a', a, fs, pose: dead ? 'dead' : air ? 'fly' : (a.m === Fauna.WALK || a.m === Fauna.FLEE) ? 'walk' : 'idle', rate: a.m === Fauna.FLEE ? 6 : 3.4, hop: HOPPERS[a.k] === 1,
+          mirror: l.mirror, sx: p.x, sy: p.y, alt, k: K, x: a.x, y: a.y, bb: bbOf(base, p.x, p.y - alt, K) };
+        if (air) { if (inView(it.bb)) fliers.push(it); } else push(it);
+      }
+      const hcast = Sprites.castKeys(fid).filter(k => /Hunter$/.test(k)).map(k => Sprites.cast(k))[0];
+      if (hcast) for (const h of Fauna.hunters(s)) {
+        const p = Camera.worldToScreen(h.x, h.y), dx = h.tx - h.x, dy = h.ty - h.y, sdx = dx - dy, sdy = dx + dy;
+        push({ d: h.x + h.y, kind: 'f', fig: { moving: h.moving, phase: h.id * 0.7 }, cast: hcast, view: sdy < -0.001 ? 'back' : 'front', mirror: sdx < -0.001, carry: false, prey: h.carry ? h.prey : null, sx: p.x, sy: p.y, k: K, x: h.x, y: h.y,
+          bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
+        if (h.arrow) { const mx = (h.arrow.x0 + h.arrow.x1) / 2, my = (h.arrow.y0 + h.arrow.y1) / 2; push({ d: mx + my + 0.6, kind: 'r', ar: h.arrow, k: K, sx: p.x, sy: p.y, x: mx, y: my, bb: [p.x - 400 * K, p.y - 200 * K, p.x + 400 * K, p.y + 100 * K] }); }
+      }
+    }
+
     // 4. warstwy podłoża sprite'ów: place / decale i cienie obiektów statycznych leżą już w chunkach (nakładka); tu cienie postaci, a bez chunków — wszystko
     if (sprOn) {
       if (!ground) for (const it of list) if (it.spr && (it.kind === 'b' || it.kind === 't' || it.kind === 'd' || it.kind === 'x')) Sprites.draw(ctx, it.spr, 'p', it.sx, it.sy, it.k, dpr);
       for (const it of list) {
         if (it.kind === 'f') Sprites.draw(ctx, it.cast.front[0], 'u', it.sx, it.sy, it.k, dpr);
-        else if (!ground && it.spr && it.kind !== 's') Sprites.draw(ctx, it.spr, 'u', it.sx, it.sy, it.k, dpr);
+        else if (it.kind === 'a') Sprites.draw(ctx, it.pose === 'dead' ? it.fs.dead[0] : it.fs.walk[0], 'u', it.sx, it.sy, it.k, dpr);
+        else if (!ground && it.spr && it.kind !== 's' && it.kind !== 'r') Sprites.draw(ctx, it.spr, 'u', it.sx, it.sy, it.k, dpr);
       }
+      for (const it of fliers) Sprites.draw(ctx, it.fs.fly[0], 'u', it.sx, it.sy, it.k, dpr);
     }
 
     // 5. obiekty w kolejności głębi
@@ -9754,8 +10129,11 @@ const Game = (() => {
       } else if (it.kind === 'd' || it.kind === 'x') Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr);
       else if (it.kind === 's') drawSite(it, t, f);
       else if (it.kind === 'f') drawFigure(it, t);
+      else if (it.kind === 'a') drawAnimal(it, t);
+      else if (it.kind === 'r') drawArrow(it);
       else Gfx.drawCitizen(ctx, it.fig, it.sx, it.sy, z, fid, f.palette, t);
     }
+    for (const it of fliers) drawAnimal(it, t);
 
     // 6. dym z kominów i otworów dymnych: tylko widoczne, pracujące (obsadzone) budynki
     if (sprOn) {
@@ -9806,12 +10184,38 @@ const Game = (() => {
     const mv = it.fig.moving !== false, frame = mv ? Math.floor(t * 3.6 + it.fig.phase) % 2 : 0, sp = it.cast[it.view][frame], bob = mv ? Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom : 0;
     ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
     Sprites.draw(ctx, sp, 'c', 0, 0, it.k, dpr); ctx.restore();
+    if (it.prey) {                                              // myśliwy wraca z upolowaną zwierzyną przerzuconą przez ramię
+      const fs = Sprites.fauna(it.prey), sp = fs && fs.dead && fs.dead[0];
+      if (sp) { ctx.save(); ctx.translate(it.sx + (it.mirror ? -5 : 5) * it.k, it.sy - bob - 50 * it.k); if (it.mirror) ctx.scale(-1, 1); ctx.rotate(-0.55); Sprites.draw(ctx, sp, 'c', 0, 0, it.k * 0.8, dpr); ctx.restore(); }
+    }
     if (it.carry) { // nosiciel: skrzynka z towarem na głowie
       const k = it.k, bx = it.sx, by = it.sy - bob - 74 * k;
       ctx.fillStyle = '#8a6a45'; ctx.fillRect(bx - 6 * k, by - 8 * k, 12 * k, 8 * k);
       ctx.strokeStyle = '#5a4230'; ctx.lineWidth = Math.max(1, 0.9 * k); ctx.strokeRect(bx - 6 * k, by - 8 * k, 12 * k, 8 * k);
       ctx.beginPath(); ctx.moveTo(bx, by - 8 * k); ctx.lineTo(bx, by); ctx.stroke();
     }
+  }
+
+  /* zwierzę: klatka wg trybu (chód / postój / padnięcie / lot), profil w prawo odbity wg kierunku ruchu na ekranie; króliki i zające skaczą */
+  const HOPPERS = { rabbit: 1, hare: 1, desertRabbit: 1 };
+  function drawAnimal(it, t) {
+    const a = it.a, fs = it.fs, K = it.k; let spr, bob = 0;
+    if (it.pose === 'dead') spr = fs.dead[0];
+    else if (it.pose === 'fly') spr = fs.fly[Math.floor(t * 7 + a.ph) % fs.fly.length];
+    else if (it.pose === 'walk') { const ph = t * it.rate + a.ph; spr = fs.walk[Math.floor(ph) % fs.walk.length]; if (it.hop) bob = Math.abs(Math.sin(ph * 1.57)) * 3.5 * K; }
+    else spr = fs.idle[0];
+    ctx.save(); ctx.translate(it.sx, it.sy - it.alt - bob); if (it.mirror) ctx.scale(-1, 1);
+    Sprites.draw(ctx, spr, 'c', 0, 0, K, dpr); ctx.restore();
+  }
+  /* strzała myśliwego: łuk lotu od strzelca do zwierzyny (u = postęp 0…1); trzon z ciemnym obrysem, grot i lotki */
+  function drawArrow(it) {
+    const q = it.ar, K = it.k, u = q.u, P0 = Camera.worldToScreen(q.x0, q.y0), P1 = Camera.worldToScreen(q.x1, q.y1), h0 = 38 * K, h1 = 14 * K;
+    const at = v => ({ x: P0.x + (P1.x - P0.x) * v, y: P0.y + (P1.y - P0.y) * v - (h0 + (h1 - h0) * v) - Math.sin(Math.PI * v) * 9 * K });
+    const e = at(u), b = at(Math.max(0, u - 0.14)), dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+    ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(30,18,8,0.9)'; ctx.lineWidth = Math.max(1.8, 2.2 * K); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+    ctx.strokeStyle = '#e6d9b8'; ctx.lineWidth = Math.max(1, 1.1 * K); ctx.stroke();
+    ctx.fillStyle = '#c4cbd2'; ctx.beginPath(); ctx.moveTo(e.x + ux * 4 * K, e.y + uy * 4 * K); ctx.lineTo(e.x - ux * 1 * K - uy * 2.2 * K, e.y - uy * 1 * K + ux * 2.2 * K); ctx.lineTo(e.x - ux * 1 * K + uy * 2.2 * K, e.y - uy * 1 * K - ux * 2.2 * K); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#f2f2ea'; ctx.lineWidth = Math.max(0.8, 1 * K); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - ux * 3 * K - uy * 2 * K, b.y - uy * 3 * K + ux * 2 * K); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - ux * 3 * K + uy * 2 * K, b.y - uy * 3 * K - ux * 2 * K); ctx.stroke();
   }
 
   /* plac budowy: grunt na obrysie, słupki z liną, stosy materiałów (etap noszenia), potem sprite „wyrasta" od ziemi pod rusztowaniem; pasek postępu */
