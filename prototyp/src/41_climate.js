@@ -215,6 +215,15 @@ function bakeReeds(seed, F = 0.8) {
   return { c, ax: cx * F, ay: base * F, w: W * F, h: H * F, R };
 }
 
+/* odcinek drogi: miękka plama ubitej ziemi (tylko warstwa 'p' — plac); plamy na polach drogi i łączniki ku sąsiadom układają się w ciągłą ścieżkę */
+function bakeRoadPatch(seed, col = '#8a6e40') {
+  const W = 230, H = 140, sc = new Scene(W, H, W / 2, H / 2, { R: RES, ground: true }), r = rng(seed), pts = [];
+  for (let i = 0; i < 20; i++) { const a = i / 20 * TAU, c = Math.cos(a), s = Math.sin(a), k = 0.6 * Math.pow(Math.pow(Math.abs(c), 3) + Math.pow(Math.abs(s), 3), -1 / 3) * (0.92 + r() * 0.16); pts.push([c * k, s * k]); }
+  sc.flat([pts.map(([x, y]) => [x * 1.1, y * 1.1])], 'rgba(40,28,14,0.3)', 7);                       // ciemniejsze obrzeże
+  sc.decal('dirt', col, [pts], { feather: 8, alpha: 0.97 });
+  return { p: sc.pcv, ax: sc.ax, ay: sc.ay, w: sc.w, h: sc.h, R: sc.Rp, Rp: sc.Rp };
+}
+
 /* ---------- klify: blok skalny 1 pole, wysoki; pal: rock (szara skała z mchem), sand (piaskowiec z pasami), snow (skała z czapą śniegu) ---------- */
 function bakeCliff(seed, pal = 'rock', F = 0.8) {
   const W = 200, H = 200, cx = 100, base = 158, T = treeBase(W, H, cx, base, seed, { F, dx: 28, rx: 58, ry: 16, a: 0.5 }), { g, r } = T;

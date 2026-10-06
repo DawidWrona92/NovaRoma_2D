@@ -22,7 +22,8 @@ function natureJobs(climate) {
   else if (climate === 'eastern') jobs.push(...many('birches', 5, i => TREES.birch(150 + i)), ...many('pines', 4, i => TREES.pine(200 + i)), ...many('oaks', 3, i => TREES.oak(100 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'green')), ...many('tufts', 4, i => bakeTuft(520 + i, 'steppe')), ...many('reeds', 4, i => bakeReeds(900 + i)));
   else if (climate === 'snow') jobs.push(...many('pines', 6, i => TREES.pine(200 + i, 0.8, { snow: true })), ...many('winters', 3, i => TREES.winter(250 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'snow')), ...many('tufts', 3, i => bakeTuft(540 + i, 'snow')));
   else jobs.push(...many('palms', 4, i => TREES.palm(300 + i)), ...many('shrubs', 4, i => TREES.shrub(800 + i, 'dry')), ...many('cacti', 3, i => TREES.cactus(850 + i)), ...many('tufts', 3, i => bakeTuft(600 + i, 'sand')), ...many('reeds', 3, i => bakeReeds(900 + i)));
-  jobs.push(...many('cliffs', 4, i => bakeCliff(950 + i, cliffPal)), ...many('rocks', 4, i => bakeRock(400 + i)));
+  const roadCol = { temperate: '#8a6e40', eastern: '#7a6242', snow: '#a29a8c', desert: '#c4a468' }[climate] || '#8a6e40';
+  jobs.push(...many('cliffs', 4, i => bakeCliff(950 + i, cliffPal)), ...many('rocks', 4, i => bakeRock(400 + i)), ...many('roads', 3, i => bakeRoadPatch(1000 + i, roadCol)));
   return jobs;
 }
 /* złoża (kamień, żelazo, węgiel, glina, torf): skała w barwie złoża + znaki rozpoznawcze (rudne żyły, błyski węgla, wilgotny połysk gliny, mech na torfie) */

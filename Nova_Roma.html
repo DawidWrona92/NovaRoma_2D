@@ -2538,6 +2538,15 @@ function bakeReeds(seed, F = 0.8) {
   return { c, ax: cx * F, ay: base * F, w: W * F, h: H * F, R };
 }
 
+/* odcinek drogi: miękka plama ubitej ziemi (tylko warstwa 'p' — plac); plamy na polach drogi i łączniki ku sąsiadom układają się w ciągłą ścieżkę */
+function bakeRoadPatch(seed, col = '#8a6e40') {
+  const W = 230, H = 140, sc = new Scene(W, H, W / 2, H / 2, { R: RES, ground: true }), r = rng(seed), pts = [];
+  for (let i = 0; i < 20; i++) { const a = i / 20 * TAU, c = Math.cos(a), s = Math.sin(a), k = 0.6 * Math.pow(Math.pow(Math.abs(c), 3) + Math.pow(Math.abs(s), 3), -1 / 3) * (0.92 + r() * 0.16); pts.push([c * k, s * k]); }
+  sc.flat([pts.map(([x, y]) => [x * 1.1, y * 1.1])], 'rgba(40,28,14,0.3)', 7);                       // ciemniejsze obrzeże
+  sc.decal('dirt', col, [pts], { feather: 8, alpha: 0.97 });
+  return { p: sc.pcv, ax: sc.ax, ay: sc.ay, w: sc.w, h: sc.h, R: sc.Rp, Rp: sc.Rp };
+}
+
 /* ---------- klify: blok skalny 1 pole, wysoki; pal: rock (szara skała z mchem), sand (piaskowiec z pasami), snow (skała z czapą śniegu) ---------- */
 function bakeCliff(seed, pal = 'rock', F = 0.8) {
   const W = 200, H = 200, cx = 100, base = 158, T = treeBase(W, H, cx, base, seed, { F, dx: 28, rx: 58, ry: 16, a: 0.5 }), { g, r } = T;
@@ -4566,7 +4575,8 @@ function natureJobs(climate) {
   else if (climate === 'eastern') jobs.push(...many('birches', 5, i => TREES.birch(150 + i)), ...many('pines', 4, i => TREES.pine(200 + i)), ...many('oaks', 3, i => TREES.oak(100 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'green')), ...many('tufts', 4, i => bakeTuft(520 + i, 'steppe')), ...many('reeds', 4, i => bakeReeds(900 + i)));
   else if (climate === 'snow') jobs.push(...many('pines', 6, i => TREES.pine(200 + i, 0.8, { snow: true })), ...many('winters', 3, i => TREES.winter(250 + i)), ...many('shrubs', 2, i => TREES.shrub(800 + i, 'snow')), ...many('tufts', 3, i => bakeTuft(540 + i, 'snow')));
   else jobs.push(...many('palms', 4, i => TREES.palm(300 + i)), ...many('shrubs', 4, i => TREES.shrub(800 + i, 'dry')), ...many('cacti', 3, i => TREES.cactus(850 + i)), ...many('tufts', 3, i => bakeTuft(600 + i, 'sand')), ...many('reeds', 3, i => bakeReeds(900 + i)));
-  jobs.push(...many('cliffs', 4, i => bakeCliff(950 + i, cliffPal)), ...many('rocks', 4, i => bakeRock(400 + i)));
+  const roadCol = { temperate: '#8a6e40', eastern: '#7a6242', snow: '#a29a8c', desert: '#c4a468' }[climate] || '#8a6e40';
+  jobs.push(...many('cliffs', 4, i => bakeCliff(950 + i, cliffPal)), ...many('rocks', 4, i => bakeRock(400 + i)), ...many('roads', 3, i => bakeRoadPatch(1000 + i, roadCol)));
   return jobs;
 }
 /* złoża (kamień, żelazo, węgiel, glina, torf): skała w barwie złoża + znaki rozpoznawcze (rudne żyły, błyski węgla, wilgotny połysk gliny, mech na torfie) */
@@ -4871,7 +4881,8 @@ const Terrain = (() => {
   const passable = t => t.h !== 2 && t.k !== 'cliff' && t.k !== 'quick' && (t.h === 1 || t.wk === 'ford' || t.wk === 'ice');
   const buildable = t => t.h === 1 && !BLOCK_K[t.k];
   const COST = { ford: 3, ice: 2, bog: 3, dune: 1.5, drift: 2 };
-  function cost(t) { if (!passable(t)) return Infinity; return (t.h === 0 ? COST[t.wk] : COST[t.k]) || 1; }
+  const ROAD_COST = 0.6, ROAD_SPEED = 1.6;                         // droga: tańsza dla A* i szybsza dla pieszych (po drodze ok. 1,6× szybciej)
+  function cost(t) { if (!passable(t)) return Infinity; if (t.road && t.h === 1) return ROAD_COST; return (t.h === 0 ? COST[t.wk] : COST[t.k]) || 1; }
 
   /* ---------- pomocnicze ---------- */
   function distField(N, tiles, isSrc, maxD = 99) {
@@ -5243,7 +5254,7 @@ const Terrain = (() => {
     return false;
   }
 
-  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, CX, CY, PLAZA_R, fbm, hash2, prng };
+  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, CX, CY, PLAZA_R, fbm, hash2, prng };
 })();
 
 /* ============================= MODUL: MAPGEN ============================== */
@@ -6694,6 +6705,117 @@ const Gfx = (() => {
   return { drawTile, ART, drawCitizen, drawSite, shade, setAnim, thash };
 })();
 
+/* ================================ MODUL: PATH ================================
+   Siatkowe A* po polach mapy (8 kierunków, bez ścinania rogów) — wyłącznie do ruchu wizualnego i kontroli dostępu; nie dotyka RNG gry.
+   Koszt wejścia na pole = Terrain.cost (ląd 1, wydma 1,5, zaspa 2, bagno 3, bród 3, lód 2) + 0,5·|Δe| za wzniesienie + narzut na drzewa;
+   woda, klify, skała i ruchome piaski są nieprzechodnie. opts.blocked(pole) — dodatkowe blokady (zajęte pola budynków); pole startu jest zawsze dozwolone.
+   Wynik: lista punktów [x, y] w polach (start, zakręty, cel) po wygładzeniu prostymi odcinkami, które nie są droższe niż trasa siatkowa. */
+const Path = (() => {
+  const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2]];
+  let GS = null, PREV = null, SEEN = null, CLOSED = null, gen = 0, size = 0;
+  const tileCost = (t, opts) => {
+    if (!Terrain.passable(t) || (opts && opts.blocked && opts.blocked(t))) return Infinity;
+    return Terrain.cost(t) + (t.trees ? 0.6 + 0.4 * t.trees : 0);
+  };
+  function scratch(n) {
+    if (size !== n) { size = n; GS = new Float64Array(n); PREV = new Int32Array(n); SEEN = new Int32Array(n); CLOSED = new Int32Array(n); gen = 0; }
+    gen++;
+  }
+  /* kopiec binarny par (klucz, indeks): klucze trzymane w kopcu (nie we wspólnej tablicy), więc zdublowane wpisy po zmianie kosztu nie psują porządku */
+  const HK = [], HI = [];
+  function push(f, i) { let c = HK.length; HK.push(f); HI.push(i); while (c > 0) { const p = (c - 1) >> 1; if (HK[p] <= HK[c]) break; const tk = HK[p], ti = HI[p]; HK[p] = HK[c]; HI[p] = HI[c]; HK[c] = tk; HI[c] = ti; c = p; } }
+  function pop() {
+    const top = HI[0], lk = HK.pop(), li = HI.pop(), n = HK.length;
+    if (n) { HK[0] = lk; HI[0] = li; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < n && HK[l] < HK[m]) m = l; if (r < n && HK[r] < HK[m]) m = r; if (m === c) break; const tk = HK[m], ti = HI[m]; HK[m] = HK[c]; HI[m] = HI[c]; HK[c] = tk; HI[c] = ti; c = m; } }
+    return top;
+  }
+  /* trasa siatkowa: tablica indeksów pól od startu do celu albo null; koszt łączny w .cost */
+  function grid(map, sx, sy, gx, gy, opts) {
+    const N = map.size, T = map.tiles, s = sy * N + sx, g = gy * N + gx;
+    if (sx < 0 || sy < 0 || gx < 0 || gy < 0 || sx >= N || sy >= N || gx >= N || gy >= N) return null;
+    if (tileCost(T[g], opts) === Infinity) return null;
+    scratch(N * N);
+    HK.length = 0; HI.length = 0; GS[s] = 0; SEEN[s] = gen; PREV[s] = -1;
+    if (map.hasRoad === undefined) map.hasRoad = map.tiles.some(t => t.road);                                   // bez dróg najtańszy krok kosztuje 1 (mocniejsza heurystyka); Roads.lay ustawia flagę
+    const hm = map.hasRoad ? Terrain.ROAD_COST : 1;
+    const hf = (x, y) => { const dx = Math.abs(x - gx), dy = Math.abs(y - gy); return (dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy)) * hm; };
+    push(hf(sx, sy), s);
+    while (HK.length) {
+      const i = pop(); if (CLOSED[i] === gen) continue; CLOSED[i] = gen;
+      if (i === g) { const out = []; for (let k = g; k !== -1; k = PREV[k]) out.push(k); out.reverse(); out.cost = GS[g]; return out; }
+      const x = i % N, y = (i / N) | 0, e0 = T[i].e || 0;
+      for (const [dx, dy, d] of DIRS) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+        const j = ny * N + nx; if (CLOSED[j] === gen) continue;
+        const c = tileCost(T[j], opts); if (c === Infinity) continue;
+        if (dx && dy && (tileCost(T[y * N + nx], opts) === Infinity || tileCost(T[ny * N + x], opts) === Infinity)) continue;   // bez ścinania rogów
+        const ng = GS[i] + d * (c + 0.5 * Math.abs((T[j].e || 0) - e0));
+        if (SEEN[j] !== gen || ng < GS[j]) { SEEN[j] = gen; GS[j] = ng; PREV[j] = i; push(ng + hf(nx, ny), j); }
+      }
+    }
+    return null;
+  }
+  /* czy odcinek (a→b) przechodzi tylko po przechodnich polach i nie kosztuje więcej niż limit; zwraca koszt lub Infinity */
+  function segCost(map, ax, ay, bx, by, opts, limit) {
+    const N = map.size, T = map.tiles, len = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(len / 0.2)), step = len / n;
+    let px = Math.floor(ax), py = Math.floor(ay), sum = 0;
+    for (let k = 1; k <= n; k++) {
+      const x = ax + (bx - ax) * k / n, y = ay + (by - ay) * k / n, tx = Math.floor(x), ty = Math.floor(y);
+      if (tx < 0 || ty < 0 || tx >= N || ty >= N) return Infinity;
+      const c = tileCost(T[ty * N + tx], opts); if (c === Infinity) return Infinity;
+      if (tx !== px && ty !== py && (tileCost(T[py * N + tx], opts) === Infinity || tileCost(T[ty * N + px], opts) === Infinity)) return Infinity;
+      sum += c * step; if (sum > limit) return Infinity; px = tx; py = ty;
+    }
+    return sum;
+  }
+  /* A* + wygładzenie; (sx, sy) i (gx, gy) w polach (ułamki dozwolone). Zwraca [[x, y], …] albo null */
+  function find(map, sx, sy, gx, gy, opts = {}) {
+    const N = map.size;
+    const ids = grid(map, Math.floor(sx), Math.floor(sy), Math.floor(gx), Math.floor(gy), opts);
+    if (!ids) return null;
+    const P = ids.map(i => [(i % N) + 0.5, ((i / N) | 0) + 0.5]);
+    P[0] = [sx, sy]; P[P.length - 1] = [gx, gy];
+    const C = [0]; for (let k = 1; k < P.length; k++) { const t = map.tiles[ids[k]]; C.push(C[k - 1] + Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]) * (tileCost(t, opts) + 0.5 * Math.abs((t.e || 0) - (map.tiles[ids[k - 1]].e || 0)))); }
+    const out = [P[0]]; let a = 0;
+    while (a < P.length - 1) {
+      let b = P.length - 1;
+      for (; b > a + 1; b--) { const lim = (C[b] - C[a]) * 1.04 + 0.05; if (segCost(map, P[a][0], P[a][1], P[b][0], P[b][1], opts, lim) <= lim) break; }
+      out.push(P[b]); a = b;
+    }
+    out.cost = ids.cost; return out;
+  }
+  /* najbliższe przechodnie pole (kółka o rosnącym promieniu); zwraca [x, y] (środek pola; punkt wyjściowy, gdy jego pole jest dobre) albo null */
+  function nearest(map, x, y, opts, maxR = 8) {
+    const N = map.size, T = map.tiles, cx = Math.floor(x), cy = Math.floor(y);
+    for (let r = 0; r <= maxR; r++) {
+      let best = null, bd = 1e9;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = cx + dx, ty = cy + dy; if (tx < 0 || ty < 0 || tx >= N || ty >= N) continue;
+        if (tileCost(T[ty * N + tx], opts) === Infinity) continue;
+        const d = Math.hypot(tx + 0.5 - x, ty + 0.5 - y); if (d < bd) { bd = d; best = [tx + 0.5, ty + 0.5]; }
+      }
+      if (best) return r === 0 ? [x, y] : best;
+    }
+    return null;
+  }
+  /* pole osiągalne z (sx, sy), najbliższe celu (gdy cel jest za wodą / klifem) — zalew siatkowy do promienia R */
+  function closest(map, sx, sy, gx, gy, opts, R = 40) {
+    const N = map.size, T = map.tiles, s = Math.floor(sy) * N + Math.floor(sx), seen = new Set([s]), q = [s]; let best = s, bd = Math.hypot(sx - gx, sy - gy);
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h], x = i % N, y = (i / N) | 0;
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N || Math.abs(nx - sx) > R || Math.abs(ny - sy) > R) continue;
+        const j = ny * N + nx; if (seen.has(j) || tileCost(T[j], opts) === Infinity) continue;
+        if (dx && dy && (tileCost(T[y * N + nx], opts) === Infinity || tileCost(T[ny * N + x], opts) === Infinity)) continue;
+        seen.add(j); q.push(j); const d = Math.hypot(nx + 0.5 - gx, ny + 0.5 - gy); if (d < bd) { bd = d; best = j; }
+      }
+    }
+    return [(best % N) + 0.5, ((best / N) | 0) + 0.5];
+  }
+  return { find, grid, nearest, closest, tileCost, segCost };
+})();
+
 /* ============================= MODUL: WORLD =============================== */
 const World = (() => {
   const state = {
@@ -6761,7 +6883,7 @@ const World = (() => {
   function occupy(x, y, w, h, uid) {
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(state.map, x + dx, y + dy);
-      if (t) t.occup = uid;
+      if (t) { t.occup = uid; if (t.road) t.road = 0; }                    // budynek lub plac zdejmuje drogę spod obrysu
     }
   }
   function release(x, y, w, h, uid) {
@@ -6875,7 +6997,7 @@ const World = (() => {
     const tiles = state.map.tiles;
     for (let tries = 0; tries < 30; tries++) {
       const t = tiles[RNG.int(0, tiles.length - 1)];
-      if (t.h === 1 && !t.occup && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }
+      if (t.h === 1 && !t.occup && !t.road && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }
     }
     return false;
   }
@@ -8124,13 +8246,44 @@ const Advisor = (() => {
   return { statusOf, codeOf, badgeOf, warnings, plan, render, sourcesOf, goodLabel };
 })();
 
+/* ================================ MODUL: ROADS ================================
+   Drogi: pole z t.road = 1 (zapisywane w kaflu, więc trafia do snapshot/restore). Piesi i nosiciele idą po drodze ok. 1,6× szybciej, a Path ją preferuje (koszt 0,6),
+   więc warto łączyć budynki, które często się „odwiedzają". Droga kosztuje deski za każde nowe pole; budowa budynku zdejmuje drogę spod obrysu; nie da się jej położyć
+   na wodzie, bagnie, wydmie, klifie, drzewach, złożach i zajętych polach. Trasę między dwoma wskazanymi polami wyznacza Path (istniejące drogi są tańsze, więc są wykorzystywane). */
+const Roads = (() => {
+  const COST = 1;                                                              // desek za nowe pole drogi
+  const free = t => !!t && t.h === 1 && !t.occup && !t.trees && !t.deposit && !(t.k && Terrain.BLOCK_K[t.k]);
+  const usable = t => !!t && (!!t.road || free(t));
+  const route = (x0, y0, x1, y1) => Path.grid(World.state().map, x0, y0, x1, y1, { blocked: t => !usable(t) });
+  /* podgląd trasy: { ids, fresh (pola do zbudowania), cost, ok, reason } */
+  function preview(x0, y0, x1, y1) {
+    const s = World.state(), map = s.map, a = MapGen.at(map, x0, y0), b = MapGen.at(map, x1, y1);
+    if (!usable(a) || !usable(b)) return { ok: false, reason: 'Droga musi zaczynać się i kończyć na wolnym lądzie', ids: [], fresh: [], cost: 0 };
+    const ids = route(x0, y0, x1, y1);
+    if (!ids) return { ok: false, reason: 'Nie da się poprowadzić drogi — przeszkoda', ids: [], fresh: [], cost: 0 };
+    const fresh = ids.filter(i => !map.tiles[i].road), cost = fresh.length * COST;
+    if (!fresh.length) return { ok: false, reason: 'Na tej trasie jest już droga', ids, fresh, cost };
+    if ((s.res.deski || 0) < cost) return { ok: false, reason: 'Brak desek: ' + fresh.length + ' pól drogi kosztuje ' + cost, ids, fresh, cost };
+    return { ok: true, ids, fresh, cost };
+  }
+  function lay(x0, y0, x1, y1) {
+    const p = preview(x0, y0, x1, y1); if (!p.ok) return p;
+    const s = World.state(); s.res.deski -= p.cost; for (const i of p.fresh) s.map.tiles[i].road = 1; s.map.hasRoad = true;
+    return { ok: true, n: p.fresh.length, cost: p.cost };
+  }
+  function remove(x, y) { const t = MapGen.at(World.state().map, x, y); if (!t || !t.road) return false; t.road = 0; return true; }
+  return { COST, free, usable, route, preview, lay, remove };
+})();
+
 /* ============================ MODUL: BUILDMODE ============================= */
 const BuildMode = (() => {
-  let selected = null; // id budynku w trybie budowy
+  let selected = null; // id budynku w trybie budowy albo narzędzie dróg: 'road' (wytycz drogę), 'roadx' (rozbierz)
   let hover = { x: -1, y: -1, fx: -1, fy: -1 }; // pole pod kursorem i dokładny punkt świata
+  let roadStart = null; // początek wytyczanej drogi (drugi klik kończy)
+  const isTool = () => selected === 'road' || selected === 'roadx';
 
-  function select(id) { selected = id; }
-  function clear() { selected = null; }
+  function select(id) { selected = id; roadStart = null; }
+  function clear() { selected = null; roadStart = null; }
   function isSelected() { return selected; }
   function setHover(wx, wy) { hover.fx = wx; hover.fy = wy; hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
   /* północny róg obrysu budowanego budynku tak, by obrys był wyśrodkowany pod kursorem */
@@ -8145,7 +8298,31 @@ const BuildMode = (() => {
     return s.buildings.find(b => b.uid === t.occup) || null;
   }
 
+  function toolClick() {
+    const map = World.state().map;
+    if (selected === 'roadx') { UI.flashHint(Roads.remove(hover.x, hover.y) ? 'Droga rozebrana' : 'Tu nie ma drogi'); return; }
+    if (!roadStart) {
+      if (!Roads.usable(MapGen.at(map, hover.x, hover.y))) { UI.flashHint('Tu nie można położyć drogi'); return; }
+      roadStart = { x: hover.x, y: hover.y }; UI.flashHint('Wskaż koniec drogi (ESC kończy)'); return;
+    }
+    const r = Roads.lay(roadStart.x, roadStart.y, hover.x, hover.y);
+    if (!r.ok) { UI.flashHint(r.reason); return; }
+    UI.flashHint('Droga: ' + r.n + ' pól za ' + r.cost + ' desek'); UI.refreshHUD();
+    roadStart = { x: hover.x, y: hover.y };                                  // kolejny odcinek od końca poprzedniego
+  }
+  function toolDraw(ctx) {
+    const s = World.state(), z = Camera.zoom, map = s.map, t = MapGen.at(map, hover.x, hover.y); if (!t) return;
+    if (selected === 'roadx') { if (t.road) Camera.fillPoly(ctx, Camera.footprint(hover.x, hover.y, 1, 1), 'rgba(220,90,90,0.4)', 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z)); return; }
+    const from = roadStart || { x: hover.x, y: hover.y }, pv = roadStart ? Roads.preview(from.x, from.y, hover.x, hover.y) : null;
+    const good = roadStart ? pv.ok : Roads.usable(t);
+    if (pv) for (const i of pv.ids) { const x = i % map.size, y = (i / map.size) | 0; Camera.fillPoly(ctx, Camera.footprint(x, y, 1, 1), map.tiles[i].road ? 'rgba(180,200,255,0.25)' : pv.ok ? 'rgba(120,220,120,0.35)' : 'rgba(220,90,90,0.3)', null); }
+    Camera.fillPoly(ctx, Camera.footprint(hover.x, hover.y, 1, 1), good ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)', good ? 'rgba(170,255,170,0.9)' : 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z));
+    if (roadStart) { Camera.fillPoly(ctx, Camera.footprint(roadStart.x, roadStart.y, 1, 1), 'rgba(255,230,140,0.3)', 'rgba(255,230,140,0.9)', Math.max(1.5, 2 * z)); }
+    if (pv && pv.fresh.length) { const p = Camera.worldToScreen(hover.x + 0.5, hover.y + 0.5); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = pv.ok ? '#e8f8d0' : '#ffb0a0'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3; const txt = pv.fresh.length + ' pól · ' + pv.cost + ' desek'; ctx.strokeText(txt, p.x, p.y - 30 * z); ctx.fillText(txt, p.x, p.y - 30 * z); ctx.textAlign = 'start'; }
+  }
+
   function click() {
+    if (isTool()) { toolClick(); return; }
     if (!selected) {
       // klik na plac budowy (poza trybem budowy) anuluje go — zwrot materiałów i złota
       const st = Build.siteAt(hover.x, hover.y);
@@ -8168,6 +8345,7 @@ const BuildMode = (() => {
 
   function draw(ctx) {
     const s = World.state(), z = Camera.zoom;
+    if (isTool()) { toolDraw(ctx); return; }
     if (!selected) { // podświetl obrys budynku / placu pod kursorem
       const b = buildingAtHover() || Build.siteAt(hover.x, hover.y);
       if (b) Camera.fillPoly(ctx, Camera.footprint(b.x, b.y, b.w, b.h), 'rgba(255,230,140,0.10)', 'rgba(255,230,140,0.8)', Math.max(1.5, 2 * z));
@@ -8392,12 +8570,16 @@ const UI = (() => {
       btn.onclick = () => { activeCat = cat; buildTabsUi(); buildItemsUi(); };
       buildTabs.appendChild(btn);
     }
+    const rb = document.createElement('button'); rb.textContent = 'Drogi'; if (activeCat === 'Drogi') rb.classList.add('active');
+    rb.onclick = () => { activeCat = 'Drogi'; buildTabsUi(); };
+    buildTabs.appendChild(rb);
     buildItemsUi();
   }
 
   function buildItemsUi() {
     const fid = World.state().factionId;
     buildItems.innerHTML = '';
+    if (activeCat === 'Drogi') { roadToolsUi(); syncHudHeight(); return; }
     for (const [id, def] of Object.entries(Data.BUILDINGS)) {
       if (id === 'keep') continue;
       if (def.cat !== activeCat) continue;
@@ -8435,6 +8617,23 @@ const UI = (() => {
       buildItems.appendChild(item);
     }
     syncHudHeight(); // wysokość paska zależy od zawijania nazw pozycji
+  }
+
+  /* narzędzia dróg: wytyczanie (dwa kliknięcia: początek i koniec, trasa po A*) i rozbiórka pojedynczych pól */
+  function roadToolsUi() {
+    const fid = World.state().factionId;
+    for (const [id, name, cost] of [['road', 'Droga', Roads.COST + ' deska / pole'], ['roadx', 'Rozbierz drogę', 'bez zwrotu']]) {
+      const item = document.createElement('div'); item.className = 'buildItem'; if (BuildMode.isSelected() === id) item.classList.add('selected');
+      const mini = document.createElement('canvas'); mini.width = 124; mini.height = 88; const m = mini.getContext('2d'); m.scale(2, 2);
+      const p = Data.FACTIONS[fid].palette; m.fillStyle = p.terrain === 'sand' ? '#d8c090' : p.terrain === 'tundra' ? '#6a7a4c' : '#5a8a3c'; m.fillRect(0, 0, 62, 44);
+      m.fillStyle = '#8a6e40'; for (let i = 0; i < 4; i++) { const cx = 14 + i * 11, cy = 30 - i * 5; m.beginPath(); m.moveTo(cx, cy - 6); m.lineTo(cx + 11, cy); m.lineTo(cx, cy + 6); m.lineTo(cx - 11, cy); m.closePath(); m.fill(); }
+      if (id === 'roadx') { m.strokeStyle = '#e05050'; m.lineWidth = 3; m.beginPath(); m.moveTo(20, 10); m.lineTo(44, 34); m.moveTo(44, 10); m.lineTo(20, 34); m.stroke(); }
+      item.appendChild(mini);
+      const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = name; item.appendChild(nm);
+      const co = document.createElement('div'); co.className = 'bcost'; co.textContent = cost; item.appendChild(co);
+      item.onclick = () => { BuildMode.select(id); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); item.classList.add('selected'); UI.flashHint(id === 'road' ? 'Wskaż początek drogi — po drodze ludzie chodzą szybciej' : 'Kliknij pole drogi, aby ją rozebrać'); };
+      buildItems.appendChild(item);
+    }
   }
 
   function showTooltip(id, def, c, anchor) {
@@ -8623,6 +8822,139 @@ const UI = (() => {
   return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor };
 })();
 
+/* ============================== MODUL: WALKERS ==============================
+   Widoczni piesi: obywatele, nosiciele i budowniczowie idą po ścieżkach Path — omijają wodę, klify, bagna i budynki, przechodzą brodami i po lodzie,
+   nosiciele wychodzą z drzwi producenta i kończą marsz przy drzwiach Składu / Dworu, budowniczowie noszą materiały z Dworu na plac i budują przy obrysie.
+   Logika gry (obywatele i nosiciele z losowaniami RNG w World.tick) zostaje nietknięta jako „cień symulacji": postać widoczna dąży do celu cienia,
+   a sama nie losuje niczego — przeplot RNG, ekonomia i testy się nie zmieniają. Stan żyje poza stanem gry (nie trafia do snapshot/restore). */
+const Walkers = (() => {
+  const citizens = new Map(), carriers = new Map(), builders = new Map();   // obiekt logiki → postać; „uid:i" → budowniczy
+  let ending = [], list = [], lastMap = null;                                // nosiciele, których cień już dotarł; postacie do narysowania
+  const OPTS = { blocked: t => t.occup != null };
+
+  const agent = (kind, x, y, speed, color, phase) => ({ kind, x, y, tx: x, ty: y, path: null, pi: 0, goal: null, speed, color, phase, carry: false, moving: false, done: false });
+  const tileAt = (map, p) => map.tiles[Math.min(map.size - 1, Math.max(0, Math.floor(p[1]))) * map.size + Math.min(map.size - 1, Math.max(0, Math.floor(p[0])))];
+  /* miejsce tuż przed drzwiami budynku (z katalogu sprite'ów: strona i punkt na ścianie względem środka obrysu) */
+  function doorOf(b) {
+    const s = World.state(), m = typeof SPRITE_META !== 'undefined' ? (SPRITE_META[s.factionId] || {})[b.id] : null, c = World.centerOf(b);
+    let side = 'S', dx = 0, dy = b.h / 2; if (m && m.in) { side = m.in[0]; dx = m.in[1]; dy = m.in[2]; }
+    const x = c.x + dx + (side === 'E' ? 0.7 : 0), y = c.y + dy + (side === 'E' ? 0 : 0.7);
+    return Path.nearest(s.map, x, y, OPTS, 4) || [x, y];
+  }
+  function plan(a, gx, gy, map, strict) {
+    a.goal = [gx, gy];
+    let p = Path.find(map, a.x, a.y, gx, gy, OPTS);
+    if (!p && !strict) { const c = Path.closest(map, a.x, a.y, gx, gy, OPTS); p = Path.find(map, a.x, a.y, c[0], c[1], OPTS); }   // cel nieosiągalny (za wodą, zamknięty zabudową) — idzie do najbliższego osiągalnego punktu
+    a.path = p; a.pi = 1; a.moving = !!(p && p.length > 1);
+    if (a.moving) { a.tx = p[1][0]; a.ty = p[1][1]; }
+  }
+  /* mnożnik prędkości na polu: droga ×1,6, wolniej po bagnie, brodzie i wydmach (1/√koszt) */
+  function speedAt(map, x, y) {
+    const t = tileAt(map, [x, y]); if (t.road) return Terrain.ROAD_SPEED;
+    const c = Terrain.cost(t); return 1 / Math.sqrt(Math.max(1, Number.isFinite(c) ? c : 1));
+  }
+  /* plac lub budynek stanął pod postacią — wychodzi prosto na najbliższe wolne pole, potem wraca do celu */
+  function evacCheck(a, map) {
+    if (a.evac || !OPTS.blocked(tileAt(map, [a.x, a.y]))) return;
+    const e = Path.nearest(map, a.x, a.y, OPTS, 6); if (e) { a.path = [[a.x, a.y], e]; a.pi = 1; a.tx = e[0]; a.ty = e[1]; a.evac = true; a.moving = true; }
+  }
+  /* krok wzdłuż ścieżki; wolniej po bagnie, brodzie i wydmach (1/√koszt); zwraca true, gdy cel osiągnięty */
+  function advance(a, dist, map) {
+    evacCheck(a, map);
+    if (!a.path || a.pi >= a.path.length) {
+      a.moving = false;
+      if (a.evac) { a.evac = false; if (a.goal) { plan(a, a.goal[0], a.goal[1], map, a.strict); return !a.moving; } }          // wyszła na wolne pole — wraca do celu
+      return true;
+    }
+    if (!a.evac && OPTS.blocked(tileAt(map, a.path[a.pi])) && a.goal) plan(a, a.goal[0], a.goal[1], map, a.strict);   // plac lub budynek stanął na trasie — nowy plan
+    let rem = dist * speedAt(map, a.x, a.y);
+    while (rem > 1e-6 && a.path && a.pi < a.path.length) {
+      const w = a.path[a.pi], dx = w[0] - a.x, dy = w[1] - a.y, d = Math.hypot(dx, dy);
+      if (d <= rem) { a.x = w[0]; a.y = w[1]; rem -= d; a.pi++; if (a.pi < a.path.length) { a.tx = a.path[a.pi][0]; a.ty = a.path[a.pi][1]; } }
+      else { a.x += dx / d * rem; a.y += dy / d * rem; a.tx = w[0]; a.ty = w[1]; rem = 0; }
+    }
+    a.moving = !!a.path && a.pi < a.path.length;
+    if (!a.moving && a.evac) { a.evac = false; if (a.goal) { plan(a, a.goal[0], a.goal[1], map, a.strict); return !a.moving; } }
+    return !a.moving;
+  }
+
+  function driveCitizen(a, c, dt, map) {
+    if (a.gx !== c.tx || a.gy !== c.ty) {                                     // cień wybrał nowy cel: przesuwamy go na najbliższe wolne, przechodnie pole
+      a.gx = c.tx; a.gy = c.ty; const g = Path.nearest(map, c.tx, c.ty, OPTS, 6) || [a.x, a.y]; plan(a, g[0], g[1], map);
+    }
+    advance(a, c.speed * dt, map);
+  }
+  function makeCitizen(c, map) {
+    const p = Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y], a = agent('citizen', p[0], p[1], c.speed, c.color, c.phase); a.gx = NaN; return a;
+  }
+  function makeCarrier(c, s, map) {
+    let from = null, bd = 1.3, to = null;
+    for (const b of s.buildings) { const k = World.centerOf(b), d = Math.hypot(k.x - c.x, k.y - c.y); if (d < bd) { bd = d; from = b; } if (Math.abs(k.x - c.tx) < 0.01 && Math.abs(k.y - c.ty) < 0.01) to = b; }
+    const a = agent('carrier', c.x, c.y, c.speed, c.color, c.phase); a.carry = true;
+    const st = from ? doorOf(from) : (Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y]); a.x = st[0]; a.y = st[1]; a.tx = a.x; a.ty = a.y;
+    const g = to ? doorOf(to) : (Path.nearest(map, c.tx, c.ty, OPTS, 6) || [a.x, a.y]);
+    a.strict = true;                                                           // bez trasy do drzwi celu nosiciel nie wychodzi (logika i tak dostarczyła towar)
+    if (from && from === to) a.done = true; else { plan(a, g[0], g[1], map, true); if (!a.path) a.done = true; }
+    return a;
+  }
+
+  /* budowniczowie: noszą materiały z Dworu na plac (etap 1: postęp < 50%), potem budują przy obrysie; bez przydziału lub po ukończeniu wracają do Dworu */
+  function workPoint(site, i, map) {
+    const c = World.centerOf(site), ang = i * 2.1 + site.uid, x = c.x + Math.cos(ang) * (site.w / 2 + 0.7), y = c.y + Math.sin(ang) * (site.h / 2 + 0.7);
+    return Path.nearest(map, x, y, OPTS, 4) || [x, y];
+  }
+  function updateBuilders(s, dt, map) {
+    const door = doorOf(s.keep), live = new Set(), color = Data.FACTIONS[s.factionId].palette.citizen, bySite = new Map(s.sites.map(st => [st.uid, st]));
+    for (const site of s.sites) for (let i = 0; i < site.assigned; i++) {
+      const key = site.uid + ':' + i; live.add(key);
+      if (!builders.has(key)) { const a = agent('builder', door[0], door[1], 1.4, color, (site.uid * 0.37 + i * 1.7) % 6.28); a.site = site.uid; a.i = i; a.mode = 'start'; builders.set(key, a); }
+    }
+    for (const [key, a] of builders) {
+      const site = bySite.get(a.site);
+      if (!live.has(key) || !site) {                                           // bez przydziału / plac ukończony lub anulowany → do Dworu i znika
+        if (a.mode !== 'home') { a.mode = 'home'; a.carry = false; plan(a, door[0], door[1], map); }
+        if (advance(a, a.speed * dt, map)) builders.delete(key);
+        continue;
+      }
+      evacCheck(a, map); if (a.evac) { advance(a, a.speed * dt, map); continue; }
+      const carrying = Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
+      if (carrying) {
+        if (a.mode === 'start' || a.mode === 'work' || a.mode === 'goWork') { a.mode = 'toSite'; a.carry = true; plan(a, wp[0], wp[1], map); }
+        if (advance(a, a.speed * dt, map)) {
+          if (a.mode === 'toSite') { a.mode = 'toKeep'; a.carry = false; plan(a, door[0], door[1], map); }
+          else { a.mode = 'toSite'; a.carry = true; plan(a, wp[0], wp[1], map); }
+        }
+      } else {
+        if (a.mode !== 'work' && a.mode !== 'goWork') { a.mode = 'goWork'; a.carry = false; plan(a, wp[0], wp[1], map); }
+        if (a.mode === 'goWork' && advance(a, a.speed * dt, map)) a.mode = 'work';
+      }
+    }
+  }
+
+  /* dt: czas gry w minutach (jak World.tick); wywoływane po każdym kroku logiki, także z dt = 0 */
+  function update(dt) {
+    const s = World.state(), map = s.map; if (!map || !s.keep) return;
+    if (map !== lastMap) { citizens.clear(); carriers.clear(); builders.clear(); ending = []; lastMap = map; }
+    const seenC = new Set(), seenK = new Set();
+    for (const c of s.citizens) { seenC.add(c); let a = citizens.get(c); if (!a) citizens.set(c, a = makeCitizen(c, map)); driveCitizen(a, c, dt, map); }
+    for (const c of s.carriers) {
+      seenK.add(c); let a = carriers.get(c); if (!a) carriers.set(c, a = makeCarrier(c, s, map));
+      if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
+    }
+    for (const [c] of citizens) if (!seenC.has(c)) citizens.delete(c);
+    for (const [c, a] of carriers) if (!seenK.has(c)) { carriers.delete(c); if (!a.done) ending.push(a); }
+    for (const a of ending) if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
+    ending = ending.filter(a => !a.done);
+    updateBuilders(s, dt, map);
+    list = [];
+    for (const a of citizens.values()) list.push(a);
+    for (const a of carriers.values()) if (!a.done) list.push(a);
+    for (const a of ending) list.push(a);
+    for (const a of builders.values()) list.push(a);
+  }
+  return { update, figures: () => list, doorOf, workPoint, speedAt };
+})();
+
 /* ================================ MODUL: GAME ============================== */
 const Game = (() => {
   const ctx = canvas.getContext('2d');
@@ -8665,6 +8997,7 @@ const Game = (() => {
     const gameDt = realDt / 4 * s.speed;
     if (s.factionId) {
       World.tick(gameDt);
+      Walkers.update(gameDt);
       const hudTick = Math.floor(s.time * 4); // odświeżenie HUD co 1/4 minuty gry
       if (hudTick !== lastHudTick) { lastHudTick = hudTick; UI.refreshHUD(); }
     }
@@ -8742,6 +9075,12 @@ const Game = (() => {
     for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
       const ti = y * N + x, t = map.tiles[ti];
       if (t.deposit && S.deposits && S.deposits[t.deposit]) emit(S.deposits[t.deposit], x + 0.5, y + 0.55, 1);
+      if (t.road && S.roads && S.roads.length) {                                       // droga: plama na polu i łączniki ku sąsiadom z drogą (E, S) — razem ciągła ścieżka
+        const R = S.roads, n = R.length;
+        emit(R[(x * 7 + y * 13) % n], x + 0.5, y + 0.5, 1);
+        if (x + 1 < N && map.tiles[ti + 1].road) emit(R[(x * 3 + y * 5 + 1) % n], x + 1, y + 0.5, 1);
+        if (y + 1 < N && map.tiles[ti + N].road) emit(R[(x * 5 + y * 3 + 2) % n], x + 0.5, y + 1, 1);
+      }
       for (let i = 0; i < t.trees; i++) { const sp = treePick(climate, x, y, i); if (sp) { const o = treeSpot(x, y, i, t.trees); emit(sp, x + o.fx, y + o.fy, o.k); } }
       if (!t.occup) { const arr = dec.byTile.get(ti); if (arr) for (const it of arr) emit(S[it.set][it.idx], it.x, it.y, it.k, !!LOW_DECOR[it.set]); }
     }
@@ -8753,7 +9092,7 @@ const Game = (() => {
   /* sygnatura zawartości prostokąta pól: zmienia się po wycięciu drzewa, postawieniu lub zburzeniu budynku (nowy uid), zniknięciu złoża */
   function sigIn(tx0, ty0, tx1, ty1) {
     const map = World.state().map, N = map.size, T = map.tiles; let h = 17;
-    for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) { const t = T[y * N + x]; h = (Math.imul(h, 31) + t.trees * 7 + (t.occup | 0) * 13 + (t.deposit ? 5 : 0)) | 0; }
+    for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) { const t = T[y * N + x]; h = (Math.imul(h, 31) + t.trees * 7 + (t.occup | 0) * 13 + (t.deposit ? 5 : 0) + (t.road ? 3 : 0)) | 0; }
     return h;
   }
   /* wypiek podłoża bieżącej mapy (po wypieku sprite'ów i World.init); onProgress(0..1) */
@@ -8834,27 +9173,17 @@ const Game = (() => {
       push({ d: c.x + c.y, kind: 's', st, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
         bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 60 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
         rect: { x0: st.x, y0: st.y, x1: st.x + st.w, y1: st.y + st.h, big: true } });
-      for (let i = 0; i < st.assigned; i++) { // budowniczowie krążą wokół obrysu
-        const ang = i * 2.1 + st.uid, wx = c.x + Math.cos(ang) * (st.w / 2 + 0.55), wy = c.y + Math.sin(ang) * (st.h / 2 + 0.55), q = Camera.worldToScreen(wx, wy);
-        const fig = { phase: t * 0.6 + i, color: f.palette.citizen };
-        if (sprOn) push({ d: wx + wy, kind: 'f', fig, cast: cast[0], view: 'front', mirror: i % 2 === 1, sx: q.x, sy: q.y, k: K, x: wx, y: wy, bb: [q.x - 40 * K, q.y - 100 * K, q.x + 40 * K, q.y + 10 * K] });
-        else push({ d: wx + wy, kind: 'c', fig, sx: q.x, sy: q.y, x: wx, y: wy, bb: [q.x - 30 * z, q.y - 40 * z, q.x + 30 * z, q.y + 10 * z] });
-      }
     }
 
-    // 3. mieszkańcy i nosiciele (wewnątrz obrysu budynku — niewidoczni: „weszli do środka")
-    const addFigure = (c, carry) => {
-      const tile = MapGen.at(s.map, Math.floor(c.x), Math.floor(c.y));
-      if (tile && tile.occup) return;
-      const p = Camera.worldToScreen(c.x, c.y);
+    // 3. mieszkańcy, nosiciele i budowniczowie — postacie z modułu Walkers (idą po ścieżkach, omijają wodę, klify i budynki; cień symulacji w logice gry zostaje nietknięty)
+    for (const a of Walkers.figures()) {
+      const p = Camera.worldToScreen(a.x, a.y);
       if (sprOn) {
-        const l = lookOf(c);
-        push({ d: c.x + c.y, kind: 'f', fig: c, cast: cast[c.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y,
+        const l = lookOf(a);
+        push({ d: a.x + a.y, kind: 'f', fig: a, cast: cast[a.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry: a.carry, sx: p.x, sy: p.y, k: K, x: a.x, y: a.y,
           bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
-      } else push({ d: c.x + c.y, kind: 'c', fig: c, sx: p.x, sy: p.y, x: c.x, y: c.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
-    };
-    for (const c of s.citizens) addFigure(c, false);
-    for (const c of s.carriers) addFigure(c, true);
+      } else push({ d: a.x + a.y, kind: 'c', fig: a, sx: p.x, sy: p.y, x: a.x, y: a.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
+    }
 
     // 4. warstwy podłoża sprite'ów: place / decale i cienie obiektów statycznych leżą już w chunkach (nakładka); tu cienie postaci, a bez chunków — wszystko
     if (sprOn) {
@@ -8926,7 +9255,7 @@ const Game = (() => {
   }
 
   function drawFigure(it, t) {
-    const frame = Math.floor(t * 3.6 + it.fig.phase) % 2, sp = it.cast[it.view][frame], bob = Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom;
+    const mv = it.fig.moving !== false, frame = mv ? Math.floor(t * 3.6 + it.fig.phase) % 2 : 0, sp = it.cast[it.view][frame], bob = mv ? Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom : 0;
     ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
     Sprites.draw(ctx, sp, 'c', 0, 0, it.k, dpr); ctx.restore();
     if (it.carry) { // nosiciel: skrzynka z towarem na głowie
@@ -8981,6 +9310,7 @@ const Game = (() => {
     }
     const s3 = World.state();
     Gfx.drawTile(ctx, tile, scr.x, scr.y, Camera.zoom, Data.CLIMATES[(s3.map.meta || {}).climate || Data.FACTIONS[s3.factionId].climate].classic, coast, objects);
+    if (tile.road) Camera.fillPoly(ctx, Camera.footprint(x, y, 1, 1), 'rgba(138,110,64,0.9)', null);                  // tryb klasyczny: droga jako brązowy romb (po kaflu)
   }
 
   /* --- input --- */
