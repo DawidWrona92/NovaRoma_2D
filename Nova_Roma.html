@@ -2430,7 +2430,16 @@ const CAST = {
   frankHunter: { tunic: '#6a7a3a', trim: '#c8b060', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#4a3020', head: 'hood', headCol: '#4a5a2a', props: ['bow', 'quiver'] },
   sarHunter: { tunic: '#b8946a', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#d8c8a0', turbanStripe: '#8a3a22', dress: false, props: ['bow', 'quiver'] },
   vikHunter: { tunic: '#5a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#6a5a4a', fur: '#d8d0c0', props: ['bow', 'quiver'] },
-  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] }
+  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] },
+  /* robotnicy (Faza 9B) — dopisani na końcu; bez rekwizytów w ręku: narzędzia i ładunki dorysowuje gra zależnie od czynności (Walkers → drawFigure); 2 warianty koloru na nację */
+  frankWorker: { tunic: '#8a7a46', trim: '#d8c070', belt: '#5a3a1c', legs: '#6a5238', boots: '#4a3422', hair: '#5a3a1c', head: 'hood', headCol: '#8a5a3a', props: [] },
+  frankWorkerB: { tunic: '#9a5a3a', trim: '#e0d090', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#3a2a18', head: 'cap', headCol: '#6a5a3a', props: [] },
+  sarWorker: { tunic: '#d8c8a0', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#e8dcc0', turbanStripe: '#2f6ea8', props: [] },
+  sarWorkerB: { tunic: '#b8946a', trim: '#b8352b', belt: '#5a3a1c', legs: '#d8d0b8', boots: '#7a4a22', hair: '#2a1c10', head: 'turban', headCol: '#c8a878', turbanStripe: '#8a3a22', props: [] },
+  vikWorker: { tunic: '#6a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#7a6a5a', fur: '#d8d0c0', props: [] },
+  vikWorkerB: { tunic: '#4a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#a87a3a', head: 'cap', headCol: '#5a4a3a', props: [] },
+  slavWorker: { tunic: '#e6dcc0', trim: '#b8352b', belt: '#6a4a2a', legs: '#7a6044', boots: '#8a6a40', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#7a5a3a', props: [] },
+  slavWorkerB: { tunic: '#c8a868', trim: '#3a6aa0', belt: '#6a4a2a', legs: '#6a5238', boots: '#7a5a38', hair: '#a8702e', head: 'kerchief', headCol: '#b04a32', props: [] }
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 
@@ -5237,6 +5246,34 @@ const Data = (() => {
     minShareEach: 0.5
   };
 
+  /* Role robotników (Faza 9B): czynność, miejsce pracy i narzędzie widoczne na ekranie. spot: 'door' — przy drzwiach, 'field' — pola wokół (r = zakres odległości od środka obrysu),
+     'tree' — najbliższe drzewo, 'shore' — brzeg wody, 'service' — obsługa (stoi i krąży przy drzwiach). Ładunek wejścia i wyjścia wynika z towarów budynku (LOADS). */
+  const ROLES = {
+    woodcutter: { act: 'chop', tool: 'axe', spot: 'tree' }, forester: { act: 'plant', tool: 'sapling', spot: 'field', r: [3, 6] }, sawmill: { act: 'saw', tool: 'saw', spot: 'door' },
+    dairy: { act: 'milk', tool: 'bucket', spot: 'field', r: [2, 4] }, orchard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] }, watercarrier: { act: 'draw', tool: 'bucket', spot: 'door' },
+    hunter: { act: 'shoot', tool: 'bow', spot: 'field', r: [4, 8] }, market: { act: 'stall', spot: 'service' }, temple: { act: 'pray', spot: 'service' }, barracks: { act: 'drill', tool: 'spear', spot: 'service' },
+    quarry: { act: 'dig', tool: 'pick', spot: 'door' }, ironmine: { act: 'dig', tool: 'pick', spot: 'door' }, coalmine: { act: 'dig', tool: 'pick', spot: 'door' },
+    claypit: { act: 'dig', tool: 'pick', spot: 'door' }, peatmine: { act: 'dig', tool: 'pick', spot: 'door' },
+    farm: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] }, field: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] }, cotton: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] },
+    mill: { act: 'grind', tool: 'sack', spot: 'door' }, bakery: { act: 'bake', tool: 'spoon', spot: 'door' }, kasha: { act: 'stir', tool: 'spoon', spot: 'door' },
+    smelter: { act: 'forge', tool: 'hammer', spot: 'door' }, toolforge: { act: 'forge', tool: 'hammer', spot: 'door' }, armory: { act: 'forge', tool: 'hammer', spot: 'door' },
+    vineyard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] }, winery: { act: 'press', tool: 'bucket', spot: 'door' }, dategrove: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] },
+    incensewood: { act: 'tap', tool: 'knife', spot: 'field', r: [2, 5] }, incense: { act: 'stir', tool: 'spoon', spot: 'door' }, weaver: { act: 'weave', tool: 'spoon', spot: 'door' },
+    pottery: { act: 'pot', tool: 'spoon', spot: 'door' }, qanat: { act: 'draw', tool: 'bucket', spot: 'door' }, bathhouse: { act: 'sweep', spot: 'service' }, caravanserai: { act: 'stall', spot: 'service' },
+    guardpost: { act: 'guard', tool: 'spear', spot: 'service' }, fisherhut: { act: 'fish', tool: 'net', spot: 'shore' }, charburner: { act: 'stack', tool: 'axe', spot: 'door' },
+    mead: { act: 'brew', tool: 'spoon', spot: 'door' }, gatherer: { act: 'pick', tool: 'basket', spot: 'field', r: [3, 7] }, bartnik: { act: 'smoke', tool: 'knife', spot: 'field', r: [3, 7] },
+    waxery: { act: 'wax', tool: 'spoon', spot: 'door' }, trapper: { act: 'trap', tool: 'knife', spot: 'field', r: [3, 7] }, tannery: { act: 'tan', tool: 'knife', spot: 'door' }, sauna: { act: 'sweep', spot: 'service' }
+  };
+  /* Ładunek niesiony przez robotnika: kształt do narysowania i kolor (towar → [kształt, kolor]) */
+  const LOADS = {
+    'pień': ['log', '#8a6238'], deski: ['plank', '#d8b878'], 'kamień': ['rock', '#a8a498'], ruda: ['rock', '#8a5a3a'], 'węgiel': ['rock', '#2a2a2a'], glina: ['rock', '#b0623a'],
+    'zboże': ['sack', '#d8c070'], 'mąka': ['sack', '#efe6d0'], chleb: ['basket', '#c8924a'], woda: ['bucket', '#4a86b8'], ser: ['crate', '#e8d070'], owoce: ['basket', '#b0402a'],
+    daktyle: ['basket', '#6a3a1a'], winogrona: ['basket', '#6a3a6a'], wino: ['jar', '#7a2a3a'], ryby: ['fish', '#b8c8d0'], 'mięso': ['bundle', '#b04a3a'], 'żywica': ['jar', '#c89a30'],
+    'kadzidło': ['jar', '#e0c070'], 'bawełna': ['sack', '#f4f4ee'], tkanina: ['bundle', '#d8c8b0'], ceramika: ['jar', '#b4693a'], sztabki: ['bar', '#a8b0b8'], 'narzędzia': ['crate', '#7a8a98'],
+    'broń': ['crate', '#8a8a98'], 'miód pitny': ['jar', '#d8a830'], plaster: ['jar', '#d8a830'], 'miód': ['jar', '#d8a830'], wosk: ['bundle', '#e8d890'], 'futro surowe': ['bundle', '#6a4a30'],
+    'futro wyprawione': ['bundle', '#8a6a4a'], sadzonki: ['bundle', '#4f9030']
+  };
+
   const BUILDINGS = {
     keep:     { name:'Dwór', cat:'', art:'keep', worker:0, costs:null, note:'Serce osady (komora 20 szt.)' },
     /* --- wspólne --- */
@@ -5299,7 +5336,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { builder: 18, carrier: 18 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (18 ≈ 1,5 pola/s przy 12 s/min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18 }, cycle: { load: 6, handle: 0.1, ref: 6, spell: 1.2 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek (szt.), czas obsługi przy składzie (min), odległość odniesienia (koszt pola) i długość jednego „odcinka pracy" na ekranie (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -5355,7 +5392,7 @@ const Data = (() => {
     return e ? e.in : null;
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, ROLES, LOADS, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -7402,7 +7439,7 @@ const World = (() => {
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false },
     animals: [], fauna: null,                                  // zwierzęta (Faza 8): lista JSON-owa i stan modułu Fauna (włączane przez Fauna.enable)
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
@@ -9306,6 +9343,7 @@ const UI = (() => {
     updC();
     // sprawność logistyczna: w grze domyślnie włączona (?logistics=0 wyłącza); scenariusze specyfikacji liczą się bez niej
     s.settings.logistics = new URLSearchParams(location.search).get('logistics') !== '0';
+    s.settings.workers = new URLSearchParams(location.search).get('workers') !== '0';        // role i czynności robotników (Faza 9B-1); ?workers=0 — dawne cienie: nosiciele i obywatele
     const btnL = document.getElementById('btnLogi'), updL = () => { btnL.textContent = '🚚 Logistyka: ' + (s.settings.logistics ? 'wł.' : 'wył.'); };
     btnL.onclick = () => { s.settings.logistics = !s.settings.logistics; updL(); UI.flashHint(s.settings.logistics ? 'Logistyka włączona: odległość do Składu / Dworu zmniejsza plon (drogi pomagają)' : 'Logistyka wyłączona'); };
     updL();
@@ -10002,6 +10040,7 @@ const Fauna = (() => {
    a sama nie losuje niczego — przeplot RNG, ekonomia i testy się nie zmieniają. Stan żyje poza stanem gry (nie trafia do snapshot/restore). */
 const Walkers = (() => {
   const citizens = new Map(), carriers = new Map(), builders = new Map();   // obiekt logiki → postać; „uid:i" → budowniczy
+  let waiting = [];                                                          // budowniczowie bez placu do budowy (tryb robotników): stoją przy Dworze
   let ending = [], list = [], lastMap = null;                                // nosiciele, których cień już dotarł; postacie do narysowania
   const OPTS = { blocked: t => t.occup != null };
 
@@ -10076,21 +10115,37 @@ const Walkers = (() => {
     const c = World.centerOf(site), ang = i * 2.1 + site.uid, x = c.x + Math.cos(ang) * (site.w / 2 + 0.7), y = c.y + Math.sin(ang) * (site.h / 2 + 0.7);
     return Path.nearest(map, x, y, OPTS, 4) || [x, y];
   }
+  const WAIT = [[-1.3, 1.0], [0, 1.5], [1.3, 1.0], [-2.1, 1.9], [2.1, 1.9]];                 // miejsca oczekiwania budowniczych względem drzwi Dworu
+  function waitPoint(door, i, map) { const o = WAIT[i % WAIT.length]; return Path.nearest(map, door[0] + o[0], door[1] + o[1], OPTS, 4) || door; }
   function updateBuilders(s, dt, map) {
-    const door = doorOf(s.keep), live = new Set(), color = Data.FACTIONS[s.factionId].palette.citizen, bySite = new Map(s.sites.map(st => [st.uid, st]));
+    const door = doorOf(s.keep), live = new Set(), color = Data.FACTIONS[s.factionId].palette.citizen, bySite = new Map(s.sites.map(st => [st.uid, st])), WK = !!s.settings.workers;
     for (const site of s.sites) for (let i = 0; i < site.assigned; i++) {
       const key = site.uid + ':' + i; live.add(key);
-      if (!builders.has(key)) { const a = agent('builder', door[0], door[1], Data.RULES.walk.builder, color, (site.uid * 0.37 + i * 1.7) % 6.28); a.site = site.uid; a.i = i; a.mode = 'start'; builders.set(key, a); }
+      if (!builders.has(key)) {
+        const w = waiting.length ? waiting.pop() : null, a = agent('builder', w ? w.x : door[0], w ? w.y : door[1], Data.RULES.walk.builder, color, (site.uid * 0.37 + i * 1.7) % 6.28);
+        a.site = site.uid; a.i = i; a.mode = 'start'; builders.set(key, a);
+      }
     }
+    // gang bez placu do budowy stoi przy Dworze (nie znika): tylu, ilu czynnych budowniczych nie ma przydziału
+    if (WK) {
+      const need = Math.max(0, (s.buildersActive || 0) - live.size);
+      waiting = waiting.slice(0, need);
+      while (waiting.length < need) { const a = agent('builder', door[0], door[1], Data.RULES.walk.builder, color, waiting.length * 1.9 + 0.5); a.mode = 'wait'; a.v = 1; a.tool = 'hammer'; waiting.push(a); }
+      waiting.forEach((a, i) => { a.v = 1; a.tool = 'hammer'; a.act = null; a.load = null; const wp = waitPoint(door, i, map); if (!a.goal || Math.hypot(a.goal[0] - wp[0], a.goal[1] - wp[1]) > 0.01) plan(a, wp[0], wp[1], map); advance(a, a.speed * dt, map); if (!a.moving) { a.tx = door[0]; a.ty = door[1] + 1; } });
+    } else waiting = [];
     for (const [key, a] of builders) {
       const site = bySite.get(a.site);
       if (!live.has(key) || !site) {                                           // bez przydziału / plac ukończony lub anulowany → do Dworu i znika
-        if (a.mode !== 'home') { a.mode = 'home'; a.carry = false; plan(a, door[0], door[1], map); }
-        if (advance(a, a.speed * dt, map)) builders.delete(key);
+        if (a.mode !== 'home') { a.mode = 'home'; a.carry = false; a.act = null; a.load = null; plan(a, door[0], door[1], map); }
+        if (advance(a, a.speed * dt, map)) { builders.delete(key); if (WK && waiting.length < (s.buildersActive || 0) - live.size) { a.mode = 'wait'; a.goal = null; waiting.push(a); } }
         continue;
       }
+      if (a.mode === 'home') a.mode = 'start';                                  // przydział wrócił, zanim doszedł do Dworu
       evacCheck(a, map); if (a.evac) { advance(a, a.speed * dt, map); continue; }
       const carrying = !(site.levelLeft > 0) && Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
+      a.v = 1; a.tool = site.levelLeft > 0 ? 'pick' : 'hammer';
+      { const g = Object.keys(site.need).find(k => (site.got[k] || 0) < site.need[k]) || Object.keys(site.need)[0]; a.load = a.carry && g ? Data.LOADS[g] || null : null; }
+      a.act = (a.mode === 'work' && !a.moving) ? (site.levelLeft > 0 ? 'dig' : 'hammer') : null;
       if (carrying) {
         if (a.mode === 'start' || a.mode === 'work' || a.mode === 'goWork') { a.mode = 'toSite'; a.carry = true; plan(a, wp[0], wp[1], map); }
         if (advance(a, a.speed * dt, map)) {
@@ -10107,10 +10162,10 @@ const Walkers = (() => {
   /* dt: czas gry w minutach (jak World.tick); wywoływane po każdym kroku logiki, także z dt = 0 */
   function update(dt) {
     const s = World.state(), map = s.map; if (!map || !s.keep) return;
-    if (map !== lastMap) { citizens.clear(); carriers.clear(); builders.clear(); ending = []; lastMap = map; }
-    const seenC = new Set(), seenK = new Set();
+    if (map !== lastMap) { citizens.clear(); carriers.clear(); builders.clear(); waiting = []; ending = []; lastMap = map; }
+    const seenC = new Set(), seenK = new Set(), WK = !!s.settings.workers;           // tryb robotników: pracownicy budynków chodzą sami (Workers), nosiciele-cienie znikają, obywateli widać tylko tylu, ilu jest wolnych
     for (const c of s.citizens) { seenC.add(c); let a = citizens.get(c); if (!a) citizens.set(c, a = makeCitizen(c, map)); driveCitizen(a, c, dt, map); }
-    for (const c of s.carriers) {
+    if (!WK) for (const c of s.carriers) {
       seenK.add(c); let a = carriers.get(c); if (!a) carriers.set(c, a = makeCarrier(c, s, map));
       if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
     }
@@ -10119,13 +10174,159 @@ const Walkers = (() => {
     for (const a of ending) if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
     ending = ending.filter(a => !a.done);
     updateBuilders(s, dt, map);
+    if (WK) Workers.update(dt); else Workers.reset();
     list = [];
-    for (const a of citizens.values()) list.push(a);
+    let freeLeft = WK ? Math.max(0, Math.floor(s.pop) - s.workersStaffed - (s.crewAway || 0) - (s.buildersActive || 0)) : Infinity;
+    for (const a of citizens.values()) { if (freeLeft <= 0) break; freeLeft--; a.v = list.length & 1; list.push(a); }
     for (const a of carriers.values()) if (!a.done) list.push(a);
     for (const a of ending) list.push(a);
     for (const a of builders.values()) list.push(a);
+    for (const a of waiting) list.push(a);
+    if (WK) for (const a of Workers.figures()) list.push(a);
   }
-  return { update, figures: () => list, doorOf, workPoint, speedAt };
+  return { update, figures: () => list, doorOf, workPoint, speedAt, kit: { agent, plan, advance, evacCheck, tileAt, OPTS } };
+})();
+
+/* ============================== MODUL: WORKERS ==============================
+   Role i czynności (Faza 9B-1): każdy obsadzony budynek ma swojego robotnika, który widocznie wykonuje pętlę pracy z Data.ROLES:
+   [weź wejście ze Składu / Dworu] → idź na miejsce pracy → pracuj (animacja narzędzia, kilka odcinków w różnych miejscach) → zanieś wyjście do Składu / Dworu → ...
+   Postoje (brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, złoże wyczerpane) widać jako stanie przy drzwiach. Logika gry NIE zależy od robotników (jak w Walkers: cień
+   symulacji) — stan żyje poza stanem gry, nie losuje (miejsca pracy wybiera funkcja skrótu z uid budynku) i nie wywołuje globalnego RNG. Droga skraca marsz (Walkers.advance).
+   Czas jednego odcinka pracy ≈ Data.RULES.cycle.load / tempo wyjścia (ładunek 6 szt.) — ten sam cykl wchodzi w sprawność transportu przy settings.physical (Logistics). */
+const Workers = (() => {
+  const figs = new Map();                                  // uid budynku → robotnik { a, steps, si, rem, mode, b }
+  let list = [], lastMap = null, claimedNow = new Set();                       // claimedNow: drzewa „obrane" w tej klatce (czysto wizualne, poza stanem gry)
+  const hash = (n, i) => { let x = (Math.imul(n + 1, 2654435761) ^ Math.imul(i + 7, 40503)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; x ^= x >>> 13; return (x >>> 0) / 4294967296; };
+  const tIdx = (map, x, y) => Math.min(map.size - 1, Math.max(0, Math.floor(y))) * map.size + Math.min(map.size - 1, Math.max(0, Math.floor(x)));
+  const standable = t => !!t && t.h === 1 && t.occup == null && Terrain.passable(t) && !t.pad;
+  const WATER_NEAR = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const LIMITED = g => g in Economy.LIMIT;
+
+  /* miejsca pracy wokół budynku (deterministyczne): lista punktów [x, y, fx, fy] — pozycja i punkt, w który patrzy robotnik */
+  function spotsOf(s, b, role, door, claimed) {
+    const map = s.map, N = map.size, c = World.centerOf(b), half = Math.max(b.w, b.h) / 2, out = [];
+    const face = [c.x, c.y];
+    if (role.spot === 'door') return [[door[0], door[1], face[0], face[1]]];
+    if (role.spot === 'tree') {                                                 // najbliższe drzewo (przy remisie — niższy indeks), poza już obieranymi
+      let best = -1, bd = Infinity;
+      const R = 22, x0 = Math.max(0, Math.floor(door[0] - R)), x1 = Math.min(N - 1, Math.floor(door[0] + R)), y0 = Math.max(0, Math.floor(door[1] - R)), y1 = Math.min(N - 1, Math.floor(door[1] + R));
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * N + x, t = map.tiles[i]; if (t.trees > 0 && t.h === 1 && t.occup == null && !claimed.has(i)) { const d = Math.hypot(x + 0.5 - door[0], y + 0.5 - door[1]); if (d < bd) { bd = d; best = i; } } }
+      if (best >= 0) { claimed.add(best); const x = best % N, y = (best / N) | 0; return [[x + 0.5, y + 0.5, x + 0.5, y + 0.5, best]]; }
+      return [[door[0], door[1], face[0], face[1]]];
+    }
+    if (role.spot === 'shore') {                                                // pole lądu przy wodzie najbliżej drzwi
+      let best = null, bd = Infinity;
+      const R = 16, x0 = Math.max(1, Math.floor(door[0] - R)), x1 = Math.min(N - 2, Math.floor(door[0] + R)), y0 = Math.max(1, Math.floor(door[1] - R)), y1 = Math.min(N - 2, Math.floor(door[1] + R));
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        const t = map.tiles[y * N + x]; if (!standable(t)) continue;
+        const wet = WATER_NEAR.find(([dx, dy]) => { const u = map.tiles[(y + dy) * N + x + dx]; return u.h === 0 && u.wk !== 'ford'; }); if (!wet) continue;
+        const d = Math.hypot(x + 0.5 - door[0], y + 0.5 - door[1]); if (d < bd) { bd = d; best = [x + 0.5, y + 0.5, x + 0.5 + wet[0], y + 0.5 + wet[1]]; }
+      }
+      return [best || [door[0], door[1], face[0], face[1]]];
+    }
+    const [r0, r1] = role.spot === 'service' ? [1.2, 2.4] : role.r || [2, 4], lo = half + r0, hi = half + r1, ph = hash(b.uid, 1) * Math.PI * 2, cand = [];
+    const x0 = Math.max(0, Math.floor(c.x - hi - 1)), x1 = Math.min(N - 1, Math.ceil(c.x + hi + 1)), y0 = Math.max(0, Math.floor(c.y - hi - 1)), y1 = Math.min(N - 1, Math.ceil(c.y + hi + 1));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const d = Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y); if (d < lo || d > hi) continue;
+      const t = map.tiles[y * N + x]; if (!standable(t)) continue;
+      let a = Math.atan2(y + 0.5 - c.y, x + 0.5 - c.x) - ph; a = (a % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      cand.push([a, x + 0.5, y + 0.5]);
+    }
+    cand.sort((p, q) => p[0] - q[0] || p[1] - q[1] || p[2] - q[2]);
+    const n = Math.min(role.spot === 'service' ? 3 : 5, cand.length);
+    for (let i = 0; i < n; i++) { const p = cand[Math.floor((i + 0.5) * cand.length / n)]; out.push([p[1], p[2], p[1] + Math.cos(p[0] + ph + 2), p[2] + Math.sin(p[0] + ph + 2)]); }
+    return out.length ? out : [[door[0], door[1], face[0], face[1]]];
+  }
+  const firstGood = (o, pick) => { for (const g in (o || {})) if (LIMITED(g) && pick(g)) return g; return null; };
+  function nearestStore(s, from) {
+    let best = null, bd = Infinity;
+    for (const t of s.buildings) { if (t.id !== 'store' && t.id !== 'keep') continue; const d = Walkers.doorOf(t), e = Math.hypot(d[0] - from[0], d[1] - from[1]); if (e < bd) { bd = e; best = d; } }
+    return best;
+  }
+  /* cykl pracy budynku b: lista kroków {k:'go'|'act'|'take'|'drop'|'idle'} */
+  function cycleOf(s, b, w, claimed) {
+    const def = Data.BUILDINGS[b.id], role = Data.ROLES[b.id], C = Data.RULES.cycle, door = Walkers.doorOf(b), store = nearestStore(s, door), steps = [];
+    if (role.spot === 'service') {                                             // obsługa: stoi i krąży przy drzwiach
+      const sp = spotsOf(s, b, role, door, claimed);
+      for (let i = 0; i < sp.length; i++) { steps.push({ k: 'go', p: sp[i] }, { k: 'act', act: role.act, dur: 1.2 + hash(b.uid, 10 + i) * 1.6, face: [sp[i][2], sp[i][3]] }); }
+      steps.push({ k: 'go', p: [door[0], door[1]] }, { k: 'act', act: null, dur: 0.8, face: [door[0], door[1] + 1] });
+      return steps;
+    }
+    const outG = firstGood(def.out, () => true), inG = firstGood(def.inp, () => true);
+    const rate = outG ? def.out[outG] : 1, Tw = C.load / Math.max(0.2, rate), m = Math.max(1, Math.min(8, Math.round(Tw / C.spell)));
+    const sp = spotsOf(s, b, role, door, claimed); if (role.spot === 'tree') w.treeIdx = sp[0][4];
+    if (inG && store && w.first) steps.push({ k: 'go', p: store });
+    if (inG && store) steps.push({ k: 'take', g: inG });
+    for (let i = 0; i < m; i++) { const q = sp[i % sp.length]; steps.push({ k: 'go', p: q }); if (i === 0 && inG && store) steps.push({ k: 'drop' }); steps.push({ k: 'act', act: role.act, dur: Tw / m, face: [q[2], q[3]] }); }   // wejście składamy na miejscu pracy
+    if (outG && store) steps.push({ k: 'take', g: outG }, { k: 'go', p: store }, { k: 'drop' });
+    else steps.push({ k: 'go', p: door });
+    return steps;
+  }
+  const idleNow = b => !!b.st && (b.st.c === 'in' || b.st.c === 'full' || b.st.c === 'food' || b.st.c === 'depleted');
+  /* budynek stoi (brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże): robotnik nie stoi bezczynnie — przy braku wejścia idzie do Składu / Dworu zobaczyć, czy
+     towar już jest, w pozostałych przypadkach zamiata i porządkuje wokół budynku; produkcji to nie zmienia (ją wstrzymuje logika), a Doradca podaje powód postoju */
+  function stalledCycle(s, b, w) {
+    const role = Data.ROLES[b.id], door = Walkers.doorOf(b), store = nearestStore(s, door), steps = [], sp = spotsOf(s, b, { spot: 'service' }, door, new Set());
+    if (b.st && b.st.c === 'in' && store) steps.push({ k: 'go', p: store, tool: null }, { k: 'act', act: 'look', dur: 0.5, face: [store[0], store[1] + 1], tool: null }, { k: 'go', p: door });
+    for (let i = 0; i < Math.min(2, sp.length); i++) steps.push({ k: 'go', p: sp[i] }, { k: 'act', act: 'sweep', dur: 1.0 + hash(b.uid, 30 + i) * 1.0, face: [sp[i][2], sp[i][3]], tool: 'broom' });
+    steps.push({ k: 'go', p: door }, { k: 'act', act: 'sweep', dur: 0.8, face: [door[0], door[1] + 1], tool: 'broom' });
+    return steps;
+  }
+
+  function spawn(s, b, map) {
+    const door = Walkers.doorOf(b), a = Walkers.kit.agent('worker', door[0], door[1], Data.RULES.walk.v, '', hash(b.uid, 2) * 6.28);
+    a.v = b.uid & 1; a.tool = (Data.ROLES[b.id] || {}).tool || null; a.load = null; a.act = null; a.tx = door[0]; a.ty = door[1] + 1; a.uid = b.uid;
+    const w = { a, b, steps: [], si: 0, rem: 0, mode: 'work', first: true, planned: false };
+    figs.set(b.uid, w); return w;
+  }
+  function enterStep(w, st, map) {
+    const a = w.a; w.planned = true;
+    if (st.k === 'go') { Walkers.kit.plan(a, st.p[0], st.p[1], map); a.act = null; }
+    else if (st.k === 'act') { a.act = st.act; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
+    else if (st.k === 'idle') { a.act = null; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
+    else if (st.k === 'take') { a.load = Data.LOADS[st.g] || null; }
+    else if (st.k === 'drop') { a.load = null; }
+    if (st.k === 'act' || st.k === 'go') a.tool = st.tool !== undefined ? st.tool : (w.mode === 'idle' && st.k === 'go' ? null : (Data.ROLES[w.b.id] || {}).tool || null);   // narzędzie pracy; przy postoju miotła
+  }
+  function nextCycle(s, w) {
+    w.steps = w.mode === 'idle' ? stalledCycle(s, w.b, w) : cycleOf(s, w.b, w, claimedNow); w.first = false; w.si = 0; w.planned = false;
+    if (!w.steps.length) w.steps = [{ k: 'idle', dur: 1 }];
+  }
+  function stepOne(s, w, dt, map) {
+    const a = w.a;
+    Walkers.kit.evacCheck(a, map);                                                  // plac lub budynek stanął pod robotnikiem — wychodzi na wolne pole i wraca do celu
+    if (a.evac) { Walkers.kit.advance(a, a.speed * dt, map); return; }
+    for (let guard = 0; guard < 8; guard++) {
+      const st = w.steps[w.si];
+      if (!st) { nextCycle(s, w); continue; }
+      if (!w.planned) enterStep(w, st, map);
+      if (st.k === 'go') { if (Walkers.kit.advance(a, a.speed * dt, map)) { w.si++; w.planned = false; continue; } return; }
+      if (st.k === 'act' || st.k === 'idle') { w.rem -= dt; if (w.rem <= 0) { w.si++; w.planned = false; a.act = null; continue; } return; }
+      w.si++; w.planned = false;                                                  // take / drop: natychmiast
+    }
+  }
+  function update(dt) {
+    const s = World.state(), map = s.map; if (!map || !s.keep) return;
+    if (map !== lastMap) { figs.clear(); lastMap = map; }
+    claimedNow = new Set(); for (const w of figs.values()) if (w.treeIdx != null) claimedNow.add(w.treeIdx);   // drzewa obierane przez innych drwali
+    const keepDoor = Walkers.doorOf(s.keep), live = new Set();
+    for (const b of s.buildings) {
+      const role = Data.ROLES[b.id]; if (!role || !s.staffed[b.uid]) continue;
+      if (b.id === 'hunter' && s.settings.fauna) continue;                            // myśliwych prowadzi Fauna
+      live.add(b.uid); let w = figs.get(b.uid); if (!w) w = spawn(s, b, map); w.b = b; w.home = false;
+      const idle = idleNow(b);
+      if (idle && w.mode !== 'idle') { w.mode = 'idle'; w.steps = []; w.si = 0; w.planned = false; w.a.load = null; }
+      else if (!idle && w.mode === 'idle') { w.mode = 'work'; w.steps = []; w.si = 0; w.planned = false; w.first = true; }
+      stepOne(s, w, dt, map);
+    }
+    for (const [uid, w] of figs) {                                                    // budynek rozebrany lub bez obsady: robotnik wraca do Dworu i znika
+      if (live.has(uid)) continue;
+      if (!w.home) { w.home = true; w.a.act = null; w.a.load = null; Walkers.kit.plan(w.a, keepDoor[0], keepDoor[1], map); }
+      if (Walkers.kit.advance(w.a, w.a.speed * dt, map)) figs.delete(uid);
+    }
+    list = []; for (const w of figs.values()) list.push(w.a);
+  }
+  return { update, figures: () => list, reset() { figs.clear(); list = []; lastMap = null; }, cycleOf, spotsOf, idleNow };
 })();
 
 /* ================================ MODUL: GAME ============================== */
@@ -10355,11 +10556,12 @@ const Game = (() => {
     }
 
     // 3. mieszkańcy, nosiciele i budowniczowie — postacie z modułu Walkers (idą po ścieżkach, omijają wodę, klify i budynki; cień symulacji w logice gry zostaje nietknięty)
+    const wk = !!s.settings.workers, wpre = { franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[fid], wcast = sprOn && wk ? [Sprites.cast(wpre + 'Worker'), Sprites.cast(wpre + 'WorkerB')] : [];
     for (const a of Walkers.figures()) {
       const p = Camera.worldToScreen(a.x, a.y);
       if (sprOn) {
-        const l = lookOf(a);
-        push({ d: a.x + a.y, kind: 'f', fig: a, cast: cast[a.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry: a.carry, sx: p.x, sy: p.y, k: K, x: a.x, y: a.y,
+        const l = lookOf(a), gear = wk && (a.kind === 'worker' || a.kind === 'builder' || a.kind === 'citizen') && wcast[a.v ? 1 : 0];
+        push({ d: a.x + a.y, kind: 'f', fig: a, gear: gear ? a : null, cast: gear || cast[a.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry: a.carry && !gear, sx: p.x, sy: p.y, k: K, x: a.x, y: a.y,
           bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
       } else push({ d: a.x + a.y, kind: 'c', fig: a, sx: p.x, sy: p.y, x: a.x, y: a.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
     }
@@ -10459,10 +10661,75 @@ const Game = (() => {
     if (art) art(ctx, it.sx, it.sy, Camera.zoom * it.cs, f.palette, t);
   }
 
+  /* ---------- narzędzia i ładunki robotników (Faza 9B-1): rysowane na postaci w jednostkach projektu sprite'a × it.k; +x = strona ręki z narzędziem ---------- */
+  const WOOD = '#8a6238', STEEL = '#c8ced4', DARK = '#2a1c10';
+  function line(x0, y0, x1, y1, w, col, k) { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, w * k); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x0 * k, y0 * k); ctx.lineTo(x1 * k, y1 * k); ctx.stroke(); }
+  function poly(pts, fill, k, stroke) { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x * k, y * k) : ctx.moveTo(x * k, y * k)); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke || DARK; ctx.lineWidth = Math.max(1, 0.9 * k); ctx.stroke(); }
+  function oval(x, y, rx, ry, fill, k, rot, stroke) { ctx.beginPath(); ctx.ellipse(x * k, y * k, rx * k, ry * k, rot || 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke || DARK; ctx.lineWidth = Math.max(1, 0.9 * k); ctx.stroke(); }
+  /* narzędzie w prawej ręce; początek układu = dłoń, narzędzie „do góry" (−y); ang — wychylenie, t — czas animacji */
+  function drawTool(kind, k, ang, t, ph) {
+    ctx.save(); ctx.translate(11 * k, -30 * k); ctx.rotate(ang);
+    switch (kind) {
+      case 'axe': line(0, 8, 0, -24, 2.6, WOOD, k); poly([[0, -25], [10, -28], [11.5, -16], [0, -13]], STEEL, k); break;
+      case 'pick': line(0, 8, 0, -22, 2.6, WOOD, k); ctx.strokeStyle = STEEL; ctx.lineWidth = 3.2 * k; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-11 * k, -17 * k); ctx.quadraticCurveTo(0, -27 * k, 11 * k, -17 * k); ctx.stroke(); break;
+      case 'hoe': line(0, 8, 0, -25, 2.4, WOOD, k); poly([[0, -25], [11, -25], [9, -18], [0, -20]], STEEL, k); break;
+      case 'hammer': line(0, 8, 0, -17, 2.6, WOOD, k); poly([[-7, -23], [7, -23], [7, -16], [-7, -16]], '#8a9098', k); break;
+      case 'saw': ctx.translate(Math.sin(t * 9 + ph) * 4 * k, 0); poly([[-4, -6], [24, -9], [24, -3], [-4, -1]], STEEL, k); line(-4, -8, -4, 4, 2.4, WOOD, k); break;
+      case 'spoon': line(0, 8, 0, -19, 2.2, WOOD, k); oval(0, -21, 3.6, 4.8, '#b89058', k); break;
+      case 'knife': line(0, 8, 0, -6, 2.4, WOOD, k); poly([[-1.6, -6], [1.6, -6], [0.6, -17]], STEEL, k); break;
+      case 'sapling': line(0, 4, 0, -10, 1.8, '#6a4a2a', k); oval(0, -13, 4.5, 5, '#4f9030', k); break;
+      case 'bow': ctx.strokeStyle = WOOD; ctx.lineWidth = Math.max(1, 2.4 * k); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(-4 * k, -10 * k, 16 * k, -1.1, 1.1); ctx.stroke(); line(3.5, -25, 3.5, 5, 1, '#e8e0c8', k); break;
+      case 'spear': line(0, 14, 0, -34, 2.2, WOOD, k); poly([[0, -42], [3.2, -34], [-3.2, -34]], STEEL, k); break;
+      case 'broom': line(0, 8, 0, -22, 2.2, WOOD, k); poly([[-5, 8], [5, 8], [7, 16], [-7, 16]], '#c8a458', k); break;
+      case 'bucket': oval(0, -5, 5.5, 5, '#8a6a42', k); oval(0, -9, 5, 2, '#4a86b8', k); break;
+      case 'basket': oval(0, -6, 7.5, 6, '#a07438', k); break;
+      case 'sack': oval(0, -8, 6, 8, '#d8c88a', k, 0.3); break;
+      case 'net': line(0, 8, 0, -26, 2.2, WOOD, k); ctx.strokeStyle = '#c8d0c0'; ctx.lineWidth = Math.max(1, 1.2 * k); ctx.beginPath(); ctx.ellipse(0, -31 * k, 8 * k, 6 * k, 0, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-8 * k, -31 * k); ctx.lineTo(8 * k, -31 * k); ctx.moveTo(0, -37 * k); ctx.lineTo(0, -25 * k); ctx.stroke(); break;
+    }
+    ctx.restore();
+  }
+  /* ładunek: kształt i kolor z Data.LOADS; niesiony na ramieniu, w rękach lub na plecach */
+  function drawLoad(load, k) {
+    const [shape, col] = load;
+    switch (shape) {
+      case 'log': line(-12, -52, 14, -56, 7, col, k); oval(14, -56, 2.6, 3.4, '#c8a070', k); break;
+      case 'plank': for (let i = 0; i < 3; i++) poly([[-13, -53 + i * 3.4], [14, -56 + i * 3.4], [14, -53 + i * 3.4], [-13, -50 + i * 3.4]], col, k); break;
+      case 'rock': poly([[-8, -30], [-3, -39], [6, -38], [10, -30], [5, -24], [-4, -24]], col, k); break;
+      case 'sack': oval(-3, -50, 9, 11, col, k, 0.35); line(-8, -57, 0, -60, 2, '#6a4a2a', k); break;
+      case 'basket': oval(-13, -28, 8, 6, '#a07438', k); for (let i = 0; i < 4; i++) oval(-17 + i * 3.4, -32 - (i & 1), 2.6, 2.6, col, k); break;
+      case 'bucket': oval(-13, -26, 5.5, 5, '#8a6a42', k); oval(-13, -30, 5, 2, col, k); break;
+      case 'jar': oval(11, -44, 6, 8, col, k); line(8, -52, 14, -52, 2.4, '#6a4a2a', k); break;
+      case 'bar': for (let i = 0; i < 3; i++) poly([[-7, -34 + i * 3.6], [7, -34 + i * 3.6], [9, -31 + i * 3.6], [-9, -31 + i * 3.6]], col, k); break;
+      case 'fish': line(-4, -34, 12, -40, 1.6, '#6a4a2a', k); for (let i = 0; i < 2; i++) oval(2 + i * 7, -33 - i * 2.4, 6, 2.6, col, k, -0.4); break;
+      case 'bundle': oval(-3, -48, 9, 6, col, k, -0.5); line(-5, -52, 1, -44, 1.8, '#4a3422', k); break;
+      case 'crate': poly([[-7, -66], [7, -66], [7, -56], [-7, -56]], col, k); line(0, -66, 0, -56, 1.2, DARK, k); break;
+    }
+  }
+  /* czynność → [prędkość, amplituda kołysania narzędzia, przysiad ciała]; 'chop' i podobne to „unieś powoli i uderz" */
+  const ACT_ANIM = { chop: ['strike', 1.7, 0], dig: ['strike', 1.5, 0.6], hoe: ['strike', 1.3, 1.6], hammer: ['strike', 2.4, 0], forge: ['strike', 2.6, 0], stack: ['strike', 1.2, 0.8], saw: ['still', 0, 1.0],
+    pick: ['still', 0, 2.6], plant: ['still', 0, 3.0], milk: ['still', 0, 2.4], draw: ['still', 0, 2.0], tap: ['wave', 2, 1.0], smoke: ['wave', 1.6, 0.6], trap: ['wave', 1.4, 1.4], fish: ['wave', 0.9, 0],
+    grind: ['wave', 2, 0.8], bake: ['wave', 2.2, 0], stir: ['wave', 2.2, 0], weave: ['wave', 3, 0], wax: ['wave', 2, 0], brew: ['wave', 1.8, 0], pot: ['wave', 2.6, 0.6], tan: ['wave', 2.6, 0.8], press: ['still', 0, 1.6],
+    sweep: ['wave', 1.6, 0.6], shoot: ['wave', 0.7, 0], look: ['wave', 0.6, 0], stall: ['wave', 0.7, 0], pray: ['still', 0, 1.2], drill: ['wave', 0.8, 0], guard: ['still', 0, 0] };
+  function gearFor(a, t) {                                       // kąt narzędzia i przysiad dla bieżącej czynności
+    const an = a.act && ACT_ANIM[a.act]; if (!an) return { ang: -0.15, dip: 0 };
+    const ph = a.phase || 0, [mode, rate, dip] = an;
+    if (mode === 'strike') { const f = ((t * rate + ph) % 1 + 1) % 1; return { ang: f < 0.72 ? -1.15 + 0.5 * (f / 0.72) : -0.65 + 1.15 * ((f - 0.72) / 0.28), dip: dip * Math.max(0, f - 0.72) / 0.28 }; }
+    if (mode === 'wave') return { ang: -0.1 + 0.32 * Math.sin(t * rate * 3 + ph), dip: dip * (0.5 + 0.5 * Math.sin(t * rate * 3 + ph)) };
+    return { ang: -0.1, dip: dip * (0.5 + 0.5 * Math.sin(t * 2.4 + ph)) };
+  }
+  function drawGear(it, t, bob) {
+    const a = it.gear, k = it.k, g = gearFor(a, t);
+    ctx.save(); ctx.translate(it.sx, it.sy - bob - g.dip * k); if (it.mirror) ctx.scale(-1, 1);
+    if (a.load) drawLoad(a.load, k);
+    else if (a.tool) drawTool(a.tool, k, g.ang, t, a.phase || 0);
+    ctx.restore();
+  }
+
   function drawFigure(it, t) {
     const mv = it.fig.moving !== false, frame = mv ? Math.floor(t * 3.6 + it.fig.phase) % 2 : 0, sp = it.cast[it.view][frame], bob = mv ? Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom : 0;
     ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
     Sprites.draw(ctx, sp, 'c', 0, 0, it.k, dpr); ctx.restore();
+    if (it.gear) drawGear(it, t, bob);
     if (it.prey) {                                              // myśliwy wraca z upolowaną zwierzyną przerzuconą przez ramię
       const fs = Sprites.fauna(it.prey), sp = fs && fs.dead && fs.dead[0];
       if (sp) { ctx.save(); ctx.translate(it.sx + (it.mirror ? -5 : 5) * it.k, it.sy - bob - 50 * it.k); if (it.mirror) ctx.scale(-1, 1); ctx.rotate(-0.55); Sprites.draw(ctx, sp, 'c', 0, 0, it.k * 0.8, dpr); ctx.restore(); }

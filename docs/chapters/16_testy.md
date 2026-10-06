@@ -50,6 +50,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `fauna.js` | `Fauna` | zaludnienie map, pozycje tylko na wolnych polach, zero RNG globalnego, determinizm, snapshot, parytet z fauną |
 | `footprints.js` | obrysy `w×h` | zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, złoża pod kopalnią, place budowy |
 | `minimap.js` | `Minimap` | opis i podsumowanie 24 kombinacji klimat × typ, rysunek na atrapie kanwy (każde pole = 1 prostokąt, ramka Dworu), **podgląd = mapa gry** (to samo ziarno → te same pola), mapa niepoprawna i mapa bez `meta` |
+| `workers.js` | `Workers`, `Walkers` | jeden robotnik na obsadzony budynek z rolą, **nikt nie stoi bezczynnie > 1 min**, pętla wejście → praca → wyjście do Składu, budowniczowie bez placu czekają przy Dworze, widoczni obywatele = wolna ludność, logika identyczna z robotnikami i bez, zero RNG i zero śladów w stanie gry |
 | `raids.js`, `store.js` | `Events`, `Economy` | strata średnia po 24 ziarnach ze Strażnicami i bez; wpływ Składu na pojemność koszyka Słowian |
 
 ## Testy w przeglądarce {#testy-przegladarka}
@@ -63,6 +64,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `browser_terrain.js` | każda kombinacja klimat × typ startuje przez `?play=…`: brak błędów JS, wypieczone chunki, FPS |
 | `browser_fauna.js` | zaludnienie, myśliwy przechodzi fazy wyprawy, strzała w locie, FPS z fauną vs bez |
 | `browser_menu.js` | **menu główne** (tylko Piaskownica aktywna, klawiatura, hover), **Piaskownica** (przepływ nacja → klimat → typ → Start dla każdej nacji; mapa gry = meta podglądu; blokada Wikingów na nadmorskiej; pamięć wyboru w `localStorage`), **☰ Menu** i priorytet Esc, „Nowa mapa” i „Menu główne”, `?menu=0`, `?play=`, telefon 390 × 844 (bez poziomego przewijania), 0 błędów JS |
+| `browser_workers.js` | robotnicy na ekranie: czynności, narzędzia i ładunki każdej nacji, `?workers=0` (dawne cienie), FPS z robotnikami ≥ 85% FPS bez nich, 0 błędów JS |
 
 Testy przeglądarkowe czekają na `window.__gameReady === true` (gra startuje po wypieku sprite'ów) i — poza `browser_menu.js` — wchodzą do gry przez `?menu=0` lub `?play=`, żeby nie zależeć od menu (rozdz. {{ref:parametry-adresu}}).
 

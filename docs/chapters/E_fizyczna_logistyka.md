@@ -108,6 +108,18 @@ Tabela: Etapy Fazy 9B
 | **9B-4** | karawany (Saraceni) i statki (Wikingowie) na ekranie i w opóźnieniu logiki; napady zilustrowane na trasie | scenariusze Saracenów (S1–S7, SK1–SK4) w zakresie specyfikacji; raids.js bez zmian średniej straty |
 | **9B-5** | strojenie, ew. „Duży Skład”/nosiciele opcjonalni, dokumentacja (rozdz. 12, aneks E → „Stan”), wersja WIP, nowy wzorzec regresji | komplet testów, FPS ≥ 85% sprzed zmian |
 
+## Stan realizacji {#e-stan-realizacji}
+
+Tabela: Postęp Fazy 9B
+| Etap | Stan |
+|---|---|
+| 9B-0 tempo gry | ✔ gotowe: 12 s na minutę gry, prędkości ×1/×2/×3/×6, marsz 18 pól/min (rozdz. {{ref:walkers}}) |
+| 9B-1 role i czynności | ✔ gotowe: moduł `Workers` (rozdz. {{ref:workers}}), `settings.workers`, `tools/workers.js`, `tools/browser_workers.js`; zero zmian ekonomii (58 scenariuszy identycznie) |
+| 9B-2 sprawność z cyklu pracy | ○ następny |
+| 9B-3 drwal, leśnik, budowniczowie | ○ |
+| 9B-4 karawany i statki | ○ |
+| 9B-5 strojenie i dostawa | ○ |
+
 ## Decyzje do potwierdzenia {#e-decyzje}
 
 Poniższe wartości przyjęto domyślnie; można je zmienić bez przebudowy architektury (są stałymi w danych):

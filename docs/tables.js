@@ -333,6 +333,19 @@ GEN.fauna_zasady = (arg, state) => {
   ]);
 };
 
+GEN.role_robotnikow = (arg, state) => {
+  const { Data } = game(), ACT = { chop: 'ścina drzewo', plant: 'sadzi sadzonkę', saw: 'piłuje', milk: 'doi', pick: 'zbiera owoce', draw: 'czerpie wodę', stall: 'obsługuje stoisko', pray: 'modli się', drill: 'ćwiczy', dig: 'kopie', hoe: 'okopuje', grind: 'miele', bake: 'piecze', stir: 'miesza', forge: 'kuje', press: 'tłoczy', tap: 'nacina żywicę', weave: 'tka', pot: 'lepi', sweep: 'zamiata', guard: 'stoi na straży', fish: 'łowi', stack: 'układa stos', brew: 'warzy', smoke: 'okadza ule', wax: 'obrabia wosk', trap: 'zastawia sidła', tan: 'garbuje' };
+  const TOOL = { axe: 'siekiera', sapling: 'sadzonka', saw: 'piła', bucket: 'wiadro', basket: 'kosz', spear: 'włócznia', pick: 'kilof', hoe: 'motyka', sack: 'worek', spoon: 'warząchew', hammer: 'młot', knife: 'nóż', net: 'sieć', broom: 'miotła' };
+  const SPOT = { door: 'przy drzwiach', field: 'pola wokół budynku', tree: 'najbliższe drzewo', shore: 'brzeg wody', service: 'obsługa przy drzwiach' };
+  const SH = { log: 'kłoda', plank: 'deski', rock: 'kamień', sack: 'worek', basket: 'kosz', bucket: 'wiadro', jar: 'dzban', bar: 'sztabki', fish: 'ryby', bundle: 'zwój', crate: 'skrzynka' };
+  const rows = [];
+  for (const [id, r] of Object.entries(Data.ROLES)) {
+    const d = Data.BUILDINGS[id], names = d.names ? [...new Set(Object.values(d.names))].join(' / ') : d.name, ld = g => SH[(Data.LOADS[g] || [])[0]] || '?';
+    const inn = Object.keys(d.inp || {}).filter(g => g in game().Economy.LIMIT).map(g => g + ' (' + ld(g) + ')').join(', ') || '—', out = Object.keys(d.out || {}).filter(g => g in game().Economy.LIMIT).map(g => g + ' (' + ld(g) + ')').join(', ') || '—';
+    rows.push([names, ACT[r.act] || r.act, TOOL[r.tool] || '—', SPOT[r.spot], inn, out]);
+  }
+  return table(state, 'Role robotników (Data.ROLES i Data.LOADS): czynność na ekranie, narzędzie, miejsce pracy oraz ładunki wejścia (po które idzie do Składu / Dworu) i wyjścia (które tam niesie)', ['Budynek', 'Czynność', 'Narzędzie', 'Miejsce pracy', 'Wejście', 'Wyjście'], rows, { cls: 'small' });
+};
 GEN.stan_gry = (arg, state) => {
   const { World } = game(); World.init('franks');
   const keys = Object.keys(World.state()); const missing = keys.filter(k => !STATE_DOC[k]);

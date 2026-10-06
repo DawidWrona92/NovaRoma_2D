@@ -2082,7 +2082,16 @@ const CAST = {
   frankHunter: { tunic: '#6a7a3a', trim: '#c8b060', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#4a3020', head: 'hood', headCol: '#4a5a2a', props: ['bow', 'quiver'] },
   sarHunter: { tunic: '#b8946a', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#d8c8a0', turbanStripe: '#8a3a22', dress: false, props: ['bow', 'quiver'] },
   vikHunter: { tunic: '#5a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#6a5a4a', fur: '#d8d0c0', props: ['bow', 'quiver'] },
-  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] }
+  slavHunter: { tunic: '#7a5a32', trim: '#b8352b', belt: '#4a3422', legs: '#6a5238', boots: '#4a3422', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#6a4a2a', props: ['bow', 'quiver'] },
+  /* robotnicy (Faza 9B) — dopisani na końcu; bez rekwizytów w ręku: narzędzia i ładunki dorysowuje gra zależnie od czynności (Walkers → drawFigure); 2 warianty koloru na nację */
+  frankWorker: { tunic: '#8a7a46', trim: '#d8c070', belt: '#5a3a1c', legs: '#6a5238', boots: '#4a3422', hair: '#5a3a1c', head: 'hood', headCol: '#8a5a3a', props: [] },
+  frankWorkerB: { tunic: '#9a5a3a', trim: '#e0d090', belt: '#4a3422', legs: '#5a4630', boots: '#3a2a1c', hair: '#3a2a18', head: 'cap', headCol: '#6a5a3a', props: [] },
+  sarWorker: { tunic: '#d8c8a0', trim: '#2f6ea8', belt: '#8a3a22', legs: '#e8e0cc', boots: '#8a5a2a', hair: '#2a1c10', beard: true, beardCol: '#2a1c10', head: 'turban', headCol: '#e8dcc0', turbanStripe: '#2f6ea8', props: [] },
+  sarWorkerB: { tunic: '#b8946a', trim: '#b8352b', belt: '#5a3a1c', legs: '#d8d0b8', boots: '#7a4a22', hair: '#2a1c10', head: 'turban', headCol: '#c8a878', turbanStripe: '#8a3a22', props: [] },
+  vikWorker: { tunic: '#6a6a4a', trim: '#c89a50', belt: '#3a2a1c', legs: '#5a4a38', boots: '#3a2a1c', hair: '#c89a50', beard: true, beardCol: '#c89a50', head: 'fur', headCol: '#7a6a5a', fur: '#d8d0c0', props: [] },
+  vikWorkerB: { tunic: '#4a6a8a', trim: '#e8d8a0', belt: '#4a3422', legs: '#6a5a46', boots: '#4a3422', hair: '#a87a3a', head: 'cap', headCol: '#5a4a3a', props: [] },
+  slavWorker: { tunic: '#e6dcc0', trim: '#b8352b', belt: '#6a4a2a', legs: '#7a6044', boots: '#8a6a40', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#7a5a3a', props: [] },
+  slavWorkerB: { tunic: '#c8a868', trim: '#3a6aa0', belt: '#6a4a2a', legs: '#6a5238', boots: '#7a5a38', hair: '#a8702e', head: 'kerchief', headCol: '#b04a32', props: [] }
 };
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 

@@ -38,6 +38,27 @@ Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w 
 
 > [!uwaga] Te prędkości są **kosmetyczne i niespójne z czasem logiki**: logika zakłada, że budowniczy nosi sztukę materiału w 0,2 min niezależnie od odległości, a producent „odkłada” towar w Składzie bez czasu; widoczny budowniczy idzie do placu kilka minut gry. To jedyny powód, dla którego ludzie dziś tylko *wyglądają*, jakby pracowali — dlatego powstała Faza 9B (aneks {{ref:aneks-fizyka}}).
 
+## Robotnicy i ich czynności: moduł Workers {#workers}
+
+Od Fazy 9B-1 (przełącznik `settings.workers`, w grze włączony; `?workers=0` przywraca dawne cienie) **każdy obsadzony budynek z rolą ma jednego widocznego robotnika**, który wykonuje swoją pętlę pracy. Moduł `Workers` korzysta z `Walkers` (ścieżki, drogi, ewakuacja spod placów), ale nie zmienia logiki gry: tak jak piesi jest „cieniem symulacji” — stan żyje poza stanem gry, nie losuje (miejsca pracy wybiera funkcja skrótu z `uid` budynku) i nie wywołuje globalnego `RNG`. Na ekranie widać więc to, co dzieje się w ekonomii, ale niczego to nie zmienia w wynikach.
+
+**Pętla pracy** (`Workers.cycleOf`): *weź wejście ze Składu lub Dworu* → *idź na miejsce pracy* (z wejściem w rękach, które tam odkłada) → *pracuj* (animacja narzędzia; kilka odcinków w różnych miejscach, jeśli praca trwa dłużej niż {{v:Data.RULES.cycle.spell}} min) → *weź wyjście i zanieś je do najbliższego Składu lub Dworu*. Czas pracy w jednej pętli to `ładunek / tempo wyjścia`, gdzie ładunek wynosi {{v:Data.RULES.cycle.load}} szt. (pojemność lokalnego składziku); marsz trwa tyle, ile wynika z odległości, prędkości {{v:Data.RULES.walk.v}} pola/min i terenu (droga ×1,6, bagno i bród wolniej). Dlatego **droga i bliski Skład skracają marsz** — to ten sam cykl, z którego w Fazie 9B-2 wynika sprawność transportu (aneks {{ref:e-model}}).
+
+Tabela: Role robotników w grze (z kodu)
+{{tabela:role_robotnikow}}
+
+**Miejsca pracy:** `door` — przy drzwiach (warsztaty), `field` — wolne pola w pierścieniu wokół budynku (rolnicy, zbieracze, sadownicy, nacinacze żywicy — kolejne odcinki pracy w różnych punktach pola), `tree` — najbliższe drzewo (drwal), `shore` — pole lądu przy wodzie (rybak), `service` — obsługa budynków bez produkcji (Targ, świątynia, łaźnia, strażnica): krąży 2–3 punktami przy drzwiach.
+
+**Zasada „każdy ma zajęcie”.** Każdy człowiek na mapie wykonuje jakąś czynność; jedyni, którzy stoją w miejscu, to **budowniczowie bez placu do budowy** (czekają przy Dworze — nie znikają jak dawniej) i wolni obywatele, którzy spacerują i przystają. Konkretnie: (1) robotnik **czynnego** budynku chodzi po pętli pracy; (2) robotnik budynku, który **stoi** (brak wejścia, pełny magazyn, „jedzenie tylko z nadwyżki”, wyczerpane złoże), **nie stoi bezczynnie**: przy braku wejścia idzie do Składu lub Dworu sprawdzić, czy towar już jest, a poza tym zamiata i porządkuje wokół budynku (to nie zmienia produkcji — ją wstrzymuje logika, a Doradca podaje powód postoju); (3) robotnicy budynków usługowych (Targ, świątynia, łaźnia, strażnica, koszary) krążą 2–3 punktami przy drzwiach; (4) myśliwy bez włączonej fauny poluje w pobliżu, a przy włączonej — prowadzi go `Fauna`; (5) budynek **bez obsady** (brak wolnej ludności albo brak narzędzia) jest pusty, bo nikt do niego nie jest przypisany. Rozebrany lub nieobsadzony budynek zwalnia robotnika — wraca do Dworu i dołącza do wolnych obywateli.
+
+**Wolni obywatele** to ludność, która nie pracuje: `⌊ludność⌋ − pracownicy − załoga na wyprawie − czynni budowniczowie`; tylu obywateli widać na ekranie (stroll jak dotąd), a cienie-nosiciele znikają, bo towar niosą robotnicy. **Budowniczowie** są rysowani tym samym robotniczym wyglądem z młotkiem (przy wyrównywaniu terenu z kilofem) i niosą materiał danego placu (deski, kamień, glinę); gdy brakuje placu do budowy, **czekają przy Dworze** (czynnych budowniczych jest tylu, ile ustawia przycisk 👷, pomniejszone o brak wolnej ludności).
+
+**Myśliwi** nadal prowadzi `Fauna` (rozdz. {{ref:fauna}}); bez włączonej fauny myśliwy chodzi jak inni robotnicy.
+
+**Wygląd.** Robotnicy to dwa warianty koloru na nację (`frankWorker`, `sarWorker`, `vikWorker`, `slavWorker` i `…B`) w silniku sprite'ów, bez rekwizytów w ręku; narzędzia i ładunki dorysowuje gra (`drawTool`, `drawLoad`) i animuje według czynności (uderzenie, wymachy, przysiad). Pełną oprawę graficzną ocenia audyt w Fazie 11.
+
+Test `tools/workers.js` sprawdza m.in., że każdy obsadzony budynek z rolą ma dokładnie jednego robotnika, że **żaden robotnik nie stoi bezczynnie dłużej niż minutę**, że liczba budowniczych na ekranie = czynni budowniczowie (bez placu stoją przy Dworze), że chodzą tylko po polach przechodnich, że robotnicy z wyjściem rzeczywiście niosą je do Składu i je tam zostawiają, że widoczni obywatele = wolna ludność, a logika jest identyczna z robotnikami i bez; `tools/browser_workers.js` sprawdza to samo na ekranie wraz z FPS.
+
 ## Drogi: moduł Roads {#drogi}
 
 Droga to pole z `tile.road = 1` (zapisywane w kaflu, więc trafia do snapshotu). Gracz wytycza ją narzędziem **Drogi** w pasku budowy: pierwszy klik to początek, drugi koniec; trasę wyznacza `Path` (istniejące drogi są tańsze, więc są wykorzystywane), a kolejny klik kontynuuje od końca poprzedniego odcinka. Zasady:
