@@ -5104,7 +5104,8 @@ const Data = (() => {
   };
 
   /* Gęstość lasu, od której plon leśnych budynków zaczyna spadać: plon × min(1, drzewa / próg).
-     Frankowie, Saraceni i Wikingowie: tylko Chata myśliwego (80); Słowianie: wszystkie budynki leśne (200). */
+     Dotyczy budynków z flagą forest — dziś tylko Słowian (Chata zbieracza, Barć, Chata łowcy futer; próg 200). Chata myśliwego od Fazy 8 poluje na zwierzęta
+     (plon zależy od zwierzyny w łowisku, nie od lasu i nie wymaga lasu w pobliżu), więc progi 80 pozostałych nacji są nieużywane (zostają jako bezpieczne wartości domyślne). */
   const FOREST_REF = { franks: 80, saracens: 80, vikings: 80, slavs: 200 };
 
   /* Fauna (Faza 8). role: prey — zwierzyna łowna (jedyna, na której pracuje Chata myśliwego), roamer — wałęsające się, bird — ptaki (kosmetyczne przeloty).
@@ -5150,7 +5151,7 @@ const Data = (() => {
     woodcutter:{ name:'Chata drwala', cat:'Drewno', art:'woodcutter', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ pień:1.0 }, note:'Pierwsza darmowa' },
     forester: { name:'Leśniczówka', cat:'Drewno', art:'forester', worker:1, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, out:{ 'sadzonki':1.0 }, note:'Sadzi drzewa' },
     sawmill:  { name:'Tartak', cat:'Drewno', art:'sawmill', worker:1, tool:true, inp:{ pień:1.0 }, out:{ deski:2.0 }, costs:{ franks:{d:6,k:2}, saracens:{d:4,gl:2}, vikings:{d:9}, slavs:{d:8} } },
-    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, req:'forest', forest:true, game:true, inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, note:'Plon × min(1, drzewa/próg lasu) × min(1, zwierzyna w łowisku/próg) — wychodzi na łowy z łukiem' },
+    hunter:   { name:'Chata myśliwego', cat:'Jedzenie', art:'hunter', worker:1, game:true, inp:{}, out:{ mięso:0.8 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} }, note:'Nie wymaga lasu: plon × min(1, zwierzyna w łowisku/próg) — wychodzi na łowy z łukiem' },
     dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6}, slavs:{d:6} } },
     orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} } },
     watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} } },
@@ -8447,23 +8448,29 @@ const TestBots = (() => {
       }
       return null;
     }
-    /* rozsądny gracz: najbliższe miejsca od środka, ale z najmniejszą karą za ciasną zabudowę (Data.RULES.crowd); przeszukuje kilka pierścieni dalej niż pierwsze trafienie */
-    const c = Math.floor(size / 2); let best = null, bestScore = Infinity, firstR = -1;
-    const tight = def.req === 'shore' || def.req === 'waterEdge';                // brzeg jest wąski: bot układa tu budynki ciasno (bez wybierania luzu), tak jak generator liczy pojemność brzegu
+    /* rozsądny gracz: najbliższe miejsca od środka, ale z najmniejszą karą za ciasną zabudowę (Data.RULES.crowd); przeszukuje kilka pierścieni dalej niż pierwsze trafienie.
+       Chata myśliwego nie wymaga już lasu (poluje na zwierzęta), ale bot nadal stawia ją przy lesie (≥ 4 drzew w obrysie i pierścieniu) — tam żyje zwierzyna i tak układały się wzorcowe osady;
+       bez takiego miejsca stawia ją gdziekolwiek (drugi przebieg bez preferencji) */
+    const c = Math.floor(size / 2), tight = def.req === 'shore' || def.req === 'waterEdge';           // brzeg jest wąski: bot układa tu budynki ciasno (bez wybierania luzu), tak jak generator liczy pojemność brzegu
     const keepFree = new Set();                                                  // bot zostawia miejsce na kopalnie: 7×7 (3×3 kopalni + przerwa) wokół złóż, na których jeszcze nic nie stoi
     for (let i = 0; i < size * size; i++) { const t = s.map.tiles[i]; if (!t.deposit || t.occup != null) continue; const x = i % size, y = (i / size) | 0; for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) keepFree.add((y + yy) * size + x + xx); }
-    for (let r = 1; r < size; r++) {
-      if (firstR >= 0 && r > firstR + 5) break;
-      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        let blocked = false; for (let yy = 0; yy < h && !blocked; yy++) for (let xx = 0; xx < w; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
-        if (blocked || !World.canPlace(id, c + dx, c + dy).ok) continue;
-        if (firstR < 0) firstR = r;
-        const score = tight ? r : World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
-        if (score < bestScore) { bestScore = score; best = { x: c + dx, y: c + dy }; }
+    const nearForest = (x, y) => { let n = 0; for (let yy = -1; yy <= h; yy++) for (let xx = -1; xx <= w; xx++) { const t = MapGen.at(s.map, x + xx, y + yy); if (t) n += t.trees; } return n >= 4; };
+    const search = needForest => {
+      let best = null, bestScore = Infinity, firstR = -1;
+      for (let r = 1; r < size; r++) {
+        if (firstR >= 0 && r > firstR + 5) break;
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          let blocked = false; for (let yy = 0; yy < h && !blocked; yy++) for (let xx = 0; xx < w; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
+          if (blocked || !World.canPlace(id, c + dx, c + dy).ok || (needForest && !nearForest(c + dx, c + dy))) continue;
+          if (firstR < 0) firstR = r;
+          const score = tight ? r : World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
+          if (score < bestScore) { bestScore = score; best = { x: c + dx, y: c + dy }; }
+        }
       }
-    }
-    return best;
+      return best;
+    };
+    return (def.game && search(true)) || search(false);
   }
 
   function tryBuild(s, id) {

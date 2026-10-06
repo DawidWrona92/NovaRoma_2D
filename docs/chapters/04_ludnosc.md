@@ -21,7 +21,7 @@ Tabela: Źródła jedzenia
 |---|---|---|---|---|---|
 | Sad | wszystkie | 1,0 | 6,0 | 1,0 | bez wejść |
 | Mleczarnia | wszystkie | 1,0 | 6,0 | 1,0 | bez wejść („krowy doją się same”) |
-| Chata myśliwego | wszystkie | 0,8 | 4,8 | 0,8 | plon × min(1, drzewa / 80) × min(1, zwierzyna / 5) |
+| Chata myśliwego | wszystkie | 0,8 | 4,8 | 0,8 | nie wymaga lasu; plon × min(1, zwierzyna w łowisku / 5 pkt) |
 | Łańcuch chleba (Farma + Młyn + Piekarnia + 0,5 nosiwody) | Frankowie | 3,3 | 19,8 | 0,94 | wejścia: zboże 1,5, mąka 1,5, woda 0,75 |
 | Gaj daktylowy (+ 0,4 nosiwody) | Saraceni | 1,6 | 9,6 | 1,14 | wymaga wody 0,6/min |
 | Chata rybaka | Wikingowie | 1,1 | 6,6 | 1,1 | pole nad morzem, zasób nieskończony, limit miejsc na brzegu |

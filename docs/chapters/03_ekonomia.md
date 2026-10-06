@@ -52,7 +52,7 @@ Dla każdego obsadzonego producenta (w kolejności z tabeli poniżej) `Economy.t
 3. **Wyczerpane złoże** (tylko gdy ustawiono skończone złoża): status **X**.
 4. **Wejścia.** Dla każdego wejścia `g` liczony jest ułamek `min(1, zapas g / popyt g)`, gdzie popyt to suma zapotrzebowania **wszystkich obsadzonych odbiorców** tego towaru w bieżącym ticku — gdy kilku odbiorców dzieli niedobór (pnie: Tartak, Wypalarka, Garncarnia, Bania; węgiel: Huta i Zbrojownia), każdy dostaje ten sam ułamek. Najmniejszy ułamek wejść daje `frac`.
 5. **Drwal:** `frac` ogranicza liczba drzew na mapie (`drzewa / (tempo × dt)`).
-6. **Mnożniki lasu i logistyki:** `frac ×= forestMult × Logistics.effOf`. `forestMult` to `min(1, drzewa / próg lasu)` dla budynków leśnych, a dla Chaty myśliwego dodatkowo `Fauna.gameMult` (zwierzyna w łowisku); `effOf` to sprawność logistyczna (1 przy wyłączonej opcji).
+6. **Mnożniki lasu i logistyki:** `frac ×= forestMult × Logistics.effOf`. `forestMult` to `min(1, drzewa / próg lasu)` dla budynków leśnych (dziś Słowianie), a dla Chaty myśliwego `Fauna.gameMult` (zwierzyna w łowisku; Chata myśliwego nie zależy od lasu); `effOf` to sprawność logistyczna (1 przy wyłączonej opcji).
 7. **Kara głodu:** `hungerK = 0,75` dla producentów, którzy nie wytwarzają jedzenia, gdy trwa głód ≥ 5 min (producenci żywności pracują z pełną mocą), w przeciwnym razie 1.
 8. **Pełny magazyn:** dla każdego wyjścia towaru z listy limitów `frac` jest ograniczany tak, by produkcja nie przekroczyła `pojemność − zapas`; wtedy status **Z** i wejścia **nie** są zużywane.
 9. Zużycie wejść: `zapas −= wejście × frac × dt`.
@@ -106,7 +106,7 @@ Tabela: Las według nacji
 | Chata drwala [pnie/min] | 1 | 1 | {{v:Economy.VIK_RATE.woodcutter}} | 1 |
 | Leśniczówka [drzewa/min] | 1 | 1 | {{v:Economy.VIK_RATE.forester}} | 1 |
 | Tartak | 1 pień → 2 deski | 1 → 2 | 1,3 → 2,6 | 1 → 2 |
-| Próg gęstości lasu | {{v:Data.FOREST_REF.franks}} (Myśliwy) | {{v:Data.FOREST_REF.saracens}} (Myśliwy) | {{v:Data.FOREST_REF.vikings}} (Myśliwy) | {{v:Data.FOREST_REF.slavs}} (wszystkie leśne) |
+| Próg gęstości lasu (plon × min(1, drzewa / próg)) | — | — | — | {{v:Data.FOREST_REF.slavs}} (Zbieracz, Barć, Łowca futer) |
 
 Drewno jest osią każdej nacji, ale w innym kierunku: Wiking opiera się na nim najmocniej (szybki wzrost i największe zużycie — 1 leśnik utrzymuje 1,5 drwala), Saracen najsłabiej (powolny wzrost, mała zależność). U Słowian las jest dodatkowo **źródłem plonu**: poniżej 200 drzew plony zbieracza, Barci i Chaty łowcy maleją liniowo (rozdz. {{ref:slowianie}}).
 

@@ -81,17 +81,27 @@ for (const fid of FACTIONS) {
     World.init(fid);
   }
 
-  // --- pierścień sąsiedztwa: las i brzeg liczone wokół całego obrysu ---
+  // --- pierścień sąsiedztwa: brzeg (i wymóg lasu dla budynków z req:'forest') liczone wokół całego obrysu ---
   World.init(fid);
   const s3 = World.state(), hunter = Data.BUILDINGS.hunter;
+  // Chata myśliwego poluje na zwierzęta i nie wymaga lasu: canPlace zależy tylko od wolnego obrysu
+  let huntOk = 0, huntWrong = 0;
+  for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {
+    const [w, h] = Data.footprint('hunter', fid);
+    if (freeFp(s3, x, y, w, h) === World.canPlace('hunter', x, y).ok) huntOk++; else huntWrong++;
+  }
+  ok(!hunter.req && !hunter.forest && huntWrong === 0, 'Chata myśliwego nie wymaga lasu (' + huntOk + ' pól zgodnych, ' + huntWrong + ' różnic)');
+  // gałąź req:'forest' w canPlace zostaje dla przyszłych budynków: budynek testowy 1×1 (brak w katalogu sprite'ów) wymaga ≥ 4 drzew w obrysie i pierścieniu
+  Data.BUILDINGS.__las = Object.assign({}, hunter, { req: 'forest' });
   let forestOk = 0, forestWrong = 0;
   for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {
-    const [w, h] = Data.footprint('hunter', fid); let trees = 0;
-    for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t) trees += t.trees; }
-    const expect = freeFp(s3, x, y, w, h) && trees >= 4, got = World.canPlace('hunter', x, y).ok;
+    let trees = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t) trees += t.trees; }
+    const expect = freeFp(s3, x, y, 1, 1) && trees >= 4, got = World.canPlace('__las', x, y).ok;
     if (expect === got) forestOk++; else forestWrong++;
   }
-  ok(hunter.req === 'forest' && forestWrong === 0, 'wymóg lasu liczony w pierścieniu wokół obrysu (' + forestOk + ' pól zgodnych, ' + forestWrong + ' różnic)');
+  delete Data.BUILDINGS.__las;
+  ok(forestWrong === 0, 'wymóg lasu (req:\'forest\') liczony w pierścieniu wokół obrysu (' + forestOk + ' pól zgodnych, ' + forestWrong + ' różnic)');
   if (fid === 'vikings') {
     let shoreOk = 0, shoreBad = 0;
     for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {

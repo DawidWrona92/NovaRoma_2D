@@ -175,7 +175,7 @@ GEN.start = (arg, state) => {
     row('Jedzenie startowe', f => F(f).start.food + ' (' + F(f).start.foodKind.toLowerCase() + ')'), row('Narzędzia', f => F(f).start.tools), row('Złoto', f => F(f).start.gold),
     row('Drzewa na mapie', f => F(f).treesTarget), row('Dojrzewanie drzewa [min]', f => F(f).treeGrowthMin),
     row('Złoża (liczba miejsc)', f => Object.entries(F(f).deposits).map(([k, v]) => DEP_PL[k] + ' ' + v).join(', ') || '—'),
-    row('Próg gęstości lasu (Puszcza / Myśliwy)', f => Data.FOREST_REF[f] + ' drzew'), row('Klimat domyślny', f => CLIMATE_PL[F(f).climate]),
+    row('Próg gęstości lasu (Puszcza)', f => Object.values(Data.BUILDINGS).some(d => d.forest && (!d.factions || d.factions.includes(f))) ? Data.FOREST_REF[f] + ' drzew' : '— (brak budynków leśnych)'), row('Klimat domyślny', f => CLIMATE_PL[F(f).climate]),
     row('Etap kampanii / trudność', f => F(f).campaign.order + '/4 · ' + '★'.repeat(F(f).campaign.stars) + '☆'.repeat(4 - F(f).campaign.stars))
   ], { align: ['', 'center', 'center', 'center', 'center'] });
 };
@@ -187,8 +187,8 @@ function buildingRow(id, fid) {
   if (ex.inp) inp = inp ? inp + ' + ' + ex.inp : ex.inp;
   if (ex.out) out = out ? out + '; ' + ex.out : ex.out;
   if (Economy.MINE_EATERS[id]) notes.push('zjada ' + nf(Economy.MINE_EATERS[id]) + ' porcji/min tylko z nadwyżki');
-  if (def.forest && id !== 'hunter') notes.push('plon × min(1, drzewa / ' + Data.FOREST_REF[fid] + ')');
-  if (def.game) notes.push('plon × min(1, drzewa / ' + Data.FOREST_REF[fid] + ') × min(1, zwierzyna / ' + Data.FAUNA_RULES.ref + ')');
+  if (def.forest) notes.push('plon × min(1, drzewa / ' + Data.FOREST_REF[fid] + ')');
+  if (def.game) notes.push('nie wymaga lasu; plon × min(1, zwierzyna w łowisku / ' + Data.FAUNA_RULES.ref + ' pkt)');
   if (id === 'woodcutter') notes.push('pierwsza Chata drwala jest darmowa');
   if (def.note && !['hut', 'store', 'barracks', 'market', 'dock', 'temple', 'bathhouse', 'sauna', 'guardpost', 'caravanserai'].includes(id) && !notes.length) notes.push(def.note.replace(/^Pierwsza darmowa$/, ''));
   const [w, h] = Data.footprint(id, fid);
