@@ -4,7 +4,9 @@
 const GEN = {};
 const TEXCACHE = {};
 let TEXRES = 1;                     // mnożnik rozdzielczości tekstur terenu (ustawiany przy starcie razem z RES)
+const TEXNORM = {};                 // normalizacja palety wg tekstury: woda zna tylko własne palety — barwa ściany przekazana przez bryłę (np. poidło) nie tworzy nowych tekstur
 function tex(name, pal) {
+  if (TEXNORM[name]) pal = TEXNORM[name](pal);
   const key = name + '|' + (pal || '');
   return TEXCACHE[key] || (TEXCACHE[key] = GEN[name](pal ?? undefined));        // null = brak palety (domyślna z parametru generatora)
 }

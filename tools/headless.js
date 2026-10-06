@@ -61,7 +61,7 @@ function load(htmlFile, opts = {}) {
   sandbox.removeEventListener = () => {};
   vm.createContext(sandbox);
   vm.runInContext(m[1], sandbox, { filename: path.basename(htmlFile) });
-  const names = ['RNG', 'Data', 'Camera', 'MapGen', 'Gfx', 'World', 'Economy', 'Build', 'Tribute', 'Events',
+  const names = ['RNG', 'Data', 'Camera', 'Terrain', 'MapGen', 'Gfx', 'Sprites', 'World', 'Economy', 'Build', 'Tribute', 'Events',
     'TestBots', 'BuildMode', 'UI', 'Game', 'Advisor'];
   const out = { sandbox, els, document };
   for (const n of names) {

@@ -14,6 +14,7 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/mapstats.js` | Generator map: liczba drzew (300/150/450/300), złoża, brzeg Wikingów. |
 | `node tools/raids.js` | Napady na karawanę (Saraceni): strata średnia po 24 ziarnach ze Strażnicami i bez. |
 | `node tools/store.js` | Wpływ Składu na pojemność haraczu Słowian. |
+| `node tools/terrain.js [plik] [ziarna]` | Generator terenu v2: macierz 4 nacje × 4 klimaty × 6 typów map (Wikingowie: nadmorska) × ziarna — niezmienniki pól kafli, walidacja (łączność, drzewa, złoża, miejsce pod zabudowę, brody, brzeg Wikingów), płaski plac wokół Dworu, liczby drzew i złóż, reguły `canPlace` dla wody i cech terenu, determinizm, izolacja globalnego `RNG` (Terrain.apply go nie dotyka). |
 | `node tools/footprints.js [plik]` | Obrysy budynków (w×h): zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, `canPlace` z pierścieniem sąsiedztwa, złoża pod kopalnią, place budowy (`siteAt`, `cancel`), wyburzenie, Dwór 4×4, miejsca dla botów. |
 
 ## Testy w przeglądarce (Playwright)
@@ -24,9 +25,10 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/browser_play.js [nacje] [minuty]` | Bot buduje osadę, zrzuty ekranu (`SHOTS=katalog`) z Doradcą i kartą budynku. |
 | `node tools/browser_contact.js nacja [id,id…] [skala] [kolumny]` | Kontaktówka sprite'ów budynków nacji z obrysem i podpisem (`CLASSIC=1` — dawne procedury `Gfx.ART`). |
 | `node tools/browser_sprites.js [jakość 1\|2] [nacje]` | Wypiek sprite'ów każdej nacji (`Sprites.bake`): wszystkie budynki, obrysy = katalog, niepuste warstwy, czas, brak błędów JS. |
+| `node tools/browser_terrain.js [nacja] [--fps] [--sheet=plik.png] [--shots=katalog]` | Każda kombinacja klimat × typ mapy startuje przez `?play=…&climate=…&map=…&seed=…`: brak błędów JS, wypieczone chunki podłoża, niepusty obraz, FPS (`--fps`), arkusz kontaktowy 4 klimaty × 6 typów (`--sheet`). |
 | `node tools/browser_mobile.js` | Widok telefonu (dotyk): wybór nacji, HUD, Doradca. |
 
-Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów).
+Gra w przeglądarce startuje po wypieku sprite'ów wybranej nacji — testy czekają na `window.__gameReady === true`. Parametry adresu: `?q=1|2` (jakość wypieku), `?classic=1` (bez sprite'ów), `?play=nacja&climate=temperate|eastern|snow|desert&map=coast|plain|river|lakes|mountains|wetlands&seed=N` (start bez menu — ta sama ścieżka co przyszła Piaskownica).
 
 ## Parametry scenariusza (stan `World.state().settings`)
 

@@ -88,7 +88,7 @@ z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna 
 - **Elementy architektoniczne** (`src/30_buildings.js`): drzwi, okna (prostokątne, łukowe, witrażowe), ryglówka, komin, schody, markizy, kopuły, minarety…
   **Zestaw rekwizytów** (`src/27_kit.js`): tartaczne, górnicze, rolnicze, targowe, wojskowe; **domy** (`src/28_house.js`): wspólny szkielet z dachem, kominem i piętrem.
 - **Ślady życia** (`src/25_wear.js`): ziarno, plamy, zacieki, pęknięcia, łaty napraw, mech, odpadający tynk, brakujące dachówki — deterministyczne.
-- **Teren:** kafle 512×512 px logicznych wypiekane na żądanie; cienie i place nieruchomych obiektów wypiekane razem z terenem.
+- **Teren w prototypie:** kafle 512×512 px logicznych wypiekane na żądanie; cienie i place nieruchomych obiektów wypiekane razem z terenem. W grze tę rolę pełni moduł `Ground` (niżej).
 - **Ludzie:** ~70 px wysokości przy zoomie domyślnym, widok z przodu i z tyłu, 2 klatki chodu, strój zależny od nacji i roli.
 
 ## Katalog dla integracji (`katalog_budynkow.json`)
@@ -108,4 +108,13 @@ Gra pozostaje **jednym plikiem** `Nova_Roma.html`; źródłem prawdy jest `proto
   `Sprites.engine` (`Scene`, `tex`, generatory — dla modułów terenu/zwierząt).
 - W grze: `Data.footprint(id)` (obrys z katalogu) zastępuje stałe rozmiary; `World/Build/Events/TestBots` operują na pełnym obrysie; Dwór 4×4 na środku mapy; `Game.render` rysuje sprite'y
   (budynki, drzewa, złoża, mieszkańcy, place budowy, duch budynku, dym z kominów, plakietki). `?classic=1` — dawne procedury `Gfx.ART` (zapas), `?q=1|2` — jakość wypieku.
+- **Podłoże mapy (`src/42_ground.js`, klasa `Ground`; `Sprites.makeGround(mapa, { climate, statics, sigOf })`):** zamiast 2304 kafli na klatkę teren jest wypiekany w chunkach
+  512×512 px logicznych planu sprite'ów (3 poziomy rozdzielczości: 1, ½, ¼ — najgrubszy dla całej mapy powstaje na ekranie ładowania, więc nigdy nie ma dziur).
+  Grunt: tekstura klimatu (+ druga, obrócona i przeskalowana warstwa oraz wielkoskalowe plamy `GEN.vary` — bez widocznej powtarzalności), rodzaje gruntu (bagno, wydma, ruchome piaski,
+  zaspy, oaza, skała) i woda nakładane przez maski z rozmytych wielokątów pól z progiem (kontur organiczny zamiast schodków rombów), plaża → mokry brzeg → piana → woda (morze / jezioro /
+  rzeka / oaza / zimne morze / lód) → głębia, bród = żwir + płytka woda, cieniowanie wzgórz (`soft-light`, światło z lewej góry), przycięcie do rombu mapy.
+  Nakładka chunka (osobne płótno) niesie place, cienie i niskie dekory obiektów statycznych; gra podaje je wywołaniem `statics(tx0, ty0, tx1, ty1, emit)`, a zmianę wykrywa po `sigOf`
+  (wycięte drzewo, nowy budynek) — wtedy odświeża się tylko nakładka. `draw()` rysuje widoczne chunki z zaokrągleniem do pikseli urządzenia (bez szwów), `drawFx()` — błyski na wodzie,
+  `work(ms)` — wypiek brakujących poziomów w budżecie klatki, limit pamięci z wyrzucaniem najdawniej używanych.
+  Tekstury gruntu: `GEN.grass` (zestawy green / eastern / sand / snow / tundra), `GEN.dune`, `GEN.drift`, `GEN.bog`, `GEN.quick`, `GEN.rock`, `GEN.gravel`, `GEN.water` (sea / lake / river / oasis / cold / ice).
 - Po zmianie obrysu / wejścia / komina: `node build.js` → `node katalog.js` → `node build_game.js`; test: `node tools/browser_sprites.js` i `node tools/footprints.js`.

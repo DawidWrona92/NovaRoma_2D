@@ -82,6 +82,7 @@ return {
   get: (nation, id) => SPR[spriteName(nation, id)] || null,
   spr: SPR, sets: SETS, castKeys, cast: key => (SETS.cast || {})[key] || null,
   catalog: catalogJSON,
+  makeGround: (map, o) => new Ground(map, o), GCH,
   /* niskopoziomowe elementy silnika dla modułów gry (teren, zwierzęta…): sceny ze zdobieniami terenu, tekstury, generatory */
   engine: { Scene, tex, GEN, TREES, CAST, bakeCast, bakeRock, bakeTuft, bakeCliff, bakeReeds, newCanvas, lodPick, rng, hex, css, mixc, scaleC, clamp, lerp, TAU, BAKED, softFill, fbm, periodicNoise }
 };

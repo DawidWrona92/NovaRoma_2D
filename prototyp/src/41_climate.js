@@ -60,6 +60,64 @@ GEN.quick = () => {
   return { c, ppu: 64 * T };
 };
 
+/* wielkoskalowe plamy gruntu (okres ok. 12 pól): jaśniejsze i ciemniejsze obszary zrywają powtarzalność kafelkowej tekstury; alfa nakładana na grunt */
+GEN.vary = (pal = 'green') => {
+  const N = 256, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, n1 = fbm(N, 2, 3, 91), n2 = fbm(N, 5, 3, 97);
+  const C = { green: [[214, 226, 96], [10, 44, 22]], eastern: [[224, 214, 126], [44, 40, 14]], sand: [[255, 240, 196], [128, 90, 46]], snow: [[255, 255, 255], [92, 124, 176]] }[pal] || [[214, 226, 96], [10, 44, 22]];
+  for (let i = 0; i < N * N; i++) {
+    const t = n1[i] * 0.65 + n2[i] * 0.35, hi = t > 0.5, a = clamp(Math.abs(t - 0.5) * 3.2, 0, 1), col = C[hi ? 0 : 1];
+    d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = a * 255;
+  }
+  g.putImageData(im, 0, 0);
+  return { c, ppu: 22 };
+};
+/* skała jako grunt (pod klifami i na skalnych polach): zwietrzałe płyty z warstwami, pęknięciami i nalotem — rock (szara, z mchem), sand (piaskowiec z pasami), snow (zimna, przyprószona) */
+GEN.rock = (pal = 'rock') => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const P = { rock: ['#3f3d38', '#6a6760', '#97948a', '#bcb8aa'], sand: ['#86643c', '#ac8654', '#cda670', '#e8c88e'], snow: ['#50545c', '#787d86', '#a4abb6', '#d4dae4'] }[pal] || ['#3f3d38', '#6a6760', '#97948a', '#bcb8aa'];
+  const n1 = fbm(N, 3, 4, 111), n2 = fbm(N, 9, 3, 113), n3 = periodicNoise(N, 28, 117), n4 = fbm(N, 5, 3, 119), lut = lutRamp(P.map((h, i) => [i / 3, hex(h)]));
+  const moss = hex('#5a7a3a'), snow = hex('#f2f6fb');
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, strata = 0.5 + 0.5 * Math.sin(((x + 2 * y) / N) * TAU * 3 + n2[i] * 5);        // okres całkowity → bezszwowo
+    let t = n1[i] * 0.5 + n2[i] * 0.3 + n3[i] * 0.2;
+    if (pal === 'sand') t = t * 0.7 + strata * 0.3;
+    let col = lut[clamp(((t - 0.2) * 1.7 * 255) | 0, 0, 255)];
+    if (pal === 'rock') col = mixc(col, moss, clamp((n4[i] - 0.56) * 4, 0, 0.5));
+    else if (pal === 'snow') col = mixc(col, snow, clamp((n4[i] - 0.5) * 3.4, 0, 0.88));
+    d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(121);
+  for (let i = 0; i < 26; i++) {                                                                      // pęknięcia płyt
+    let x = r() * B, y = r() * B, a = r() * TAU; const pts = [[x, y]];
+    for (let k = 0; k < 6; k++) { a += (r() - 0.5) * 1.1; x += Math.cos(a) * (8 + r() * 14); y += Math.sin(a) * (8 + r() * 14); pts.push([x, y]); }
+    wrapDraw(B, pts[0][0] - 110, pts[0][1] - 110, 220, 220, (ox, oy) => {
+      g.strokeStyle = 'rgba(22,18,14,0.42)'; g.lineWidth = 1.2; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox, py + oy) : g.moveTo(px + ox, py + oy)); g.stroke();
+      g.strokeStyle = 'rgba(255,250,235,0.22)'; g.lineWidth = 0.8; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px + ox + 1, py + oy + 1) : g.moveTo(px + ox + 1, py + oy + 1)); g.stroke();
+    });
+  }
+  for (let i = 0; i < 900; i++) { const x = r() * B, y = r() * B; g.fillStyle = r() < 0.5 ? 'rgba(255,250,235,0.16)' : 'rgba(10,8,6,0.2)'; g.fillRect(x, y, 1 + r() * 2, 1 + r() * 1.5); }
+  return { c, ppu: 64 * T };
+};
+/* żwir i otoczaki: plaże nad zimnym morzem, brzegi rzek i bród */
+GEN.gravel = (pal = 'gray') => {
+  const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data;
+  const P = { gray: ['#4e4b45', '#76736a', '#9c998e'], tan: ['#6e5a3c', '#988058', '#bca178'] }[pal] || ['#4e4b45', '#76736a', '#9c998e'];
+  const n1 = fbm(N, 5, 3, 131), n2 = periodicNoise(N, 40, 133), lut = lutRamp(P.map((h, i) => [i / 2, hex(h)]));
+  for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] * 0.7 + n2[i] * 0.4 - 0.1) * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0); g.scale(T, T);
+  const r = rng(135), cols = P.map(hex);
+  for (let i = 0; i < 1500; i++) {                                                                    // otoczaki: cień, bryłka, błysk
+    const x = r() * B, y = r() * B, rx = 1.6 + r() * 3.4, ry = rx * (0.55 + r() * 0.3), a = r() * 3, col = scaleC(cols[(r() * 3) | 0], 0.85 + r() * 0.45);
+    wrapDraw(B, x - 6, y - 6, 12, 12, (ox, oy) => {
+      g.fillStyle = 'rgba(12,10,8,0.35)'; g.beginPath(); g.ellipse(x + ox + 0.8, y + oy + 1, rx, ry, a, 0, TAU); g.fill();
+      g.fillStyle = css(col); g.beginPath(); g.ellipse(x + ox, y + oy, rx, ry, a, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,252,240,0.28)'; g.beginPath(); g.ellipse(x + ox - rx * 0.25, y + oy - ry * 0.3, rx * 0.5, ry * 0.4, a, 0, TAU); g.fill();
+    });
+  }
+  return { c, ppu: 64 * T };
+};
+
 /* ---------- drzewa i krzewy ---------- */
 /* brzoza: biały pień z czarnymi przewężeniami, jasna, ażurowa korona */
 TREES.birch = (seed, F = 0.8) => {

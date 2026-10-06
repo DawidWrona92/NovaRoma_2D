@@ -16,7 +16,7 @@ GEN.grass = (pal = 'green') => {
   for (let i = 0; i < N * N; i++) {
     const t = n1[i] * 0.55 + n2[i] * 0.3 + n3[i] * 0.15;
     let col = lut[clamp(((t - 0.25) * 1.7 * 255) | 0, 0, 255)];
-    const dm = clamp((n1[i] - 0.64) * 6, 0, 0.5) * clamp((n2[i] - 0.3) * 3, 0, 1);     // plamy gołej ziemi
+    const dm = clamp((n1[i] - 0.68) * 5, 0, 0.32) * clamp((n2[i] - 0.4) * 3, 0, 1);     // plamy gołej ziemi (rzadkie i blade — przy dużej powtarzalności wzoru zauważalne jako kratownica)
     if (dm > 0) col = mixc(col, dirt, dm);
     d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255;
   }
@@ -64,12 +64,14 @@ GEN.field = (kind = 'wheat') => {
   }
   return { c, ppu: 64 * T };
 };
+TEXNORM.water = p => (['sea', 'lake', 'river', 'oasis', 'cold', 'ice'].includes(p) ? p : 'sea');
 GEN.water = (pal = 'sea') => {
   const V = {
     sea: { st: [[0, '#1d6a8c'], [0.5, '#2f8ba6'], [1, '#5cc0c8']], wave: '235,250,255' },
     lake: { st: [[0, '#25606c'], [0.5, '#3a8a8c'], [1, '#78cdbd']], wave: '235,252,246' },
     river: { st: [[0, '#2a6f96'], [0.5, '#4690b2'], [1, '#8ac9de']], wave: '240,252,255' },
     oasis: { st: [[0, '#1f8f95'], [0.5, '#35b6b0'], [1, '#8ee6d4']], wave: '240,255,250' },
+    cold: { st: [[0, '#173f58'], [0.5, '#25627c'], [1, '#4a97ac']], wave: '225,242,250' },
     ice: { st: [[0, '#a6c6da'], [0.5, '#d0e5f0'], [1, '#f6fbff']], wave: '255,255,255' }
   }[pal] || null;
   const T = TEXRES, B = 256, N = B * T, c = newCanvas(N, N), g = c.getContext('2d'), im = g.createImageData(N, N), d = im.data, n1 = fbm(N, 4, 4, 41), n2 = periodicNoise(N, 20, 43);
@@ -77,10 +79,10 @@ GEN.water = (pal = 'sea') => {
   for (let i = 0; i < N * N; i++) { const col = lut[clamp(((n1[i] * 0.8 + n2[i] * 0.3 - 0.1) * 255) | 0, 0, 255)]; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); g.scale(T, T);
   const r = rng(47 + pal.length);
-  for (let i = 0; i < (pal === 'ice' ? 60 : 260); i++) { // fale (na lodzie — rzadkie połyski)
-    const x = r() * B, y = r() * B, rx = 6 + r() * 16;
-    g.strokeStyle = `rgba(${V.wave},${0.1 + r() * 0.2})`; g.lineWidth = 1 + r();
-    wrapDraw(B, x - rx, y - 4, rx * 2, 8, (ox, oy) => { g.beginPath(); g.ellipse(x + ox, y + oy, rx, 1.5 + r() * 2, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); });
+  for (let i = 0; i < (pal === 'ice' ? 50 : 230); i++) { // zmarszczki: łuki okręgów w płaszczyźnie wody — w rzucie izometrycznym stają się spłaszczonymi łukami poziomymi (na lodzie rzadkie połyski)
+    const x = r() * B, y = r() * B, rr = 3.5 + r() * 11, a0 = r() * TAU, span = 0.8 + r() * 1.5, al = 0.1 + r() * 0.2, lw = 0.8 + r() * 0.9, sq = 0.85 + r() * 0.3;
+    g.strokeStyle = `rgba(${V.wave},${al})`; g.lineWidth = lw;
+    wrapDraw(B, x - rr, y - rr, rr * 2, rr * 2, (ox, oy) => { g.beginPath(); g.ellipse(x + ox, y + oy, rr, rr * sq, 0, a0, a0 + span); g.stroke(); });
   }
   if (pal === 'ice') for (let i = 0; i < 26; i++) { // pęknięcia lodu
     let x = r() * B, y = r() * B, a = r() * TAU; const pts = [[x, y]];
