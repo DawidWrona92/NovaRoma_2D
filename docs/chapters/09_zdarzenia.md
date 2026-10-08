@@ -22,7 +22,7 @@ Szansa jest porównywana z jednym losowaniem `RNG.next()` na sprawdzenie (losowa
 >
 > Gracz ma więc wybór: Strażnice przy dużym zapasie i niskim poziomie haraczu, brak Strażnic przy wysokim. Ostrzeżenie na 2 minuty przed napadem i napad na samą sprzedaż nie zostały zamodelowane (propozycja „wersji 2” mechanizmu).
 
-W grze statystyka napadów jest w panelu **NAPADY** (liczba napadów, strata, czynne Strażnice), a Doradca informuje, gdy skarbiec przekracza 300 zł. Skrypt `tools/raids.js` zbiera rozkład strat po wielu ziarnach (ze Strażnicami i bez).
+Przy `settings.physical` napad jest widoczny na mapie: gdy w jego chwili karawana jest w drodze, trzech rabusiów z szablami otacza kupca na ok. 0,9 min (rozdz. {{ref:karawany}}); strata nadal jest liczona ze skarbca. W grze statystyka napadów jest w panelu **NAPADY** (liczba napadów, strata, czynne Strażnice), a Doradca informuje, gdy skarbiec przekracza 300 zł. Skrypt `tools/raids.js` zbiera rozkład strat po wielu ziarnach (ze Strażnicami i bez).
 
 ## Kryzysy wg harmonogramu {#kryzysy}
 

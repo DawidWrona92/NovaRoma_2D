@@ -27,7 +27,7 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | 8 (8a–8d) | fauna (18 gatunków) i polowanie z łukiem, baseline v5 | ✔ (commit `ee1271d`) |
 | **Dokumentacja PDF** | generator + rozdziały + zrzuty (zadanie przekrojowe, niżej) | ◐ w toku (commit `ee4eaea`) |
 | 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ✔ (menu główne, Piaskownica z podglądem `Minimap`, ☰ Menu, `browser_menu.js`, `minimap.js`) |
-| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ○ NASTĘPNA |
+| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ◐ w toku: 9B-0…9B-4 zrobione, 9B-5 (strojenie, wzorzec regresji, dostawa) w toku |
 | 10 | integracja: legenda UI, spójność Doradcy, regress w repo, dostawa | ○ |
 | 11 | audyt wizualny całości i poprawki | ○ |
 
@@ -73,7 +73,7 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 **Zamówienie użytkownika:** ludzie mają naprawdę wykonywać zadania (drwal ścina konkretne drzewo i niesie pień, cieśla niesie pień do tartaku i piłuje, budowniczy dochodzi na plac i dopiero wtedy buduje, karawana idzie na koniec mapy i wraca), drogi mają być ważniejsze (inspiracja: Knights and Merchants, centralny magazyn), **bez zepsucia bilansu**. Analiza wykonalności, pomiary, model i ryzyka: **aneks E dokumentacji** (`docs/chapters/E_fizyczna_logistyka.md`), zarys mechanizmów: rozdz. 12.
 
-**Wnioski analizy (skrót):** (1) wykonalne, jeśli czas gry zwolni do ok. **12 s na minutę** (dziś 4 s/min wymagałoby chodu 4,5 pola/s) — tempo to stała; (2) osady botów mają mediana 12–13 pól do magazynu, średnia sprawność 0,88–0,90, obciążenie transportu 400–780 szt.·pole/min — nosiciele z ludności odpadają (wolnych ludzi 2–11, potrzeba 7–14), więc sprawność liczymy z cyklu pracy (kalibracja do dzisiejszej krzywej: ładunek 6, v = 18 pól/min, obsługa 0,1 min); (3) bilans chroni `settings.physical` (w testach spec. `false` → 58 scenariuszy bez zmian), zasada „tylko na niekorzyść” (`eff ≤ 1`) i bramka bilansu botów ≥ 90% wyniku bazowego; (4) centralny magazyn = Dwór (już jest), „Duży Skład” tylko jeśli bramki tego zażądają.
+**Wnioski analizy (skrót):** (1) wykonalne, jeśli czas gry zwolni do ok. **12 s na minutę** (dziś 4 s/min wymagałoby chodu 4,5 pola/s) — tempo to stała; (2) osady botów mają mediana 12–13 pól do magazynu, średnia sprawność 0,88–0,90, obciążenie transportu 400–780 szt.·pole/min — nosiciele z ludności odpadają (wolnych ludzi 2–11, potrzeba 7–14), więc sprawność liczymy z cyklu pracy (kalibracja do dzisiejszej krzywej: ładunek 6, v = 18 pól/min, obsługa 0,1 min); (3) bilans chroni `settings.physical` (w testach spec. `false` → 58 scenariuszy bez zmian), zasada „tylko na niekorzyść” (`eff ≤ 1`) i bramka bilansu botów ≥ 90% wyniku bazowego; (4) centralny magazyn = Dwór (już jest), „Duży Skład” tylko jeśli bramki tego zażądają. Mechanikę porównano z Twierdzą, Settlers III/IV i Knights and Merchants (aneks E, rozdział Wzorce z gier); z Settlers IV wzięto podgląd czasów dojścia w trybie budowy.
 
 | Etap | Zakres | Bramka |
 |---|---|---|

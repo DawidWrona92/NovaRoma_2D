@@ -60,8 +60,8 @@ Tabela: Kontrolki paska stanu
 | **⛵ Wyprawy** i **Zapas załogi** | tylko Wikingowie: tryb wypraw „Zwykłe” / „Mieszane” (wielka wyprawa z 2 okrętów) i reguła wysyłki (zapas załogi 90% / brak) | {{ref:haracz}} |
 | **🏴 Napady** | tylko Saraceni: napady na karawanę włączone / wyłączone | {{ref:zdarzenia}} |
 | **🔥 Kryzysy** | harmonogram kryzysów (zaraza, pożary, krach cen, wylesienie — rozdz. {{ref:kryzysy}}) włączony / wyłączony; domyślnie wyłączony | {{ref:zdarzenia}} |
-| **🚚 Logistyka** | sprawność logistyczna producentów włączona / wyłączona | {{ref:logistyka}} |
-| **Prędkość: ×N** | czas gry ×1 / ×2 / ×4 (cyklicznie) | {{ref:e-tempo}} |
+| **🚚 Logistyka** | przełącza logistykę producentów **i** model cyklu pracy (`settings.logistics` + `settings.physical`): marsz do Składu, dojście i noszenie budowniczych, karawany | {{ref:logistyka}}, {{ref:fizyka}} |
+| **Prędkość: ×N** | czas gry ×1 / ×2 / ×3 / ×6 (cyklicznie; ×1 = {{v:Data.RULES.clock.secPerMin}} s realnych na minutę gry) | {{ref:e-tempo}} |
 | **🧭 Doradca** | otwiera panel Doradcy | niżej |
 | **⚙ Więcej** | tylko na małych ekranach: rozwija rzadko używane kontrolki (oznaczone `sec`) | niżej |
 
@@ -74,6 +74,8 @@ U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Dre
 - **duch budynku** podąża za kursorem w obrysie `w×h` (rozdz. {{ref:zabudowa}}); zielony oznacza poprawne miejsce, czerwony — odmowę z powodem w podpowiedzi (np. „za blisko innego budynku”, „na wodzie”, „wymaga lasu”);
 - pola w strefie wydłużonego czasu budowy (odległość 2–3 od sąsiada) są podświetlone **przed** kliknięciem, a podpowiedź podaje karę czasu;
 - na pochyłym terenie podpowiedź pokazuje koszt **wyrównania** (rozdz. {{ref:teren}});
+- **podgląd transportu** (inspiracja: Settlers IV, gdzie kursor przy planowanym budynku pokazuje czasy dojścia): dla budynku produkcyjnego pod duchem pojawia się napis „transport ≈ N pól → X% wydajności (marsz A min na B min pracy)” (`BuildMode.transportAt`, dane z `Logistics.previewAt`); część „marsz … min na … min pracy” jest tylko przy `settings.physical`, a przy wyłączonej logistyce napisu nie ma. Drwal dostaje dodatkowo „las N pól od drzwi”, gdy najbliższy las leży dalej niż {{v:Data.RULES.cycle.treeRef}} pól. Przy braku dojścia napis brzmi „brak dojścia do Składu / Dworu”;
+- **mapa ciepła zasięgu Składu:** gdy wybrany jest **Skład** i włączona jest logistyka lub fizyka, na wolnych polach rysowana jest mapa ciepła (`BuildMode`, `heatDraw`, dane z `Logistics.fieldWith`): **zielone** — bez kary (koszt dojścia do L_ref = {{v:Data.RULES.cycle.ref}} pól), **żółte** do 14, **pomarańczowe** do 22, **czerwone** dalej (do kosztu 36; pola dalej nie są zaznaczane). Koszt liczy się od wszystkich Składów, Dworu i planowanego Składu, a drogi są tańsze niż pole zwykłe;
 - klik = `Build.enqueue`; prawy przycisk i **Esc** anulują wybór; kliknięcie placu poza trybem budowy anuluje plac (rozdz. {{ref:budowa}}).
 
 **Kamera:** przeciąganie prawym przyciskiem lub WASD, kółko myszy — zoom; na telefonie przeciąganie jednym palcem i szczypanie. Dotknięcie ekranu działa jak lewy klik (`BuildMode.click`).
@@ -81,7 +83,7 @@ U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Dre
 ## Panele informacyjne {#panele}
 
 - **Magazyn** (`#resPanel`, prawa strona) składa się z sekcji: **MAGAZYN** (towary z ilością i pojemnością `ilość / cap`; pełny magazyn jest wyróżniony), **ŻYWNOŚĆ** (produkcja, zużycie ludzi, podatek górniczy, maksymalna ludność), „Głód za”, ostrzeżenia (narzędzie, popularność < 45, podatek 3), link do Doradcy z liczbą ostrzeżeń, budowniczowie (czynni / ustawieni), **BUDOWA** (do 4 placów z postępem), **HARACZ** (następna rata, dostawa / wymagane, terminy; koszyk daniny Słowian), załoga na morzu (Wikingowie) i **NAPADY** (Saraceni, gdy był już napad). Panel odświeża się co 0,2 min gry.
-- **Karta budynku** (`#bInfo`): nazwa, **status z Doradcy** (kolor: czerwony / bursztynowy / szary / zielony — razem z wydajnością, transportem do Składu `b.logi` i zwierzyną w łowisku), wejście i wyjście na minutę (nazwy towarów zależne od nacji) oraz informacja o narzędziu. Najechanie kursorem pokazuje kartę chwilowo, **kliknięcie ją przypina** (Esc odpina); przy otwartym Doradcy karta się nie pokazuje.
+- **Karta budynku** (`#bInfo`): nazwa, **status z Doradcy** (kolor: czerwony / bursztynowy / szary / zielony — razem z wydajnością, transportem do Składu `b.logi` i zwierzyną w łowisku), wejście i wyjście na minutę (nazwy towarów zależne od nacji), informacja o narzędziu oraz sekcja **Transport**: odległość do Składu / Dworu, cykl pracy (praca + marsz w minutach) i sprawność (rozdz. {{ref:fizyka}}). Najechanie kursorem pokazuje kartę chwilowo, **kliknięcie ją przypina** (Esc odpina); przy otwartym Doradcy karta się nie pokazuje.
 - **Znaczniki nad budynkami**: litera w kółku informuje o stanie budynku bez otwierania karty — **!** brak wejścia (czerwony), **T** czeka na narzędzie, **P** brak pracownika, **Z** magazyn pełny, **J** stoi (jedzenie tylko z nadwyżki), **X** wyczerpane złoże.
 
 ## Doradca {#doradca}
@@ -89,6 +91,8 @@ U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Dre
 `Advisor` (Etap 6) to moduł tylko do odczytu, który zamienia stan gry w czytelne zdania. Otwiera go przycisk **🧭 Doradca** lub link w panelu Magazyn; panel odświeża się razem z interfejsem. Zaczyna od wiersza „🗺 Mapa: …” (opis mapy z `Minimap.describe`), a dalej składa się z części:
 
 **1. Status budynku** (`Advisor.statusOf`) — jedno zdanie na budynek, w kolejności reguł: Dwór i budynki bez pracownika (opis), brak obsady („za mało wolnej ludności — żywność obsadzana pierwsza”), czekanie na narzędzie („Targ kupi je za 20 zł, kuźnia zamkowa dorobi ok. 1 szt. na 8 min”), **brak wejścia** (z listą budynków, które wytwarzają brakujący towar — np. „zbuduj: Tartak / Skład drewna”), pełny magazyn, stanie z powodu zasady „jedzenie tylko z nadwyżki”, wyczerpane złoże, a gdy wszystko jest dobrze — „Pracuje — N% wydajności” z dopiskiem o transporcie (`−X%`: „zbliż budynki lub połóż drogę”) i o zwierzynie w łowisku.
+
+Przy fizycznej logistyce (`settings.physical`) dopisek o transporcie podaje odległość do Składu / Dworu oraz marsz i czas pracy w cyklu („marsz A min na B min pracy”); w trybie fizycznym producent bez dojścia dostaje „brak dojścia do Składu / Dworu (zabudowa odcina drogę) — sprawność minimalna”. Dla drwala, gdy najbliższe drzewo jest dalej niż {{v:Data.RULES.cycle.treeRef}} pól od drzwi, Doradca podaje odległość do drzewa i radę „postaw Leśniczówkę przy chacie (jedna na dwóch drwali)”.
 
 **2. Ostrzeżenia ogólne** (`Advisor.warnings`), od najpilniejszych: głód (z odliczaniem do pierwszych zgonów), popularność poniżej progu imigracji, podatek 3 jako pułapka, **podatek górniczy** (ile porcji jedzenia zjadają kopalnie), limit ludności z żywności (P_max — rozdz. {{ref:ludnosc}}), pełne magazyny, skarbiec do ograbienia (Saraceni, > 300 zł), przypomnienie o Koszarach 30 minut przed pierwszym terminem haraczu (Frankowie).
 
@@ -102,4 +106,4 @@ Doradca nie podejmuje żadnych decyzji ani nie zmienia stanu; testy sprawdzają 
 
 ## Co jeszcze zaplanowano {#ui-plan}
 
-Faza 10: **legenda** terenu, wody, dróg i zwierzyny (panel w grze), spójność Doradcy z nowymi mechanikami (wyrównanie, „brak dojścia”, przetrzebiona zwierzyna). Faza 9B: nowe **tempo bazowe czasu gry** i prędkości ×1/×2/×3/×6 (aneks {{ref:aneks-fizyka}}, rozdz. {{ref:e-tempo}}) oraz sekcja „Transport” w karcie budynku.
+Faza 10: **legenda** terenu, wody, dróg i zwierzyny (panel w grze), spójność Doradcy z nowymi mechanikami (wyrównanie, przetrzebiona zwierzyna). Faza 9B wprowadziła **tempo bazowe czasu gry** i prędkości ×1/×2/×3/×6 (aneks {{ref:aneks-fizyka}}, rozdz. {{ref:e-tempo}}), sekcję „Transport” w karcie budynku oraz komunikat „brak dojścia” w Doradcy.

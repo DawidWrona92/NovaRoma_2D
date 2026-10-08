@@ -15,6 +15,8 @@ Tabela: Fazy prac i ich efekty (commity w gałęzi `claude/festive-meitner-ejo4l
 | 8 | fauna (18 gatunków) i polowanie z łukiem | `fd9aefb`, `d09c70a`, `ee1271d` |
 | Dokumentacja | generator PDF, rozdziały, analiza fizycznej logistyki | `ee4eaea`, `231dc77`, `8484777` |
 | 9 | menu główne RTS, Piaskownica, ☰ Menu, podgląd mapy | `cf37876` |
+| 9B-0, 9B-1 | tempo gry 12 s/min; role i czynności postaci (`Workers`) | `c2f1c36`, `c158a7c` |
+| 9B-2 … 9B-4 | fizyczna sprawność transportu, drwal, budowniczowie, karawany, okręty | (ten etap) |
 
 Stan i plan dalszych prac: `docs/PLAN.md` (kopia w repozytorium).
 
@@ -57,11 +59,19 @@ Tabela: Decyzje użytkownika
 
 **Dokumentacja liczona z kodu.** Liczby w tabelach i wykresach (`{{v:…}}`, `{{tabela:…}}`) pochodzą z gry w chwili budowy PDF; tekst opisuje zasady. Dzięki temu zmiana danych wymaga tylko przebudowy dokumentu, a zmiana zasad — poprawy tekstu (aneks {{ref:aktualizacja}}).
 
+**Fizyczna logistyka (Faza 9B) jako przełącznik z bramką bilansu.** Ludzie naprawdę wykonują pracę (rozdz. {{ref:workers}}), a czas marszu wchodzi do ekonomii przez `settings.physical` (rozdz. {{ref:fizyka}}). Zamiast przestrajać ekonomię specyfikacji, model cyklu pracy kalibrowano do niej: ładunek {{v:Data.RULES.cycle.load}} szt. i `L_ref` {{v:Data.RULES.cycle.ref}} pól wybrano tak, by boty miały ≥ 95% wyniku z dawną krzywą i ≥ 85% wyniku bazowego (aneks {{ref:e-wyniki}}). Zasada „tylko na niekorzyść” (`eff ≤ 1`) gwarantuje, że nic nie przyspiesza gospodarki.
+
+**Tempo gry 12 s na minutę.** Warunek wiarygodnego ruchu postaci (marsz 18 pól/min = 1,5 pola/s); ×3 odpowiada dawnemu ×1, więc wyniki, terminy i testy nie zmieniają się (rozdz. {{ref:walkers}}).
+
+**Każdy ma zajęcie** (decyzja użytkownika z Fazy 9B): robotnik budynku, który stoi, zamiata lub idzie sprawdzić Skład; jedynie budowniczowie bez placu i wolni obywatele stoją lub spacerują (rozdz. {{ref:workers}}).
+
+**Magazyn centralny = Dwór** (bez nowego budynku): Skład skraca marsz lokalnie, a gracz ma realny wybór między drogą, Składem i zagęszczeniem zabudowy. Karawany i okręty są wizualizacją i opóźnieniem sprzedaży; napady nadal liczone ze skarbca.
+
 ## Decyzje otwarte {#decyzje-otwarte}
 
 Poniższe wartości mają **domyślne rozstrzygnięcie**, które użytkownik może zmienić jedną stałą (aneks {{ref:e-decyzje}}):
 
-- tempo bazowe czasu gry 12 s na minutę gry (Faza 9B-0; dziś 4 s);
+- (rozstrzygnięte w Fazie 9B-0) tempo bazowe czasu gry — 12 s na minutę gry zamiast 4;
 - napady na karawanę pozostają rozliczane ze skarbca (karawana ilustruje i opóźnia sprzedaż, ale nie jest „celem” napadu);
 - magazyn centralny = Dwór;
 - po Fazie 10: czy zostawić styl „klasyczny” (`?classic=1`) jako zapas.

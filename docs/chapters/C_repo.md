@@ -10,7 +10,7 @@ Tabela: Najczęstsze polecenia (z katalogu głównego repozytorium; Node 18+, te
 | `sh prototyp/podglady.sh` | odświeża podglądy `prototyp/podglad/*.jpg` |
 | `node tools/scenarios.js` | 58 scenariuszy akceptacyjnych + niezmienniki |
 | `node tools/normal.js [plik] [nacja]` | normalna gra botów R/D/N (ok. 5 min dla wszystkich nacji) |
-| `node tools/fauna.js`, `terrain.js`, `path.js`, `walkers.js`, `roads.js`, `spacing.js`, `leveling.js`, `logistics.js`, `footprints.js`, `minimap.js`, `workers.js` | testy modułów (headless) |
+| `node tools/fauna.js`, `terrain.js`, `path.js`, `walkers.js`, `roads.js`, `spacing.js`, `leveling.js`, `logistics.js`, `footprints.js`, `minimap.js`, `workers.js`, `physical.js` | testy modułów (headless) |
 | `node tools/browser_ui.js`, `browser_play.js`, `browser_terrain.js`, `browser_fauna.js`, `browser_sprites.js`, `browser_mobile.js`, `browser_menu.js`, `browser_workers.js` | testy w przeglądarce (Playwright) |
 | `node docs/build.js` | buduje `docs/Nova_Roma_dokumentacja.pdf` (`--html` — tylko HTML, `--check` — sama walidacja) |
 | `node docs/collect.js` | odświeża `docs/data/wyniki_testow.json` (uruchamia normal.js i scenarios.js; `--parse a.txt b.txt` — z gotowych wyjść) |

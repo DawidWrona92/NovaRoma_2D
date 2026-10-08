@@ -45,6 +45,10 @@ Poniższa tabela jest wynikiem **symulacji w grze** (wygenerowana podczas budowy
 
 Dla przykładu Chata Franków (4 d) to 0,8 min noszenia (4 szt. × 0,2 min, jeden budowniczy) i 1,4 min pracy (1,0 + 0,1 × 4), razem 2,2 min. Specyfikacja podaje dla swojego modelu: Chata ok. 3,3 min, Przystań (15 d) ok. 9 min, Okręt (40 d) ok. 11 min — z czekaniem na deski. W grze, przy zapasie materiałów, czasy są krótsze (Chata 2,2, Przystań 5,7, Okręt 6,7 min); realny czas wydłużają kolejka materiałów, kara za ciasną zabudowę (do +40% czasu pracy) i wyrównanie stoku. Noszenie jest w modelu budowy czasem budowniczego, a nie drogi, więc odległości uwzględnia dopiero sprawność logistyczna producentów (rozdz. {{ref:ruch}}).
 
+## Dojście i noszenie przy fizycznej logistyce {#budowa-fizyka}
+
+Podane wyżej czasy (0,2 min noszenia na sztukę, budowa od razu po przydziale) to model **nominalny**. Przy `settings.physical` (domyślnie w grze) budowniczowie najpierw **dochodzą z Dworu na plac** (`odległość / {{v:Data.RULES.walk.v}}` minut, bez pracy), a materiał noszą **kursami po {{v:Data.RULES.cycle.carry}} sztuk**: czas jednej sztuki to `max(0,2 min, (2·L / v + {{v:Data.RULES.cycle.handle}}) / kurs)`, gdzie L — odległość drogi od najbliższego Składu lub Dworu. Bliskie place budują się tak samo szybko jak dawniej, a dalekie wolniej, więc **droga do placu i Skład przy budowie skracają czas** (rozdz. {{ref:budowniczowie-fizyka}}).
+
 ## Złoto, rezerwa, anulowanie {#zloto-budowy}
 
 - Koszt w złocie (Kościół, Qanat, Łaźnia, Bania, Karawanseraj, Koszary, Strażnica) jest pobierany **przy otwarciu placu**.

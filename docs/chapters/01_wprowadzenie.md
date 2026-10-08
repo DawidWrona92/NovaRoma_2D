@@ -42,7 +42,7 @@ Tabela: Fazy projektu
 | 7 | wyrównywanie terenu pod budynki, wzgórza decyzyjne | ✔ |
 | 8 | fauna (18 gatunków) i polowanie z łukiem | ✔ |
 | 9 | menu główne RTS i Piaskownica (nacja, klimat, typ mapy), ☰ Menu w grze | ✔ |
-| 9B | ożywienie ludzi: fizyczna logistyka, role i czynności, karawany (aneks {{ref:aneks-fizyka}}) | następna |
+| 9B | ożywienie ludzi: tempo gry, role i czynności, fizyczna sprawność transportu, drwal, budowniczowie, karawany i okręty (aneks {{ref:aneks-fizyka}}) | ✔ |
 | 10 | integracja: legenda, spójność Doradcy, zestaw regresji w repozytorium, dostawa | planowane |
 | 11 | audyt wizualny całości i poprawki | planowane |
 
@@ -77,6 +77,9 @@ Tabela: Parametry adresu (query string)
 | `?classic=1` | bez sprite'ów — dawne procedury rysowania `Gfx.ART` (zapas) |
 | `?fauna=0` | wyłącza faunę i polowanie (domyślnie włączone w grze) |
 | `?logistics=0` | wyłącza sprawność logistyczną (domyślnie włączona w grze) |
+| `?physical=0` | dawna krzywa liniowa zamiast modelu cyklu pracy (drwal przy najbliższym drzewie, dojście i noszenie budowniczych, karawany) — domyślnie włączony razem z logistyką |
+| `?workers=0` | dawne cienie (obywatele i nosiciele) zamiast robotników z narzędziami (rozdz. {{ref:workers}}) |
+| `?tempo=N` | sekundy rzeczywiste na minutę gry przy prędkości ×1 (domyślnie {{v:Data.RULES.clock.secPerMin}}; np. `?tempo=4` — dawne tempo, używane przez niektóre testy) |
 
 Przycisk „Nowa mapa” w menu w grze i „Menu główne” działają przez zmianę parametrów adresu (rozdz. {{ref:menu-gry}}).
 

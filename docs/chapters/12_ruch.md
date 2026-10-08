@@ -36,7 +36,7 @@ Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w 
 
 **Tempo gry.** Minuta gry trwa przy prędkości ×1 **{{v:Data.RULES.clock.secPerMin}} s** (`Data.RULES.clock.secPerMin`; dawniej 4 s), a przyciski prędkości przełączają ×{{v:Data.RULES.clock.speeds.join(' → ×')}}. Prędkość ×3 odpowiada dawnemu ×1, więc dotychczasowe wyniki i terminy haraczu nie zmieniają się — zmienia się wyłącznie liczba sekund na minutę. Parametr adresu `?tempo=N` ustawia własną liczbę sekund (testy przeglądarkowe nie muszą go używać). Prędkość marszu postaci 18 pól/min przy 12 s/min to 1,5 pola/s; zob. aneks {{ref:e-tempo}}.
 
-> [!uwaga] Te prędkości są **kosmetyczne i niespójne z czasem logiki**: logika zakłada, że budowniczy nosi sztukę materiału w 0,2 min niezależnie od odległości, a producent „odkłada” towar w Składzie bez czasu; widoczny budowniczy idzie do placu kilka minut gry. To jedyny powód, dla którego ludzie dziś tylko *wyglądają*, jakby pracowali — dlatego powstała Faza 9B (aneks {{ref:aneks-fizyka}}).
+> [!uwaga] Bez przełącznika `settings.physical` (testy specyfikacji, `?physical=0`) prędkości postaci są **kosmetyczne**: logika zakłada, że budowniczy nosi sztukę materiału w 0,2 min niezależnie od odległości, a producent „odkłada” towar w Składzie bez czasu. Z włączonym przełącznikiem (domyślnie w grze) czas marszu **wchodzi do ekonomii** — rozdział „Fizyczna sprawność z cyklu pracy” poniżej i aneks {{ref:aneks-fizyka}}.
 
 ## Robotnicy i ich czynności: moduł Workers {#workers}
 
@@ -90,6 +90,46 @@ Odległość liczona jest po polach z kosztami terenu: pole lądu kosztuje 1, **
 Poniższy pomiar (skrypt `tools/probe_logistyki.js`, liczony przy każdej budowie dokumentu) pokazuje, że w osadzie układanej przez bota **bez dróg** mediana odległości od Składu / Dworu wynosi ok. 12–13 pól, 90. percentyl ok. 17–21, a pojedyncze budynki (kopalnia darniowa Wikingów) leżą 40 pól od magazynu. Średnia sprawność modułu to ok. 0,88–0,90 — czyli osada „bez organizacji” traci ok. 10% produkcji, a drogi i Składy ten stan poprawiają. To budżet, którego nie wolno przekroczyć przy dalszych zmianach (spec. przyjmuje, że narzut transportu poniżej 10% jest akceptowalny, 15% już obniża ludność Franków o 18%).
 
 {{tabela:sonda_logistyki}}
+
+## Fizyczna sprawność z cyklu pracy {#fizyka}
+
+Przełącznik `settings.physical` (w grze domyślnie włączony razem z logistyką; `?physical=0` przywraca dawną krzywą liniową, w testach specyfikacji jest wyłączony) zastępuje liniową krzywą **modelem cyklu pracy**, tym samym, który widać na ekranie (rozdz. {{ref:workers}}). Robotnik producenta pracuje przez czas `Tw`, w którym wytwarza ładunek, a potem musi go zanieść do najbliższego Składu lub Dworu (i przynieść wejścia); w tym czasie nie produkuje:
+
+```
+Tw    =  ładunek / Σ wyjść [szt./min]                 ładunek = RULES.cycle.load
+trips =  max(1, Σ wejść / Σ wyjść)                    kursy ze Składu do budynku na cykl (wejście tam, wyjście z powrotem)
+Th(L) =  trips · (2·L / v + obsługa)                  v = RULES.walk.v, L — koszt drogi (pole lądu 1, droga 0,6)
+eff   =  min( 1,  (Tw + Th(L_ref)) / (Tw + Th(L)) )   L_ref = RULES.cycle.ref; bez dojścia: RULES.cycle.min
+```
+
+Stałe: ładunek **{{v:Data.RULES.cycle.load}} szt.**, obsługa {{v:Data.RULES.cycle.handle}} min, prędkość {{v:Data.RULES.walk.v}} pól/min, `L_ref` = **{{v:Data.RULES.cycle.ref}} pól** (bliżej nie ma ani kary, ani premii), najniższa sprawność {{v:Data.RULES.cycle.min}} (brak dojścia — Doradca pisze „brak dojścia do Składu / Dworu”). Cechy modelu:
+
+- **Tylko na niekorzyść:** `eff ≤ 1` — nic nie przyspiesza gospodarki ponad specyfikację (test `tools/physical.js` sprawdza to dla każdego producenta każdej osady bota).
+- **Wrażliwość zależy od budynku:** im szybciej producent wytwarza towar, tym większą część cyklu zajmuje marsz — Piekarnia (3,3 szt./min) traci przy tej samej odległości więcej niż drwal (1 szt./min), a Huta (dwa wejścia na jedno wyjście) jedzie po wejścia dwa razy.
+- **Droga i Skład się opłacają:** koszt pola po drodze to 0,6, więc ta sama odległość daje wyższą sprawność, a Skład postawiony przy producencie zeruje marsz (wykres poniżej; w teście Skład lub droga podnoszą sprawność odległej farmy o ≥ 3 pp).
+- **Kalibracja do dotychczasowego bilansu:** parametry dobrano tak, by boty R i D czterech nacji osiągały co najmniej **95% wyniku z dawną krzywą** (to, co gra już dostarczała) i co najmniej 85% wyniku bazowego ze specyfikacji — wyniki strojenia w aneksie {{ref:e-wyniki}}.
+
+{{wykres:fizyczny}}
+
+Karta budynku pokazuje sekcję **Transport** (odległość do Składu / Dworu, czas pracy i marszu w cyklu, sprawność), a Doradca — „transport do Składu ≈ N pól (marsz X min na Y min pracy) (−Z%): zbliż budynki, postaw Skład lub połóż drogę”.
+
+### Drwal i Leśniczówka {#drwal}
+
+Przy `settings.physical` drwal **ścina najbliższe drzewo** (`World.nearestTree`: najmniejsza odległość w prostej od drzwi, przy remisie niższy indeks pola; zero wywołań `RNG`) zamiast losowego drzewa na całej mapie — las wokół chaty się przerzedza, a robotnik na ekranie ścina dokładnie to drzewo, które logika zabiera (czeka przy nim, aż ubędzie drzew na polu, i niesie kłodę do Składu). Dodatkowo plon drwala spada, gdy najbliższe drzewo jest dalej niż `RULES.cycle.treeRef` ({{v:Data.RULES.cycle.treeRef}}) pól: do każdego pnia musi dojść i wrócić (`Logistics.treeFactor`, odświeżany co minutę gry). **Leśniczówka** sadzi teraz przy swojej chacie: dojrzała sadzonka wyrasta na wolnym polu w promieniu 2,5–9 pól od jej drzwi (deterministycznie, z numeru sadzonki), więc Leśniczówka ma sens tylko obok drwala.
+
+### Budowniczowie {#budowniczowie-fizyka}
+
+Przy `settings.physical` budowa ma dwa czasy zależne od odległości: **dojście** budowniczych z Dworu na plac (`odległość / v` minut, raz dla każdego przydziału — przez ten czas plac stoi) oraz **noszenie materiału kursami po `RULES.cycle.carry` ({{v:Data.RULES.cycle.carry}}) sztuk**: czas jednej sztuki to `max(0,2 min, (2·L / v + obsługa) / kurs)`, gdzie `L` to droga od najbliższego Składu lub Dworu do placu. Bliskie place budują się jak dawniej (0,2 min na sztukę), dalekie — dłużej, więc **droga do placu i Skład w pobliżu budowy skracają budowę**. Budowniczowie bez placu czekają przy Dworze (rozdz. {{ref:workers}}).
+
+### Karawany Saracenów {#karawany}
+
+Przy `settings.physical` Targ nie sprzedaje już natychmiast z całego zapasu. Towary handlowe (kadzidło, tkanina, ceramika) zbierają się przy Targu do ładunku `RULES.caravan.load` ({{v:Data.RULES.caravan.load}} szt.) albo przez `wait` ({{v:Data.RULES.caravan.wait}} min), po czym **rusza karawana**: kupiec z dwoma wielbłądami idzie ścieżką `Path` do najbliższej osiągalnej krawędzi mapy ({{v:Data.RULES.walk.caravan}} pól/min), tam przez {{v:Data.RULES.caravan.sale}} min sprzedaje po bieżącej krzywej cen, a **złoto trafia do skarbca dopiero po powrocie** (opóźnienie przeciętnie ok. 3 min; cena odnawia się jak dawniej). Jednocześnie jedzie najwyżej tyle karawan, ile Targów (Karawanseraj liczy się za 2). Przychód z partii jest taki sam jak przy sprzedaży natychmiastowej po tej samej cenie; zmienia się tylko czas, a stan (`state.caravans`) jest JSON-owy. Pozycja karawany na ekranie to czysta funkcja czasu gry (`Walkers.caravanFigures`). Gdy Targ nie ma drogi do krawędzi mapy, sprzedaż odbywa się natychmiast jak dawniej.
+
+**Napady** nadal liczą stratę ze skarbca (rozdz. {{ref:napad}}); gdy w chwili napadu karawana jest w drodze, na ekranie **trzech rabusiów z szablami otacza kupca** na ok. 0,9 min (`state.raids.last`).
+
+### Okręty Wikingów {#okrety}
+
+Gdy okręt jest w rejsie (`b.awayUntil`), na ekranie **odpływa** z przystani w głąb morza (najdalej 14 pól, w kierunku najdłuższego pasa wody) i wraca w chwili końca rejsu; położenie jest czystą funkcją czasu rejsu, a logika wypraw (załoga, miód, broń, 10 / 12 min) się nie zmienia. Załoga, która odpłynęła, znika z ekranu (jest odjęta od wolnych obywateli).
 
 ## Co z tego wynika dla gracza {#wnioski}
 
