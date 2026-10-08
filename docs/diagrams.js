@@ -36,7 +36,7 @@ function warstwy(state) {
 /* --------------------------------------------------------------------- tick */
 function tick(state) {
   let s = '';
-  s += box(8, 10, 118, 40, 'Game.loop', 'm', 'rAF, realDt ≤ 0,05 s') + label(8, 62, 'gameDt = realDt / 4 × speed', 'dg-s') + label(8, 74, '(4 s realne = 1 min gry)', 'dg-s');
+  s += box(8, 10, 118, 40, 'Game.loop', 'm', 'rAF, realDt ≤ 0,05 s') + label(8, 62, 'gameDt = realDt / secPerMin × speed', 'dg-s') + label(8, 74, '(secPerMin = ' + g.Data.RULES.clock.secPerMin + ' s realne = 1 min gry)', 'dg-s');
   s += arrow(126, 30, 150, 30, 'dg-flow') + box(150, 10, 150, 40, 'World.tick(dt)', 'k', 'time += dt');
   const steps = [['Economy.tick', 'obsada → popularność →', 'produkcja → zawory → jedzenie →', 'podatki → imigracja'], ['Build.tick', 'gang 2–5, place:', 'etap 0 wyrównanie,', '1 noszenie, 2 budowa'], ['Tribute.tick', 'rynek Targu, wyprawy,', 'żołnierze, termin', 'haraczu co 15 min'], ['Events.tick', 'napad na karawanę,', 'kryzysy wg', 'harmonogramu'], ['Fauna.tick', 'wyprawy myśliwych,', 'zagrożenia, narodziny,', 'ruch zwierząt'], ['Cień symulacji', 'obywatele i nosiciele', '(RNG logiki), liczba', 'figurek = ludność']];
   steps.forEach((st, i) => { const x = 8 + (i % 3) * 172, y = 100 + Math.floor(i / 3) * 96; s += '<g class="dg-box ' + (i < 5 ? 'k' : 'm') + '"><rect x="' + x + '" y="' + y + '" width="160" height="74" rx="4"/><text x="' + (x + 80) + '" y="' + (y + 15) + '" text-anchor="middle" class="dg-t">' + esc(st[0]) + '</text></g>'; s += label(x + 80, y + 34, st[1], 'dg-s', 'middle') + label(x + 80, y + 46, st[2], 'dg-s', 'middle') + label(x + 80, y + 58, st[3], 'dg-s', 'middle'); });

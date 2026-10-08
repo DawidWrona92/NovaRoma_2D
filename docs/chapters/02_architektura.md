@@ -30,7 +30,7 @@ Kafel mapy (`map.tiles[i]`) ma pola: `h` (0 woda / 1 ląd / 2 skała), `e` (wyso
 
 ## Pętla gry i kolejność ticku {#tick}
 
-`Game.loop` jest wołana z `requestAnimationFrame`. Czas rzeczywisty (ograniczony do 0,05 s na klatkę) przeliczany jest na czas gry: `gameDt = realDt / 4 × speed` — **4 s realne = 1 minuta gry** przy prędkości ×1 (przyciski ×1 / ×2 / ×4; ×0 to pauza). Dla każdej klatki:
+`Game.loop` jest wołana z `requestAnimationFrame`. Czas rzeczywisty (ograniczony do 0,05 s na klatkę) przeliczany jest na czas gry: `gameDt = realDt / secPerMin × speed`, gdzie `secPerMin` = {{v:Data.RULES.clock.secPerMin}} s (`Data.RULES.clock.secPerMin`; parametr adresu `?tempo=N` go zastępuje). Przy prędkości ×1 jedna minuta gry trwa więc {{v:Data.RULES.clock.secPerMin}} s realnych; przycisk prędkości przełącza ×{{v:Data.RULES.clock.speeds.join(' → ×')}}. Pauza to `speed = 0` ustawiane przez menu gry. Dla każdej klatki:
 
 1. `World.tick(gameDt)` — logika (kolejność poniżej),
 2. `Walkers.update(gameDt)` — ruch widocznych postaci po ścieżkach,

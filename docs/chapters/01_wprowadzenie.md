@@ -24,7 +24,7 @@ Dokument opisuje **całą logikę gry takiej, jaka jest w kodzie**, oraz decyzje
 3. **„Ekonomia Nova Roma — wersja finalna”** — starszy dokument historyczny (wersja v3.2 trzech nacji): uzasadnia, dlaczego mechaniki wyglądają tak, a nie inaczej (naprawione błędy v2, balans, decyzje). Część liczb została później zmieniona w v3.6; różnice zebrano w rozdz. {{ref:spec-kod}}.
 4. **Plan faz i decyzje użytkownika** — wszystko, co dodano ponad specyfikację ekonomii: teren, zabudowa, ruch, fauna, menu (rozdz. {{ref:decyzje}}).
 
-> [!wazne] **Konwencje.** *d* = deska, *k* = kamień, *gl* = glina, *zł* = złoto, **T** = budynek wymaga narzędzia przy obsadzeniu. „Minuta” oznacza minutę czasu gry (w grze 4 s realne = 1 min przy prędkości ×1). „Pole” to jednostka planu mapy (mapa ma 48 × 48 pól). *Osobominuta* to minuta pracy jednej osoby — wspólna miara, do której sprowadzono poziomy haraczu wszystkich nacji. Wartości liczbowe zapisujemy z przecinkiem dziesiętnym.
+> [!wazne] **Konwencje.** *d* = deska, *k* = kamień, *gl* = glina, *zł* = złoto, **T** = budynek wymaga narzędzia przy obsadzeniu. „Minuta” oznacza minutę czasu gry (w grze {{v:Data.RULES.clock.secPerMin}} s realnych = 1 min przy prędkości ×1). „Pole” to jednostka planu mapy (mapa ma 48 × 48 pól). *Osobominuta* to minuta pracy jednej osoby — wspólna miara, do której sprowadzono poziomy haraczu wszystkich nacji. Wartości liczbowe zapisujemy z przecinkiem dziesiętnym.
 
 ## Stan projektu {#stan}
 

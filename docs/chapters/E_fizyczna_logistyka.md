@@ -117,7 +117,7 @@ Tabela: Wzorce z innych gier i ich odpowiedniki
 
 Wnioski dla projektu: (1) model „robotnik sam niesie ładunek” z nominalnym czasem pracy jest dokładnie tym, co robi Twierdza, a poradniki Settlers III uzasadniają jego główną konsekwencję — **wrażliwość zależną od tempa produkcji**; (2) pomysł **podglądu czasów dojścia pod kursorem** z Settlers IV został dodany jako nowa funkcja interfejsu; (3) ładunek ok. 10–12 szt. na kurs jest zgodny z Twierdzą (12 szt.); (4) rozszerzenia warte rozważenia w przyszłości: wydeptywane ścieżki, osobny „Spichlerz” na żywność (Twierdza rozdziela spichlerz i magazyn), ustawiane przez gracza punkty pracy drwala (KaM Remake).
 
-Źródła (wyszukiwanie): poradniki i wiki Steam „Knights and Mechants Gameplay Guide”, kamremake.wiki.gg (Storehouse, Serf, Woodcutter, Buildings), stronghold.fandom.com (Wood Camp, Woodcutter, Market), poradnik Steam „Economy and building placement 101”, forum Heaven Games „Stronghold” (Woodcutter Tricks, Trees and wood), strategywiki.org i settlers.jakelee.co.uk (Settlers III), docs.settlers-united.com (Settlers IV: Buildsite priority), poradniki Settlers 3/4 na tripod i santassettlers.
+Źródła (wyszukiwanie): poradniki i wiki Steam „Knights and Merchants Gameplay Guide”, kamremake.wiki.gg (Storehouse, Serf, Woodcutter, Buildings), stronghold.fandom.com (Wood Camp, Woodcutter, Market), poradnik Steam „Economy and building placement 101”, forum Heaven Games „Stronghold” (Woodcutter Tricks, Trees and wood), strategywiki.org i settlers.jakelee.co.uk (Settlers III), docs.settlers-united.com (Settlers IV: Buildsite priority), poradniki Settlers 3/4 na tripod i santassettlers.
 
 ## Ożywienie wizualne {#e-wizualne}
 

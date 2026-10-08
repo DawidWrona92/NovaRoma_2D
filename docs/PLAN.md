@@ -1,4 +1,4 @@
-# Plan prac — Nova Roma (stan po Fazie 9; dokumentacja w budowie; następna Faza 9B)
+# Plan prac — Nova Roma (stan po Fazie 9B-4; 9B-5 wstrzymane; PAUZA — patrz „Kolejność dalej”)
 
 > Ten plik jest kopią planu roboczego i leży w repozytorium, żeby przetrwał restart środowiska. Po każdej bramce faz aktualizujemy tabelę stanu i listy „do zrobienia”. Dokumentacja opisująca grę: `docs/Nova_Roma_dokumentacja.pdf` (budowana z `docs/chapters/*.md`).
 
@@ -25,11 +25,11 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | 7 | wyrównywanie terenu, wzgórza decyzyjne | ✔ |
 | bramka 6–7 | poprawki `pad`/brzeg, `browser_ui`, baseline v4 | ✔ |
 | 8 (8a–8d) | fauna (18 gatunków) i polowanie z łukiem, baseline v5 | ✔ (commit `ee1271d`) |
-| **Dokumentacja PDF** | generator + rozdziały + zrzuty (zadanie przekrojowe, niżej) | ◐ w toku (commit `ee4eaea`) |
+| **Dokumentacja PDF** | generator + rozdziały + zrzuty (zadanie przekrojowe, niżej) | ◐ w toku (ostatnio `9c5fd7e`; zalążki: 11, 13, 15, 18, A) |
 | 9 | menu RTS i Piaskownica (9a ekrany → 9b ☰ Menu → 9c testy) | ✔ (menu główne, Piaskownica z podglądem `Minimap`, ☰ Menu, `browser_menu.js`, `minimap.js`) |
-| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ◐ w toku: 9B-0…9B-4 zrobione, 9B-5 (strojenie, wzorzec regresji, dostawa) w toku |
-| 10 | integracja: legenda UI, spójność Doradcy, regress w repo, dostawa | ○ |
-| 11 | audyt wizualny całości i poprawki | ○ |
+| **9B** | **ożywienie ludzi: fizyczna logistyka, role i czynności, karawany, drogi/magazyn** (analiza i projekt gotowe: aneks E dokumentacji) | ◐ 9B-0…9B-4 ✔; 9B-5 ◐ wstrzymane (pauza; otwarty problem `tools/workers.js`, patrz Ryzyka) |
+| 10 | integracja: legenda UI, spójność Doradcy, regress w repo, dostawa | ○ (wstrzymane) |
+| 11 | audyt wizualny całości i poprawki | ○ (wstrzymane) |
 
 ## Dokumentacja PDF (zadanie przekrojowe)
 
@@ -44,7 +44,8 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | 1 Wprowadzenie, 2 Architektura, 3 Ekonomia, 4 Ludność, 5 Budowa, 6 Katalog budynków, 7 Nacje, 8 Haracz, 9 Zdarzenia, 10 Teren, 12 Ruch/drogi/logistyka | ✔ napisane |
 | B Wyniki botów i scenariuszy, C Repozytorium i polecenia, D Procedura aktualizacji, **E Fizyczna logistyka (analiza i projekt Fazy 9B)** | ✔ napisane |
 | 14 Interfejs, menu i Doradca, 16 Testy (+ trudność i krzywa nauki), 17 Decyzje i historia | ✔ napisane (po Fazie 9) |
-| 11 Zasady zabudowy, 13 Fauna, 15 Grafika, 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — do napisania w tej kolejności |
+| 11 Zasady zabudowy, 13 Fauna, 15 Grafika | ◐ zalążki — uzupełnia inny agent (w toku, zlecenie rodzica) |
+| 18 Spec a implementacja, A Wyniki symulatora ze specyfikacji | ○ zalążki — wymagają treści specyfikacji |
 | zrzuty ekranu (`docs/img`, skrypt `docs/shots.js`) i diagramy | ○ |
 
 **Definicja „gotowe” (v1.0 dokumentacji):** wszystkie rozdziały bez zalążków, `node docs/build.js --check` bez problemów, przegląd wizualny wszystkich stron, zrzuty (HUD, tryb budowy ze strefami, klimaty, fauna), wpis w rozdz. 17 o każdej decyzji z tego planu i różnice spec/kod w rozdz. 18.
@@ -75,16 +76,18 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 **Wnioski analizy (skrót):** (1) wykonalne, jeśli czas gry zwolni do ok. **12 s na minutę** (dziś 4 s/min wymagałoby chodu 4,5 pola/s) — tempo to stała; (2) osady botów mają mediana 12–13 pól do magazynu, średnia sprawność 0,88–0,90, obciążenie transportu 400–780 szt.·pole/min — nosiciele z ludności odpadają (wolnych ludzi 2–11, potrzeba 7–14), więc sprawność liczymy z cyklu pracy (kalibracja do dzisiejszej krzywej: ładunek 6, v = 18 pól/min, obsługa 0,1 min); (3) bilans chroni `settings.physical` (w testach spec. `false` → 58 scenariuszy bez zmian), zasada „tylko na niekorzyść” (`eff ≤ 1`) i bramka bilansu botów ≥ 90% wyniku bazowego; (4) centralny magazyn = Dwór (już jest), „Duży Skład” tylko jeśli bramki tego zażądają. Mechanikę porównano z Twierdzą, Settlers III/IV i Knights and Merchants (aneks E, rozdział Wzorce z gier); z Settlers IV wzięto podgląd czasów dojścia w trybie budowy.
 
-| Etap | Zakres | Bramka |
-|---|---|---|
-| **9B-0** | tempo gry (`sekundy na minutę`, domyślnie 12; przyciski ×1/×2/×3/×6; `?tempo=`), prędkości postaci ≈ 18 pól/min | testy bez zmian (dt-based), przegląd ekranu |
-| **9B-1** | role i czynności (wizualne, zsynchronizowane ze stanem logiki): mieszkaniec per budynek, pętle, rekwizyty w `bakeFigure`, wolni obywatele; **zero zmian ekonomii** | scenariusze i `normal` identyczne; nowy `tools/browser_workers.js` |
-| **9B-2** | `settings.physical`: sprawność z cyklu pracy (wyjścia, wejścia), panel „Transport”, status „brak dojścia” | nowy `tools/physical.js`: parytet przy `false`, kalibracja krzywej, czułość na drogę i Skład, determinizm, snapshot |
-| **9B-3** | drwal i leśnik fizycznie (najbliższe drzewo, deterministycznie), budowniczowie (dojście, partie 4 szt.) | bramka bilansu: boty R/D/N ≥ 90% wyniku bazowego; kryzysy do uratowania |
-| **9B-4** | karawany (Saraceni) i statki (Wikingowie): ruch i opóźnienie logiki; napady ilustrowane na trasie | scenariusze Saracenów w zakresie spec., `raids.js` bez zmian średniej straty |
-| **9B-5** | strojenie, opcjonalnie „Duży Skład”/nosiciele, dokumentacja (rozdz. 12, aneks E → stan), WIP, nowy wzorzec regresji | komplet testów, FPS ≥ 85% sprzed zmian |
+| Etap | Zakres | Bramka | Stan |
+|---|---|---|---|
+| **9B-0** | tempo gry (`sekundy na minutę`, domyślnie 12; przyciski ×1/×2/×3/×6; `?tempo=`), prędkości postaci ≈ 18 pól/min | testy bez zmian (dt-based), przegląd ekranu | ✔ `c2f1c36` |
+| **9B-1** | role i czynności (wizualne, zsynchronizowane ze stanem logiki): mieszkaniec per budynek, pętle, rekwizyty w `bakeFigure`, wolni obywatele; **zero zmian ekonomii** | scenariusze i `normal` identyczne; nowy `tools/browser_workers.js` | ✔ `c158a7c` (moduł Workers) |
+| **9B-2** | `settings.physical`: sprawność z cyklu pracy (wyjścia, wejścia), panel „Transport”, status „brak dojścia” | nowy `tools/physical.js`: parytet przy `false`, kalibracja krzywej, czułość na drogę i Skład, determinizm, snapshot | ✔ `3115d69` |
+| **9B-3** | drwal i leśnik fizycznie (najbliższe drzewo, deterministycznie), budowniczowie (dojście, partie 4 szt.) | bramka bilansu: boty R/D/N ≥ 90% wyniku bazowego; kryzysy do uratowania | ✔ `3115d69` (budowniczowie noszą kursami po 10 szt. — zmiana względem pierwotnych 4 szt.) |
+| **9B-4** | karawany (Saraceni) i statki (Wikingowie): ruch i opóźnienie logiki; napady ilustrowane na trasie | scenariusze Saracenów w zakresie spec., `raids.js` bez zmian średniej straty | ✔ `3115d69` (opóźnienie wypłaty ok. 3 min; okręty odpływają w rejs; wielbłąd dla Saracenów) |
+| **9B-5** | strojenie, opcjonalnie „Duży Skład”/nosiciele, dokumentacja (rozdz. 12, aneks E → stan), WIP, nowy wzorzec regresji | komplet testów, FPS ≥ 85% sprzed zmian | ◐ wstrzymane: wzorzec `baseline6` tylko w scratchpadzie; `tools/workers.js` 2 z 60 sprawdzeń; przebudowa PDF i WIP nie zrobione |
 
-**Decyzje domyślne do potwierdzenia przez użytkownika (zmiana = zmiana stałej):** tempo bazowe 12 s/min; napady na karawanę nadal ze skarbca (karawana ilustruje i opóźnia sprzedaż); magazyn centralny = Dwór.
+Dokumentacja 9B: `9c5fd7e` (rozdz. 12, aneks E, rozdz. 1, 5, 9, 14, 16, 17, C). Podgląd transportu w trybie budowy (napis + mapa ciepła Składu) jest w grze; porównanie wzorców z Twierdzą, Settlers III/IV i Knights and Merchants — aneks E.
+
+**Decyzje domyślne do potwierdzenia przez użytkownika (zmiana = zmiana stałej):** tempo bazowe 12 s/min; napady na karawanę nadal ze skarbca (karawana ilustruje i opóźnia sprzedaż); magazyn centralny = Dwór. Stan: nie potwierdzone — patrz „Decyzje otwarte” w „Kolejność dalej”.
 
 ## Faza 10 — integracja końcowa i dostawa
 
@@ -107,9 +110,24 @@ Zasada: każda zmiana sprawdzana od razu, **pełny audyt i podwójna walidacja d
 - **Wydajność:** ≤ ~100 zwierząt, `Fauna.tick` ≤ 0,25 ms, FPS z fauną ≥ 85% FPS bez niej.
 - **Re-wejście do gry z menu:** nawigacja zamiast ponownej inicjalizacji; testy przeglądarkowe przez `?menu=0` lub `?play=`.
 - **Dokumentacja a kod:** generator bierze liczby z gry, więc po zmianie danych wystarczy przebudować PDF; zmiany zasad wymagają poprawy tekstu (aneks D).
+- **Regresja `tools/workers.js` (otwarte, ◐):** 2 z 60 sprawdzeń nie przechodzi (zestaw franks/temperate/mountains: robotnicy niosący ładunek 13/16 przy progu 85%, zostawiający 12/16 przy progu 80%; `workers.js:72–73`). Regresja weszła w `3115d69` (9B-2…9B-4). Hipoteza niepotwierdzona: dłuższy cykl pracy (ładunek 10) vs próg testu ok. 38 min. **Decyzja użytkownika:** najpierw sprawdzić, czy to realny problem w grze; progu nie poluzowywać na ślepo; nie robić tego przed jego wytycznymi.
 
 ## Kolejność dalej
 
-1. **Faza 9B** (9B-0 … 9B-5) z bramką bilansu i aktualizacją dokumentacji (rozdz. 12, 14, aneks E).
+**PAUZA: rozwój gry wstrzymany na prośbę użytkownika do przeglądu stanu i wytyczenia kierunku (decyzje otwarte niżej).**
+
+Do czasu wytycznych użytkownika nie zmieniamy kodu, testów ani rozdziałów (poza uzupełnianiem zalążków dokumentacji zleconym osobno). Po wytycznych kolejność wg planu poniżej, chyba że użytkownik zmieni priorytety.
+
+1. **Faza 9B-5** (strojenie, wzorzec regresji, przebudowa PDF, WIP do przeklikania) — wstrzymane; najpierw wyjaśnienie `tools/workers.js` (Ryzyka).
 2. Dokumentacja do v1.0: rozdz. 11 → 13 → 15 → 18 → A → zrzuty → przegląd stron (równolegle do faz; Faza 10 domyka).
 3. Faza 10, potem Faza 11.
+
+**Decyzje otwarte (dla użytkownika):**
+1. `tools/workers.js` — realny problem w grze czy zbyt ostry próg testu (Ryzyka).
+2. Karawana: opóźnienie wypłaty ok. 3 min (obecnie) czy kosmetyczna jak w Twierdzy.
+3. Parametry cyklu pracy: ładunek 10, L_ref 8, budowniczy 10 szt. na kurs — zostają czy dostroić.
+4. Pomysły na później: wydeptywane ścieżki (Settlers III/IV), osobny Spichlerz na żywność (Twierdza), punkty pracy drwala ustawiane przez gracza (KaM), promień pracy drwala.
+5. Czy zostawić styl klasyczny `?classic=1` po Fazie 10.
+6. Kolejność: dokończyć 9B-5 → Faza 10 → Faza 11, czy zmienić priorytety.
+7. Środowisko blokuje WebFetch do wielu domen (poradniki) — korzystano ze streszczeń wyszukiwarki; do rozstrzygnięcia, czy potrzebny inny dostęp.
+8. Stopki commitów: plan (linia 9) podaje `Co-Authored-By: Claude Sonnet 5.5`, a bieżące wytyczne przy commitach wskazują `Claude Haiku 5.5` — do ustalenia, który wzorzec obowiązuje.
