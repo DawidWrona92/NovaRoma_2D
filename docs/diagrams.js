@@ -34,7 +34,7 @@ function warstwy(state) {
 }
 
 /* --------------------------------------------------------------------- tick */
-function tick(state) {
+function tick(state, g) {
   let s = '';
   s += box(8, 10, 118, 40, 'Game.loop', 'm', 'rAF, realDt ≤ 0,05 s') + label(8, 62, 'gameDt = realDt / secPerMin × speed', 'dg-s') + label(8, 74, '(secPerMin = ' + g.Data.RULES.clock.secPerMin + ' s realne = 1 min gry)', 'dg-s');
   s += arrow(126, 30, 150, 30, 'dg-flow') + box(150, 10, 150, 40, 'World.tick(dt)', 'k', 'time += dt');

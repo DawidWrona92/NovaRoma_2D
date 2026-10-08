@@ -130,4 +130,3 @@ Do czasu wytycznych użytkownika nie zmieniamy kodu, testów ani rozdziałów (p
 5. Czy zostawić styl klasyczny `?classic=1` po Fazie 10.
 6. Kolejność: dokończyć 9B-5 → Faza 10 → Faza 11, czy zmienić priorytety.
 7. Środowisko blokuje WebFetch do wielu domen (poradniki) — korzystano ze streszczeń wyszukiwarki; do rozstrzygnięcia, czy potrzebny inny dostęp.
-8. Stopki commitów: plan (linia 9) podaje `Co-Authored-By: Claude Sonnet 5.5`, a bieżące wytyczne przy commitach wskazują `Claude Haiku 5.5` — do ustalenia, który wzorzec obowiązuje.
