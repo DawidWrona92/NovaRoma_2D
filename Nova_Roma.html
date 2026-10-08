@@ -5123,7 +5123,7 @@ async function bake(nation, onProgress = null, opts = {}) {
   jobs.push(...natureJobs(climate));
   for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
-  for (const kind of faunaKinds(climate)) jobs.push(['Zwierzęta', () => { (SETS.fauna = SETS.fauna || {})[kind] = bakeFauna(kind, 1); }]);   // fauna wg klimatu mapy (foka też — czy się pojawi, rozstrzyga gra)
+  for (const kind of new Set([...faunaKinds(climate), ...(nation === 'saracens' ? ['camel'] : [])])) jobs.push(['Zwierzęta', () => { (SETS.fauna = SETS.fauna || {})[kind] = bakeFauna(kind, 1); }]);   // wielbłąd zawsze u Saracenów: karawany (Faza 9B-4)   // fauna wg klimatu mapy (foka też — czy się pojawi, rozstrzyga gra)
   let last = 0;
   for (let i = 0; i < jobs.length; i++) {
     if (onProgress && now() - last > 40) { onProgress(i / jobs.length, jobs[i][0]); await nextPaint(); last = now(); }
@@ -5336,7 +5336,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18 }, cycle: { load: 6, handle: 0.1, ref: 6, spell: 1.2 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek (szt.), czas obsługi przy składzie (min), odległość odniesienia (koszt pola) i długość jednego „odcinka pracy" na ekranie (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 8, spell: 1.2, min: 0.3, treeRef: 5, carry: 10 }, caravan: { load: 8, wait: 3, sale: 0.3 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) i liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -7434,12 +7434,12 @@ const World = (() => {
     time: 0, speed: 1, res: {}, nextId: 1,
     pop: 14, controls: { rations: 1, tax: 1 },
     starveTimer: 0, immigrantTimer: 0, tooled: {}, staffed: {},
-    saplings: [], treeFrac: 0, plantFrac: 0, welfare: {}, foodRep: null,
+    saplings: [], treeFrac: 0, plantFrac: 0, plantSeq: 0, caravans: [], caravanWait: 0, welfare: {}, foodRep: null,
     workersStaffed: 0, workersNeeded: 0, waitingForTool: false,
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false },
     animals: [], fauna: null,                                  // zwierzęta (Faza 8): lista JSON-owa i stan modułu Fauna (włączane przez Fauna.enable)
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
@@ -7459,10 +7459,10 @@ const World = (() => {
     state.pop = 14; state.controls = { rations: 1, tax: 1 };
     state.starveTimer = 0; state.immigrantTimer = 0;
     state.tooled = {}; state.staffed = {}; state.saplings = [];
-    state.treeFrac = 0; state.plantFrac = 0;
+    state.treeFrac = 0; state.plantFrac = 0; state.plantSeq = 0; state.caravans = []; state.caravanWait = 0;
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
-    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false };
     state.animals = []; state.fauna = null;
     state.depositLeft = null;
     Data.cur.faction = factionId;
@@ -7629,19 +7629,38 @@ const World = (() => {
     for (const t of state.map.tiles) n += t.trees;
     return n;
   }
-  function addTree() {
-    const tiles = state.map.tiles;
+  const treeOk = t => t.h === 1 && !t.occup && !t.road && !t.pad && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis');   // pad = obrys kopalni/brzegu zarezerwowany przez generator: drzewa tu nie odrastają
+  /* sadzonka dojrzała: drzewo wyrasta losowo na mapie (dawniej) albo — przy settings.physical — blisko Leśniczówki, która ją posadziła (deterministycznie, bez RNG) */
+  function addTree(sp) {
+    const tiles = state.map.tiles, N = state.map.size;
+    if (sp && sp.b != null && state.settings.physical) {
+      const fb = state.buildings.find(q => q.uid === sp.b);
+      if (fb) {
+        const door = Walkers.doorOf(fb), cand = [];
+        for (let y = Math.max(0, Math.floor(door[1] - 9)); y <= Math.min(N - 1, Math.floor(door[1] + 9)); y++) for (let x = Math.max(0, Math.floor(door[0] - 9)); x <= Math.min(N - 1, Math.floor(door[0] + 9)); x++) {
+          const d = Math.hypot(x + 0.5 - door[0], y + 0.5 - door[1]); if (d >= 2.5 && d <= 9 && treeOk(tiles[y * N + x])) cand.push(y * N + x);
+        }
+        if (cand.length) { const h = Math.imul((sp.k | 0) + 1, 2654435761) >>> 0; tiles[cand[(h >>> 7) % cand.length]].trees++; return true; }
+      }
+    }
     for (let tries = 0; tries < 30; tries++) {
       const t = tiles[RNG.int(0, tiles.length - 1)];
-      if (t.h === 1 && !t.occup && !t.road && !t.pad && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis')) { t.trees++; return true; }   // pad = obrys kopalni/brzegu zarezerwowany przez generator: drzewa tu nie odrastają
+      if (treeOk(t)) { t.trees++; return true; }
     }
     return false;
   }
-  function takeTrees(n) {
+  /* najbliższe drzewo od drzwi budynku b (odległość w prostej; remis — niższy indeks pola); -1, gdy nie ma drzew */
+  function nearestTree(b) {
+    const tiles = state.map.tiles, N = state.map.size, door = Walkers.doorOf(b); let best = -1, bd = Infinity;
+    for (let i = 0; i < tiles.length; i++) { const t = tiles[i]; if (t.trees > 0 && t.h === 1) { const d = Math.hypot((i % N) + 0.5 - door[0], ((i / N) | 0) + 0.5 - door[1]); if (d < bd - 1e-9) { bd = d; best = i; } } }
+    return best;
+  }
+  function takeTrees(n, b) {
     state.treeFrac += n;
     while (state.treeFrac >= 1) {
       let done = false;
-      for (let tries = 0; tries < 40 && !done; tries++) {
+      if (b && state.settings.physical) { const i = nearestTree(b); if (i >= 0) { state.map.tiles[i].trees--; done = true; } }       // drwal ścina najbliższe drzewo (Faza 9B-3)
+      else for (let tries = 0; tries < 40 && !done; tries++) {
         const t = state.map.tiles[RNG.int(0, state.map.tiles.length - 1)];
         if (t.trees > 0) { t.trees--; done = true; }
       }
@@ -7710,7 +7729,7 @@ const World = (() => {
 
   function state$() { return state; }
   return { init, state: state$, build, placeFree, placeBuilding, canPlace, crowdOf, levelOf, canAfford, costOf,
-           tick, spawnCitizen, treeCount, addTree, takeTrees, footprint: fpOf, occupy, release, centerOf };
+           tick, spawnCitizen, treeCount, addTree, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf };
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
@@ -7948,7 +7967,7 @@ const Economy = (() => {
           // akumulacja ułamkowa — przy małym dt produkcja < 1 sadzonki/tick
           s.plantFrac += rate * sc * frac * popMult * dt;
           const growth = Data.FACTIONS[s.factionId].treeGrowthMin;
-          while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push({ t: s.time + growth }); }
+          while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push(s.settings.physical ? { t: s.time + growth, b: b.uid, k: s.plantSeq++ } : { t: s.time + growth }); }
           continue;
         }
         if (!(og in LIMIT)) continue;
@@ -7956,14 +7975,14 @@ const Economy = (() => {
         let made = Math.min(rate * sc * frac * popMult * hungerK * dt, room);
         if (dk && s.depositLeft && s.depositLeft[dk] !== undefined) { made = Math.min(made, s.depositLeft[dk]); s.depositLeft[dk] -= made; }
         res[og] += made;
-        if (b.id === 'woodcutter') World.takeTrees(made);
+        if (b.id === 'woodcutter') World.takeTrees(made, b);
         if (def.game && og === 'mięso') Fauna.take(s, b, made);          // myśliwy zużywa zwierzynę łowną (upolowania liczy moduł Fauna)
       }
     }
     s.welfare = fed;
     // dojrzałe sadzonki stają się drzewami
     s.saplings = s.saplings.filter(sp => {
-      if (s.time >= sp.t) { World.addTree(); return false; }
+      if (s.time >= sp.t) { World.addTree(sp); return false; }
       return true;
     });
 
@@ -8109,7 +8128,7 @@ const Build = (() => {
     const avail = {};
     for (const g in s.res) if (typeof s.res[g] === 'number' && g !== 'popularity') avail[g] = s.res[g];
     const claimed = {}; // rezerwacja brakujących sztuk przez wcześniejsze place
-    let left = active, working = 0;
+    let left = active, working = 0; const phys = !!s.settings.physical;
     for (const site of [...s.sites]) { // kopia: complete() usuwa plac z s.sites w trakcie pętli
       site.assigned = 0;
       const missing = site.pieces - deliveredOf(site), leveling = site.levelLeft > 0;
@@ -8127,6 +8146,10 @@ const Build = (() => {
       site.assigned = Math.min(cap, left);
       left -= site.assigned;
       working += site.assigned;
+      if (phys) {                                                             // budowniczowie najpierw dochodzą z Dworu na plac (czas bez pracy), dopiero potem kopią / noszą / budują
+        if (site.walkLeft == null) site.walkLeft = Logistics.siteWalk(s, site);
+        if (site.walkLeft > 0) { site.walkLeft -= dt; continue; }
+      }
       if (leveling) {                                                         // etap 0: wyrównywanie terenu — budowniczowie kopią, nie noszą i nie budują
         site.levelLeft -= site.assigned * dt;
         if (site.levelLeft <= 1e-9) { site.levelLeft = 0; flatten(site); }
@@ -8136,7 +8159,7 @@ const Build = (() => {
       if (missing > 0.0001) {
         for (const g in site.need)
           claimed[g] = (claimed[g] || 0) + (site.need[g] - (site.got[g] || 0));
-        let budget = site.assigned / PIECE_MIN * dt;
+        let budget = site.assigned / (phys ? Logistics.pieceMin(s, site, PIECE_MIN) : PIECE_MIN) * dt;
         for (const g in site.need) {
           const miss = site.need[g] - (site.got[g] || 0);
           if (miss <= 0 || budget <= 0.0001) continue;
@@ -8155,6 +8178,7 @@ const Build = (() => {
         if (site.work >= site.workNeed) complete(site);
       }
     }
+    if (phys) for (const st of s.sites) if (!st.assigned) st.walkLeft = null;      // bez przydziału: przy ponownym przydziale znów trzeba dojść
     s.buildersWorking = working;
   }
 
@@ -8384,13 +8408,49 @@ const Tribute = (() => {
   }
 
   /* --- Targ: sprzedaż towarów handlowych z krzywymi cen (Saraceni) --- */
+  /* sprzedaż partii q towaru g po bieżącej krzywej (spadek 0,05 zł/szt. ÷ liczba Targów, podłoga ceny); zwraca przychód i aktualizuje cenę */
+  function sellLoad(s, g, q, nM, mul) {
+    let p = s.marketPrices[g], revenue = 0, left = q, guard = 0; const floor = TRADE[g].floor * mul;
+    while (left > 0.001 && guard++ < 300) { const step = Math.min(1, left); revenue += Math.max(floor, p) * step; p = Math.max(floor, p - 0.05 * step / nM); left -= step; }
+    if (left > 0.001) revenue += Math.max(floor, p) * left;                       // powyżej 300 szt. po podłodze
+    s.marketPrices[g] = p; return revenue;
+  }
+  /* trasa karawany od drzwi Targu do najbliższej (kosztem drogi) osiągalnej krawędzi mapy: { cost, tx, ty } (deterministycznie; tx, ty — środek pola krawędzi) */
+  function caravanRoute(s, door) {
+    const map = s.map, N = map.size, f = Path.field(map, [door], { blocked: t => t.occup != null }); let best = -1, bc = Infinity;
+    for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (x !== 0 && y !== 0 && x !== N - 1 && y !== N - 1) continue; if (f[i] < bc) { bc = f[i]; best = i; } }
+    return best < 0 || !Number.isFinite(bc) ? { cost: Infinity, tx: door[0], ty: door[1] } : { cost: bc, tx: (best % N) + 0.5, ty: ((best / N) | 0) + 0.5 };
+  }
+  /* karawana (settings.physical): towary handlowe zbierają się przy Targu do ładunku (RULES.caravan.load szt. albo po wait min), karawana idzie do krawędzi mapy, tam sprzedaje po bieżącej krzywej
+     cen, a złoto trafia do skarbca dopiero po powrocie (≈ 3 min opóźnienia); jednocześnie jedzie najwyżej tyle karawan, ile Targów (Karawanseraj liczy się za 2) */
+  function caravanTick(s, dt, nM, mul) {
+    const Cc = Data.RULES.caravan, v = Data.RULES.walk.caravan;
+    for (const g in TRADE) { const base = TRADE[g].base * mul; s.marketPrices[g] += (base - s.marketPrices[g]) * 0.0143 * dt; }   // odnowa cen jak dawniej
+    for (const c of s.caravans) {
+      if (!c.sold && s.time >= c.tSale) { let rev = 0; for (const g in c.goods) rev += sellLoad(s, g, c.goods[g], nM, mul); c.rev = rev; c.sold = true; }
+      if (c.sold && s.time >= c.tBack) { s.res.złoto += c.rev; c.done = true; }
+    }
+    s.caravans = s.caravans.filter(c => !c.done);
+    let stock = 0; for (const g in TRADE) stock += s.res[g];
+    s.caravanWait = stock > 0.001 ? (s.caravanWait || 0) + dt : 0;
+    if (stock <= 0.001 || s.caravans.length >= nM || (stock < Cc.load && s.caravanWait < Cc.wait)) return;
+    const origins = s.buildings.filter(b => (b.id === 'market' || b.id === 'caravanserai') && s.staffed[b.uid]);
+    origins.sort((a, b) => s.caravans.filter(c => c.m === a.uid).length - s.caravans.filter(c => c.m === b.uid).length || a.uid - b.uid);
+    const door = Walkers.doorOf(origins[0]), r = caravanRoute(s, door), goods = {};
+    for (const g in TRADE) if (s.res[g] > 0.001) { goods[g] = s.res[g]; s.res[g] = 0; }
+    if (!Number.isFinite(r.cost)) { let rev = 0; for (const g in goods) rev += sellLoad(s, g, goods[g], nM, mul); s.res.złoto += rev; s.caravanWait = 0; return; }   // brak drogi do krawędzi mapy: sprzedaż na miejscu jak dawniej
+    const T = r.cost / v;
+    s.caravans.push({ id: s.nextId++, m: origins[0].uid, goods, t0: s.time, tSale: s.time + T, tBack: s.time + 2 * T + Cc.sale, cost: r.cost, tx: r.tx, ty: r.ty, dx: door[0], dy: door[1], sold: false, rev: 0 });
+    s.caravanWait = 0;
+  }
   function marketTick(s, dt) {
     const mkts = s.buildings.filter(b => b.id === 'market' && s.staffed[b.uid]).length;
     const serai = s.buildings.filter(b => b.id === 'caravanserai' && s.staffed[b.uid]).length;
     // Karawanseraj liczy się jak 2 Targi (max 2 w sumie — drugi niczego nie dodaje); ceny +20% (bez kumulacji)
     const nM = mkts + Math.min(2, 2 * serai);
-    if (nM === 0) return;
+    if (nM === 0) { if (s.settings.physical && s.caravans.length) caravanTick(s, dt, 1, serai > 0 ? 1.2 : 1); return; }
     const mul = serai > 0 ? 1.2 : 1;
+    if (s.settings.physical) { caravanTick(s, dt, nM, mul); return; }
     for (const g in TRADE) {
       let p = s.marketPrices[g];
       const base = TRADE[g].base * mul, floor = TRADE[g].floor * mul;
@@ -8413,7 +8473,7 @@ const Tribute = (() => {
     }
   }
 
-  return { set, tick, soldierReserve, requiredCum, labelOf, missingChain, basketStatus,
+  return { set, tick, soldierReserve, requiredCum, labelOf, missingChain, basketStatus, caravanRoute,
            PRESET_LABEL, PRESET_LEVEL, FIRST_TERM, RATE, UNIT, TERM_EVERY, TRADE, NEED_LIST };
 })();
 
@@ -8454,6 +8514,7 @@ const Events = (() => {
             const loot = Math.min(400, 0.3 * (gold - 150) * (1 - 0.25 * guards));
             s.res.złoto -= loot;
             r.count++; r.lost += loot;
+            if (s.settings.physical) r.last = { t: s.time };                // znacznik napadu — na ekranie rabusie napadają karawanę na trasie (Faza 9B-4)
             msg(s, '⚔ Napad na karawanę! Zrabowano ' + Math.round(loot) + ' zł' +
                 (guards ? ' (Strażnice złagodziły stratę)' : ' — zbuduj Strażnicę!'));
           }
@@ -8619,6 +8680,8 @@ const TestBots = (() => {
     World.init(cfg.faction);
     const s = World.state();
     if (cfg.fauna) Fauna.enable(s);                      // opcjonalnie: bot gra z fauną (Faza 8); domyślnie bez — jak scenariusze specyfikacji
+    if (cfg.logistics) s.settings.logistics = true;      // opcjonalnie: dawna krzywa logistyczna / fizyczny cykl pracy (Faza 9B-2); domyślnie wyłączone — jak scenariusze specyfikacji
+    if (cfg.physical) s.settings.physical = true;
     if (cfg.tax != null) s.controls.tax = cfg.tax;
     Tribute.set(cfg.preset || 'normal');
     const plan = (RECIPE[cfg.faction] || []).slice();
@@ -8761,10 +8824,13 @@ const Advisor = (() => {
       return mk('food', 'warn', 'Stoi: jedzenie tylko z nadwyżki (zapas poniżej 5 min zużycia ludności)');
     if (st && st.c === 'depleted') return mk('depleted', 'warn', 'Złoże wyczerpane — budynek stoi');
     const eff = b.eff != null ? Math.round(b.eff * 100) : 100;
-    const lg = s.settings.logistics && b.logi && b.logi.eff < 0.995 ? ' · transport do Składu ' + (Number.isFinite(b.logi.dist) ? '≈ ' + Math.round(b.logi.dist) + ' pól drogi' : 'niemożliwy') + ' (−' + Math.round((1 - b.logi.eff) * 100) + '%): zbliż budynki lub połóż drogę' : '';
+    const lgOn = (s.settings.logistics || s.settings.physical) && b.logi && b.logi.eff < 0.995, f1c = v => v.toFixed(1).replace('.', ',');
+    const lg = lgOn ? (b.logi.unreachable ? ' · brak dojścia do Składu / Dworu (zabudowa odcina drogę) — sprawność minimalna' + ' (−' + Math.round((1 - b.logi.eff) * 100) + '%)'
+      : ' · transport do Składu ' + (Number.isFinite(b.logi.dist) ? '≈ ' + Math.round(b.logi.dist) + ' pól drogi' : 'niemożliwy') + (b.logi.Th != null ? ' (marsz ' + f1c(b.logi.Th) + ' min na ' + f1c(b.logi.Tw) + ' min pracy)' : '') + ' (−' + Math.round((1 - b.logi.eff) * 100) + '%): zbliż budynki, postaw Skład lub połóż drogę') : '';
+    const tr = b.logi && b.logi.treeL != null ? ' · najbliższe drzewo ≈ ' + Math.round(b.logi.treeL) + ' pól od drzwi (plon −' + Math.round((1 - b.logi.treeF) * 100) + '%): postaw Leśniczówkę przy chacie (jedna na dwóch drwali)' : '';
     const gst = def.game && s.settings.fauna ? Fauna.stock(s, b) : null;
     const gm = gst && gst.pts < gst.ref * 0.995 ? ' · zwierzyna w łowisku: ' + gst.pts.toFixed(1).replace('.', ',') + ' z ' + gst.ref + ' pkt (plon ×' + Math.min(1, gst.pts / gst.ref).toFixed(2).replace('.', ',') + '): postaw Chatę bliżej zwierzyny albo poczekaj na odrodzenie' : '';
-    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności' + lg + gm);
+    return mk('ok', 'good', 'Pracuje — ' + eff + '% wydajności' + lg + tr + gm);
   }
   function codeOf(b) { // szybki kod statusu (bez tekstu) — używany co klatkę przy rysowaniu znaczników
     const s = World.state(), def = Data.BUILDINGS[b.id];
@@ -8960,29 +9026,85 @@ const Logistics = (() => {
   let memo = null;
   const isProducer = b => { const def = Data.BUILDINGS[b.id], out = def && def.out ? Object.keys(def.out)[0] : null; return b.id !== 'keep' && !!out && out in Economy.LIMIT; };
   const tileOf = (map, p) => Math.min(map.size - 1, Math.max(0, Math.floor(p[1]))) * map.size + Math.min(map.size - 1, Math.max(0, Math.floor(p[0])));
-  const sigOf = s => s.buildings.length + '|' + s.sites.length + '|' + (s.map.roadRev | 0) + '|' + s.buildings.reduce((a, b) => (a + b.uid) | 0, 0) + '|' + s.time.toFixed(0) % 1;   // przebudowa układu odświeża obliczenia
+  const sigOf = s => s.buildings.length + '|' + s.sites.length + '|' + (s.map.roadRev | 0) + '|' + s.buildings.reduce((a, b) => (a + b.uid) | 0, 0) + '|' + s.time.toFixed(0) % 1 + '|' + (s.settings.physical ? 'p' : 'l');   // przebudowa układu odświeża obliczenia
+  /* Cykl pracy producenta (Faza 9B-2) — wspólny dla logiki (sprawność) i robotników na ekranie (Workers):
+       Tw     — czas pracy potrzebny na ładunek wyjścia: load / Σ wyjść [szt./min];
+       trips  — liczba kursów ze Składu / Dworu do budynku na cykl: max(1, Σ wejść / Σ wyjść) — ładunek niesie się w obie strony naraz (wejście tam, wyjście z powrotem);
+       Th(L)  — czas marszu: trips · (2·L / v + obsługa), L — koszt drogi (pole lądu 1, droga 0,6), v = Data.RULES.walk.v.
+     Sprawność eff = min(1, (Tw + Th(L_ref)) / (Tw + Th(L))): nigdy powyżej nominału, spada, gdy droga jest dłuższa niż L_ref; bez dojścia — najniższa wartość (RULES.cycle.min). */
+  function cycleParams(def, sc) {
+    const outs = Object.entries(def.out || {}).filter(([g]) => g in Economy.LIMIT), ins = Object.entries(def.inp || {}).filter(([g]) => g in Economy.LIMIT);
+    const sumO = outs.reduce((a, [, r]) => a + r * sc, 0), sumI = ins.reduce((a, [, r]) => a + r * sc, 0), C = Data.RULES.cycle;
+    return { sumO, sumI, Tw: C.load / Math.max(0.2, sumO || sumI || 1), trips: Math.max(1, sumO > 0 ? sumI / sumO : 1) };
+  }
+  const thOf = (cp, L) => cp.trips * (2 * L / Data.RULES.walk.v + Data.RULES.cycle.handle);
+  function cycleEff(def, sc, dist) {
+    const C = Data.RULES.cycle, cp = cycleParams(def, sc);
+    if (!Number.isFinite(dist)) return { eff: C.min, Tw: cp.Tw, trips: cp.trips, Th: Infinity, unreachable: true };
+    const Th = thOf(cp, dist), e = Math.max(C.min, Math.min(1, (cp.Tw + thOf(cp, C.ref)) / (cp.Tw + Th)));
+    return { eff: e, Tw: cp.Tw, trips: cp.trips, Th, unreachable: false };
+  }
   function compute(s) {
-    const R = Data.RULES.logistics, map = s.map, eff = new Map(), opts = { blocked: t => t.occup != null };
+    const R = Data.RULES.logistics, map = s.map, eff = new Map(), opts = { blocked: t => t.occup != null }, phys = !!s.settings.physical;
     const dest = s.buildings.filter(b => b.id === 'store' || b.id === 'keep').map(b => Walkers.doorOf(b));
-    const field = dest.length ? Path.field(map, dest, opts) : null;
+    const field = dest.length ? Path.field(map, dest, opts) : null; eff.field = field;
     for (const b of s.buildings) {
       if (!isProducer(b)) continue;
       const door = Walkers.doorOf(b), dist = field ? field[tileOf(map, door)] : Infinity;
+      if (phys) { const c = cycleEff(Data.BUILDINGS[b.id], s.factionId === 'vikings' ? (Economy.VIK_RATE[b.id] || 1) : 1, dist); eff.set(b.uid, { eff: c.eff, dist, Tw: c.Tw, Th: c.Th, trips: c.trips, unreachable: c.unreachable }); continue; }
       const e = Number.isFinite(dist) ? 1 - (1 - R.min) * Math.max(0, Math.min(1, (dist - R.free) / R.span)) : R.min;
       eff.set(b.uid, { eff: e, dist });
     }
     return eff;
   }
-  /* sprawność budynku b (1 = bez kary); zapisuje b.logi = { eff, dist } dla interfejsu */
+  /* sprawność budynku b (1 = bez kary); zapisuje b.logi = { eff, dist[, Tw, Th, trips] } dla interfejsu. settings.physical — model cyklu pracy; settings.logistics — dawna krzywa liniowa */
   function effOf(s, b) {
-    if (!s.settings.logistics) { if (b.logi) b.logi = null; return 1; }
+    if (!s.settings.logistics && !s.settings.physical) { if (b.logi) b.logi = null; return 1; }
     if (!isProducer(b)) return 1;
-    const sig = sigOf(s);
-    if (!memo || memo.sig !== sig || memo.map !== s.map) memo = { sig, map: s.map, eff: compute(s) };
-    const r = memo.eff.get(b.uid); b.logi = r || null;
-    return r ? r.eff : 1;
+    ensure(s);
+    const r = memo.eff.get(b.uid), tf = treeFactor(s, b);
+    b.logi = r ? (tf < 1 ? Object.assign({}, r, { eff: r.eff * tf, treeL: b.tree.L, treeF: tf }) : r) : null;
+    return r ? r.eff * tf : tf;
   }
-  return { effOf, compute, isProducer };
+  const ensure = s => { const sig = sigOf(s); if (!memo || memo.sig !== sig || memo.map !== s.map) { const eff = compute(s); memo = { sig, map: s.map, eff, field: eff.field }; } return memo; };
+  /* Drwal (settings.physical): do każdego pnia idzie do najbliższego drzewa i wraca — jeśli las jest dalej niż RULES.cycle.treeRef pól od drzwi, plon spada (Leśniczówka sadzi przy chacie).
+     Czas jednego pnia 1/R min nominalnie; dojście dokłada 2L/v. Odległość odświeżana co minutę gry (zapisana w b.tree). */
+  function treeFactor(s, b) {
+    if (!s.settings.physical || b.id !== 'woodcutter') return 1;
+    const C = Data.RULES.cycle, N = s.map.size;
+    if (!b.tree || b.tree.t > s.time || s.time - b.tree.t >= 1) {
+      const i = World.nearestTree(b), door = Walkers.doorOf(b);
+      b.tree = { t: s.time, L: i < 0 ? Infinity : Math.hypot((i % N) + 0.5 - door[0], ((i / N) | 0) + 0.5 - door[1]) };
+    }
+    const L = b.tree.L; if (!Number.isFinite(L)) return C.min;
+    const T0 = 1 / Math.max(0.2, (Data.BUILDINGS.woodcutter.out['pień'] || 1) * (s.factionId === 'vikings' ? (Economy.VIK_RATE.woodcutter || 1) : 1)), tt = x => 2 * x / Data.RULES.walk.v;
+    return Math.max(C.min, Math.min(1, (T0 + tt(C.treeRef)) / (T0 + tt(L))));
+  }
+  /* budowa (settings.physical): odległość (koszt drogi) od najbliższego Składu / Dworu do placu, czas dojścia budowniczych i czas noszenia jednej sztuki materiału
+     (kurs po `carry` sztuk w obie strony, nie mniej niż nominalne 0,2 min) */
+  function siteDist(s, site) {
+    ensure(s); const f = memo.field; if (!f) return Infinity;
+    const wp = Walkers.workPoint(site, 0, s.map), d = f[tileOf(s.map, wp)]; return Number.isFinite(d) ? d : 30;
+  }
+  const siteWalk = (s, site) => siteDist(s, site) / Data.RULES.walk.v;
+  const pieceMin = (s, site, base) => { const C = Data.RULES.cycle; return Math.max(base, (2 * siteDist(s, site) / Data.RULES.walk.v + C.handle) / C.carry); };
+  /* podgląd w trybie budowy (jak w Settlers IV: kursor pokazuje czasy dojścia): sprawność budynku id postawionego w polu (x, y) — odległość drzwi do najbliższego Składu / Dworu i skutek;
+     null dla budynków bez produkcji albo gdy logistyka wyłączona */
+  function previewAt(s, id, x, y) {
+    const def = Data.BUILDINGS[id]; if (!def || !def.worker || (!s.settings.logistics && !s.settings.physical)) return null;
+    const [w, h] = World.footprint(id), pseudo = { id, x, y, w, h, uid: -1 }; if (!isProducer(pseudo)) return null;
+    const door = Walkers.doorOf(pseudo), f = ensure(s).field, dist = f ? f[tileOf(s.map, door)] : Infinity, R = Data.RULES.logistics;
+    if (!s.settings.physical) { const e = Number.isFinite(dist) ? 1 - (1 - R.min) * Math.max(0, Math.min(1, (dist - R.free) / R.span)) : R.min; return { dist, eff: e }; }
+    const c = cycleEff(def, s.factionId === 'vikings' ? (Economy.VIK_RATE[id] || 1) : 1, dist), tf = treeFactor(s, pseudo);
+    return { dist, eff: c.eff * tf, Tw: c.Tw, Th: c.Th, unreachable: c.unreachable, treeL: tf < 1 ? pseudo.tree.L : null };
+  }
+  /* pole kosztów dojścia od wszystkich Składów i Dworu oraz (opcjonalnie) od planowanego Składu w polu (x, y) — mapa ciepła „skąd jest blisko do magazynu" */
+  function fieldWith(s, x, y) {
+    const dest = s.buildings.filter(b => b.id === 'store' || b.id === 'keep').map(b => Walkers.doorOf(b));
+    if (x != null) { const [w, h] = World.footprint('store'); dest.push(Walkers.doorOf({ id: 'store', x, y, w, h, uid: -1 })); }
+    return dest.length ? Path.field(s.map, dest, { blocked: t => t.occup != null }) : null;
+  }
+  return { effOf, compute, isProducer, cycleParams, cycleEff, thOf, treeFactor, siteDist, siteWalk, pieceMin, previewAt, fieldWith };
 })();
 
 /* ============================ MODUL: BUILDMODE ============================= */
@@ -9073,6 +9195,33 @@ const BuildMode = (() => {
     ctx.fillStyle = 'rgba(230,60,60,0.30)'; ctx.fill(red); ctx.fillStyle = 'rgba(245,175,50,0.22)'; ctx.fill(amb);
   }
 
+  /* tekst o transporcie dla budynku produkcyjnego stawianego w polu (x, y); pamięć podręczna na pole i układ */
+  let tpMemo = null;
+  function transportAt(s, id, x, y) {
+    const sig = id + '|' + x + '|' + y + '|' + s.buildings.length + '|' + s.sites.length + '|' + (s.map.roadRev | 0) + '|' + (s.settings.physical ? 1 : 0);
+    if (!tpMemo || tpMemo.sig !== sig) {
+      const r = Logistics.previewAt(s, id, x, y), f1 = v => v.toFixed(1).replace('.', ',');
+      tpMemo = { sig, text: !r ? null : (r.unreachable || !Number.isFinite(r.dist)) ? 'brak dojścia do Składu / Dworu' : 'transport ≈ ' + Math.round(r.dist) + ' pól → ' + Math.round(r.eff * 100) + '% wydajności' + (r.Th != null ? ' (marsz ' + f1(r.Th) + ' min na ' + f1(r.Tw) + ' min pracy)' : '') + (r.treeL != null ? ' · las ' + Math.round(r.treeL) + ' pól od drzwi' : '') };
+    }
+    return tpMemo.text;
+  }
+  /* mapa ciepła zasięgu planowanego Składu (jak w Settlers IV: kursor przy magazynie pokazuje czasy dojścia): zielone — bez kary (≤ L_ref), żółte, bursztynowe, czerwone — daleko */
+  let heatMemo = null;
+  function heatDraw(ctx, s, ox, oy) {
+    const key = ox + ',' + oy + '|' + s.buildings.length + '|' + (s.map.roadRev | 0);
+    if (!heatMemo || heatMemo.key !== key) heatMemo = { key, f: Logistics.fieldWith(s, ox, oy) };
+    const f = heatMemo.f; if (!f) return;
+    const N = s.map.size, W = canvas.width / dpr, H = canvas.height / dpr, hw = 32 * Camera.zoom, hh = 16 * Camera.zoom, ref = Data.RULES.cycle.ref, P = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+    for (let i = 0; i < N * N; i++) {
+      const c = f[i]; if (!Number.isFinite(c) || c > 36) continue;
+      const tx = i % N, ty = (i / N) | 0, t = s.map.tiles[i]; if (t.h !== 1 || t.occup != null) continue;
+      const q = Camera.worldToScreen(tx + 0.5, ty + 0.5); if (q.x < -hw || q.x > W + hw || q.y < -hh || q.y > H + hh) continue;
+      const k = c <= ref ? 0 : c <= 14 ? 1 : c <= 22 ? 2 : 3, pp = P[k];
+      pp.moveTo(q.x, q.y - hh); pp.lineTo(q.x + hw, q.y); pp.lineTo(q.x, q.y + hh); pp.lineTo(q.x - hw, q.y); pp.closePath();
+    }
+    [['rgba(40,230,120,0.34)', 0], ['rgba(245,235,60,0.32)', 1], ['rgba(255,150,40,0.34)', 2], ['rgba(235,55,50,0.36)', 3]].forEach(([col, k]) => { ctx.fillStyle = col; ctx.fill(P[k]); });
+  }
+
   function draw(ctx) {
     const s = World.state(), z = Camera.zoom;
     if (isTool()) { toolDraw(ctx); return; }
@@ -9083,6 +9232,7 @@ const BuildMode = (() => {
     }
     zonesDraw(ctx, s);
     const [w, h] = World.footprint(selected), o = origin(selected);
+    if (selected === 'store' && (s.settings.logistics || s.settings.physical)) heatDraw(ctx, s, o.x, o.y);
     const check = World.canPlace(selected, o.x, o.y);
     // przy kolejce budowy wystarczy złoto na otwarcie placu (materiały wnosi budowniczy)
     const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto, ok = check.ok && affordable;
@@ -9091,6 +9241,8 @@ const BuildMode = (() => {
     const crowd = check.ok ? World.crowdOf(selected, o.x, o.y) : null, lvl = check.ok ? World.levelOf(selected, o.x, o.y) : null, parts = [];
     if (crowd && crowd.n) parts.push('+' + Math.round(crowd.pct * 100) + '% czasu budowy (ciasna zabudowa)');
     if (lvl && lvl.need) parts.push('+' + lvl.minutes.toFixed(1).replace('.', ',') + ' min wyrównania terenu');
+    const tp = check.ok ? transportAt(s, selected, o.x, o.y) : null;                                   // transport: odległość do Składu / Dworu i skutek (Faza 9B)
+    if (tp) parts.push(tp);
     const note = !check.ok ? check.reason : parts.join(' · ');
     if (note) { const q = Camera.worldToScreen(o.x + w / 2, o.y + h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = check.ok ? '#ffd890' : '#ffb0a0'; ctx.strokeText(note, q.x, q.y + 34 * z); ctx.fillText(note, q.x, q.y + 34 * z); ctx.textAlign = 'start'; }
     const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, selected) : null;
@@ -9343,9 +9495,10 @@ const UI = (() => {
     updC();
     // sprawność logistyczna: w grze domyślnie włączona (?logistics=0 wyłącza); scenariusze specyfikacji liczą się bez niej
     s.settings.logistics = new URLSearchParams(location.search).get('logistics') !== '0';
+    s.settings.physical = s.settings.logistics && new URLSearchParams(location.search).get('physical') !== '0';          // sprawność z cyklu pracy (Faza 9B-2); ?physical=0 — dawna krzywa liniowa
     s.settings.workers = new URLSearchParams(location.search).get('workers') !== '0';        // role i czynności robotników (Faza 9B-1); ?workers=0 — dawne cienie: nosiciele i obywatele
     const btnL = document.getElementById('btnLogi'), updL = () => { btnL.textContent = '🚚 Logistyka: ' + (s.settings.logistics ? 'wł.' : 'wył.'); };
-    btnL.onclick = () => { s.settings.logistics = !s.settings.logistics; updL(); UI.flashHint(s.settings.logistics ? 'Logistyka włączona: odległość do Składu / Dworu zmniejsza plon (drogi pomagają)' : 'Logistyka wyłączona'); };
+    btnL.onclick = () => { const on = !s.settings.logistics; s.settings.logistics = on; s.settings.physical = on && new URLSearchParams(location.search).get('physical') !== '0'; updL(); UI.flashHint(on ? 'Logistyka włączona: czas marszu do Składu / Dworu skraca czas pracy i zmniejsza plon (drogi i Składy pomagają)' : 'Logistyka wyłączona'); };
     updL();
     // fauna (Faza 8): w grze domyślnie włączona (?fauna=0 wyłącza); scenariusze specyfikacji liczą się bez niej
     if (new URLSearchParams(location.search).get('fauna') !== '0') Fauna.enable(s);
@@ -9490,6 +9643,11 @@ const UI = (() => {
     if (def.inp && Object.keys(def.inp).length) h += '<div class="sub">Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
     if (def.out) h += '<div class="sub">Wyjście: ' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</div>';
     if (def.tool) h += '<div class="sub">Wymaga narzędzia' + (World.state().tooled[b.uid] ? ' (obsadzony)' : '') + '</div>';
+    const st2 = World.state(), L = b.logi;
+    if (st2.settings.physical && L && L.Tw != null) {                               // sekcja „Transport": cykl pracy robotnika (Faza 9B-2)
+      const f1 = v => v.toFixed(1).replace('.', ',');
+      h += '<div class="sub" style="margin-top:4px;color:#c8bda8"><b>Transport:</b> ' + (L.unreachable ? 'brak dojścia do Składu / Dworu' : 'Skład / Dwór ≈ ' + Math.round(L.dist) + ' pól') + ' · cykl: praca ' + f1(L.Tw) + ' min + marsz ' + (Number.isFinite(L.Th) ? f1(L.Th) : '∞') + ' min · sprawność ' + Math.round(L.eff * 100) + '%</div>';
+    }
     return h;
   }
   function showInfo(b) {
@@ -10184,7 +10342,37 @@ const Walkers = (() => {
     for (const a of waiting) list.push(a);
     if (WK) for (const a of Workers.figures()) list.push(a);
   }
-  return { update, figures: () => list, doorOf, workPoint, speedAt, kit: { agent, plan, advance, evacCheck, tileAt, OPTS } };
+  /* karawany Saracenów (settings.physical): pozycja to czysta funkcja czasu gry — idą ścieżką od Targu do krawędzi mapy, stoją przy sprzedaży i wracają; kupiec na czele, za nim 2 wielbłądy */
+  const cvPath = new Map(), cvLook = new Map();
+  function caravanFigures(s) {
+    const out = [], map = s.map; if (!s.caravans || !s.caravans.length || !map) return out;
+    const live = new Set(), sale = Data.RULES.caravan.sale;
+    for (const c of s.caravans) {
+      live.add(c.id); let cp = cvPath.get(c.id);
+      if (!cp) {
+        const pts = Path.find(map, c.dx, c.dy, c.tx, c.ty, OPTS) || [[c.dx, c.dy], [c.tx, c.ty]], cum = [0];
+        for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+        cvPath.set(c.id, cp = { pts, cum, len: cum[cum.length - 1] || 0.001 });
+      }
+      const T = Math.max(1e-6, c.tSale - c.t0); let u, phase;
+      if (s.time < c.tSale) { u = (s.time - c.t0) / T; phase = 'out'; } else if (s.time < c.tSale + sale) { u = 1; phase = 'sale'; } else { u = 1 - (s.time - c.tSale - sale) / T; phase = 'back'; }
+      u = Math.max(0, Math.min(1, u));
+      const at = (d) => {                                               // punkt na ścieżce w odległości d od początku (d < 0 → przed początkiem = początek)
+        d = Math.max(0, Math.min(cp.len, d)); let i = 1; while (i < cp.cum.length - 1 && cp.cum[i] < d) i++;
+        const a = cp.pts[i - 1] || cp.pts[0], b = cp.pts[i] || cp.pts[0], span = (cp.cum[i] - cp.cum[i - 1]) || 1, k = (d - cp.cum[i - 1]) / span;
+        return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+      };
+      const dir = phase === 'back' ? -1 : 1;
+      for (let i = 0; i < 3; i++) {                                     // 0 — kupiec (na czele), 1–2 — wielbłądy za nim (w kierunku przeciwnym do marszu)
+        const d = u * cp.len - dir * i * 0.9, p = at(d), q = at(d + dir * 0.4), key = c.id + ':' + i;
+        let l = cvLook.get(key) || { sdx: 1 }; const dx = q[0] - p[0], dy = q[1] - p[1], sdx = dx - dy; if (Math.abs(sdx) > 1e-4) l = { sdx, back: dx + dy < 0 }; cvLook.set(key, l);
+        out.push({ cid: c.id, i, x: p[0], y: p[1], tx: q[0], ty: q[1], moving: phase !== 'sale', phase, mirror: l.sdx < 0, back: !!l.back, loaded: phase !== 'back', goods: c.goods, phaseT: i * 0.9 });
+      }
+    }
+    for (const k of [...cvPath.keys()]) if (!live.has(k)) { cvPath.delete(k); for (let i = 0; i < 3; i++) cvLook.delete(k + ':' + i); }
+    return out;
+  }
+  return { update, figures: () => list, doorOf, workPoint, speedAt, caravanFigures, kit: { agent, plan, advance, evacCheck, tileAt, OPTS } };
 })();
 
 /* ============================== MODUL: WORKERS ==============================
@@ -10252,12 +10440,20 @@ const Workers = (() => {
       steps.push({ k: 'go', p: [door[0], door[1]] }, { k: 'act', act: null, dur: 0.8, face: [door[0], door[1] + 1] });
       return steps;
     }
-    const outG = firstGood(def.out, () => true), inG = firstGood(def.inp, () => true);
-    const rate = outG ? def.out[outG] : 1, Tw = C.load / Math.max(0.2, rate), m = Math.max(1, Math.min(8, Math.round(Tw / C.spell)));
+    const outG = firstGood(def.out, () => true), ins = Object.keys(def.inp || {}).filter(LIMITED), inG = ins[0] || null;
+    const cp = Logistics.cycleParams(def, s.factionId === 'vikings' ? (Economy.VIK_RATE[b.id] || 1) : 1), Tw = cp.Tw, m = Math.max(1, Math.min(8, Math.round(Tw / C.spell)));
     const sp = spotsOf(s, b, role, door, claimed); if (role.spot === 'tree') w.treeIdx = sp[0][4];
+    if (role.spot === 'tree' && s.settings.physical && sp[0][4] != null && store) {                              // ścina najbliższe drzewo, aż logika je zetnie (ubyło drzew na polu), niesie kłodę do Składu
+      const i = sp[0][4], q = sp[0], tl = s.map.tiles[i];
+      return [{ k: 'go', p: q }, { k: 'act', act: role.act, dur: 6, face: [q[2], q[3]], watch: { i, n: tl.trees } }, { k: 'take', g: outG }, { k: 'go', p: store }, { k: 'drop' }];
+    }
     if (inG && store && w.first) steps.push({ k: 'go', p: store });
     if (inG && store) steps.push({ k: 'take', g: inG });
-    for (let i = 0; i < m; i++) { const q = sp[i % sp.length]; steps.push({ k: 'go', p: q }); if (i === 0 && inG && store) steps.push({ k: 'drop' }); steps.push({ k: 'act', act: role.act, dur: Tw / m, face: [q[2], q[3]] }); }   // wejście składamy na miejscu pracy
+    for (let i = 0; i < m; i++) {
+      const q = sp[i % sp.length]; steps.push({ k: 'go', p: q });
+      if (i === 0 && inG && store) { steps.push({ k: 'drop' }); for (const g2 of ins.slice(1)) steps.push({ k: 'go', p: store }, { k: 'take', g: g2 }, { k: 'go', p: q }, { k: 'drop' }); }   // wejścia składamy na miejscu pracy; drugi towar — drugi kurs
+      steps.push({ k: 'act', act: role.act, dur: Tw / m, face: [q[2], q[3]] });
+    }
     if (outG && store) steps.push({ k: 'take', g: outG }, { k: 'go', p: store }, { k: 'drop' });
     else steps.push({ k: 'go', p: door });
     return steps;
@@ -10301,6 +10497,7 @@ const Workers = (() => {
       if (!st) { nextCycle(s, w); continue; }
       if (!w.planned) enterStep(w, st, map);
       if (st.k === 'go') { if (Walkers.kit.advance(a, a.speed * dt, map)) { w.si++; w.planned = false; continue; } return; }
+      if (st.k === 'act' && st.watch && map.tiles[st.watch.i].trees < st.watch.n) w.rem = 0;                  // drzewo ścięte przez logikę — koniec cięcia
       if (st.k === 'act' || st.k === 'idle') { w.rem -= dt; if (w.rem <= 0) { w.si++; w.planned = false; a.act = null; continue; } return; }
       w.si++; w.planned = false;                                                  // take / drop: natychmiast
     }
@@ -10542,7 +10739,9 @@ const Game = (() => {
 
     // 2. budynki i place budowy (obrys → prostokąt do sortowania)
     for (const b of s.buildings) {
-      const c = World.centerOf(b), p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, b.id) : null, cs = 1 + 0.3 * (Math.max(b.w, b.h) - 1);
+      const c = World.centerOf(b), off = b.id === 'ship' && b.awayUntil > s.time ? shipOffset(s, b, c) : null;
+      if (off) { c.x += off[0]; c.y += off[1]; }                                                  // okręt w rejsie odpływa w morze i wraca (Faza 9B-4)
+      const p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, b.id) : null, cs = 1 + 0.3 * (Math.max(b.w, b.h) - 1);
       push({ d: c.x + c.y, kind: 'b', b, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
         bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 70 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
         rect: { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h, big: true } });
@@ -10585,6 +10784,25 @@ const Game = (() => {
         push({ d: h.x + h.y, kind: 'f', fig: { moving: h.moving, phase: h.id * 0.7 }, cast: hcast, view: sdy < -0.001 ? 'back' : 'front', mirror: sdx < -0.001, carry: false, prey: h.carry ? h.prey : null, sx: p.x, sy: p.y, k: K, x: h.x, y: h.y,
           bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
         if (h.arrow) fliers.push({ kind: 'r', ar: h.arrow, k: K });                    // strzała leci nad sceną — rysowana razem z ptakami w locie
+      }
+    }
+
+    // 3c. karawany Saracenów (settings.physical): kupiec i wielbłądy z ładunkiem idą na koniec mapy i wracają
+    if (sprOn && s.settings.physical && s.caravans && s.caravans.length) {
+      const camel = Sprites.fauna('camel'), mer = wcast[0] || cast[1];
+      for (const q of Walkers.caravanFigures(s)) {
+        const p = Camera.worldToScreen(q.x, q.y);
+        if (q.i === 0 && s.raids.last && s.time - s.raids.last.t < 0.9) {            // napad na karawanę: rabusie z szablami otaczają kupca (przez ok. 0,9 min)
+          const gd = Sprites.cast('sarGuard');
+          if (gd) for (const [ox, oy] of [[1.0, -0.4], [-0.9, 0.7], [0.3, 1.2]]) { const rx = q.x + ox, ry = q.y + oy, rp = Camera.worldToScreen(rx, ry); push({ d: rx + ry, kind: 'f', fig: { moving: false, phase: ox * 3 }, cast: gd, view: 'front', mirror: ox > 0, carry: false, sx: rp.x, sy: rp.y, k: K, x: rx, y: ry, bb: [rp.x - 40 * K, rp.y - 100 * K, rp.x + 40 * K, rp.y + 10 * K] }); }
+        }
+        if (q.i === 0 && mer) {
+          const g0 = Object.keys(q.goods)[0], ld = q.phase === 'back' ? null : Data.LOADS[g0] || null;
+          push({ d: q.x + q.y, kind: 'f', fig: { moving: q.moving, phase: q.cid * 0.7 }, gear: { kind: 'worker', act: null, tool: null, load: ld, phase: q.cid }, cast: mer, view: q.back ? 'back' : 'front', mirror: q.mirror, carry: false, sx: p.x, sy: p.y, k: K, x: q.x, y: q.y, bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
+        } else if (camel) {
+          const base = camel.walk[0];
+          push({ d: q.x + q.y, kind: 'a', a: { ph: q.cid * 0.37 + q.i }, fs: camel, pose: q.moving ? 'walk' : 'idle', rate: 2.6, hop: false, mirror: q.mirror, sx: p.x, sy: p.y, alt: 0, k: K, x: q.x, y: q.y, pack: q.phase !== 'back', bb: bbOf(base, p.x, p.y, K) });
+        }
       }
     }
 
@@ -10725,6 +10943,27 @@ const Game = (() => {
     ctx.restore();
   }
 
+  /* okręt w rejsie (Wikingowie): przesunięcie w polach od przystani — w głąb morza (kierunek od Dworu, aż do brzegu lub krawędzi mapy, najdalej 16 pól) i z powrotem; czysta funkcja czasu rejsu */
+  const shipDir = new Map();
+  function shipOffset(s, b, c) {
+    const v = s.voyages.find(q => q.ships.includes(b.uid)); if (!v) return null;
+    const dur = v.great ? 12 : 10, p = Math.max(0, Math.min(1, 1 - (v.until - s.time) / dur));
+    let d = shipDir.get(b.uid);
+    if (!d) {                                                      // okręt stoi na brzegu: kierunek, w którym najbliżej do wody i woda ciągnie się najdalej; płynie najdalej 14 pól
+      let best = null;
+      for (let i = 0; i < 16; i++) {
+        const a = i / 16 * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a), wet = k => { const t = MapGen.at(s.map, Math.floor(c.x + dx * k), Math.floor(c.y + dy * k)); return !!t && t.h === 0; };
+        let skip = 0; while (skip < 8 && !wet(skip)) skip++;
+        if (skip >= 8) continue;
+        let len = 0; while (len < 14 && wet(skip + len)) len++;
+        const sc = len - 0.4 * skip; if (len >= 2 && (!best || sc > best.sc)) best = { dx, dy, len: Math.min(14, skip + len * 0.85), sc };
+      }
+      shipDir.set(b.uid, d = best || { dx: 0, dy: 0, len: 0, sc: 0 });
+    }
+    const f = Math.pow(Math.sin(Math.PI * p), 0.7);
+    return [d.dx * d.len * f, d.dy * d.len * f];
+  }
+
   function drawFigure(it, t) {
     const mv = it.fig.moving !== false, frame = mv ? Math.floor(t * 3.6 + it.fig.phase) % 2 : 0, sp = it.cast[it.view][frame], bob = mv ? Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom : 0;
     ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
@@ -10752,6 +10991,11 @@ const Game = (() => {
     else spr = fs.idle[0];
     ctx.save(); ctx.translate(it.sx, it.sy - it.alt - bob); if (it.mirror) ctx.scale(-1, 1);
     Sprites.draw(ctx, spr, 'c', 0, 0, K, dpr); ctx.restore();
+    if (it.pack) {                                                // wielbłąd karawany: juki z towarem na grzbiecie
+      ctx.save(); ctx.translate(it.sx, it.sy - it.alt - bob); if (it.mirror) ctx.scale(-1, 1);
+      oval(-2, -34, 8, 6, '#b8946a', K); oval(7, -33, 6, 5, '#a8784a', K); line(-9, -30, 12, -29, 1.4, '#6a4a2a', K);
+      ctx.restore();
+    }
   }
   /* strzała myśliwego: łuk lotu od strzelca do zwierzyny (u = postęp 0…1); trzon z ciemnym obrysem, grot i lotki */
   function drawArrow(it) {

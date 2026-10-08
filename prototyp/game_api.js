@@ -58,7 +58,7 @@ async function bake(nation, onProgress = null, opts = {}) {
   jobs.push(...natureJobs(climate));
   for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
-  for (const kind of faunaKinds(climate)) jobs.push(['Zwierzęta', () => { (SETS.fauna = SETS.fauna || {})[kind] = bakeFauna(kind, 1); }]);   // fauna wg klimatu mapy (foka też — czy się pojawi, rozstrzyga gra)
+  for (const kind of new Set([...faunaKinds(climate), ...(nation === 'saracens' ? ['camel'] : [])])) jobs.push(['Zwierzęta', () => { (SETS.fauna = SETS.fauna || {})[kind] = bakeFauna(kind, 1); }]);   // wielbłąd zawsze u Saracenów: karawany (Faza 9B-4)   // fauna wg klimatu mapy (foka też — czy się pojawi, rozstrzyga gra)
   let last = 0;
   for (let i = 0; i < jobs.length; i++) {
     if (onProgress && now() - last > 40) { onProgress(i / jobs.length, jobs[i][0]); await nextPaint(); last = now(); }
