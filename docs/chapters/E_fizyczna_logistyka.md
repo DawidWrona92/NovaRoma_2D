@@ -68,7 +68,7 @@ Tabela: Fizyczne składniki sprawności (plan)
 | **Młynarz, piekarz, kasza, huta, kuźnia, zbrojownia…** | po drodze w obie strony: wejścia z magazynu, wyjścia do magazynu | odległość wejść i wyjść (dojazd łączony: ładunek w obie strony) |
 | **Budowniczy** | z Dworu / Składu z materiałem **idzie na plac**; budowa startuje dopiero po dojściu; noszenie partiami po 4 szt. | czas dojścia przed pracą; czas noszenia = odległość Dwór/Skład → plac |
 | **Myśliwy** | (jest) idzie, celuje, strzela, niesie | odległość do zwierzyny (jest) |
-| **Karawana (Saraceni)** | wyrusza z Targu z partią towarów, **idzie do krawędzi mapy**, sprzedaje, wraca z kasą; złoto trafia do skarbca po powrocie | opóźnienie 2·L/v; liczba karawan = Targi i Karawanseraj |
+| **Karawana (Saraceni)** | wyrusza z Targu z partią towarów, **idzie do krawędzi mapy**, sprzedaje, wraca; **tylko ilustracja — złoto wpływa od razu** (decyzja użytkownika z Fazy 9B-5) | brak opóźnienia; liczba karawan = Targi i Karawanseraj |
 | **Statek (Wikingowie)** | odpływa z Przystani na czas wyprawy i wraca z łupem (jest w logice) | bez zmian logiki; tylko ruch na ekranie |
 | **Wolni obywatele** | siedzą, spacerują, idą na Targ / do Kościoła | brak (nie pracują) |
 
@@ -78,7 +78,7 @@ Dziś budowniczy nosi sztukę w 0,2 min (5 szt./min) i buduje od razu. W modelu 
 
 ### Karawana {#e-karawana}
 
-Targ sprzedaje dziś natychmiast z całego zapasu (rozdz. {{ref:haracz}}). W modelu fizycznym towar handlowy (kadzidło, tkanina, ceramika) zbiera się przy Targu do partii (6 szt. lub po 3 min), a karawana (wielbłądy) idzie do **najbliższej krawędzi mapy** (ok. 24 pola od Dworu, ≈ 1,3 min przy 18 polach/min), tam następuje sprzedaż po aktualnej krzywej cen, a złoto wraca w drugim 1,3 min. Przepływ jest ten sam, zmienia się opóźnienie ≈ 3 min (gotówka w pierwszej sprzedaży pojawia się później), co przy pierwszym terminie w 50. minucie nie ma znaczenia. Napady na karawanę zostają liczone ze skarbca (wg specyfikacji), a na ekranie ilustrowane zdarzeniem na trasie karawany.
+Targ sprzedaje dziś natychmiast z całego zapasu (rozdz. {{ref:haracz}}). **Stan końcowy (Faza 9B-5):** sprzedaż zostaje natychmiastowa, jak w Twierdzy, a karawana jest wyłącznie ilustracją — sprzedany towar zbiera się w stosie (`caravanPile`) do partii ({{v:Data.RULES.caravan.load}} szt. lub po {{v:Data.RULES.caravan.wait}} min), po czym wielbłądy idą do **najbliższej krawędzi mapy** i wracają. Wcześniejsza wersja opóźniała złoto o ok. 3 min (do powrotu karawany); zrezygnowano z tego, bo nic nie wnosiło do bilansu, a komplikowało go (parytet cen i złota z `physical = false` jest teraz testowany). Napady na karawanę zostają liczone ze skarbca (wg specyfikacji), a na ekranie ilustrowane zdarzeniem na trasie karawany.
 
 ## Ochrona bilansu {#e-bilans}
 
@@ -113,7 +113,7 @@ Tabela: Wzorce z innych gier i ich odpowiedniki
 | Budowniczy najpierw **wyrównuje teren**, potem nosi się materiał; **buduje tylko z dostarczonym materiałem**; konieczna droga od budynku do składu | Knights and Merchants Remake (wiki) | etap 0 wyrównania, etap 1 noszenie, etap 2 budowa; dojście budowniczych na plac |
 | Transport **tylko po drogach** (KaM) albo **ścieżki same się utwardzają i przyspieszają ruch** na często używanych trasach (Settlers III/IV) | KaM; Settlers III/IV | drogi **wytycza gracz** i przyspieszają ruch ×1,6 (rozdz. {{ref:drogi}}); wydeptywane ścieżki to możliwe rozszerzenie |
 | Gdy towar nie jest odbierany (brak nosicieli lub popytu), **leży przed drzwiami i produkcja staje**; zator przy magazynie opóźnia dostawy | Settlers III, KaM | pełny magazyn zatrzymuje producenta bez zużywania wejść; robotnik stoi → zamiata (rozdz. {{ref:workers}}) |
-| Handel przy **Targu jest natychmiastowy**, a wędrujący kupiec **jest kosmetyczny**; w Settlers III towary wożą **statki** o ustalonej pojemności (np. 3 stosy po 8 towarów) | Twierdza Crusader; Settlers III | karawana Saracenów idzie na koniec mapy i wraca, a złoto wpływa po powrocie (opóźnienie ok. 3 min) — decyzja użytkownika; okręty Wikingów odpływają na czas rejsu; **gdyby gra miała kłopot z bilansem, można zrobić karawanę kosmetyczną jak w Twierdzy** |
+| Handel przy **Targu jest natychmiastowy**, a wędrujący kupiec **jest kosmetyczny**; w Settlers III towary wożą **statki** o ustalonej pojemności (np. 3 stosy po 8 towarów) | Twierdza Crusader; Settlers III | karawana Saracenów idzie na koniec mapy i wraca, ale jest **kosmetyczna jak w Twierdzy** (złoto od razu) — decyzja użytkownika; okręty Wikingów odpływają na czas rejsu |
 
 Wnioski dla projektu: (1) model „robotnik sam niesie ładunek” z nominalnym czasem pracy jest dokładnie tym, co robi Twierdza, a poradniki Settlers III uzasadniają jego główną konsekwencję — **wrażliwość zależną od tempa produkcji**; (2) pomysł **podglądu czasów dojścia pod kursorem** z Settlers IV został dodany jako nowa funkcja interfejsu; (3) ładunek ok. 10–12 szt. na kurs jest zgodny z Twierdzą (12 szt.); (4) rozszerzenia warte rozważenia w przyszłości: wydeptywane ścieżki, osobny „Spichlerz” na żywność (Twierdza rozdziela spichlerz i magazyn), ustawiane przez gracza punkty pracy drwala (KaM Remake).
 
@@ -168,14 +168,14 @@ Wnioski ze strojenia:
 1. **Frankowie są najwrażliwsi:** mają trzy budynki z dwoma wejściami (Piekarnia, Huta, Zbrojownia), więc przy małym ładunku (6 szt.) model dawał Frankom 79% wyniku specyfikacji, czyli mniej niż dawna krzywa (86%). Ładunek 10 i `L_ref` 8 przywracają ich do 91–93%.
 2. **Czas noszenia budowniczych** jest największym ryzykiem dla Wikingów (drogie budynki, Okręt 40 desek): przy kursie 4 sztuk ludność Wikingów w 60. minucie spadała do 94% wyniku z dawną krzywą (31 wobec 33), przy 10 sztukach rośnie do 106%.
 3. **Tryb drwala:** zbliżenie lasu (`treeRef` 5 pól) kosztuje do kilku procent ludności (Frankowie D: 37 zamiast 39) i wymaga Leśniczówki obok drwala — nie jest to ryzyko bilansu.
-4. **Karawany** nie zmieniają sumy dostaw złota Saracenów (486 zł w obu modelach), tylko opóźniają jej pojawienie się w skarbcu o ok. 3 min; bot R spełnia 5 z 6 terminów haraczu (wobec 6 z 6), zgodnie z kryterium ≥ 80%.
+4. **Karawany** nie zmieniają sumy dostaw złota Saracenów (486 zł w obu modelach), nie opóźniają jej (od 9B-5 są kosmetyczne; wcześniej opóźnienie ok. 3 min, bot R spełniał wtedy 5 z 6 terminów).
 
-**Bramka bilansu** (`tools/physical.js`): dla botów R i D (z `--full` także R z szumem i N) ludność @60 / @90 / koniec ≥ **95% wyniku z dawną krzywą** i ≥ **85% wyniku specyfikacji**, dostawy haraczu ≥ 85% dostaw z dawną krzywą, głód ≤ 10 min. Dla bota N Franków i Saracenów (reaktywny, bez przepisu) wynik bazowy to 10 osób i głód, więc tam bramka porównuje tylko stosunek.
+**Bramka bilansu** (`tools/physical.js`): dla botów R i D (z `--full` także R z szumem i N) ludność @60 / @90 / koniec ≥ **85% wyniku z dawną krzywą** i ≥ **75% wyniku specyfikacji** (po surowszej kalibracji `ref` 8 → 5; dawniej 95% / 85%), dostawy haraczu ≥ 85% dostaw z dawną krzywą, głód ≤ 10 min. Najgorszy wynik `--full` dla R i D: 79% bazowej, 91% krzywej. Bot N jest od 9B-5 tylko informacyjny: jego pętla „głód” budowała zbieraczy bez drewna (Słowianie: 20 osób zamiast 46), co jest słabością bota, nie gry. Dla bota N Franków i Saracenów (reaktywny, bez przepisu) wynik bazowy to 10 osób i głód, więc tam bramka porównuje tylko stosunek.
 
 ## Decyzje do potwierdzenia {#e-decyzje}
 
 Poniższe wartości przyjęto domyślnie; można je zmienić bez przebudowy architektury (są stałymi w danych):
 
 1. **Tempo bazowe 12 s na minutę gry** (zamiast 4) i przyciski ×1/×2/×3/×6 — warunek wiarygodnego wyglądu postaci; ×3 odpowiada dawnemu tempu (zrealizowane).
-2. **Napady na karawanę nadal ze skarbca** (specyfikacja), karawana tylko ilustruje i opóźnia sprzedaż.
+2. **Napady na karawanę nadal ze skarbca** (specyfikacja), karawana jest tylko ilustracją (złoto wpływa od razu).
 3. **Magazyn centralny = Dwór**; nowy budynek („Duży Skład”) tylko jeśli bramki bilansu tego wymagają.

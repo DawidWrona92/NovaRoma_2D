@@ -17,6 +17,7 @@ Tabela: Fazy prac i ich efekty (commity w gałęzi `claude/festive-meitner-ejo4l
 | 9 | menu główne RTS, Piaskownica, ☰ Menu, podgląd mapy | `cf37876` |
 | 9B-0, 9B-1 | tempo gry 12 s/min; role i czynności postaci (`Workers`) | `c2f1c36`, `c158a7c` |
 | 9B-2 … 9B-4 | fizyczna sprawność transportu, drwal, budowniczowie, karawany, okręty | (ten etap) |
+| 9B-5 | strojenie: karawana kosmetyczna (złoto od razu), L_ref 5, histereza robotników (`tools/workers.js` 60/60), bramka bilansu 75% bazowej i 85% krzywej | `ce00013` |
 
 Stan i plan dalszych prac: `docs/PLAN.md` (kopia w repozytorium).
 
@@ -34,6 +35,8 @@ Tabela: Decyzje użytkownika
 | **Ożywienie ludzi** (po Fazie 9, przed 10 i 11): drwal fizycznie ścina, cieśla niesie deskę, budowniczy dochodzi na plac, karawana idzie na koniec mapy i wraca; drogi ważniejsze, centralny magazyn jeśli pomoże; **bez zepsucia balansu** | Faza 9B: analiza i projekt w aneksie {{ref:aneks-fizyka}} | {{ref:ruch}} |
 | **Jedna wspólna dokumentacja PDF** z kodu, dwóch dokumentów ekonomii i decyzji; w repozytorium; aktualizowana po każdym etapie | `docs/` (`node docs/build.js`) | {{ref:aktualizacja}} |
 | **Tryb pracy „auto”** — działamy bez dopytywania, po każdej fazie commit, push i wersja WIP do przeklikania | procedura bramki | {{ref:bramka}} |
+| **Karawana Saracenów jest kosmetyczna** (jak karawana w Twierdzy): złoto ze sprzedaży wpływa od razu, a towar zbiera się przy Targu i dopiero wtedy wyrusza karawana, która idzie na krawędź mapy i wraca | `settings.physical`: stos `state.caravanPile`, brak opóźnienia złota, karawana nie jest celem napadu | {{ref:karawany}}, {{ref:e-wzorce}} |
+| **Surowsze parametry fizyki**: odległość odniesienia `RULES.cycle.ref` 8 → 5 pól („odległość boli mocniej”); bramka bilansu botów ≥ 75% wyniku bazowego i ≥ 85% wyniku z dawną krzywą (bot N tylko informacyjnie) | `Data.RULES.cycle.ref`, `tools/physical.js` | {{ref:fizyka}}, {{ref:e-wyniki}} |
 
 ## Decyzje projektowe (z uzasadnieniem) {#decyzje-projektowe}
 
@@ -59,19 +62,19 @@ Tabela: Decyzje użytkownika
 
 **Dokumentacja liczona z kodu.** Liczby w tabelach i wykresach (`{{v:…}}`, `{{tabela:…}}`) pochodzą z gry w chwili budowy PDF; tekst opisuje zasady. Dzięki temu zmiana danych wymaga tylko przebudowy dokumentu, a zmiana zasad — poprawy tekstu (aneks {{ref:aktualizacja}}).
 
-**Fizyczna logistyka (Faza 9B) jako przełącznik z bramką bilansu.** Ludzie naprawdę wykonują pracę (rozdz. {{ref:workers}}), a czas marszu wchodzi do ekonomii przez `settings.physical` (rozdz. {{ref:fizyka}}). Zamiast przestrajać ekonomię specyfikacji, model cyklu pracy kalibrowano do niej: ładunek {{v:Data.RULES.cycle.load}} szt. i `L_ref` {{v:Data.RULES.cycle.ref}} pól wybrano tak, by boty miały ≥ 95% wyniku z dawną krzywą i ≥ 85% wyniku bazowego (aneks {{ref:e-wyniki}}). Zasada „tylko na niekorzyść” (`eff ≤ 1`) gwarantuje, że nic nie przyspiesza gospodarki.
+**Fizyczna logistyka (Faza 9B) jako przełącznik z bramką bilansu.** Ludzie naprawdę wykonują pracę (rozdz. {{ref:workers}}), a czas marszu wchodzi do ekonomii przez `settings.physical` (rozdz. {{ref:fizyka}}). Zamiast przestrajać ekonomię specyfikacji, model cyklu pracy kalibrowano do niej: ładunek {{v:Data.RULES.cycle.load}} szt. i `L_ref` {{v:Data.RULES.cycle.ref}} pól wybrano tak, by boty miały ≥ 85% wyniku z dawną krzywą i ≥ 75% wyniku bazowego (aneks {{ref:e-wyniki}}); odległość odniesienia zaostrzono z 8 do {{v:Data.RULES.cycle.ref}} pól, bo po pierwszym strojeniu sprawność była zbyt łagodna. Zasada „tylko na niekorzyść” (`eff ≤ 1`) gwarantuje, że nic nie przyspiesza gospodarki.
 
 **Tempo gry 12 s na minutę.** Warunek wiarygodnego ruchu postaci (marsz 18 pól/min = 1,5 pola/s); ×3 odpowiada dawnemu ×1, więc wyniki, terminy i testy nie zmieniają się (rozdz. {{ref:walkers}}).
 
 **Każdy ma zajęcie** (decyzja użytkownika z Fazy 9B): robotnik budynku, który stoi, zamiata lub idzie sprawdzić Skład; jedynie budowniczowie bez placu i wolni obywatele stoją lub spacerują (rozdz. {{ref:workers}}).
 
-**Magazyn centralny = Dwór** (bez nowego budynku): Skład skraca marsz lokalnie, a gracz ma realny wybór między drogą, Składem i zagęszczeniem zabudowy. Karawany i okręty są wizualizacją i opóźnieniem sprzedaży; napady nadal liczone ze skarbca.
+**Magazyn centralny = Dwór** (bez nowego budynku): Skład skraca marsz lokalnie, a gracz ma realny wybór między drogą, Składem i zagęszczeniem zabudowy. Karawany są tylko wizualizacją (złoto wpływa od razu, jak w Twierdzy), a okręty wizualizacją rejsu; napady nadal liczone ze skarbca.
 
 ## Decyzje otwarte {#decyzje-otwarte}
 
 Poniższe wartości mają **domyślne rozstrzygnięcie**, które użytkownik może zmienić jedną stałą (aneks {{ref:e-decyzje}}):
 
 - (rozstrzygnięte w Fazie 9B-0) tempo bazowe czasu gry — 12 s na minutę gry zamiast 4;
-- napady na karawanę pozostają rozliczane ze skarbca (karawana ilustruje i opóźnia sprzedaż, ale nie jest „celem” napadu);
+- napady na karawanę pozostają rozliczane ze skarbca (specyfikacja); karawana kosmetyczna nie jest ich „celem”;
 - magazyn centralny = Dwór;
 - po Fazie 10: czy zostawić styl „klasyczny” (`?classic=1`) jako zapas.
