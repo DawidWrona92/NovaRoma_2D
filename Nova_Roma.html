@@ -5336,7 +5336,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 8, spell: 1.2, min: 0.3, treeRef: 5, carry: 10 }, caravan: { load: 8, wait: 3, sale: 0.3 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) i liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10 }, caravan: { load: 8, wait: 3, sale: 0.3 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) i liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -7434,7 +7434,7 @@ const World = (() => {
     time: 0, speed: 1, res: {}, nextId: 1,
     pop: 14, controls: { rations: 1, tax: 1 },
     starveTimer: 0, immigrantTimer: 0, tooled: {}, staffed: {},
-    saplings: [], treeFrac: 0, plantFrac: 0, plantSeq: 0, caravans: [], caravanWait: 0, welfare: {}, foodRep: null,
+    saplings: [], treeFrac: 0, plantFrac: 0, plantSeq: 0, caravans: [], caravanWait: 0, caravanPile: {}, welfare: {}, foodRep: null,
     workersStaffed: 0, workersNeeded: 0, waitingForTool: false,
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
@@ -7459,7 +7459,7 @@ const World = (() => {
     state.pop = 14; state.controls = { rations: 1, tax: 1 };
     state.starveTimer = 0; state.immigrantTimer = 0;
     state.tooled = {}; state.staffed = {}; state.saplings = [];
-    state.treeFrac = 0; state.plantFrac = 0; state.plantSeq = 0; state.caravans = []; state.caravanWait = 0;
+    state.treeFrac = 0; state.plantFrac = 0; state.plantSeq = 0; state.caravans = []; state.caravanWait = 0; state.caravanPile = {};
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
     state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false };
@@ -8421,36 +8421,35 @@ const Tribute = (() => {
     for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (x !== 0 && y !== 0 && x !== N - 1 && y !== N - 1) continue; if (f[i] < bc) { bc = f[i]; best = i; } }
     return best < 0 || !Number.isFinite(bc) ? { cost: Infinity, tx: door[0], ty: door[1] } : { cost: bc, tx: (best % N) + 0.5, ty: ((best / N) | 0) + 0.5 };
   }
-  /* karawana (settings.physical): towary handlowe zbierają się przy Targu do ładunku (RULES.caravan.load szt. albo po wait min), karawana idzie do krawędzi mapy, tam sprzedaje po bieżącej krzywej
-     cen, a złoto trafia do skarbca dopiero po powrocie (≈ 3 min opóźnienia); jednocześnie jedzie najwyżej tyle karawan, ile Targów (Karawanseraj liczy się za 2) */
-  function caravanTick(s, dt, nM, mul) {
+  /* karawana (settings.physical) jest tylko wizualna, jak w Twierdzy: złoto ze sprzedaży wpływa od razu (marketTick liczy je tak samo jak bez physical), a sprzedane towary zbierają się
+     w stosie (s.caravanPile) do ładunku (RULES.caravan.load szt. albo po wait min); wtedy z Targu wyrusza karawana do krawędzi mapy i z powrotem (najwyżej tyle jednocześnie, ile Targów;
+     Karawanseraj liczy się za 2). Karawana niczego nie zmienia w ekonomii: nie opóźnia złota i nie jest celem napadu */
+  function caravanTick(s, dt, nM, sold) {
     const Cc = Data.RULES.caravan, v = Data.RULES.walk.caravan;
-    for (const g in TRADE) { const base = TRADE[g].base * mul; s.marketPrices[g] += (base - s.marketPrices[g]) * 0.0143 * dt; }   // odnowa cen jak dawniej
-    for (const c of s.caravans) {
-      if (!c.sold && s.time >= c.tSale) { let rev = 0; for (const g in c.goods) rev += sellLoad(s, g, c.goods[g], nM, mul); c.rev = rev; c.sold = true; }
-      if (c.sold && s.time >= c.tBack) { s.res.złoto += c.rev; c.done = true; }
-    }
+    for (const c of s.caravans) { if (!c.sold && s.time >= c.tSale) c.sold = true; if (c.sold && s.time >= c.tBack) c.done = true; }
     s.caravans = s.caravans.filter(c => !c.done);
-    let stock = 0; for (const g in TRADE) stock += s.res[g];
+    const pile = s.caravanPile || (s.caravanPile = {}); let stock = 0;
+    for (const g in sold) pile[g] = (pile[g] || 0) + sold[g];
+    for (const g in pile) stock += pile[g];
     s.caravanWait = stock > 0.001 ? (s.caravanWait || 0) + dt : 0;
     if (stock <= 0.001 || s.caravans.length >= nM || (stock < Cc.load && s.caravanWait < Cc.wait)) return;
     const origins = s.buildings.filter(b => (b.id === 'market' || b.id === 'caravanserai') && s.staffed[b.uid]);
+    if (!origins.length) return;
     origins.sort((a, b) => s.caravans.filter(c => c.m === a.uid).length - s.caravans.filter(c => c.m === b.uid).length || a.uid - b.uid);
     const door = Walkers.doorOf(origins[0]), r = caravanRoute(s, door), goods = {};
-    for (const g in TRADE) if (s.res[g] > 0.001) { goods[g] = s.res[g]; s.res[g] = 0; }
-    if (!Number.isFinite(r.cost)) { let rev = 0; for (const g in goods) rev += sellLoad(s, g, goods[g], nM, mul); s.res.złoto += rev; s.caravanWait = 0; return; }   // brak drogi do krawędzi mapy: sprzedaż na miejscu jak dawniej
+    for (const g in pile) if (pile[g] > 0.001) goods[g] = pile[g];
+    s.caravanPile = {}; s.caravanWait = 0;
+    if (!Number.isFinite(r.cost)) return;                                       // brak drogi do krawędzi mapy: nic nie wyrusza (złoto już wpłynęło)
     const T = r.cost / v;
-    s.caravans.push({ id: s.nextId++, m: origins[0].uid, goods, t0: s.time, tSale: s.time + T, tBack: s.time + 2 * T + Cc.sale, cost: r.cost, tx: r.tx, ty: r.ty, dx: door[0], dy: door[1], sold: false, rev: 0 });
-    s.caravanWait = 0;
+    s.caravans.push({ id: s.nextId++, m: origins[0].uid, goods, t0: s.time, tSale: s.time + T, tBack: s.time + 2 * T + Cc.sale, cost: r.cost, tx: r.tx, ty: r.ty, dx: door[0], dy: door[1], sold: false });
   }
   function marketTick(s, dt) {
     const mkts = s.buildings.filter(b => b.id === 'market' && s.staffed[b.uid]).length;
     const serai = s.buildings.filter(b => b.id === 'caravanserai' && s.staffed[b.uid]).length;
     // Karawanseraj liczy się jak 2 Targi (max 2 w sumie — drugi niczego nie dodaje); ceny +20% (bez kumulacji)
     const nM = mkts + Math.min(2, 2 * serai);
-    if (nM === 0) { if (s.settings.physical && s.caravans.length) caravanTick(s, dt, 1, serai > 0 ? 1.2 : 1); return; }
-    const mul = serai > 0 ? 1.2 : 1;
-    if (s.settings.physical) { caravanTick(s, dt, nM, mul); return; }
+    if (nM === 0) { if (s.settings.physical && s.caravans.length) caravanTick(s, dt, 1, {}); return; }
+    const mul = serai > 0 ? 1.2 : 1, sold = s.settings.physical ? {} : null;
     for (const g in TRADE) {
       let p = s.marketPrices[g];
       const base = TRADE[g].base * mul, floor = TRADE[g].floor * mul;
@@ -8467,10 +8466,12 @@ const Tribute = (() => {
         }
         if (left > 0.001) { revenue += Math.max(floor, p) * left; left = 0; } // powyżej 300 szt. po podłodze
         s.res.złoto += revenue;
+        if (sold) sold[g] = q;
         s.res[g] = 0;
       }
       s.marketPrices[g] = p;
     }
+    if (sold) caravanTick(s, dt, nM, sold);
   }
 
   return { set, tick, soldierReserve, requiredCum, labelOf, missingChain, basketStatus, caravanRoute,
@@ -10458,6 +10459,7 @@ const Workers = (() => {
     else steps.push({ k: 'go', p: door });
     return steps;
   }
+  const IDLE_AFTER = 1.0, WORK_AFTER = 0.3;                                          // min gry: tyle musi trwać postój (praca), by robotnik zmienił tryb
   const idleNow = b => !!b.st && (b.st.c === 'in' || b.st.c === 'full' || b.st.c === 'food' || b.st.c === 'depleted');
   /* budynek stoi (brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże): robotnik nie stoi bezczynnie — przy braku wejścia idzie do Składu / Dworu zobaczyć, czy
      towar już jest, w pozostałych przypadkach zamiata i porządkuje wokół budynku; produkcji to nie zmienia (ją wstrzymuje logika), a Doradca podaje powód postoju */
@@ -10512,8 +10514,9 @@ const Workers = (() => {
       if (b.id === 'hunter' && s.settings.fauna) continue;                            // myśliwych prowadzi Fauna
       live.add(b.uid); let w = figs.get(b.uid); if (!w) w = spawn(s, b, map); w.b = b; w.home = false;
       const idle = idleNow(b);
-      if (idle && w.mode !== 'idle') { w.mode = 'idle'; w.steps = []; w.si = 0; w.planned = false; w.a.load = null; }
-      else if (!idle && w.mode === 'idle') { w.mode = 'work'; w.steps = []; w.si = 0; w.planned = false; w.first = true; }
+      w.idleT = idle ? (w.idleT || 0) + dt : 0; w.workT = idle ? 0 : (w.workT || 0) + dt;                       // histereza: status budynku potrafi migać co kilka kroków (np. głodowa kopalnia), a każda zmiana trybu kasuje rozpoczęty cykl
+      if (w.mode !== 'idle' && w.idleT >= IDLE_AFTER) { w.mode = 'idle'; w.steps = []; w.si = 0; w.planned = false; w.a.load = null; }
+      else if (w.mode === 'idle' && w.workT >= WORK_AFTER) { w.mode = 'work'; w.steps = []; w.si = 0; w.planned = false; w.first = true; }
       stepOne(s, w, dt, map);
     }
     for (const [uid, w] of figs) {                                                    // budynek rozebrany lub bez obsady: robotnik wraca do Dworu i znika

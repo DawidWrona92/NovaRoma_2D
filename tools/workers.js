@@ -28,7 +28,7 @@ const SETS = [['franks', 'temperate', 'river'], ['saracens', 'desert', 'river'],
 const acts = new Set(), loads = new Set(); let totalFigs = 0, idleTotal = 0;
 for (const [fid, cl, ty] of SETS) {
   const tag = `${fid}/${cl}/${ty}`;
-  const streak = new Map(), staffedSince = new Map(), carried = new Set(), delivered = new Set(), idleSeen = new Set(), lastLoad = new Map(), standing = new Map();
+  const idleAcc = new Map(), streak = new Map(), staffedSince = new Map(), carried = new Set(), delivered = new Set(), idleSeen = new Set(), lastLoad = new Map(), standing = new Map();
   let bad = 0, citMis = 0, stepsN = 0, maxW = 0, pairMis = 0, maxStand = 0, bMis = 0; const badTiles = new Set();
   const s = sim(fid, cl, ty, true, (s, step, t) => {
     const figs = Walkers.figures(), map = s.map, N = map.size, workers = figs.filter(a => a.kind === 'worker'); stepsN++; totalFigs += figs.length; maxW = Math.max(maxW, workers.length);
@@ -55,6 +55,7 @@ for (const [fid, cl, ty] of SETS) {
     }
     for (const a of workers) {
       const b = s.buildings.find(q => q.uid === a.uid);
+      if (b && Workers.idleNow(b)) idleAcc.set(b.uid, (idleAcc.get(b.uid) || 0) + 0.05);                              // czas, który logika sama trzymała budynek w postoju (głód, brak wejścia)
       if (b && Workers.idleNow(b) && (a.act === 'sweep' || a.act === 'look')) idleSeen.add(a.uid);                 // budynek stoi (brak wejścia / pełny magazyn) → robotnik zamiata albo idzie sprawdzić Skład
       const run = (!a.moving && !a.act) ? (standing.get(a) || 0) + 1 : 0; standing.set(a, run); maxStand = Math.max(maxStand, run);    // nikt z obsady nie stoi bezczynnie
     }
@@ -64,7 +65,7 @@ for (const [fid, cl, ty] of SETS) {
     if (cit !== Math.min(free, s.citizens.length)) citMis++;
   });
   const roleStaffed = s.buildings.filter(b => Data.ROLES[b.id] && s.staffed[b.uid]);
-  const withOut = roleStaffed.filter(b => { const o = Data.BUILDINGS[b.id].out || {}; return Object.keys(o).some(g => g in G.Economy.LIMIT) && Data.ROLES[b.id].spot !== 'service' && staffedSince.get(b.uid) < MIN - 22; });   // cykl trwa do ok. 12 min
+  const withOut = roleStaffed.filter(b => { const o = Data.BUILDINGS[b.id].out || {}; return Object.keys(o).some(g => g in G.Economy.LIMIT) && Data.ROLES[b.id].spot !== 'service' && staffedSince.get(b.uid) < MIN - 22 && (idleAcc.get(b.uid) || 0) < 3; });   // cykl trwa do ok. 12 min; budynki, które logika wstrzymała na > 3 min (np. głód), nie muszą skończyć cyklu
   ok(bad === 0, `${tag}: ${bad} postaci na polach nieprzechodnich lub zajętych: ${[...badTiles].slice(0, 4).join(' | ')}`);
   ok(pairMis === 0, `${tag}: budynek obsadzony > 3 min bez dokładnie jednego robotnika (${pairMis} razy)`);
   ok(citMis === 0, `${tag}: liczba widocznych obywateli ≠ wolna ludność (${citMis} z ${stepsN} kroków)`);
