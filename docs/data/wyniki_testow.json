@@ -1,0 +1,991 @@
+{
+ "meta": {
+  "date": "2026-10-06",
+  "commit": "cf37876",
+  "summary": "58 zgodnych, 0 odbiegających; przebiegi z naruszeniem niezmienników: 0"
+ },
+ "normal": [
+  {
+   "faction": "franks",
+   "bot": "R",
+   "eps": 0,
+   "preset": "off",
+   "pop": [
+    25,
+    32,
+    43,
+    43,
+    43
+   ],
+   "end": 43,
+   "pop36": 48,
+   "famine": 0,
+   "tribute": "—",
+   "delivered": 0,
+   "gold": 299,
+   "planks": 154
+  },
+  {
+   "faction": "franks",
+   "bot": "R",
+   "eps": 0,
+   "preset": "easy",
+   "pop": [
+    25,
+    31,
+    43,
+    43,
+    43
+   ],
+   "end": 43,
+   "pop36": 49,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 32,
+   "gold": 200,
+   "planks": 154
+  },
+  {
+   "faction": "franks",
+   "bot": "R",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    24,
+    32,
+    43,
+    43,
+    43
+   ],
+   "end": 43,
+   "pop36": 50,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 32,
+   "gold": 200,
+   "planks": 154
+  },
+  {
+   "faction": "franks",
+   "bot": "D",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    14,
+    32,
+    32,
+    43,
+    43
+   ],
+   "end": 43,
+   "pop36": 71,
+   "famine": 3,
+   "tribute": "4/6",
+   "delivered": 32,
+   "gold": 175,
+   "planks": 154
+  },
+  {
+   "faction": "franks",
+   "bot": "N",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    13,
+    10,
+    10,
+    10,
+    10
+   ],
+   "end": 10,
+   "pop36": null,
+   "famine": 136,
+   "tribute": "0/6",
+   "delivered": 0,
+   "gold": 159,
+   "planks": 30
+  },
+  {
+   "faction": "saracens",
+   "bot": "R",
+   "eps": 0,
+   "preset": "off",
+   "pop": [
+    20,
+    38,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 35,
+   "famine": 0,
+   "tribute": "—",
+   "delivered": 0,
+   "gold": 926,
+   "planks": 132
+  },
+  {
+   "faction": "saracens",
+   "bot": "R",
+   "eps": 0,
+   "preset": "easy",
+   "pop": [
+    20,
+    38,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 35,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 486,
+   "gold": 702,
+   "planks": 132
+  },
+  {
+   "faction": "saracens",
+   "bot": "R",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    20,
+    38,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 35,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 486,
+   "gold": 702,
+   "planks": 132
+  },
+  {
+   "faction": "saracens",
+   "bot": "D",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    14,
+    20,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 58,
+   "famine": 0,
+   "tribute": "4/6",
+   "delivered": 486,
+   "gold": 595,
+   "planks": 132
+  },
+  {
+   "faction": "saracens",
+   "bot": "N",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    13,
+    10,
+    10,
+    10,
+    10
+   ],
+   "end": 10,
+   "pop36": null,
+   "famine": 125,
+   "tribute": "1/6",
+   "delivered": 167,
+   "gold": 7,
+   "planks": 30
+  },
+  {
+   "faction": "vikings",
+   "bot": "R",
+   "eps": 0,
+   "preset": "off",
+   "pop": [
+    18,
+    32,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 54,
+   "famine": 0,
+   "tribute": "—",
+   "delivered": 0,
+   "gold": 1004,
+   "planks": 318
+  },
+  {
+   "faction": "vikings",
+   "bot": "R",
+   "eps": 0,
+   "preset": "easy",
+   "pop": [
+    18,
+    32,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 54,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 22,
+   "gold": 1004,
+   "planks": 318
+  },
+  {
+   "faction": "vikings",
+   "bot": "R",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    17,
+    32,
+    38,
+    38,
+    38
+   ],
+   "end": 38,
+   "pop36": 55,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 15,
+   "gold": 793,
+   "planks": 278
+  },
+  {
+   "faction": "vikings",
+   "bot": "D",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    14,
+    16,
+    33,
+    36,
+    38
+   ],
+   "end": 38,
+   "pop36": 88,
+   "famine": 8,
+   "tribute": "6/6",
+   "delivered": 17,
+   "gold": 830,
+   "planks": 318
+  },
+  {
+   "faction": "vikings",
+   "bot": "N",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    20,
+    28,
+    36,
+    44,
+    52
+   ],
+   "end": 52,
+   "pop36": 53,
+   "famine": 0,
+   "tribute": "0/6",
+   "delivered": 0,
+   "gold": 492,
+   "planks": 156
+  },
+  {
+   "faction": "slavs",
+   "bot": "R",
+   "eps": 0,
+   "preset": "off",
+   "pop": [
+    32,
+    40,
+    40,
+    40,
+    40
+   ],
+   "end": 40,
+   "pop36": 25,
+   "famine": 0,
+   "tribute": "—",
+   "delivered": 0,
+   "gold": 236,
+   "planks": 168
+  },
+  {
+   "faction": "slavs",
+   "bot": "R",
+   "eps": 0,
+   "preset": "easy",
+   "pop": [
+    32,
+    40,
+    40,
+    40,
+    40
+   ],
+   "end": 40,
+   "pop36": 25,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 540,
+   "gold": 236,
+   "planks": 168
+  },
+  {
+   "faction": "slavs",
+   "bot": "R",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    32,
+    40,
+    40,
+    40,
+    40
+   ],
+   "end": 40,
+   "pop36": 26,
+   "famine": 0,
+   "tribute": "6/6",
+   "delivered": 540,
+   "gold": 235,
+   "planks": 168
+  },
+  {
+   "faction": "slavs",
+   "bot": "D",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    14,
+    26,
+    34,
+    39,
+    40
+   ],
+   "end": 40,
+   "pop36": 62,
+   "famine": 9,
+   "tribute": "4/6",
+   "delivered": 540,
+   "gold": 203,
+   "planks": 168
+  },
+  {
+   "faction": "slavs",
+   "bot": "N",
+   "eps": 0.15,
+   "preset": "easy",
+   "pop": [
+    32,
+    44,
+    49,
+    49,
+    49
+   ],
+   "end": 49,
+   "pop36": 32,
+   "famine": 0,
+   "tribute": "0/6",
+   "delivered": 0,
+   "gold": 405,
+   "planks": 125
+  }
+ ],
+ "scenarios": [
+  {
+   "ok": true,
+   "code": "F",
+   "name": "normalna gra",
+   "tribute": "6/6",
+   "pop": "25/31/43/43",
+   "end": 43,
+   "famine": 0,
+   "gold": 200
+  },
+  {
+   "ok": true,
+   "code": "S",
+   "name": "normalna gra (bez napadów)",
+   "tribute": "6/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 971
+  },
+  {
+   "ok": true,
+   "code": "V",
+   "name": "normalna gra",
+   "tribute": "6/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 794
+  },
+  {
+   "ok": true,
+   "code": "W",
+   "name": "normalna gra",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "F1",
+   "name": "kopalnie bez żywności",
+   "tribute": "0/6",
+   "pop": "12/10/10/10",
+   "end": 10,
+   "famine": 131,
+   "gold": 99
+  },
+  {
+   "ok": true,
+   "code": "F2",
+   "name": "Zbrojownia bez Huty",
+   "tribute": "0/6",
+   "pop": "25/32/43/43",
+   "end": 43,
+   "famine": 0,
+   "gold": 301
+  },
+  {
+   "ok": true,
+   "code": "F3",
+   "name": "1 łańcuch i 8 kopalni",
+   "tribute": "0/6",
+   "pop": "14/19/28/32",
+   "end": 33,
+   "famine": 0,
+   "gold": 220
+  },
+  {
+   "ok": true,
+   "code": "F4",
+   "name": "1 miejsce pod Kopalnię węgla",
+   "tribute": "6/6",
+   "pop": "26/30/44/44",
+   "end": 44,
+   "famine": 0,
+   "gold": 206
+  },
+  {
+   "ok": true,
+   "code": "F5",
+   "name": "0 miejsc pod Kamieniołom",
+   "tribute": "3/6",
+   "pop": "27/32/32/24",
+   "end": 43,
+   "famine": 0,
+   "gold": 162
+  },
+  {
+   "ok": true,
+   "code": "F6",
+   "name": "podatek 3",
+   "tribute": "6/6",
+   "pop": "14/24/41/43",
+   "end": 43,
+   "famine": 0,
+   "gold": 682
+  },
+  {
+   "ok": true,
+   "code": "S1",
+   "name": "eksport bez Gajów",
+   "tribute": "0/6",
+   "pop": "14/15/15/15",
+   "end": 15,
+   "famine": 0,
+   "gold": 12
+  },
+  {
+   "ok": true,
+   "code": "S2",
+   "name": "5 Wytwórni na 1 Gaju",
+   "tribute": "5/6",
+   "pop": "18/25/25/25",
+   "end": 25,
+   "famine": 0,
+   "gold": 66
+  },
+  {
+   "ok": true,
+   "code": "S3",
+   "name": "bez wody",
+   "tribute": "0/6",
+   "pop": "14/16/16/16",
+   "end": 16,
+   "famine": 0,
+   "gold": 12
+  },
+  {
+   "ok": true,
+   "code": "S4",
+   "name": "wyczerpana glina (60)",
+   "tribute": "4/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 66
+  },
+  {
+   "ok": true,
+   "code": "S5",
+   "name": "0 miejsc pod Glinianki",
+   "tribute": "0/6",
+   "pop": "20/20/24/24",
+   "end": 38,
+   "famine": 0,
+   "gold": 85
+  },
+  {
+   "ok": true,
+   "code": "S6",
+   "name": "sam eksport kadzidła",
+   "tribute": "5/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 273
+  },
+  {
+   "ok": true,
+   "code": "S7",
+   "name": "1 Targ",
+   "tribute": "6/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 854
+  },
+  {
+   "ok": true,
+   "code": "V1",
+   "name": "Okręt bez Miodosytni",
+   "tribute": "0/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 345
+  },
+  {
+   "ok": true,
+   "code": "V1",
+   "name": "Okręt bez Zbrojowni",
+   "tribute": "0/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 345
+  },
+  {
+   "ok": true,
+   "code": "V1",
+   "name": "Okręt bez kopalni rudy",
+   "tribute": "0/6",
+   "pop": "18/33/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 361
+  },
+  {
+   "ok": true,
+   "code": "V2",
+   "name": "4 Wypalarki na 2 drwalach",
+   "tribute": "0/6",
+   "pop": "23/33/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 366
+  },
+  {
+   "ok": true,
+   "code": "V3",
+   "name": "0 miejsc pod Kopalnię darniową",
+   "tribute": "0/6",
+   "pop": "18/33/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 360
+  },
+  {
+   "ok": true,
+   "code": "V4",
+   "name": "3 miejsca na brzegu",
+   "tribute": "6/6",
+   "pop": "18/32/32/32",
+   "end": 32,
+   "famine": 0,
+   "gold": 750
+  },
+  {
+   "ok": true,
+   "code": "V5",
+   "name": "3 miejsca + dodatkowy Myśliwy/Mleczarnia/Sad",
+   "tribute": "6/6",
+   "pop": "18/32/48/48",
+   "end": 48,
+   "famine": 0,
+   "gold": 865
+  },
+  {
+   "ok": true,
+   "code": "V6",
+   "name": "poziom 8, przepis nacji, zwykłe",
+   "tribute": "1/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 794
+  },
+  {
+   "ok": true,
+   "code": "W1",
+   "name": "Normalny (poziom 6)",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "W2",
+   "name": "Trudny (poziom 8), przepis nacji",
+   "tribute": "5/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "W3",
+   "name": "Mistrz (poziom 11) + 2 pary",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 156
+  },
+  {
+   "ok": true,
+   "code": "W4",
+   "name": "brak Chaty nosiwody",
+   "tribute": "0/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 238
+  },
+  {
+   "ok": true,
+   "code": "W5",
+   "name": "Barć bez Woskarni",
+   "tribute": "0/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 237
+  },
+  {
+   "ok": true,
+   "code": "W6",
+   "name": "Chaty łowców bez Garbarni",
+   "tribute": "0/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 237
+  },
+  {
+   "ok": true,
+   "code": "W7",
+   "name": "tylko futra",
+   "tribute": "0/6",
+   "pop": "34/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 238
+  },
+  {
+   "ok": true,
+   "code": "W8a",
+   "name": "5 drwali bez leśników, poziom 3",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 238
+  },
+  {
+   "ok": true,
+   "code": "W8b",
+   "name": "5 drwali bez leśników, poziom 5",
+   "tribute": "4/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 238
+  },
+  {
+   "ok": true,
+   "code": "W9a",
+   "name": "las 150 drzew na starcie",
+   "tribute": "6/6",
+   "pop": "28/34/34/34",
+   "end": 39,
+   "famine": 0,
+   "gold": 201
+  },
+  {
+   "ok": true,
+   "code": "W9b",
+   "name": "las 100 drzew na starcie",
+   "tribute": "6/6",
+   "pop": "25/30/31/32",
+   "end": 38,
+   "famine": 0,
+   "gold": 183
+  },
+  {
+   "ok": true,
+   "code": "W10",
+   "name": "poziom 6 bez Składu",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "W11",
+   "name": "Kapliczka bez Woskarni",
+   "tribute": "0/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 237
+  },
+  {
+   "ok": true,
+   "code": "W12",
+   "name": "bez żywności leśnej",
+   "tribute": "6/6",
+   "pop": "18/24/24/24",
+   "end": 24,
+   "famine": 0,
+   "gold": 130
+  },
+  {
+   "ok": true,
+   "code": "W13",
+   "name": "zaraza −12 os. na 60. min",
+   "tribute": "6/6",
+   "pop": "32/40/28/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 235
+  },
+  {
+   "ok": true,
+   "code": "W14a",
+   "name": "pożar 3 Barci i 3 Woskarni na 70. min",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 176
+  },
+  {
+   "ok": true,
+   "code": "W14b",
+   "name": "pożar 3 Garbarni i 3 Chat łowców na 70. min",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 176
+  },
+  {
+   "ok": true,
+   "code": "W15",
+   "name": "pożar lasu (60% drzew) na 70. min",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "W16",
+   "name": "las spada do 80 drzew na 60. min",
+   "tribute": "6/6",
+   "pop": "32/40/40/40",
+   "end": 40,
+   "famine": 0,
+   "gold": 236
+  },
+  {
+   "ok": true,
+   "code": "W17",
+   "name": "brak żywności do 40. min, potem odbudowa",
+   "tribute": "6/6",
+   "pop": "13/10/38/56",
+   "end": 56,
+   "famine": 28,
+   "gold": 230
+  },
+  {
+   "ok": true,
+   "code": "FK1",
+   "name": "brak żywności do 40. min",
+   "tribute": "5/6",
+   "pop": "12/10/25/25",
+   "end": 25,
+   "famine": 26,
+   "gold": 76
+  },
+  {
+   "ok": true,
+   "code": "FK2",
+   "name": "zaraza −12 na 60. min",
+   "tribute": "6/6",
+   "pop": "25/31/31/43",
+   "end": 43,
+   "famine": 0,
+   "gold": 197
+  },
+  {
+   "ok": true,
+   "code": "FK3",
+   "name": "pożar łańcucha chleba i Sadu na 60. min",
+   "tribute": "6/6",
+   "pop": "25/31/43/43",
+   "end": 43,
+   "famine": 0,
+   "gold": 199
+  },
+  {
+   "ok": true,
+   "code": "SK1",
+   "name": "brak żywności do 40. min",
+   "tribute": "3/6",
+   "pop": "13/10/35/35",
+   "end": 35,
+   "famine": 25,
+   "gold": 531
+  },
+  {
+   "ok": true,
+   "code": "SK2",
+   "name": "zaraza −12 na 60. min",
+   "tribute": "6/6",
+   "pop": "20/38/26/36",
+   "end": 36,
+   "famine": 0,
+   "gold": 943
+  },
+  {
+   "ok": true,
+   "code": "SK3",
+   "name": "pożar 2 Gajów i Qanatu na 60. min",
+   "tribute": "6/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 903
+  },
+  {
+   "ok": true,
+   "code": "SK4",
+   "name": "krach cen na 70. min",
+   "tribute": "6/6",
+   "pop": "20/38/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 613
+  },
+  {
+   "ok": true,
+   "code": "VK1",
+   "name": "brak żywności do 40. min",
+   "tribute": "6/6",
+   "pop": "13/10/21/32",
+   "end": 32,
+   "famine": 36,
+   "gold": 618
+  },
+  {
+   "ok": true,
+   "code": "VK2",
+   "name": "zaraza −12 na 60. min",
+   "tribute": "6/6",
+   "pop": "18/32/26/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 792
+  },
+  {
+   "ok": true,
+   "code": "VK3",
+   "name": "pożar Przystani i Okrętu na 90. min",
+   "tribute": "6/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 764
+  },
+  {
+   "ok": true,
+   "code": "VK4",
+   "name": "pożar Miodosytni na 90. min",
+   "tribute": "6/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 794
+  },
+  {
+   "ok": true,
+   "code": "VK5",
+   "name": "wylesienie 150 drzew",
+   "tribute": "6/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 794
+  },
+  {
+   "ok": true,
+   "code": "VK6",
+   "name": "pożar 4 Chat rybaka na 70. min",
+   "tribute": "6/6",
+   "pop": "18/32/38/38",
+   "end": 38,
+   "famine": 0,
+   "gold": 794
+  }
+ ]
+}
