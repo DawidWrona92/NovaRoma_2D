@@ -82,6 +82,16 @@ U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Dre
 
 Budynki, które się obracają (dziś Przystań i Okręt), obsługuje klawisz R albo przycisk „⟳ Obróć (R)” w trybie budowy; kierunek dobiera się sam pod kursorem, dopóki gracz nie obróci ręcznie (rozdz. {{ref:obrot}}).
 
+## Telefon: budowa i okna {#telefon}
+
+Na ekranie dotykowym lub węższym niż 720 px (`BuildMode.coarse()`) obowiązują inne zasady niż na pulpicie, żeby okna nie zasłaniały mapy, a budowa nie wymagała trafiania w ekran:
+
+- **Budowa przez potwierdzenie.** Dotknięcie mapy tylko przesuwa „ducha” budynku; budynek stawia przycisk **✔ Postaw** na pasku nad dolnym menu, **⟳ Obróć** obraca (jeśli budynek się obraca, rozdz. {{ref:obrot}}), a **✖ Zakończ** wychodzi z budowy. Pasek pokazuje powód odmowy albo skutki miejsca (kara za ciasną zabudowę, wyrównanie, transport); „Postaw” jest wyłączone, gdy miejsca nie można zająć. Po wyborze budynku duch pojawia się na środku widoku.
+- **Okna jako podgląd.** Magazyn jest ukryty; przycisk **📦 Zasoby** pokazuje go na ok. 6 s i zwija sam (dotknięcie go zwija od razu). Karta budynku po dotknięciu budynku zwija się po 7 s, dotknięcie mapy zamyka Doradcę. Podatek, racje i panel testowy są pod **⚙ Więcej**.
+- **Zakładki budowy** przewijają się palcem (wcześniej rozpychały stronę ponad szerokość ekranu i część zakładek była niedostępna). Dotyk przycisku nie przestawia ducha: ruch myszy aktualizuje go tylko nad mapą.
+
+Test: `node tools/browser_mobile_build.js` (12 sprawdzeń).
+
 ## Panele informacyjne {#panele}
 
 - **Magazyn** (`#resPanel`, prawa strona) składa się z sekcji: **MAGAZYN** (towary z ilością i pojemnością `ilość / cap`; pełny magazyn jest wyróżniony), **ŻYWNOŚĆ** (produkcja, zużycie ludzi, podatek górniczy, maksymalna ludność), „Głód za”, ostrzeżenia (narzędzie, popularność < 45, podatek 3), link do Doradcy z liczbą ostrzeżeń, budowniczowie (czynni / ustawieni), **BUDOWA** (do 4 placów z postępem), **HARACZ** (następna rata, dostawa / wymagane, terminy; koszyk daniny Słowian), załoga na morzu (Wikingowie) i **NAPADY** (Saraceni, gdy był już napad). Panel odświeża się co 0,2 min gry.

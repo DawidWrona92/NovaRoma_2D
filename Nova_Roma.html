@@ -43,7 +43,7 @@
     padding: 4px 6px; cursor: pointer; font-family: inherit; font-size: 13px; max-width: 190px;
   }
   #hud select:hover { background: #55412a; }
-  #btnMore { display: none; }
+  #btnMore, #btnRes { display: none; }
 
   @media (max-width: 720px), (max-height: 640px) {
     /* HUD na telefonie: zwarty, zawijany, większe przyciski dotykowe */
@@ -51,14 +51,19 @@
     #hud .title { font-size: 13px; }
     #hud button { padding: 8px 10px; font-size: 12px; touch-action: manipulation; }
     #hud select { padding: 8px 6px; font-size: 12px; max-width: 150px; }
-    #btnMore { display: inline-block; }
+    #btnMore, #btnRes { display: inline-block; }
     #hud .sec { display: none; }
     #hud.open .sec { display: inline-block; }
     #advisor { width: calc(100vw - 16px) !important; max-height: 52vh !important; }
     /* podpowiedź widoczna na telefonie tylko jako komunikat chwilowy */
     #hint:not(.flash) { display: none !important; }
     #hint.flash { top: auto !important; bottom: 150px; left: 8px !important; right: 8px; font-size: 13px !important; }
-    #resPanel { width: 132px; font-size: 10px; top: auto; height: 40vh; }
+    /* okna nie zasłaniają mapy: Magazyn tylko jako chwilowy podgląd po dotknięciu „Zasoby”, panel testowy dopiero pod „Więcej” */
+    #resPanel:not(.peek) { display: none !important; }
+    #resPanel.peek { display: block !important; width: min(250px, 72vw); font-size: 12px; top: calc(var(--hud-h) + 8px); bottom: auto; right: 8px; height: auto; max-height: 52vh; border: 1px solid var(--panel-border); box-shadow: 0 4px 16px rgba(0,0,0,.6); }
+    #botPanel { display: none !important; } body.hudOpen #botPanel { display: block !important; bottom: auto !important; top: calc(var(--hud-h) + 8px); }
+    #hint.flash { bottom: calc(var(--bar-h) + 86px + var(--safe-bottom)) !important; }
+    #btnRotate { display: none !important; }
     .buildItem { width: 64px; }
   }
   /* ---------- Panel wyboru nacji ---------- */
@@ -111,9 +116,11 @@
     padding: 6px 10px calc(8px + var(--safe-bottom)); color: var(--text);
     user-select: none;
   }
-  #buildTabs { display: flex; gap: 6px; margin-bottom: 6px; }
+  #buildTabs { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }     /* zakładki przewijane palcem — bez tego rozpychały stronę ponad szerokość ekranu */
+  #buildTabs::-webkit-scrollbar { display: none; }
+  #buildBar { box-sizing: border-box; max-width: 100vw; }
   #buildTabs button {
-    background: transparent; border: none; color: #a89878; font-family: inherit;
+    flex: 0 0 auto; white-space: nowrap; background: transparent; border: none; color: #a89878; font-family: inherit;
     font-size: 13px; padding: 3px 10px; cursor: pointer; border-bottom: 2px solid transparent;
   }
   #buildTabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
@@ -139,6 +146,16 @@
   #tooltip .expensive { color: #e08484; }
 
   #btnRotate { position: fixed; right: 12px; bottom: calc(var(--bar-h) + 14px + var(--safe-bottom)); z-index: 41; padding: 10px 16px; font-size: 15px; }
+  /* pasek potwierdzenia budowy (telefon): dotknięcie mapy przesuwa duch budynku, stawia dopiero „Postaw” */
+  #buildConfirm { position: fixed; left: 8px; right: 8px; bottom: calc(var(--bar-h) + 8px + var(--safe-bottom)); z-index: 42; display: none; flex-direction: column; gap: 6px; background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.6); }
+  body.cb #buildConfirm { display: flex; }
+  body.cb #hint { display: none !important; }
+  #bcNote { font-size: 12px; line-height: 1.35; color: #c8bda8; min-height: 16px; }
+  #bcNote.bad { color: #ff9a8a; } #bcNote.good { color: #bfe8a8; }
+  #bcBtns { display: flex; gap: 8px; }
+  #bcBtns button { flex: 1; padding: 12px 6px; font-size: 15px; touch-action: manipulation; background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; font-family: inherit; }
+  #bcBtns button#bcOk { background: #4d6b2a; border-color: #8fbf5a; font-weight: bold; }
+  #bcBtns button:disabled { opacity: .45; }
   #hint {
     position: absolute; z-index: 30; left: 12px; top: calc(var(--hud-h) + 8px); color: #b8a888;
     font-size: 12px; background: rgba(20,16,12,.85); padding: 4px 8px; border-radius: 3px;
@@ -255,8 +272,8 @@
   <span class="stat">👷 <b id="hudJobs">0/0</b></span>
   <span class="stat">🏠 <b id="hudHousing">20</b></span>
   <span class="spacer"></span>
-  <button id="btnRations">Racje: ×1</button>
-  <button id="btnTax">Podatek: 1</button>
+  <button id="btnRations" class="sec">Racje: ×1</button>
+  <button id="btnTax" class="sec">Podatek: 1</button>
   <button id="btnBuilders" class="sec">👷 Budowniczowie: 3</button>
   <select id="btnTribute" class="sec" title="Haracz seniora: preset trudności albo własny poziom 1–11"></select>
   <button id="btnVoyages" class="sec">⛵ Wyprawy: Zwykłe</button>
@@ -266,6 +283,7 @@
   <button id="btnLogi" class="sec" title="Sprawność logistyczna: producent daleko od Składu / Dworu daje mniej (do −30%); drogi skracają dystans">🚚 Logistyka: wł.</button>
   <button id="btnSpeed" class="sec">Prędkość: ×1</button>
   <button id="btnAdvisor">🧭 Doradca</button>
+  <button id="btnRes">📦 Zasoby</button>
   <button id="btnMore">⚙ Więcej</button>
 </div>
 <div id="hint" style="display:none">Przeciągnij prawym przyciskiem / WASD — kamera · kółko — zoom · ESC — anuluj budowę</div>
@@ -8841,7 +8859,7 @@ const TestBots = (() => {
   let panel = null;
   function createPanel() {
     if (panel) return;
-    panel = document.createElement('div');
+    panel = document.createElement('div'); panel.id = 'botPanel';
     panel.style.cssText = 'position:absolute;z-index:60;left:8px;bottom:calc(var(--bar-h, 136px) + 8px);background:rgba(20,16,12,.94);border:1px solid #6b543a;color:#f0e6d2;font-size:12px;padding:6px 8px;max-width:300px;max-height:46vh;overflow:auto;';
     panel.innerHTML = '<b id="botToggle" style="color:#e8c860;cursor:pointer">🧪 Boty testowe ▸</b>' +
       '<div id="botBody" style="display:none;margin-top:4px">' +
@@ -9232,8 +9250,21 @@ const BuildMode = (() => {
   const rotBtn = document.createElement('button'); rotBtn.id = 'btnRotate'; rotBtn.className = 'sec'; rotBtn.textContent = '⟳ Obróć (R)'; rotBtn.style.display = 'none';
   rotBtn.onclick = () => rotate(1); document.body.appendChild(rotBtn);
   const syncRotBtn = () => { rotBtn.style.display = rotsFor(selected).length > 1 ? '' : 'none'; };
-  function select(id) { selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); }
-  function clear() { selected = null; roadStart = null; syncRotBtn(); }
+  /* telefon (ekran dotykowy lub wąski): dotknięcie mapy tylko przesuwa duch budynku; stawia przycisk „Postaw” na pasku potwierdzenia, a „Zakończ” wychodzi z budowy */
+  const coarse = () => typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 720px)').matches);
+  const mkEl = (tag, id, text, parent) => { const e = document.createElement(tag); e.id = id; if (text) e.textContent = text; parent.appendChild(e); return e; };      // bez querySelector: ładuje się też w testach headless
+  const bar = mkEl('div', 'buildConfirm', '', document.body), bcNote = mkEl('div', 'bcNote', '', bar), bcBtns = mkEl('div', 'bcBtns', '', bar);
+  const bcOk = mkEl('button', 'bcOk', '✔ Postaw', bcBtns), bcRot = mkEl('button', 'bcRot', '⟳ Obróć', bcBtns), bcCancel = mkEl('button', 'bcCancel', '✖ Zakończ', bcBtns); let lastNote = null;
+  const syncBar = () => { document.body.classList.toggle('cb', !!selected && coarse()); bcRot.style.display = rotsFor(selected).length > 1 ? '' : 'none'; if (!selected) lastNote = null; };
+  function exitBuild() { clear(); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); try { UI.pinBuilding(null); } catch (e) { /* UI jeszcze nie gotowe */ } }
+  bcOk.onclick = () => click(); bcRot.onclick = () => rotate(1); bcCancel.onclick = exitBuild;
+  function setBarNote(text, good) { if (lastNote === text + good) return; lastNote = text + good; bcNote.textContent = text; bcNote.className = good ? 'good' : text ? 'bad' : ''; }
+  function tap() { if (selected && !isTool() && coarse()) return; click(); }                // dotyk: tylko ruch ducha (hover ustawiony przez wywołującego)
+  function select(id) {
+    selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); syncBar();
+    if (id && !isTool() && coarse() && typeof canvas !== 'undefined') { const w = Camera.screenToWorld(canvas.width / dpr / 2, canvas.height / dpr * 0.42); setHover(w.x, w.y); }       // duch na środku widoku
+  }
+  function clear() { selected = null; roadStart = null; syncRotBtn(); syncBar(); }
   function isSelected() { return selected; }
   function setHover(wx, wy) { hover.fx = wx; hover.fy = wy; hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
   /* północny róg obrysu budowanego budynku tak, by obrys był wyśrodkowany pod kursorem */
@@ -9364,7 +9395,8 @@ const BuildMode = (() => {
     const tp = check.ok ? transportAt(s, selected, o.x, o.y) : null;                                   // transport: odległość do Składu / Dworu i skutek (Faza 9B)
     if (tp) parts.push(tp);
     const note = !check.ok ? check.reason : parts.join(' · ');
-    if (note) { const q = Camera.worldToScreen(o.x + w / 2, o.y + h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = check.ok ? '#ffd890' : '#ffb0a0'; ctx.strokeText(note, q.x, q.y + 34 * z); ctx.fillText(note, q.x, q.y + 34 * z); ctx.textAlign = 'start'; }
+    if (document.body.classList.contains('cb')) { bcOk.disabled = !ok; setBarNote(!check.ok ? check.reason : !affordable ? 'Brak złota na otwarcie placu' : (parts.join(' · ') || 'Miejsce wolne — dotknij „Postaw”'), ok); }
+    if (note && !document.body.classList.contains('cb')) { const q = Camera.worldToScreen(o.x + w / 2, o.y + h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = check.ok ? '#ffd890' : '#ffb0a0'; ctx.strokeText(note, q.x, q.y + 34 * z); ctx.fillText(note, q.x, q.y + 34 * z); ctx.textAlign = 'start'; }
     const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, Data.metaKey(selected, rr)) : null;
     ctx.globalAlpha = 0.65; // duch budynku
     if (spr) {
@@ -9377,7 +9409,7 @@ const BuildMode = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, origin, rotate, curRot, hover: () => hover };
+  return { select, clear, isSelected, setHover, click, tap, draw, buildingAtHover, origin, rotate, curRot, exitBuild, coarse, hover: () => hover };
 })();
 
 /* ============================== MODUL: MINIMAP ==============================
@@ -9600,10 +9632,13 @@ const UI = (() => {
       updRd();
     } else btnRd.style.display = 'none';
     document.getElementById('btnAdvisor').onclick = () => UI.toggleAdvisor();
+    const btnRes = document.getElementById('btnRes'), resEl = document.getElementById('resPanel'); let resTimer = null;
+    const peekRes = on => { clearTimeout(resTimer); resEl.classList.toggle('peek', on); if (on) { resTimer = setTimeout(() => resEl.classList.remove('peek'), 6000); } };       // chwilowy podgląd Magazynu, potem zwija się sam
+    btnRes.onclick = () => peekRes(!resEl.classList.contains('peek')); resEl.addEventListener('click', e => { if (!e.target.classList.contains('link')) peekRes(false); });
     const btnMore = document.getElementById('btnMore');
     btnMore.onclick = () => { // małe ekrany: rzadko używane ustawienia zwijane pod „Więcej"
       const open = hud.classList.toggle('open');
-      btnMore.textContent = open ? '⚙ Mniej' : '⚙ Więcej';
+      btnMore.textContent = open ? '⚙ Mniej' : '⚙ Więcej'; document.body.classList.toggle('hudOpen', open);
       syncHudHeight();
     };
     document.getElementById('advisor').addEventListener('click', ev => { if (ev.target.id === 'advClose') UI.toggleAdvisor(false); });
@@ -9781,7 +9816,11 @@ const UI = (() => {
     else { pinned = null; hovered = null; showInfo(null); }
     if (advisorOpen) document.getElementById('advisor').innerHTML = Advisor.render();
   }
-  function pinBuilding(b) { pinned = b; refreshOverlays(); }
+  let pinT = null;
+  function pinBuilding(b) {
+    pinned = b; refreshOverlays(); clearTimeout(pinT);
+    if (b && BuildMode.coarse()) pinT = setTimeout(() => { if (pinned === b) { pinned = null; refreshOverlays(); } }, 7000);          // telefon: karta budynku to chwilowy podgląd, zwija się sama
+  }
   function hoverBuilding(b) { if (b !== hovered) { hovered = b; refreshOverlays(); } }
   function toggleAdvisor(force) {
     advisorOpen = force === undefined ? !advisorOpen : force;
@@ -11232,7 +11271,7 @@ const Game = (() => {
       if (Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > 5) dragged = true;
       Camera.x = camStart.x + (e.clientX - dragStart.x);
       Camera.y = camStart.y + (e.clientY - dragStart.y);
-    } else {
+    } else if (e.target === canvas) {                                           // tylko nad mapą: dotyk przycisku na telefonie też zgłasza ruch myszy i przestawiałby ducha pod przycisk
       const w = Camera.screenToWorld(e.clientX, e.clientY);
       BuildMode.setHover(w.x, w.y);
       UI.hoverBuilding(BuildMode.isSelected() ? null : BuildMode.buildingAtHover());
@@ -11316,8 +11355,9 @@ const Game = (() => {
       if (Math.hypot(dx, dy) < 8 && Date.now() - tStart.t < 600) {
         // tap: jak klik lewym przyciskiem — budowa / wybór
         const w = Camera.screenToWorld(tStart.sx, tStart.sy);
+        if (BuildMode.coarse()) UI.toggleAdvisor(false);                      // telefon: dotknięcie mapy zamyka Doradcę (okno nie zasłania widoku)
         BuildMode.setHover(w.x, w.y);
-        BuildMode.click();
+        BuildMode.tap();
       }
     }
     if (e.touches.length === 0) { touchMode = null; dragged = false; }
@@ -11328,9 +11368,7 @@ const Game = (() => {
     if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && BuildMode.isSelected()) BuildMode.rotate(e.shiftKey ? -1 : 1);       // obrót budynku w trybie budowy
     if (e.key === 'Escape') {
       if (Menu.escape()) return;
-      BuildMode.clear();
-      UI.pinBuilding(null);
-      document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected'));
+      BuildMode.exitBuild();
     }
   });
   window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });

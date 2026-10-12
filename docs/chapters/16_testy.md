@@ -48,6 +48,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `spacing.js`, `leveling.js` | `World.canPlace`, `Build` | przerwa 1 pole, strefa kary 2–3, wyrównywanie stoków, wzgórza decyzyjne |
 | `logistics.js` | `Logistics` | blisko Składu bez kary, daleko spadek do minimum, drogi i Skład pomagają, ekonomia produkuje mniej |
 | `fauna.js` | `Fauna` | zaludnienie map, pozycje tylko na wolnych polach, zero RNG globalnego, determinizm, snapshot, parytet z fauną; **unikanie zabudowy** (< 2% próbek przy ścianie), **punkty spawnu** i odradzanie po wyłapaniu (≥ 70% gatunków wraca), „1 Chata” ze średnim plonem ≥ 0,60 |
+| `browser_mobile_build.js` | HUD, `BuildMode` na telefonie | budowa przez potwierdzenie (duch, „Postaw”, „Zakończ”), Magazyn jako chwilowy podgląd, brak poziomego przewijania |
 | `rotation.js` | `Data.zonesOf/rotsOf`, `World.canPlace`, `Build` | obrót Przystani i Okrętu: strefy ląd/woda, odrzucanie lądu i wody, plac i wyburzenie na wodzie, wejście od lądu, Okręt tylko przy molu, JSON, bot na 48 mapach |
 | `footprints.js` | obrysy `w×h` | zgodność z katalogiem sprite'ów, zajętość i zwolnienie pól, złoża pod kopalnią, place budowy |
 | `minimap.js` | `Minimap` | opis i podsumowanie 24 kombinacji klimat × typ, rysunek na atrapie kanwy (każde pole = 1 prostokąt, ramka Dworu), **podgląd = mapa gry** (to samo ziarno → te same pola), mapa niepoprawna i mapa bez `meta` |
