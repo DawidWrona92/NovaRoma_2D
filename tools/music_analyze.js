@@ -1,7 +1,7 @@
 // Analiza muzyki (Punkt 16): renderuje utwór nacji offline (OfflineAudioContext w Chromium) i drukuje długość, liczbę zdarzeń wg głosów, szczyt, głośność RMS, głośność co 10 s, środek ciężkości widma
 // i udział energii poniżej 300 Hz; zapisuje spektrogram (PNG) i podgląd (WAV 22,05 kHz mono) do katalogu $OUT (domyślnie tymczasowy).
 // Użycie: [OUT=katalog] node tools/music_analyze.js [franks|saracens|vikings|slavs]
-const { chromium } = require('/opt/node22/lib/node_modules/playwright'); const fs = require('fs'); const path = require('path'), SP = process.env.OUT || require('os').tmpdir(), FILE = 'file://' + path.resolve(__dirname, '..', 'Nova_Roma.html');
+const { chromium } = require('/opt/node22/lib/node_modules/playwright'); const fs = require('fs'); const path = require('path'), SP = process.env.OUT || require('os').tmpdir(), FILE = 'file://' + path.resolve(__dirname, '..', 'Nova_Roma.html'); fs.mkdirSync(SP, { recursive: true });
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
