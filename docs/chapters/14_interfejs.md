@@ -127,6 +127,46 @@ Przy fizycznej logistyce (`settings.physical`) dopisek o transporcie podaje odle
 
 Doradca nie podejmuje żadnych decyzji ani nie zmienia stanu; testy sprawdzają go przez `tools/browser_ui.js` (wiersze statusów, ostrzeżenia, panel).
 
+## Muzyka: moduł Music {#muzyka}
+
+**Cel i decyzja.** Gra ma mieć spokojną muzykę tła, ale **bez plików dźwiękowych**: cały projekt jest jednym plikiem `Nova_Roma.html` bez zależności (rozdz. {{ref:decyzje}}), więc muzyka powstaje w przeglądarce. Moduł `Music` (w pliku między znacznikami `MUSIC:BEGIN` i `MUSIC:END`) **komponuje** utwór z danych, a następnie **gra go syntezatorem WebAudio**. Są cztery utwory, po jednym na nację, każdy trwa kilka minut (rzędu 3–4 min) i gra w pętli — przy każdym obiegu z nowym wariantem, żeby nie nużył. Muzyka jest wolna, niska i uspokajająca: ma towarzyszyć budowaniu, nie zwracać na siebie uwagi.
+
+**Styl utworów wg nacji.** Instrumentarium i skale dobrano do nacji (rozdz. {{ref:nacje}}); liczby w tabeli są orientacyjne — stroi je tablica `PIECES` w kodzie.
+
+Tabela: Utwory nacji
+| Nacja | Utwór | Skala i tempo | Instrumenty i charakter |
+|---|---|---|---|
+| Frankowie | „Pokój w grodzie” | dorycka, ok. 70 uderzeń/min, metrum 4/4 | średniowieczna **lutnia** (arpeggio), **flet prosty** (melodia), **smyczki** (tło), cichy tabor; spokój jak w Twierdzy |
+| Saraceni | „Wiatr nad wydmami” | **hidżaz**, ok. 68 uderzeń/min, 4/4 | **oud** (arpeggio), **ney** (melodia z ozdobnikami), **darbuka** (dum / tek), bordon; utwór zaczyna wolny wstęp **taqsim** (swobodna melodia nad bordonem) — nastrój Twierdzy Krzyżowca |
+| Wikingowie | „Cisza fiordu” | dorycka, najwolniejsza (ok. 54 uderzeń/min), niska tonika | niski **bordon**, **smyk** (długie nuty), **kantele** (rzadkie szarpnięcia), powolny **bęben obręczowy**; duży pogłos i ciemny filtr |
+| Słowianie | „Wieczór nad rzeką” | eolska, ok. 60 uderzeń/min, **rytm na trzy** (3/4) | **gęśle** (arpeggio i basowe szarpnięcia), niski **flet** (sopiłka), pad, miękki bęben; folkowo i nisko |
+
+**Kompozytor (`Music.compose(nacja, obieg)`).** To czysta funkcja nacji i numeru obiegu, która zwraca listę zdarzeń `{ t, v, n, d, g }` (czas w sekundach, głos, nuta MIDI, czas trwania, siła) oraz długość utworu `len`, nazwę, długość taktu i liczbę taktów. Dane utworu (`PIECES[nacja]`) opisują: **tempo i metrum**, **tonikę i skalę** (dorycka, eolska, hidżaz), **progresje akordów** jako stopnie skali (kilka wzorów A, B, C), **formę** — listę sekcji `[progresja, liczba taktów, warstwy]`, np. wstęp samą lutnią, potem dochodzi flet, smyczki i tabor, a ostatnia sekcja ma warstwę `fade` (wyciszenie na końcu) — oraz parametry warstw: arpeggio szarpane z kilkoma wzorami, tło (smyczki lub pad, akord co dwa takty), melodię prowadzącą (zakres w stopniach skali, pula długości nut, szansa pauzy i ozdobnika) i zestaw filtrów toru wyjściowego (pogłos, odcięcie, wzmocnienie). Każda nacja ma jeszcze własny hak `extra` dla warstw specyficznych (tabor Franków, darbuka i bordon Saracenów, rama bębna i kantele Wikingów, basowe szarpnięcia Słowian).
+
+Melodia powstaje frazami po dwa takty (po trzy w taqsimie). Fraza jest zapamiętana pod kluczem sekcji, więc **powroty tematu** w kolejnych sekcjach grają tę samą melodię; w punktach akordowych melodia przeskakuje do najbliższego dźwięku akordu, między nimi porusza się stopniowo. Ostatnia nuta frazy ląduje na dźwięku akordu.
+
+Kompozytor używa **własnego PRNG** (mulberry32, ziarno z nazwy nacji i numeru obiegu), więc wynik jest **deterministyczny**, a **globalny `RNG` gry nie jest ruszany** (rozdz. {{ref:rng}}) — muzyka nie może zmienić przebiegu rozgrywki ani wyników testów. Numer obiegu zmienia ziarno: pierwszy obieg jest zawsze taki sam, kolejne mają nowe melodie i ułożenie ozdobników, ale ten sam charakter utworu.
+
+**Syntezator.** Zdarzenie gra funkcja `play`, na dowolnym kontekście audio:
+
+- **struny szarpane** (lutnia, oud, gęśle, kantele) — algorytm **Karplusa–Strongsa**: krótki wypełniony szumem bufor jest przepuszczany przez pętlę opóźnienia z uśrednianiem i tłumieniem, co daje dźwięk szarpniętej struny; barwę i czas wybrzmiewania ustawiają stałe `PLUCK`, a bufory są pamiętane w podręcznym cache;
+- **flet, ney, sopiłka** — trzy sinusy (prym, oktawa, kwinta nad oktawą), szum oddechu przez filtr pasmowy i powolne vibrato; ney ma ślizg wysokości na początku długiej nuty i więcej oddechu;
+- **smyczki, smyk, pad, bordon** — kilka lekko rozstrojonych oscylatorów (piła lub trójkąt) przez filtr dolnoprzepustowy, z wolnym wejściem i wyjściem; smyk dodaje vibrato;
+- **bębny** (obręczowy, tabor, dum, tek) — sinus z szybkim spadkiem wysokości plus krótki szum.
+
+Tor wyjściowy (`chain`) to suma głosów → dźwięk suchy i **pogłos** (splot z wygenerowaną odpowiedzią impulsową, szum z wykładniczym wygaszaniem) → filtr dolnoprzepustowy (ciemniejszy dla Wikingów) → kompresor → wzmocnienie utworu → głośność.
+
+**Harmonogram i start po geście.** Odtwarzanie w czasie rzeczywistym działa na jednym `AudioContext`. Co 250 ms funkcja `pump` planuje zdarzenia z **wyprzedzeniem 2,5 s**, więc przeciążenie wątku głównego nie zrywa rytmu. Gdy kończy się lista zdarzeń, `pump` składa kolejny obieg i dokleja go z krótką przerwą. Przeglądarki nie pozwalają grać dźwięku przed gestem użytkownika, dlatego `UI.startGame` tylko **uzbraja** muzykę (`Music.arm(nacja)`), a dźwięk rusza po pierwszym kliknięciu, dotknięciu lub klawiszu; głośność narasta przez ok. 5 s. Ta sama logika stoi za `Music.render(nacja, obieg, sekundy, częstotliwość, od)`, która zagra wycinek w `OfflineAudioContext` (używają jej testy i analiza).
+
+**Sterowanie.**
+
+- Menu Esc (rozdz. {{ref:menu-gry}}) ma pozycję **„Muzyka: …”** (`#pmList [data-id=music]`): każde kliknięcie przełącza cyklicznie **Wył. → Cicho → Średnio → Głośno** i odświeża napis.
+- Klawisz **M** (przy zamkniętym menu i poza polami tekstowymi) wycisza lub przywraca muzykę (`Music.toggle`) i pokazuje krótką podpowiedź.
+- Wybrany poziom jest zapisywany w `localStorage` pod kluczem `novaroma.music` (`{level}`), zawsze w `try/catch` — w trybie prywatnym gra działa bez pamięci. Domyślnie „Średnio”.
+- `Music.state()` zwraca m.in. nację, na którą muzyka jest uzbrojona (`armed`), stan kontekstu audio i bieżący obieg; `Music.levels()`, `level()`, `levelName()`, `setLevel`, `cycle`, `stop` i `pieces()` dopełniają interfejs.
+
+**Ograniczenia i weryfikacja.** To muzyka **syntetyczna**, nie nagrania: brzmi jak stylizacja instrumentów, nie jak ich zapis, a barwę ogranicza prosty syntezator. Twórca nie miał możliwości jej odsłuchać, więc stroju dokonano **przez analizę widma i głośności**: `tools/music_analyze.js` renderuje cały utwór offline i drukuje długość, liczbę zdarzeń wg głosów, szczyt, RMS, głośność co 10 s, środek ciężkości widma i udział energii poniżej 300 Hz oraz zapisuje spektrogram i podgląd WAV. Z niej wynika m.in., że wszystkie utwory mają szczyt wyraźnie poniżej 0 dBFS, RMS rzędu −17…−20 dBFS i brak cichych dziur, a muzyka Wikingów jest najciemniejsza, Słowian i Franków najjaśniejsza. Test `tools/music.js` (rozdz. {{ref:testy-modulow}}) pilnuje długości, determinizmu, poprawności zdarzeń, głośności wycinków, sterowania i braku błędów JS.
+
 ## Co jeszcze zaplanowano {#ui-plan}
 
 Faza 10: **legenda** terenu, wody, dróg i zwierzyny (panel w grze), spójność Doradcy z nowymi mechanikami (wyrównanie, przetrzebiona zwierzyna). Faza 9B wprowadziła **tempo bazowe czasu gry** i prędkości ×1/×2/×3/×6 (aneks {{ref:aneks-fizyka}}, rozdz. {{ref:e-tempo}}), sekcję „Transport” w karcie budynku oraz komunikat „brak dojścia” w Doradcy.

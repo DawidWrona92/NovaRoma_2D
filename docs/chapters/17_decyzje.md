@@ -48,6 +48,7 @@ Tabela: Decyzje użytkownika
 | **Przystań (szopa na lądzie, molo na wodzie) i Okręt (na wodzie przy molo) z obrotem; docelowo wszystkie budynki w 4 kierunkach** | strefy ląd/woda, `rot` w budynku i placu, klawisz R / przycisk ⟳; port i okręt w 4 kierunkach teraz, reszta jako osobny etap grafiki | {{ref:obrot}} |
 | **Rozmiar mapy do wyboru w Piaskownicy**: Mała 48, Średnia 72 (domyślna), Duża 96; testy i 58 scenariuszy specyfikacji zostają na 48 | `MapGen.SIZES`, skalowanie K = N/48 (cechy ×K², odległości ×K, złoża ×K), fauna ×K; `tools/mapsize.js` | {{ref:teren}} |
 | **Druga wioska i magazyny „tylko dla kopalń w górach” i „tylko dla lasów w oddalonych kopalniach”: Osada + Składy wyspecjalizowane** (zamiast jednego dużego Składu) | `Data.hub`, `RULES.hub`, `Logistics.distVia`; Osada: miejsca dwóch Chat, +40 szt., bonus 3 pól, baza budowniczych, tylko daleko od Dworu; Skład górniczy i drzewny przyjmują tylko swoje towary (+100 szt.) | {{ref:wezly}} |
+| **Muzyka tła generowana w przeglądarce, bez plików dźwiękowych** (cztery utwory 3–4 min, po jednym na nację, wolne i uspokajające; nowy wariant przy każdym obiegu pętli; sterowanie z menu Esc i klawiszem M) | moduł `Music`: kompozytor z własnym PRNG (globalny `RNG` nietknięty), syntezator WebAudio (Karplus–Strong, flet, smyk, bębny, pogłos), start po pierwszym geście, poziom w `localStorage`; `tools/music.js`, `tools/music_analyze.js` | {{ref:muzyka}} |
 
 ## Decyzje projektowe (z uzasadnieniem) {#decyzje-projektowe}
 

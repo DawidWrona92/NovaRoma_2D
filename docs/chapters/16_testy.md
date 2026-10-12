@@ -77,6 +77,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `browser_fauna.js` | zaludnienie, myśliwy przechodzi fazy wyprawy, strzała w locie, FPS z fauną vs bez |
 | `browser_menu.js` | **menu główne** (tylko Piaskownica aktywna, klawiatura, hover), **Piaskownica** (przepływ nacja → klimat → typ → Start dla każdej nacji; mapa gry = meta podglądu; blokada Wikingów na nadmorskiej; pamięć wyboru w `localStorage`), **☰ Menu** i priorytet Esc, „Nowa mapa” i „Menu główne”, `?menu=0`, `?play=`, telefon 390 × 844 (bez poziomego przewijania), 0 błędów JS |
 | `browser_workers.js` | robotnicy na ekranie: czynności, narzędzia i ładunki każdej nacji, `?workers=0` (dawne cienie), FPS z robotnikami ≥ 85% FPS bez nich, 0 błędów JS |
+| `music.js` | `Music` | muzyka tła (Punkt 16), 4 nacje: długość utworu 170–260 s, determinizm `compose` i inny wariant w kolejnym obiegu, zdarzenia posortowane i w zakresach (czas, nuta MIDI 24–100, czas trwania, siła), brak NaN, co najmniej 3 głosy, globalny `RNG` nietknięty; render offline 30 s od 60. sekundy: szczyt ≤ 0,95, RMS −40…−12 dBFS, żadne 5-sekundowe okno nie jest ciche; poziomy, `cycle`, `toggle`, zapis w `localStorage`; w grze pozycja „Muzyka: …” w menu Esc, klawisz M, `armed` = nacja, brak błędów JS (89 sprawdzeń, ok. 15 s) |
 
 Testy przeglądarkowe czekają na `window.__gameReady === true` (gra startuje po wypieku sprite'ów) i — poza `browser_menu.js` — wchodzą do gry przez `?menu=0` lub `?play=`, żeby nie zależeć od menu (rozdz. {{ref:parametry-adresu}}).
 
