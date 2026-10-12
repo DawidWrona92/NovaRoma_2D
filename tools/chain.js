@@ -108,4 +108,15 @@ for (const fid of ['franks', 'saracens']) {
   s.staffed[mk.uid] = true; const st = G.Advisor.statusOf(mk);
   ok(/kupuje narzędzia za 20 zł/.test(st.text) && (fid !== 'saracens' || /kadzidło/.test(st.text)) && (fid !== 'franks' || /żołdu/.test(st.text)), `${fid}: karta Targu opisuje jego rolę (${st.text.slice(0, 70)}…)`);
 }
+// Drwal: rąbanie trwa co najmniej RULES.cycle.chopMin (błąd zgłoszony po Punkcie 15: gdy logika ścięła drzewo, zanim drwal doszedł, rąbanie kończyło się po 0 s)
+for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
+  World.init(fid, { climate: Data.FACTIONS[fid].climate, type: fid === 'vikings' ? 'coast' : 'plain', seed: 5 });
+  const s = World.state(); s.res.narzędzia = 50; s.settings.workers = true; s.settings.physical = true; s.settings.logistics = true;
+  let b = null; for (let r = 3; r < 16 && !b; r++) for (let dy = -r; dy <= r && !b; dy++) for (let dx = -r; dx <= r && !b; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace('woodcutter', x, y).ok) b = World.placeBuilding('woodcutter', x, y, true); }
+  s.staffed[b.uid] = true; let cur = 0; const streaks = [], min = Data.RULES.cycle.chopMin;
+  for (let i = 0; i < 1500; i++) { World.tick(0.05); Walkers.update(0.05); const w = Walkers.figures().find(a => a.kind === 'worker' && a.uid === b.uid); if (w && w.act === 'chop') cur += 0.05; else if (cur > 0) { streaks.push(cur); cur = 0; } }
+  const longEnough = streaks.filter(x => x >= min - 0.1).length;
+  ok(streaks.length >= 5, `${fid}: drwal rąbie (${streaks.length} rąbań w 75 min)`);
+  ok(longEnough >= streaks.length * 0.7, `${fid}: rąbanie trwa ≥ ${min} min (${longEnough}/${streaks.length}; najkrótsze ${Math.min(...streaks).toFixed(2)})`);
+}
 console.log(fails ? `\n✘ ${fails} z ${checks} sprawdzeń nie przeszło` : `Wszystko OK — ${checks} sprawdzeń`); process.exit(fails ? 1 : 0);

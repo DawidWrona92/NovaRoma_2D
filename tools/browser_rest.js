@@ -21,6 +21,8 @@ let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (!c) { fails++; c
       const info = await p.evaluate(() => { const a = Walkers.figures().find(q => q.sit && q.act === 'rest'); return { kind: a.kind, stage: a.stage || null }; });
       ok(info.kind === 'citizen' || info.kind === 'worker', `${nation}: siedzi mieszkaniec lub robotnik (${info.kind})`);
     }
+    const pre = { franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[nation];                                  // tułów bez rąk dla odpoczywających (błąd „cztery ręce”): oba warianty wypieczone i oznaczone noArms
+    ok(await p.evaluate(pre => ['WorkerSit', 'WorkerBSit'].every(k => Sprites.cast(pre + k) && Sprites.engine.CAST[pre + k].noArms === true), pre), `${nation}: są warianty tułowia bez rąk (WorkerSit, WorkerBSit)`);
     await p.waitForTimeout(1500);
     ok(errs.length === 0, `${nation}: brak błędów JS ${errs.slice(0, 2).join(' | ')}`);
     await p.close();

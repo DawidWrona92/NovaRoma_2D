@@ -38,7 +38,7 @@ Segmenty murów (rozdz. {{ref:mury}}) mają własny plik `prototyp/src/56_walls.
 
 ## Mieszkańcy {#mieszkancy}
 
-**Odpoczynek na krześle** (Punkt 15) nie dodaje klatek sprite'ów postaci ani krzeseł do sprite'ów budynków: `drawSeated` bierze tułów z istniejącego sprite'a „front”, przycina go w pasie, obniża i dorysowuje uda, podudzia i buty; krzesło (`drawChair`, drewno w barwie `palette.timber` nacji) pojawia się pod postacią w 0,4 s i po wstaniu jeszcze 0,45 s blednie w miejscu. W cyklu ok. 8 s postać kołysze się, rozciąga (ręce w górę) i popija z kubka; narzędzie jest wtedy ukryte.
+**Odpoczynek na krześle** (Punkt 15) nie dodaje klatek sprite'ów postaci ani krzeseł do sprite'ów budynków: `drawSeated` bierze tułów z wariantu „front” **bez rąk** (`*WorkerSit` / `*WorkerBSit`: kopie postaci robotniczych z `noArms`, wypiekane z nacją), przycina go w pasie, obniża i dorysowuje uda, podudzia, buty oraz **ręce** (dłonie na udach, w górę przy rozciąganiu, jedna z kubkiem przy popijaniu); krzesło (`drawChair`, drewno w barwie `palette.timber` nacji) pojawia się pod postacią w 0,4 s i po wstaniu jeszcze 0,45 s blednie w miejscu. W cyklu ok. 8 s postać kołysze się, rozciąga (ręce w górę) i popija z kubka; narzędzie jest wtedy ukryte.
 
 Postacie mają wygląd wspólny dla nacji, zapisany w tabeli `CAST` (kolory stroju, włosy, nakrycie głowy, rekwizyty). Robotnicy mają po dwa warianty na nację: `*Worker` i `*WorkerB` (np. `frankWorker`, `vikWorkerB`), dobierane według koloru stroju. Myśliwi z łukiem (`frankHunter` i pozostałe) dopisano na końcu tabeli, żeby nie przesunąć indeksów wybieranych w grze.
 

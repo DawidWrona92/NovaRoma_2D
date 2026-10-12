@@ -304,9 +304,9 @@ function bakeFigure(st, view, frame, F = 1) {
   const handL = [cx - 12.5, sh + 19 + sw * 2.4], handR = [cx + 12.5, sh + 19 - sw * 2.4];
   const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar') || has('bow');
   const hr2 = raiseR ? [cx + 13.5, sh + 14] : handR, hl2 = holdL && !back ? [cx - 13.5, sh + 14] : handL;
-  limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv);
-  if (st.mail) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
-  for (const [hx, hy2] of [hl2, hr2]) { g.fillStyle = css(sk); g.strokeStyle = out; g.lineWidth = 1; g.beginPath(); g.arc(hx, hy2 + 1.5, 2.9, 0, TAU); g.fill(); g.stroke(); }
+  if (!st.noArms) { limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv); }                            // noArms: tułów bez rąk (siedzący — ręce rysuje gra proceduralnie)
+  if (st.mail && !st.noArms) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
+  if (!st.noArms) for (const [hx, hy2] of [hl2, hr2]) { g.fillStyle = css(sk); g.strokeStyle = out; g.lineWidth = 1; g.beginPath(); g.arc(hx, hy2 + 1.5, 2.9, 0, TAU); g.fill(); g.stroke(); }
 
   // rekwizyty trzymane (przed tułowiem)
   if (has('shield-kite') && !back) {
@@ -407,4 +407,6 @@ const CAST = {
   slavWorker: { tunic: '#e6dcc0', trim: '#b8352b', belt: '#6a4a2a', legs: '#7a6044', boots: '#8a6a40', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#7a5a3a', props: [] },
   slavWorkerB: { tunic: '#c8a868', trim: '#3a6aa0', belt: '#6a4a2a', legs: '#6a5238', boots: '#7a5a38', hair: '#a8702e', head: 'kerchief', headCol: '#b04a32', props: [] }
 };
+/* warianty tułowia bez rąk dla odpoczywających (Punkt 15): `${nacja}WorkerSit`, `${nacja}WorkerBSit` — gra dorysowuje ręce proceduralnie, więc nigdy nie ma ich podwójnie */
+for (const pre of ['frank', 'sar', 'vik', 'slav']) for (const v of ['', 'B']) CAST[pre + 'Worker' + v + 'Sit'] = Object.assign({}, CAST[pre + 'Worker' + v], { noArms: true, props: [] });
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }

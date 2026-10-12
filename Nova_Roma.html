@@ -2403,9 +2403,9 @@ function bakeFigure(st, view, frame, F = 1) {
   const handL = [cx - 12.5, sh + 19 + sw * 2.4], handR = [cx + 12.5, sh + 19 - sw * 2.4];
   const raiseR = has('spear') || has('axe') || has('scimitar'), holdL = has('shield-kite') || has('shield-round') || has('basket') || has('jar') || has('bow');
   const hr2 = raiseR ? [cx + 13.5, sh + 14] : handR, hl2 = holdL && !back ? [cx - 13.5, sh + 14] : handL;
-  limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv);
-  if (st.mail) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
-  for (const [hx, hy2] of [hl2, hr2]) { g.fillStyle = css(sk); g.strokeStyle = out; g.lineWidth = 1; g.beginPath(); g.arc(hx, hy2 + 1.5, 2.9, 0, TAU); g.fill(); g.stroke(); }
+  if (!st.noArms) { limb(g, cx - 10, sh + 3, hl2[0], hl2[1], 5.4, slv); limb(g, cx + 10, sh + 3, hr2[0], hr2[1], 5.4, slv); }                            // noArms: tułów bez rąk (siedzący — ręce rysuje gra proceduralnie)
+  if (st.mail && !st.noArms) { g.strokeStyle = 'rgba(30,34,40,0.35)'; g.lineWidth = 0.7; for (const [hx, hy2] of [hl2, hr2]) for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(hx * 0.3 + cx * 0.7, (hy2 + sh + 3) / 2 + i * 1.4 - 2, 2.4, 0, Math.PI); g.stroke(); } }
+  if (!st.noArms) for (const [hx, hy2] of [hl2, hr2]) { g.fillStyle = css(sk); g.strokeStyle = out; g.lineWidth = 1; g.beginPath(); g.arc(hx, hy2 + 1.5, 2.9, 0, TAU); g.fill(); g.stroke(); }
 
   // rekwizyty trzymane (przed tułowiem)
   if (has('shield-kite') && !back) {
@@ -2506,6 +2506,8 @@ const CAST = {
   slavWorker: { tunic: '#e6dcc0', trim: '#b8352b', belt: '#6a4a2a', legs: '#7a6044', boots: '#8a6a40', hair: '#8a5a2a', beard: true, beardCol: '#8a5a2a', head: 'cap', headCol: '#7a5a3a', props: [] },
   slavWorkerB: { tunic: '#c8a868', trim: '#3a6aa0', belt: '#6a4a2a', legs: '#6a5238', boots: '#7a5a38', hair: '#a8702e', head: 'kerchief', headCol: '#b04a32', props: [] }
 };
+/* warianty tułowia bez rąk dla odpoczywających (Punkt 15): `${nacja}WorkerSit`, `${nacja}WorkerBSit` — gra dorysowuje ręce proceduralnie, więc nigdy nie ma ich podwójnie */
+for (const pre of ['frank', 'sar', 'vik', 'slav']) for (const v of ['', 'B']) CAST[pre + 'Worker' + v + 'Sit'] = Object.assign({}, CAST[pre + 'Worker' + v], { noArms: true, props: [] });
 function bakeCast(key, F = 1) { const st = CAST[key]; return { front: [bakeFigure(st, 'front', 0, F), bakeFigure(st, 'front', 1, F)], back: [bakeFigure(st, 'back', 0, F), bakeFigure(st, 'back', 1, F)] }; }
 
 /* ---- 41_climate.js ---- */
@@ -5580,7 +5582,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 }, clear: { tree: 0.6, bog: 2.0 }, wall: { cost: { franks: { 'kamień': 1 }, saracens: { glina: 1 }, vikings: { deski: 1 }, slavs: { deski: 1 } }, gate: { franks: { 'kamień': 4, deski: 2 }, saracens: { glina: 4, deski: 2 }, vikings: { deski: 5 }, slavs: { deski: 5 } } } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial); wall: koszt jednego pola muru obronnego (surowiec zależny od nacji; Punkt 13) i bramy (gate; Punkt 14); clear: oczyszczanie terenu pod budowę (settings.clearing) — minut pracy budowniczych na drzewo (tree) i na pole bagna do osuszenia (bog); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2, chopMin: 1.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 }, clear: { tree: 0.6, bog: 2.0 }, wall: { cost: { franks: { 'kamień': 1 }, saracens: { glina: 1 }, vikings: { deski: 1 }, slavs: { deski: 1 } }, gate: { franks: { 'kamień': 4, deski: 2 }, saracens: { glina: 4, deski: 2 }, vikings: { deski: 5 }, slavs: { deski: 5 } } } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial), najkrótszy czas rąbania drzewa przez drwala w minutach gry (chopMin; logika może ściąć drzewo, zanim drwal dojdzie); wall: koszt jednego pola muru obronnego (surowiec zależny od nacji; Punkt 13) i bramy (gate; Punkt 14); clear: oczyszczanie terenu pod budowę (settings.clearing) — minut pracy budowniczych na drzewo (tree) i na pole bagna do osuszenia (bog); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -11644,7 +11646,8 @@ const Workers = (() => {
   function enterStep(w, st, map) {
     const a = w.a; w.planned = true;
     if (st.k === 'go') { Walkers.kit.plan(a, st.p[0], st.p[1], map); a.act = null; }
-    else if (st.k === 'act') { a.act = st.act; a.sit = !!st.sit; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } if (st.plant) planted.set(st.plant, w.b.uid === st.plant.b ? World.state().time : 0); }
+    else if (st.k === 'act') { a.act = st.act; a.sit = !!st.sit; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } if (st.plant) planted.set(st.plant, w.b.uid === st.plant.b ? World.state().time : 0);
+      w.actT = 0; if (st.watch) { const tl = map.tiles[st.watch.i]; if (tl.trees < st.watch.n) st.watch.n = tl.trees; if (tl.trees <= 0) w.rem = Math.min(w.rem, Data.RULES.cycle.chopMin); } }
     else if (st.k === 'idle') { a.act = null; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
     else if (st.k === 'enter') { a.hidden = true; a.moving = false; a.act = null; }
     else if (st.k === 'exit') { a.hidden = false; }
@@ -11666,7 +11669,7 @@ const Workers = (() => {
       if (!st) { nextCycle(s, w); continue; }
       if (!w.planned) enterStep(w, st, map);
       if (st.k === 'go') { if (Walkers.kit.advance(a, a.speed * dt, map)) { w.si++; w.planned = false; continue; } return; }
-      if (st.k === 'act' && st.watch && map.tiles[st.watch.i].trees < st.watch.n) w.rem = 0;                  // drzewo ścięte przez logikę — koniec cięcia
+      if (st.k === 'act' && st.watch) { w.actT = (w.actT || 0) + dt; if (w.actT >= Data.RULES.cycle.chopMin && map.tiles[st.watch.i].trees < st.watch.n) w.rem = 0; }       // drzewo ścięte przez logikę — koniec cięcia, ale nie wcześniej niż po chopMin (błąd: rąbanie trwało 0 s, gdy logika ścięła drzewo podczas dojścia)
       if (st.k === 'act' || st.k === 'idle') { w.rem -= dt; if (w.rem <= 0) { w.si++; w.planned = false; a.act = null; continue; } return; }
       w.si++; w.planned = false;                                                  // take / drop: natychmiast
     }
@@ -11952,13 +11955,13 @@ const Game = (() => {
     }
 
     // 3. mieszkańcy, nosiciele i budowniczowie — postacie z modułu Walkers (idą po ścieżkach, omijają wodę, klify i budynki; cień symulacji w logice gry zostaje nietknięty)
-    const wk = !!s.settings.workers, wpre = { franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[fid], wcast = sprOn && wk ? [Sprites.cast(wpre + 'Worker'), Sprites.cast(wpre + 'WorkerB')] : [];
+    const wk = !!s.settings.workers, wpre = { franks: 'frank', saracens: 'sar', vikings: 'vik', slavs: 'slav' }[fid], wcast = sprOn && wk ? [Sprites.cast(wpre + 'Worker'), Sprites.cast(wpre + 'WorkerB')] : [], scast = sprOn && wk ? [Sprites.cast(wpre + 'WorkerSit'), Sprites.cast(wpre + 'WorkerBSit')] : [];       // scast: tułów bez rąk dla odpoczywających
     for (const a of Walkers.figures()) {
       if (a.hidden) continue;                                                                          // robotnik w środku budynku
       const p = Camera.worldToScreen(a.x, a.y);
       if (sprOn) {
         const l = lookOf(a), gear = wk && (a.kind === 'worker' || a.kind === 'builder' || a.kind === 'citizen') && wcast[a.v ? 1 : 0];
-        push({ d: a.x + a.y, kind: 'f', fig: a, gear: gear ? a : null, cast: gear || cast[a.color === f.palette.citizen ? 0 : 1] || cast[0], view: l.view, mirror: l.mirror, carry: a.carry && !gear, sx: p.x, sy: p.y, k: K, x: a.x, y: a.y,
+        push({ d: a.x + a.y, kind: 'f', fig: a, gear: gear ? a : null, cast: gear || cast[a.color === f.palette.citizen ? 0 : 1] || cast[0], sitCast: gear && a.sit ? scast[a.v ? 1 : 0] : null, sitKey: wpre + (a.v ? 'WorkerBSit' : 'WorkerSit'), view: l.view, mirror: l.mirror, carry: a.carry && !gear, sx: p.x, sy: p.y, k: K, x: a.x, y: a.y,
           bb: [p.x - 40 * K, p.y - 100 * K, p.x + 40 * K, p.y + 10 * K] });
       } else push({ d: a.x + a.y, kind: 'c', fig: a, sx: p.x, sy: p.y, x: a.x, y: a.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
     }
@@ -12205,11 +12208,15 @@ const Game = (() => {
     if (T >= 0.30 && T < 0.42) { arms = Math.sin(Math.PI * (T - 0.30) / 0.12); lean = -0.10 * arms; }
     else if (T >= 0.60 && T < 0.78) { sip = Math.pow(Math.sin(Math.PI * (T - 0.60) / 0.18), 0.6); lean = -0.03 * sip; }
     drawChair(it.sx, it.sy, k, u, wood);
-    const pants = '#5b4b3a', sleeve = fig.color || '#a07a50', skin = Data.FACTIONS[World.state().factionId].palette.skin || '#e8c39a', sp = it.cast.front[0];
+    const st = (Sprites.engine && Sprites.engine.CAST && Sprites.engine.CAST[it.sitKey]) || {}, pants = '#5b4b3a', sleeve = st.tunic || fig.color || '#a07a50', skin = st.skin || Data.FACTIONS[World.state().factionId].palette.skin || '#e8c39a', body = it.sitCast && it.sitCast.front && it.sitCast.front[0];
     ctx.save(); ctx.translate(it.sx, it.sy - 17.5 * k); if (it.mirror) ctx.scale(-1, 1); ctx.rotate(lean);
-    ctx.save(); ctx.beginPath(); ctx.rect(-70 * k, -190 * k, 140 * k, 190 * k); ctx.clip(); Sprites.draw(ctx, sp, 'c', 0, 30 * k, k, dpr); ctx.restore();   // tułów (cięcie w pasie)
-    if (arms > 0.02) for (const sg of [-1, 1]) { line(sg * 7, -22, sg * (9 + 4 * arms), -22 - 17 * arms, 3.4, sleeve, k); oval(sg * (9 + 4 * arms), -22 - 18 * arms, 2.4, 2.4, skin, k); }
-    if (sip > 0.02) { const cx = 9 - 6 * sip, cy = -9 - 18 * sip; line(7, -17, cx, cy, 3.2, sleeve, k); poly([[cx - 2.6, cy - 5], [cx + 2.6, cy - 5], [cx + 2, cy + 1], [cx - 2, cy + 1]], '#d8d0b8', k); oval(cx, cy + 1, 2.4, 2.2, skin, k); }
+    ctx.save(); ctx.beginPath(); ctx.rect(-70 * k, -190 * k, 140 * k, 190 * k); ctx.clip(); Sprites.draw(ctx, body || it.cast.front[0], 'c', 0, 30 * k, k, dpr); ctx.restore();   // tułów (cięcie w pasie); wariant bez rąk — ręce rysujemy tylko my
+    const arm = (x0, y0, x1, y1) => { line(x0, y0, x1, y1, 7.2, 'rgba(16,10,6,0.9)', k); line(x0, y0, x1, y1, 5.4, sleeve, k); oval(x1, y1 + 0.6, 2.9, 2.9, skin, k, 0, 'rgba(16,10,6,0.9)'); };
+    for (const sg of [-1, 1]) {
+      if (arms > 0.02) arm(sg * 10, -19, sg * (11 + 4 * arms), -19 - 20 * arms);                                         // rozciąganie: obie ręce w górę
+      else if (sip > 0.02 && sg > 0) { const cx = 9 - 6 * sip, cy = -9 - 18 * sip; arm(10, -19, cx, cy); poly([[cx - 2.6, cy - 5], [cx + 2.6, cy - 5], [cx + 2, cy + 1], [cx - 2, cy + 1]], '#d8d0b8', k); }   // popijanie: prawa ręka z kubkiem
+      else arm(sg * 10, -19, sg * 12.5, -3);                                                                           // spoczynek: dłonie na udach
+    }
     ctx.restore();
     ctx.save(); ctx.translate(it.sx, it.sy); if (it.mirror) ctx.scale(-1, 1);
     for (const sg of [-1, 1]) { oval(sg * 4.6, -14, 5, 4, pants, k, 0, 'rgba(16,10,6,0.6)'); poly([[sg * 2.4, -12], [sg * 7, -12], [sg * 7.2, -3], [sg * 2.2, -3]], tintC(pants, 0.85), k, 'rgba(16,10,6,0.6)'); oval(sg * 4.8, -2, 4.6, 2.3, '#2a1c10', k); }
