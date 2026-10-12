@@ -39,8 +39,9 @@ function makeEl(id) {
 
 function load(htmlFile, opts = {}) {
   const html = fs.readFileSync(path.resolve(htmlFile), 'utf8');
-  const m = html.match(/<script>([\s\S]*)<\/script>/);
-  if (!m) throw new Error('Nie znaleziono <script> w ' + htmlFile);
+  const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];                       // jest też mały skrypt diagnostyczny startu — grą jest najdłuższy blok
+  if (!blocks.length) throw new Error('Nie znaleziono <script> w ' + htmlFile);
+  const m = blocks.reduce((a, b) => (b[1].length > a[1].length ? b : a));
   const els = {};
   const document = {
     getElementById(id) { return els[id] || (els[id] = makeEl(id)); },

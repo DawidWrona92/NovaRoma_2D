@@ -42,14 +42,15 @@ for (const fid of ['franks', 'vikings']) {
   const s2 = World.state(); s2.res.deski = 99999; s2.res.kamień = 999; s2.res.glina = 999; s2.res.złoto = 99999; s2.res.narzędzia = 99;
   const miss = [];
   for (const id of TestBots.RECIPE[fid]) {
-    if (id === 'ship' && !s2.buildings.some(b => b.id === 'dock')) { const d = TestBots.findPlace(s2, 'dock'); if (d) World.placeBuilding('dock', d.x, d.y); }
-    const p = TestBots.findPlace(s2, id); if (!p) { miss.push(id); continue; } World.placeBuilding(id, p.x, p.y);
+    if (id === 'ship' && !s2.buildings.some(b => b.id === 'dock')) { const d = TestBots.findPlace(s2, 'dock'); if (d) World.placeBuilding('dock', d.x, d.y, false, d.rot); }
+    const p = TestBots.findPlace(s2, id); if (!p) { miss.push(id); continue; } World.placeBuilding(id, p.x, p.y, false, p.rot);
   }
   ok(miss.length === 0, `${fid}: receptura (${TestBots.RECIPE[fid].length} budynków) mieści się z przerwą` + (miss.length ? ' — brak: ' + miss.join(',') : ''));
   // żadna para budynków nie leży bliżej niż przerwa
   let tooClose = 0;
   for (const b1 of s2.buildings) for (const b2 of s2.buildings) if (b1.uid < b2.uid) {
     const dx = Math.max(b2.x - (b1.x + b1.w), b1.x - (b2.x + b2.w), 0), dy = Math.max(b2.y - (b1.y + b1.h), b1.y - (b2.y + b2.h), 0);
+    if ((b1.id === 'ship' && b2.id === 'dock') || (b1.id === 'dock' && b2.id === 'ship')) continue;                   // Okręt cumuje tuż przy molo — jedyny wyjątek od przerwy
     if (Math.max(dx, dy) < g) tooClose++;
   }
   ok(tooClose === 0, `${fid}: ${tooClose} par budynków bliżej niż przerwa`);

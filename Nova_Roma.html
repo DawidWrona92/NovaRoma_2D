@@ -138,6 +138,7 @@
   #tooltip .affordable { color: #8fce8f; }
   #tooltip .expensive { color: #e08484; }
 
+  #btnRotate { position: fixed; right: 12px; bottom: calc(var(--bar-h) + 14px + var(--safe-bottom)); z-index: 41; padding: 10px 16px; font-size: 15px; }
   #hint {
     position: absolute; z-index: 30; left: 12px; top: calc(var(--hud-h) + 8px); color: #b8a888;
     font-size: 12px; background: rgba(20,16,12,.85); padding: 4px 8px; border-radius: 3px;
@@ -5413,16 +5414,33 @@ const Data = (() => {
 
   /* obrys budynku [szerokość, głębokość] w polach i wejście [strona, x, y] względem środka obrysu — z katalogu sprite'ów (SPRITE_META);
      b.x, b.y każdego budynku / placu to północny róg obrysu */
-  function footprint(id, fid) {
-    const e = (SPRITE_META[fid || cur.faction] || {})[id];
+  /* obrót budynku (rot 0–3): klucz sprite'a i wpisu w SPRITE_META to `id` (kierunek 0) albo `id@rot`; kierunek, którego nie ma w katalogu, nie istnieje (rotsOf) */
+  const metaKey = (id, rot) => rot ? id + '@' + rot : id;
+  const metaOf = (id, fid, rot) => (SPRITE_META[fid || cur.faction] || {})[metaKey(id, rot | 0)] || null;
+  function footprint(id, fid, rot) {
+    const e = metaOf(id, fid, rot);
     return e ? e.fp : [1, 1];
   }
-  function entrance(id, fid) {
-    const e = (SPRITE_META[fid || cur.faction] || {})[id];
+  function entrance(id, fid, rot) {
+    const e = metaOf(id, fid, rot);
     return e ? e.in : null;
   }
+  /* kierunki, w których budynek można postawić (katalog sprite'ów); dziś 4 mają Przystań i Okręt, reszta tylko 0 */
+  function rotsOf(id, fid) { const m = SPRITE_META[fid || cur.faction] || {}, out = [0]; for (let r = 1; r < 4; r++) if (m[id + '@' + r]) out.push(r); return out; }
+  /* strefy pól obrysu (w polach od północnego rogu): Przystań — szopa na lądzie (1 pole głębokości) i molo na 3 polach wody w kierunku rot (0: +x, 1: +y, 2: −x, 3: −y); Okręt — cały obrys na wodzie.
+     Zwraca { land: [[dx,dy],…], water: [[dx,dy],…] } albo null (budynek stoi w całości na lądzie). */
+  function zonesOf(id, fid, rot) {
+    if (id !== 'dock' && id !== 'ship') return null;
+    rot = rot | 0; const [w, h] = footprint(id, fid, rot), land = [], water = [];
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      let isLand = false;
+      if (id === 'dock') isLand = rot === 0 ? dx === 0 : rot === 1 ? dy === 0 : rot === 2 ? dx === w - 1 : dy === h - 1;
+      (isLand ? land : water).push([dx, dy]);
+    }
+    return { land, water };
+  }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, ROLES, LOADS, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, ROLES, LOADS, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, rotsOf, zonesOf, metaKey, metaOf, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -7549,7 +7567,7 @@ const World = (() => {
   }
 
   /* obrys budynku w×h pól; (x, y) = północny róg. Zajętość kafli (occup) obejmuje cały obrys */
-  const fpOf = id => Data.footprint(id, state.factionId);
+  const fpOf = (id, rot) => Data.footprint(id, state.factionId, rot);
   function occupy(x, y, w, h, uid) {
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(state.map, x + dx, y + dy);
@@ -7564,25 +7582,26 @@ const World = (() => {
   }
   const centerOf = b => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 
-  function placeBuilding(id, x, y, instant) {
-    const [w, h] = fpOf(id);
+  function placeBuilding(id, x, y, instant, rot) {
+    const [w, h] = fpOf(id, rot);
     const b = { id, x, y, w, h, uid: state.nextId++ };
+    if (rot) b.rot = rot;                                                       // kierunek 1–3 (0 = brak pola; Data.rotsOf podaje dostępne kierunki)
     state.buildings.push(b);
     occupy(x, y, w, h, b.uid);
     return b;
   }
 
   /* wyrównanie terenu pod obrys (Faza 7): poziom docelowy = najczęstszy wśród pól obrysu (przy remisie niższy), need = suma |e − cel| (pola × poziomy), minutes = need × Data.RULES.level.per */
-  function levelOf(id, x, y) {
-    const [w, h] = fpOf(id), cnt = {}, es = [];
-    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) { const t = MapGen.at(state.map, x + dx, y + dy); if (t) { es.push(t.e | 0); cnt[t.e | 0] = (cnt[t.e | 0] || 0) + 1; } }
+  function levelOf(id, x, y, rot) {
+    const [w, h] = fpOf(id, rot), cnt = {}, es = [], z = Data.zonesOf(id, state.factionId, rot), land = z ? new Set(z.land.map(q => q[1] * w + q[0])) : null;   // molo i Okręt stoją na wodzie — wyrównuje się tylko ląd
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) { if (land && !land.has(dy * w + dx)) continue; const t = MapGen.at(state.map, x + dx, y + dy); if (t) { es.push(t.e | 0); cnt[t.e | 0] = (cnt[t.e | 0] || 0) + 1; } }
     let target = es.length ? es[0] : 1, bc = -1; for (const k of Object.keys(cnt).map(Number).sort((a, b) => a - b)) if (cnt[k] > bc) { bc = cnt[k]; target = k; }
     const need = es.reduce((a, e) => a + Math.abs(e - target), 0);
     return { need, target, minutes: need * Data.RULES.level.per };
   }
   /* ciasna zabudowa: ilu sąsiadów stoi tuż za przerwą (pierścień `ring` pól za GAP) → kara czasu budowy; zwraca { n, pct } */
-  function crowdOf(id, x, y) {
-    const [w, h] = fpOf(id), R = Data.RULES, g = R.gap | 0, a = g + 1, b = g + R.crowd.ring, uids = new Set();
+  function crowdOf(id, x, y, rot) {
+    const [w, h] = fpOf(id, rot), R = Data.RULES, g = R.gap | 0, a = g + 1, b = g + R.crowd.ring, uids = new Set();
     for (let dy = -b; dy < h + b; dy++) for (let dx = -b; dx < w + b; dx++) {
       const inner = dx >= -g + 0 && dx < w + g && dy >= -g && dy < h + g; if (inner) continue;
       const t = MapGen.at(state.map, x + dx, y + dy); if (t && t.occup != null) uids.add(t.occup);
@@ -7591,21 +7610,33 @@ const World = (() => {
   }
 
   const K_WHY = { bog: 'Bagno — nie da się tu budować', dune: 'Wydma — zbyt sypki grunt', quick: 'Ruchome piaski!', cliff: 'Klif — urwisko', drift: 'Głęboki śnieg' };
-  function canPlace(id, x, y) {
-    const def = Data.BUILDINGS[id], [w, h] = fpOf(id), map = state.map;
+  /* pola wody zajęte przez molo Przystani (budynki, nie place) — Okręt musi stanąć przy nich */
+  function dockPierTiles() {
+    const out = []; for (const d of state.buildings) { if (d.id !== 'dock') continue; const z = Data.zonesOf('dock', state.factionId, d.rot); if (z) for (const [dx, dy] of z.water) out.push([d.x + dx, d.y + dy, d.uid]); }
+    return out;
+  }
+  function canPlace(id, x, y, rot) {
+    rot = rot | 0;
+    const def = Data.BUILDINGS[id], [w, h] = fpOf(id, rot), map = state.map, zones = Data.zonesOf(id, state.factionId, rot);
+    if (rot && !Data.rotsOf(id, state.factionId).includes(rot)) return { ok: false, reason: 'Ten budynek nie obraca się w tym kierunku' };
     let hasSea = false, hasFishWater = false, hasForest = 0;
     for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { // obrys + pierścień sąsiedztwa (las, brzeg)
       const t = MapGen.at(map, x + dx, y + dy);
       if (!t) continue;
-      if (t.h === 0 && t.wk === 'sea') hasSea = hasFishWater = true;           // Przystań i Okręt: tylko morze
+      if (t.h === 0 && t.wk === 'sea') hasSea = hasFishWater = true;           // Chata rybaka: morze; Przystań i Okręt liczą strefy wody (zonesOf)
       else if (t.h === 0 && (t.wk === 'lake' || t.wk === 'ice')) hasFishWater = true; // Chata rybaka: także jezioro (i lód)
       if (t.trees > 0) hasForest += t.trees;
     }
     const GAP = Data.RULES.gap | 0;
     let hasDeposit = false, eMin = 9, eMax = 0;
+    const waterSet = zones ? new Set(zones.water.map(q => q[1] * w + q[0])) : null;
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const t = MapGen.at(map, x + dx, y + dy);
-      if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: 'Zajęte lub niebudowlane pole' };
+      if (waterSet && waterSet.has(dy * w + dx)) {                              // pole wody (molo Przystani, Okręt): morze, wolne, bez bród i lodu
+        if (!t || t.h !== 0 || t.wk !== 'sea' || t.occup != null) return { ok: false, reason: id === 'ship' ? 'Okręt stoi tylko na wolnej wodzie morza' : 'Molo musi stać na wolnej wodzie morza' };
+        continue;
+      }
+      if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: zones && id === 'dock' ? 'Szopa Przystani musi stać na wolnym lądzie' : 'Zajęte lub niebudowlane pole' };
       if (t.k && Terrain.BLOCK_K[t.k]) return { ok: false, reason: K_WHY[t.k] };
       // złoże jest zarezerwowane dla pasującej kopalni
       if (t.deposit && def.req !== 'deposit:' + t.deposit) return { ok: false, reason: 'Złoże — miejsce tylko na kopalnię' };
@@ -7613,10 +7644,17 @@ const World = (() => {
       if (t.e < eMin) eMin = t.e; if (t.e > eMax) eMax = t.e;
     }
     if (eMax - eMin >= 2) return { ok: false, reason: 'Zbyt nierówny teren (różnica wysokości ≥ 2)' };
-    if (!Terrain.ringReachable(map, x, y, w, h)) return { ok: false, reason: 'Brak dojścia — teren odcięty wodą lub klifami' };
+    if (!(zones && id === 'ship') && !Terrain.ringReachable(map, x, y, w, h)) return { ok: false, reason: 'Brak dojścia — teren odcięty wodą lub klifami' };
+    if (id === 'ship') {                                                         // Okręt cumuje przy molo istniejącej Przystani: jedno z jego pól styka się bokiem z polem mola
+      const pier = dockPierTiles(); if (!pier.length) return { ok: false, reason: 'Okręt wymaga Przystani' };
+      let touch = false; for (const [dx, dy] of zones.water) for (const [px, py] of pier) if (Math.abs(x + dx - px) + Math.abs(y + dy - py) === 1) touch = true;
+      if (!touch) return { ok: false, reason: 'Okręt musi stanąć przy molo Przystani' };
+    }
     if (GAP > 0) for (let dy = -GAP; dy < h + GAP; dy++) for (let dx = -GAP; dx < w + GAP; dx++) {       // twarda przerwa: żaden inny budynek ani plac w pierścieniu GAP pól
       if (dx >= 0 && dx < w && dy >= 0 && dy < h) continue;
-      const t = MapGen.at(map, x + dx, y + dy); if (t && t.occup != null) return { ok: false, reason: 'Za blisko innego budynku — zostaw wolne pole (ulicę)' };
+      const t = MapGen.at(map, x + dx, y + dy); if (!t || t.occup == null) continue;
+      if (id === 'ship' && state.buildings.some(d => d.id === 'dock' && d.uid === t.occup)) continue;        // Okręt stoi tuż przy molo
+      return { ok: false, reason: 'Za blisko innego budynku — zostaw wolne pole (ulicę)' };
     }
     if (def.req === 'forest' && hasForest < 4) return { ok: false, reason: 'Wymaga lasu w pobliżu' };
     if (def.req === 'shore' && !hasFishWater) return { ok: false, reason: 'Wymaga brzegu morza lub jeziora' };
@@ -7625,11 +7663,9 @@ const World = (() => {
       const used = state.buildings.filter(b => b.id === 'fisherhut').length + state.sites.filter(st => st.id === 'fisherhut').length;
       if (used >= spots) return { ok: false, reason: 'Brzeg pełny: maks. ' + spots + ' Chat rybaka (spec.)' };
     }
-    if (def.req === 'waterEdge' && !hasSea) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do morza' };
+    if (def.req === 'waterEdge' && !zones && !hasSea) return { ok: false, reason: 'Wymaga bezpośredniego dostępu do morza' };
     if (def.req && def.req.startsWith('deposit:') && !hasDeposit) // złoże na dowolnym polu obrysu kopalni
       return { ok: false, reason: 'Wymaga złoża (' + def.req.split(':')[1] + ')' };
-    if (id === 'ship' && !state.buildings.some(b => b.id === 'dock'))
-      return { ok: false, reason: 'Okręt wymaga Przystani' };
     return { ok: true };
   }
 
@@ -7649,22 +7685,22 @@ const World = (() => {
     return true;
   }
 
-  function build(id, x, y) {
+  function build(id, x, y, rot) {
     const c = costOf(id);
     if (!canAfford(id)) return false;
-    const check = canPlace(id, x, y);
+    const check = canPlace(id, x, y, rot);
     if (!check.ok) return false;
     state.res.deski -= (c.d || 0);
     state.res.kamień = (state.res.kamień || 0) - (c.k || 0);
     state.res.glina = (state.res.glina || 0) - (c.gl || 0);
     state.res.złoto -= (c.zl || 0);
-    placeBuilding(id, x, y);
+    placeBuilding(id, x, y, false, rot);
     return true;
   }
 
-  function placeFree(id, x, y) {
-    if (!canPlace(id, x, y).ok) return false;
-    placeBuilding(id, x, y);
+  function placeFree(id, x, y, rot) {
+    if (!canPlace(id, x, y, rot).ok) return false;
+    placeBuilding(id, x, y, false, rot);
     return true;
   }
 
@@ -7786,7 +7822,7 @@ const World = (() => {
 
   function state$() { return state; }
   return { init, state: state$, build, placeFree, placeBuilding, canPlace, crowdOf, levelOf, canAfford, costOf,
-           tick, spawnCitizen, treeCount, addTree, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf };
+           tick, spawnCitizen, treeCount, addTree, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf, dockPierTiles };
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
@@ -8122,9 +8158,9 @@ const Build = (() => {
   function piecesOf(cost) { let n = 0; for (const k in cost) if (MAT[k]) n += cost[k]; return n; }
   function deliveredOf(site) { let n = 0; for (const g in site.need) n += (site.got[g] || 0); return n; }
 
-  function enqueue(id, x, y) {
-    const s = World.state();
-    const check = World.canPlace(id, x, y);
+  function enqueue(id, x, y, rot) {
+    const s = World.state(); rot = rot | 0;
+    const check = World.canPlace(id, x, y, rot);
     if (!check.ok) return check;
     // pierwsza Chata drwala darmowa — także gdy pierwszy plac jest dopiero w kolejce
     const free = id === 'woodcutter' &&
@@ -8135,11 +8171,12 @@ const Build = (() => {
     const reserve = Tribute.soldierReserve ? Tribute.soldierReserve(s) : 0;
     if ((cost.zl || 0) > s.res.złoto - reserve) return { ok: false, reason: 'Brak złota (rezerwa na żołd)!' };
     s.res.złoto -= (cost.zl || 0); // złoto przy otwarciu placu
-    const [w, h] = World.footprint(id);
-    const crowd = World.crowdOf(id, x, y).pct, lv = World.levelOf(id, x, y);    // ciasna zabudowa wydłuża budowę (Data.RULES.crowd); pochyły teren wymaga wyrównania (etap 0)
+    const [w, h] = World.footprint(id, rot);
+    const crowd = World.crowdOf(id, x, y, rot).pct, lv = World.levelOf(id, x, y, rot);    // ciasna zabudowa wydłuża budowę (Data.RULES.crowd); pochyły teren wymaga wyrównania (etap 0)
     const site = { id, x, y, w, h, uid: s.nextId++, need: {}, got: {}, work: 0,
       gold: cost.zl || 0, pieces: piecesOf(cost), crowd, levelTarget: lv.target, levelTotal: lv.minutes, levelLeft: lv.minutes,
       workNeed: (BASE_WORK + PER_PIECE * piecesOf(cost)) * (1 + crowd), assigned: 0 };
+    if (rot) site.rot = rot;
     for (const k in cost) if (MAT[k]) site.need[MAT[k]] = cost[k];
     s.sites.push(site);
     World.occupy(x, y, w, h, site.uid); // rezerwacja kafli pod plac
@@ -8170,7 +8207,7 @@ const Build = (() => {
   function complete(site) {
     const s = World.state();
     s.sites.splice(s.sites.indexOf(site), 1);
-    World.placeBuilding(site.id, site.x, site.y); // nadpisuje rezerwację placu
+    World.placeBuilding(site.id, site.x, site.y, false, site.rot); // nadpisuje rezerwację placu
   }
 
   function tick(dt) {
@@ -8703,6 +8740,7 @@ const TestBots = (() => {
     const c = Math.floor(size / 2), tight = def.req === 'shore' || def.req === 'waterEdge';           // brzeg jest wąski: bot układa tu budynki ciasno (bez wybierania luzu), tak jak generator liczy pojemność brzegu
     const keepFree = new Set();                                                  // bot zostawia miejsce na kopalnie: 7×7 (3×3 kopalni + przerwa) wokół złóż, na których jeszcze nic nie stoi
     for (let i = 0; i < size * size; i++) { const t = s.map.tiles[i]; if (!t.deposit || t.occup != null) continue; const x = i % size, y = (i / size) | 0; for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) keepFree.add((y + yy) * size + x + xx); }
+    const rots = Data.rotsOf(id, s.factionId);
     const nearForest = (x, y) => { let n = 0; for (let yy = -1; yy <= h; yy++) for (let xx = -1; xx <= w; xx++) { const t = MapGen.at(s.map, x + xx, y + yy); if (t) n += t.trees; } return n >= 4; };
     const search = needForest => {
       let best = null, bestScore = Infinity, firstR = -1;
@@ -8710,11 +8748,14 @@ const TestBots = (() => {
         if (firstR >= 0 && r > firstR + 5) break;
         for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          let blocked = false; for (let yy = 0; yy < h && !blocked; yy++) for (let xx = 0; xx < w; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
-          if (blocked || !World.canPlace(id, c + dx, c + dy).ok || (needForest && !nearForest(c + dx, c + dy))) continue;
-          if (firstR < 0) firstR = r;
-          const score = tight ? r : World.crowdOf(id, c + dx, c + dy).pct * 20 + World.levelOf(id, c + dx, c + dy).minutes * 4 + r * 0.05;
-          if (score < bestScore) { bestScore = score; best = { x: c + dx, y: c + dy }; }
+          for (const rot of rots) {                                              // Przystań i Okręt: bot próbuje kolejnych kierunków (0, 1, 2, 3)
+            const [rw, rh] = rot ? Data.footprint(id, s.factionId, rot) : [w, h];
+            let blocked = false; for (let yy = 0; yy < rh && !blocked; yy++) for (let xx = 0; xx < rw; xx++) if (keepFree.has((c + dy + yy) * size + c + dx + xx)) { blocked = true; break; }
+            if (blocked || !World.canPlace(id, c + dx, c + dy, rot).ok || (needForest && !nearForest(c + dx, c + dy))) continue;
+            if (firstR < 0) firstR = r;
+            const score = tight ? r : World.crowdOf(id, c + dx, c + dy, rot).pct * 20 + World.levelOf(id, c + dx, c + dy, rot).minutes * 4 + r * 0.05;
+            if (score < bestScore) { bestScore = score; best = rot ? { x: c + dx, y: c + dy, rot } : { x: c + dx, y: c + dy }; }
+          }
         }
       }
       return best;
@@ -8728,7 +8769,7 @@ const TestBots = (() => {
       return s.sites.some(st => st.id === 'dock') ? 'wait' : 'noplace';
     const spot = findPlace(s, id);
     if (!spot) return 'noplace';
-    const r = Build.enqueue(id, spot.x, spot.y);
+    const r = Build.enqueue(id, spot.x, spot.y, spot.rot);
     return r.ok ? 'built' : 'wait';
   }
 
@@ -9172,13 +9213,32 @@ const BuildMode = (() => {
   let roadStart = null; // początek wytyczanej drogi (drugi klik kończy)
   const isTool = () => selected === 'road' || selected === 'roadx';
 
-  function select(id) { selected = id; roadStart = null; }
-  function clear() { selected = null; roadStart = null; }
+  /* obrót (rot 0–3): budynki z wariantami sprite'ów (Data.rotsOf: dziś Przystań i Okręt) obracają się klawiszem R albo przyciskiem ⟳; dopóki gracz nie obróci ręcznie, kierunek dobiera się sam
+     pod kursorem (pierwszy dozwolony) — Przystań obraca się molem ku wodzie */
+  let rot = 0, autoRot = true;
+  const DIRS = ['molo/dziób na wschód', 'molo/dziób na południe', 'molo/dziób na zachód', 'molo/dziób na północ'];
+  const rotsFor = id => (id && !isTool()) ? Data.rotsOf(id, World.state().factionId) : [0];
+  function curRot() {
+    const rots = rotsFor(selected); if (rots.length < 2) return 0;
+    if (!autoRot) return rot;
+    for (const r of rots) { const o = origin(selected, r); if (World.canPlace(selected, o.x, o.y, r).ok) return r; }
+    return rot;
+  }
+  function rotate(d) {
+    if (!selected || isTool()) return false;
+    const rots = rotsFor(selected); if (rots.length < 2) { UI.flashHint('Ten budynek się nie obraca'); return false; }
+    const cur = curRot(); autoRot = false; rot = rots[(rots.indexOf(cur) + (d || 1) + rots.length) % rots.length]; UI.flashHint('Obrót: ' + DIRS[rot]); return true;
+  }
+  const rotBtn = document.createElement('button'); rotBtn.id = 'btnRotate'; rotBtn.className = 'sec'; rotBtn.textContent = '⟳ Obróć (R)'; rotBtn.style.display = 'none';
+  rotBtn.onclick = () => rotate(1); document.body.appendChild(rotBtn);
+  const syncRotBtn = () => { rotBtn.style.display = rotsFor(selected).length > 1 ? '' : 'none'; };
+  function select(id) { selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); }
+  function clear() { selected = null; roadStart = null; syncRotBtn(); }
   function isSelected() { return selected; }
   function setHover(wx, wy) { hover.fx = wx; hover.fy = wy; hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
   /* północny róg obrysu budowanego budynku tak, by obrys był wyśrodkowany pod kursorem */
-  function origin(id) {
-    const [w, h] = World.footprint(id);
+  function origin(id, r) {
+    const [w, h] = World.footprint(id, r | 0);
     return { x: Math.floor(hover.fx - w / 2 + 0.5), y: Math.floor(hover.fy - h / 2 + 0.5) };
   }
 
@@ -9226,8 +9286,8 @@ const BuildMode = (() => {
       return;
     }
     // klik otwiera plac budowy; budowniczowie doniosą materiały i zbudują
-    const o = origin(selected);
-    const res = Build.enqueue(selected, o.x, o.y);
+    const rr = curRot(), o = origin(selected, rr);
+    const res = Build.enqueue(selected, o.x, o.y, rr);
     if (!res.ok) { UI.flashHint(res.reason || 'Nie można tu budować'); return; }
     UI.refreshHUD();
     // tryb budowy zostaje włączony (budowa serii), ESC anuluje
@@ -9289,21 +9349,23 @@ const BuildMode = (() => {
       return;
     }
     zonesDraw(ctx, s);
-    const [w, h] = World.footprint(selected), o = origin(selected);
+    const rr = curRot(), [w, h] = World.footprint(selected, rr), o = origin(selected, rr);
     if (selected === 'store' && (s.settings.logistics || s.settings.physical)) heatDraw(ctx, s, o.x, o.y);
-    const check = World.canPlace(selected, o.x, o.y);
+    const check = World.canPlace(selected, o.x, o.y, rr);
     // przy kolejce budowy wystarczy złoto na otwarcie placu (materiały wnosi budowniczy)
     const affordable = (World.costOf(selected).zl || 0) <= s.res.złoto, ok = check.ok && affordable;
     Camera.fillPoly(ctx, Camera.footprint(o.x, o.y, w, h), ok ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)',
       ok ? 'rgba(170,255,170,0.9)' : 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z));
-    const crowd = check.ok ? World.crowdOf(selected, o.x, o.y) : null, lvl = check.ok ? World.levelOf(selected, o.x, o.y) : null, parts = [];
+    const zn = Data.zonesOf(selected, s.factionId, rr);                                                   // Przystań i Okręt: pola wody (molo, kadłub) zaznaczone na niebiesko
+    if (zn) for (const [dx, dy] of zn.water) Camera.fillPoly(ctx, Camera.footprint(o.x + dx, o.y + dy, 1, 1), 'rgba(70,150,255,0.30)', null);
+    const crowd = check.ok ? World.crowdOf(selected, o.x, o.y, rr) : null, lvl = check.ok ? World.levelOf(selected, o.x, o.y, rr) : null, parts = [];
     if (crowd && crowd.n) parts.push('+' + Math.round(crowd.pct * 100) + '% czasu budowy (ciasna zabudowa)');
     if (lvl && lvl.need) parts.push('+' + lvl.minutes.toFixed(1).replace('.', ',') + ' min wyrównania terenu');
     const tp = check.ok ? transportAt(s, selected, o.x, o.y) : null;                                   // transport: odległość do Składu / Dworu i skutek (Faza 9B)
     if (tp) parts.push(tp);
     const note = !check.ok ? check.reason : parts.join(' · ');
     if (note) { const q = Camera.worldToScreen(o.x + w / 2, o.y + h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = check.ok ? '#ffd890' : '#ffb0a0'; ctx.strokeText(note, q.x, q.y + 34 * z); ctx.fillText(note, q.x, q.y + 34 * z); ctx.textAlign = 'start'; }
-    const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, selected) : null;
+    const p = Camera.worldToScreen(o.x + w / 2, o.y + h / 2), spr = Sprites.baked() === s.factionId ? Sprites.get(s.factionId, Data.metaKey(selected, rr)) : null;
     ctx.globalAlpha = 0.65; // duch budynku
     if (spr) {
       const K = Camera.zoom * 64 / (2 * Sprites.AX);
@@ -9315,7 +9377,7 @@ const BuildMode = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, origin, hover: () => hover };
+  return { select, clear, isSelected, setHover, click, draw, buildingAtHover, origin, rotate, curRot, hover: () => hover };
 })();
 
 /* ============================== MODUL: MINIMAP ==============================
@@ -10295,7 +10357,11 @@ const Walkers = (() => {
   const tileAt = (map, p) => map.tiles[Math.min(map.size - 1, Math.max(0, Math.floor(p[1]))) * map.size + Math.min(map.size - 1, Math.max(0, Math.floor(p[0])))];
   /* miejsce tuż przed drzwiami budynku (z katalogu sprite'ów: strona i punkt na ścianie względem środka obrysu) */
   function doorOf(b) {
-    const s = World.state(), m = typeof SPRITE_META !== 'undefined' ? (SPRITE_META[s.factionId] || {})[b.id] : null, c = World.centerOf(b);
+    const s = World.state(), m = typeof SPRITE_META !== 'undefined' ? Data.metaOf(b.id, s.factionId, b.rot) : null, c = World.centerOf(b), z = Data.zonesOf(b.id, s.factionId, b.rot);
+    if (z && z.land.length) {                                                  // Przystań: wejście od strony lądu — najbliższe wolne pole przy szopie (molo jest na wodzie)
+      let lx = 0, ly = 0; for (const [qx, qy] of z.land) { lx += b.x + qx + 0.5; ly += b.y + qy + 0.5; } lx /= z.land.length; ly /= z.land.length;
+      return Path.nearest(s.map, lx, ly, OPTS, 4) || [lx, ly];
+    }
     let side = 'S', dx = 0, dy = b.h / 2; if (m && m.in) { side = m.in[0]; dx = m.in[1]; dy = m.in[2]; }
     const x = c.x + dx + (side === 'E' ? 0.7 : 0), y = c.y + dy + (side === 'E' ? 0 : 0.7);
     return Path.nearest(s.map, x, y, OPTS, 4) || [x, y];
@@ -10750,7 +10816,7 @@ const Game = (() => {
     }
     for (const b of s.buildings) {
       if (b.x > tx1 + 1 || b.y > ty1 + 1 || b.x + b.w < tx0 || b.y + b.h < ty0) continue;
-      const sp = Sprites.get(s.factionId, b.id); if (sp) { const c = World.centerOf(b); emit(sp, c.x, c.y, 1); }
+      const sp = Sprites.get(s.factionId, Data.metaKey(b.id, b.rot)); if (sp) { const c = World.centerOf(b); emit(sp, c.x, c.y, 1); }
     }
   }
   /* sygnatura zawartości prostokąta pól: zmienia się po wycięciu drzewa, postawieniu lub zburzeniu budynku (nowy uid), zniknięciu złoża */
@@ -10832,14 +10898,14 @@ const Game = (() => {
     for (const b of s.buildings) {
       const c = World.centerOf(b), off = b.id === 'ship' && b.awayUntil > s.time ? shipOffset(s, b, c) : null;
       if (off) { c.x += off[0]; c.y += off[1]; }                                                  // okręt w rejsie odpływa w morze i wraca (Faza 9B-4)
-      const p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, b.id) : null, cs = 1 + 0.3 * (Math.max(b.w, b.h) - 1);
+      const p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, Data.metaKey(b.id, b.rot)) : null, cs = 1 + 0.3 * (Math.max(b.w, b.h) - 1);
       push({ d: c.x + c.y, kind: 'b', b, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
         bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 70 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
         rect: { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h, big: true } });
     }
     const cast = sprOn ? Sprites.castKeys(fid).map(k => Sprites.cast(k)) : [];
     for (const st of s.sites) {
-      const c = World.centerOf(st), p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, st.id) : null, cs = 1 + 0.3 * (Math.max(st.w, st.h) - 1);
+      const c = World.centerOf(st), p = Camera.worldToScreen(c.x, c.y), sp = sprOn ? Sprites.get(fid, Data.metaKey(st.id, st.rot)) : null, cs = 1 + 0.3 * (Math.max(st.w, st.h) - 1);
       push({ d: c.x + c.y, kind: 's', st, spr: sp, sx: p.x, sy: p.y, k: K, x: c.x, y: c.y, cs,
         bb: sp ? bbOf(sp, p.x, p.y, K) : [p.x - 50 * z * cs, p.y - 60 * z * cs, p.x + 50 * z * cs, p.y + 20 * z * cs],
         rect: { x0: st.x, y0: st.y, x1: st.x + st.w, y1: st.y + st.h, big: true } });
@@ -10929,7 +10995,7 @@ const Game = (() => {
     if (sprOn) {
       for (const it of list) {
         if (it.kind !== 'b' || puffs.length > 160) continue;
-        const m = (SPRITE_META[fid] || {})[it.b.id]; if (!m || !m.smoke.length) continue;
+        const m = Data.metaOf(it.b.id, fid, it.b.rot); if (!m || !m.smoke.length) continue;
         if (Data.BUILDINGS[it.b.id].worker && !s.staffed[it.b.uid]) continue;
         let tm = emitT.get(it.b); if (!tm) emitT.set(it.b, tm = m.smoke.map(() => fxRand() * 0.8));
         m.smoke.forEach((a, n) => { tm[n] -= dt; if (tm[n] < 0) { tm[n] += 0.5 + fxRand() * 0.25; puffs.push({ x: it.x + a[0], y: it.y + a[1], z: a[2], a: 0, ph: fxRand() * 6.28 }); } });
@@ -11041,13 +11107,13 @@ const Game = (() => {
     const dur = v.great ? 12 : 10, p = Math.max(0, Math.min(1, 1 - (v.until - s.time) / dur));
     let d = shipDir.get(b.uid);
     if (!d) {                                                      // okręt stoi na brzegu: kierunek, w którym najbliżej do wody i woda ciągnie się najdalej; płynie najdalej 14 pól
-      let best = null;
+      let best = null; const bow = [[1, 0], [0, 1], [-1, 0], [0, -1]][b.rot | 0];                  // okręt płynie w stronę dziobu, jeśli tam jest woda
       for (let i = 0; i < 16; i++) {
         const a = i / 16 * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a), wet = k => { const t = MapGen.at(s.map, Math.floor(c.x + dx * k), Math.floor(c.y + dy * k)); return !!t && t.h === 0; };
         let skip = 0; while (skip < 8 && !wet(skip)) skip++;
         if (skip >= 8) continue;
         let len = 0; while (len < 14 && wet(skip + len)) len++;
-        const sc = len - 0.4 * skip; if (len >= 2 && (!best || sc > best.sc)) best = { dx, dy, len: Math.min(14, skip + len * 0.85), sc };
+        const sc = len - 0.4 * skip + 4 * (dx * bow[0] + dy * bow[1]); if (len >= 2 && (!best || sc > best.sc)) best = { dx, dy, len: Math.min(14, skip + len * 0.85), sc };
       }
       shipDir.set(b.uid, d = best || { dx: 0, dy: 0, len: 0, sc: 0 });
     }
@@ -11259,6 +11325,7 @@ const Game = (() => {
   canvas.addEventListener('touchcancel', () => { touchMode = null; dragged = false; }, { passive: true });
   window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
+    if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && BuildMode.isSelected()) BuildMode.rotate(e.shiftKey ? -1 : 1);       // obrót budynku w trybie budowy
     if (e.key === 'Escape') {
       if (Menu.escape()) return;
       BuildMode.clear();

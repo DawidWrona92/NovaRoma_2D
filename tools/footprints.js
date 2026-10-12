@@ -35,24 +35,25 @@ for (const fid of FACTIONS) {
   s.res.deski = 5000; s.res.kamień = 500; s.res.glina = 500; s.res.złoto = 5000; s.res.narzędzia = 50;
   const missing = [];
   for (const id of idsOf(fid)) {
-    const [w, h] = Data.footprint(id, fid), spot = TestBots.findPlace(s, id);
+    const spot = TestBots.findPlace(s, id);
     if (!spot) { missing.push(id); continue; }
-    ok(World.canPlace(id, spot.x, spot.y).ok, id + ': findPlace zwraca poprawne miejsce');
+    const rot = spot.rot | 0, [w, h] = Data.footprint(id, fid, rot);                         // Przystań i Okręt mają kierunek (rot), reszta zawsze 0
+    ok(World.canPlace(id, spot.x, spot.y, rot).ok, id + ': findPlace zwraca poprawne miejsce');
     // plac budowy
-    const r = Build.enqueue(id, spot.x, spot.y), site = s.sites.find(st => st.id === id && st.x === spot.x && st.y === spot.y);
+    const r = Build.enqueue(id, spot.x, spot.y, rot), site = s.sites.find(st => st.id === id && st.x === spot.x && st.y === spot.y);
     ok(r.ok && site && site.w === w && site.h === h, id + ': plac ' + w + '×' + h);
     if (!site) continue;
     ok(tiles(spot.x, spot.y, w, h).every(([x, y]) => occ(s, x, y) === site.uid), id + ': plac zajmuje wszystkie pola obrysu');
     ok(tiles(spot.x, spot.y, w, h).every(([x, y]) => Build.siteAt(x, y) === site), id + ': siteAt widzi całość obrysu');
     ok(Build.siteAt(spot.x - 1, spot.y) !== site && Build.siteAt(spot.x + w, spot.y + h - 1) !== site, id + ': siteAt poza obrysem puste');
     // nachodzenie: obrys przesunięty o 1 pole nakłada się na plac → zakaz
-    ok(!World.canPlace(id, spot.x + w - 1, spot.y).ok && !World.canPlace(id, spot.x, spot.y + h - 1).ok, id + ': nachodzący obrys odrzucony');
+    ok(!World.canPlace(id, spot.x + w - 1, spot.y, rot).ok && !World.canPlace(id, spot.x, spot.y + h - 1, rot).ok, id + ': nachodzący obrys odrzucony');
     const gold0 = s.res.złoto;
     Build.cancel(site);
     ok(tiles(spot.x, spot.y, w, h).every(([x, y]) => occ(s, x, y) == null) && !s.sites.includes(site), id + ': anulowanie zwalnia całość obrysu');
     ok(s.res.złoto >= gold0, id + ': anulowanie zwraca złoto');
     // gotowy budynek i wyburzenie
-    const b = World.placeBuilding(id, spot.x, spot.y);
+    const b = World.placeBuilding(id, spot.x, spot.y, false, rot);
     ok(b.w === w && b.h === h && tiles(spot.x, spot.y, w, h).every(([x, y]) => occ(s, x, y) === b.uid), id + ': budynek zajmuje ' + w * h + ' pól');
     Events.destroy(s, b);
     ok(tiles(spot.x, spot.y, w, h).every(([x, y]) => occ(s, x, y) == null) && !s.buildings.includes(b), id + ': wyburzenie zwalnia obrys');
@@ -102,14 +103,18 @@ for (const fid of FACTIONS) {
   }
   delete Data.BUILDINGS.__las;
   ok(forestWrong === 0, 'wymóg lasu (req:\'forest\') liczony w pierścieniu wokół obrysu (' + forestOk + ' pól zgodnych, ' + forestWrong + ' różnic)');
-  if (fid === 'vikings') {
-    let shoreOk = 0, shoreBad = 0;
-    for (let y = 1; y < 47; y++) for (let x = 1; x < 47; x++) {
-      const [w, h] = Data.footprint('dock', fid); let sea = false;
-      for (let dy = -1; dy <= h; dy++) for (let dx = -1; dx <= w; dx++) { const t = MapGen.at(s3.map, x + dx, y + dy); if (t && t.wk === 'sea') sea = true; }
-      if ((freeFp(s3, x, y, w, h) && sea) === World.canPlace('dock', x, y).ok) shoreOk++; else shoreBad++;
+  if (fid === 'vikings') {                                                       // Przystań: szopa na lądzie, molo na wodzie morza (strefy zonesOf); Okręt: tylko woda przy molo
+    let okN = 0, bad = 0; const perRot = [0, 0, 0, 0];
+    for (let rot = 0; rot < 4; rot++) {
+      const z = Data.zonesOf('dock', fid, rot), [w, h] = Data.footprint('dock', fid, rot);
+      for (let y = 0; y <= 48 - h; y++) for (let x = 0; x <= 48 - w; x++) {
+        if (!World.canPlace('dock', x, y, rot).ok) continue; okN++; perRot[rot]++;
+        const landOk = z.land.every(([dx, dy]) => { const t = MapGen.at(s3.map, x + dx, y + dy); return t.h === 1 && t.occup == null; }), seaOk = z.water.every(([dx, dy]) => { const t = MapGen.at(s3.map, x + dx, y + dy); return t.h === 0 && t.wk === 'sea' && t.occup == null; });
+        if (!(landOk && seaOk)) bad++;
+      }
     }
-    ok(shoreBad === 0, 'Przystań 4×2: dostęp do wody liczony w pierścieniu (' + shoreOk + ' zgodnych, ' + shoreBad + ' różnic)');
+    ok(bad === 0 && okN > 0, 'Przystań: szopa na lądzie, molo na wodzie morza (' + okN + ' dozwolonych miejsc: kierunki ' + perRot.join('/') + ', ' + bad + ' błędnych)');
+    ok(perRot.filter(n => n > 0).length >= 2, 'Przystań da się postawić w co najmniej dwóch kierunkach (obrót)');
   }
 
   // --- boty: cały przepis nacji znajduje miejsca (poza budynkami z wymaganiem, którego mapa nie spełnia) ---
@@ -117,10 +122,10 @@ for (const fid of FACTIONS) {
   const s4 = World.state(); s4.res.deski = 99999; s4.res.kamień = 999; s4.res.glina = 999; s4.res.złoto = 99999;
   let noplace = [];
   for (const id of TestBots.RECIPE[fid]) {
-    if (id === 'ship' && !s4.buildings.some(b => b.id === 'dock')) { const d = TestBots.findPlace(s4, 'dock'); ok(!!d, 'Przystań ma miejsce na brzegu morza'); if (d) World.placeFree('dock', d.x, d.y); }
+    if (id === 'ship' && !s4.buildings.some(b => b.id === 'dock')) { const d = TestBots.findPlace(s4, 'dock'); ok(!!d, 'Przystań ma miejsce na brzegu morza'); if (d) World.placeFree('dock', d.x, d.y, d.rot); }
     const p = TestBots.findPlace(s4, id);
     if (!p) { noplace.push(id); continue; }
-    World.placeBuilding(id, p.x, p.y);
+    World.placeBuilding(id, p.x, p.y, false, p.rot);
   }
   ok(noplace.length === 0, 'bot znajduje miejsce dla całego przepisu (' + TestBots.RECIPE[fid].length + ' budynków)' + (noplace.length ? ' — brak: ' + noplace.join(',') : ''));
   // żadne dwa budynki nie dzielą pola
