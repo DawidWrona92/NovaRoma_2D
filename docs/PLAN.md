@@ -8,15 +8,21 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 **Repozytorium:** tylko `/home/user/novaroma_2d`, gałąź `claude/festive-meitner-ejo4l1`, szkic PR #1 → `main` (aktualizujemy pushem, nie tworzymy nowych PR, nie scalamy). Commity po polsku ze stopkami Claude; push z ponawianiem 2/4/8/16 s.
 
-## 2. Teraz w toku (zmiany zamówione przez użytkownika)
+## 2. Teraz w toku
 
-| # | Zmiana | Stan |
+**Faza 9C — obrót budynków, Przystań i Okręt na wodzie** (zamówienie użytkownika po uwadze kolegi: port budował się jak zwykły budynek, pomostem w stronę lądu).
+
+| Etap | Zakres | Stan |
 |---|---|---|
-| 1 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach.** Decyzja: na mapie Franków jest skalisty masyw górski (poziom ≥ 3), złoża tylko tam; własny generator losowy, walidacja wymaga kompletu złóż | ✔ w kodzie; krótkie testy OK (`terrain`, `footprints`, `spacing`, `leveling`, `path`, `walkers`, `roads`, `logistics`, `minimap`, `workers`, `scenarios` 58/58). **Na koniec (duże testy):** pełna regresja `regress.sh`, bramka `physical.js` dla Franków (kopalnie dalej od Dworu), scenariusze ekonomii |
-| 2 | **Zwierzęta oddalają się od budowli** (strefa 3,5 pola wokół budynków i placów; legowisko w mieście się przenosi) | ✔ w kodzie, `fauna.js` 936/936, `browser_fauna` OK |
-| 3 | **Mniej zwierząt i odradzanie w punktach spawnu** (wałęsające się i ptaki po 50%, łowna po 70%, `ref` 4, szybsze odradzanie przy legowiskach) | ✔ w kodzie; test „1 Chata” poluzowany (średni plon ≥ 0,60) |
+| 9C-1 | warianty grafiki Przystani i Okrętu w 4 kierunkach (`vikings_dock@1…3`, `vikings_ship@1…3`), katalog i `SPRITE_META` z wariantami | ✔ |
+| 9C-2 | logika: `rot` w budynku i placu, strefy ląd/woda (`Data.zonesOf`), Przystań = szopa na lądzie + molo na wodzie morza, Okręt = tylko woda przy molo, wejście od strony lądu, Okręt płynie w stronę dziobu | ✔ (`tools/rotation.js` 44/44, scenariusze 58/58, bramka bilansu Wikingów 82% / 94%) |
+| 9C-3 | sterowanie: klawisz R / przycisk ⟳ (także telefon), auto-obrót pod kursorem, podświetlenie wody; bot wybiera kierunek (100 map nadmorskich bez niepowodzeń) | ✔ |
+| 9C-docs | rozdziały 11, 14, 15, 16, 17, tabele stanu, README testów | ◐ agent dokumentacji w toku |
+| 9C-4 | **obracanie pozostałych ~80 budynków w 4 kierunkach** (decyzja użytkownika: wszystkie w 4 kierunkach). Wymaga dorysowania tylnych ścian (północnej i zachodniej) w silniku sprite'ów, bo dziś modelowane są tylko ściany S i E; dekoracje „na ścianie” (tarcze, szyldy, liny) trzeba oznaczyć ścianą. Plan: najpierw wspólny mechanizm obrotu brył w `prototyp/src` (rzut z obrotem + widoczność ścian), potem nacja po nacji z kontrolą wizualną; wejście budynku wybiera gracz (drogi, ścieżki) | ○ osobny duży etap |
 
-Dokumentacja zmian 1–3: w toku (agent dokumentacji). Po niej: nowy wzorzec regresji (`baseline6`), przebudowa PDF, wersja WIP gry do przeklikania, zamknięcie Fazy 9B.
+Wcześniej w tej serii (✔): kopalnie tylko w górach (masyw), zwierzęta unikają miasta i odradzają się w punktach spawnu, karawana kosmetyczna, `L_ref` 5, gra jako artefakt (https://claude.ai/artifact/KqRh8cYnMbqEnTdCYN85kd), ekran diagnostyczny startu.
+
+Na koniec (duże testy, wg ustaleń): pełna regresja `regress.sh`, bramka `physical.js --full`, scenariusze ekonomii, nowy wzorzec `baseline6`.
 
 ## 3. Kolejka (po zmianach 1–3)
 
@@ -33,7 +39,7 @@ Dokumentacja zmian 1–3: w toku (agent dokumentacji). Po niej: nowy wzorzec reg
 - Chata myśliwego nie wymaga lasu; menu główne RTS z Piaskownicą; tryb pracy „auto” (bez dopytywania, commit + push + WIP po fazie);
 - **Faza 9B:** ludzie naprawdę pracują (drwal, cieśla, budowniczowie, karawana), drogi ważniejsze, magazyn centralny = Dwór, bez zepsucia balansu;
 - **karawana Saracenów kosmetyczna** (złoto od razu, jak w Twierdzy); **odległość boli mocniej** (`RULES.cycle.ref` 8 → 5), bramka bilansu ≥ 75% wyniku bazowego i ≥ 85% dawnej krzywej (osiągnięte: 79% / 91%); bot N tylko informacyjnie (kruchy);
-- **kopalnie tylko w górach, masyw na każdej mapie**; zwierzęta unikają miasta, są rzadsze i odradzają się w legowiskach;
+- **kopalnie tylko w górach, masyw na każdej mapie**; **Przystań (szopa na lądzie, molo na wodzie) i Okręt (na wodzie przy molo) z obrotem; wszystkie budynki docelowo w 4 kierunkach**; zwierzęta unikają miasta, są rzadsze i odradzają się w legowiskach;
 - dziennik pracy agentów w `docs/DZIENNIK_AGENTOW.md`.
 
 **Otwarte (czekają na użytkownika):**
