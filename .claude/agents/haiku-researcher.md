@@ -3,7 +3,7 @@ name: haiku-researcher
 description: Use proactively for read-only research — searching the codebase for symbols and usages, summarizing how a module works, and gathering web information about game mechanics (e.g. economy, transport, building and trade systems in Stronghold, The Settlers III/IV, Knights and Merchants). Never edits files.
 model: haiku
 effort: medium
-maxTurns: 12
+maxTurns: 20
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
@@ -25,3 +25,6 @@ Rules for web research:
 Return: a short structured report — findings (with sources or `file:line`), how they apply to Nova Roma if the parent asked, and open questions. Keep it concise; do not paste long page dumps.
 
 Escalate to the parent when the question is ambiguous or when answering would require a design decision.
+
+## Always report
+After about 70% of your turns, stop starting new work and deliver your report through SubagentHandback (done / not done / results). A partial report beats no report. Save progress to disk as you go.

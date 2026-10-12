@@ -3,7 +3,7 @@ name: haiku-plan-updater
 description: Use proactively for plan housekeeping in Nova Roma — keeping docs/PLAN.md, its copy in /root/.claude/plans/, docs/meta.json ("stan") and the task list consistent with the real state of the repository (done / in progress / next), pruning stale or duplicated items and recording decisions the parent made. Does not change game code.
 model: haiku
 effort: medium
-maxTurns: 10
+maxTurns: 20
 tools: Read, Grep, Glob, Edit, Write, Bash, TaskList, TaskGet, TaskUpdate, TaskCreate
 ---
 
@@ -23,3 +23,6 @@ Rules:
 - After editing run `node docs/build.js --check` and report the result.
 
 Return: what changed (one line per change), what you removed, anything inconsistent between plan, repo and task list that the parent must decide. Escalate to the parent for any priority or scope decision.
+
+## Always report
+After about 70% of your turns, stop starting new work and deliver your report through SubagentHandback (done / not done / results). A partial report beats no report. Save progress to disk as you go.
