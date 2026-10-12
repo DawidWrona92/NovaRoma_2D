@@ -10611,15 +10611,24 @@ const Music = (() => {
         if (L.has('mO') && b < 4) for (const n of T.A[4 + b]) W(n, 'flute', 0, 0.38 * [1, 0.85, 0.7, 0.55][b]);
         if (L.has('tabor')) { add(t0, 'tabor', 50, 0.4, 0.3 * vel); add(t0 + 2 * spb, 'tabor', 50, 0.4, 0.2 * vel); add(t0 + 3.5 * spb, 'tabor', 50, 0.4, 0.1 * vel); } } },
 
-    saracens: { name: 'Wiatr nad wydmami', bpm: 68, beats: 4, root: 50, mode: 'hijaz', wet: 0.3, cutoff: 7000, trim: 1,
-      prog: { A: [0, 0, 1, 0, 3, 0, 4, 0], B: [3, 0, 3, 1, 0, 1, 4, 0], C: [0, 1, 0, 0] },
-      form: [['C', 6, 'taqsim drone'], ['A', 8, 'oud drone darbuka'], ['B', 8, 'oud ney drone darbuka'], ['C', 6, 'taqsim drone'], ['A', 8, 'oud ney drone darbuka'], ['B', 8, 'oud ney drone darbuka'], ['A', 8, 'oud drone fade']],
-      arp: { voice: 'oud', base: 0, low: true, pats: [[0, 2, 3, 2, 0, 2, 3, 4], [0, 3, 2, 3, 0, 2, 1, 2], [0, 2, 3, 2, 4, 3, 2, 1]] },
+    saracens: { name: 'Wiatr nad wydmami', bpm: 64, beats: 4, root: 50, mode: 'hijaz', wet: 0.32, cutoff: 5800, trim: 0.8,
+      // hidżaz na D: D–Es–Fis–G–A–B–C; akord 0 = D-dur (tonika, bordon D+A), 1 = Es (barwa hidżazu; w sekcjach z padem tylko na nieparzystych taktach, by nie gryzło się z akordem pada), 3 = g-moll (odprężenie)
+      prog: { A: [0, 0, 3, 0, 0, 1, 0, 0], B: [3, 3, 0, 0, 3, 1, 0, 0], C: [1, 0, 0, 3, 0, 0], D: [0, 3, 0, 0, 1, 0] },
+      // taqsim (C, D; warstwa 'taq' = znacznik dla extra): swobodna improwizacja neya na bordonie, bez perkusji (celowo bez warstwy 'taqsim' kompozytora — jej rozciągnięte frazy nachodzą na siebie); darbuka wchodzi miękko (darin) i schodzi przed końcem (darout); na zamknięcie wraca temat ze wstępu (klucz C:0)
+      form: [['C', 8, 'ney taq drone'], ['A', 4, 'oud drone darin pad'], ['A', 8, 'oud ney drone dar'], ['B', 8, 'oud ney drone dar pad'], ['D', 6, 'ney taq drone'], ['A', 8, 'oud ney drone darin pad'], ['B', 8, 'oud ney drone dar pad'], ['A', 6, 'oud ney drone pad darout fade'], ['C', 2, 'ney taq drone fade']],
+      arp: { voice: 'oud', base: 0, low: false, pats: [[0, 2, 3, 2, 0, 2, 3, -1], [0, 2, 3, 4, 3, 2, 3, -1], [0, 1, 2, 3, 2, 1, 2, -1]] },
       pad: { voice: 'pad', oct: 12 },
-      lead: { voice: 'ney', range: [4, 12], shift: -7, oct: 12, pool: [0.5, 1, 1, 1.5, 2, 0.5], vel: 0.42, orn: 0.35, rest: 0.12 },
-      extra(c) { const { add, t0, b, L, vel, spb, bar, R } = c;
-        if (L.has('drone') && b % 2 === 0) { add(t0, 'drone', R - 12, bar * 2 + 0.5, 0.5 * vel); add(t0, 'drone', R - 5, bar * 2 + 0.5, 0.28 * vel); }
-        if (L.has('darbuka')) [['dum', 0], ['tek', 0.5], ['tek', 1.5], ['dum', 2], ['tek', 3], ['tek', 3.5]].forEach(([v, o]) => add(t0 + o * spb, v, 50, 0.3, (v === 'dum' ? 0.4 : 0.18 + c.rnd() * 0.05) * vel)); } },
+      // ney: o oktawę wyżej niż dawniej (D4–D5), ozdobnik = górna nuta pomocnicza (oct 0, shift 0 — inaczej kompozytor przenosi ozdobnik o oktawę), dłuższe nuty i oddechy
+      lead: { voice: 'ney', range: [7, 13], shift: 0, oct: 0, pool: [1, 1.5, 2, 1, 0.5, 3, 1.5], vel: 0.46, orn: 0.3, rest: 0.16 },
+      extra(c) { const { add, t0, b, L, vel, spb, bar, R, rnd, d0, ch } = c;
+        if (L.has('drone') && b % 2 === 0) { add(t0, 'drone', R - 12, bar * 2 + 0.5, 0.26 * vel); add(t0, 'drone', R - 5, bar * 2 + 0.5, 0.18 * vel); }                   // bordon D+A
+        if (L.has('taq')) {                                                                                                                                         // oud w taqsim: rozłożony akord na początku frazy, potem pojedyncze nuty (Es → D jak westchnienie hidżazu)
+          if (b % 2 === 0) [0, 7, 12].forEach((k, i) => add(t0 + 0.1 + i * 0.17, 'oud', R + k, 3, (0.28 - i * 0.04) * vel));
+          if (b % 2 === 1) add(t0 + spb * 1.4, 'oud', ch(d0, 0), 2.4, 0.26 * vel);
+          if (b % 2 === 0 && rnd() < 0.5) add(t0 + spb * 2.6, 'oud', R + 7, 2.4, 0.22 * vel); }
+        const dm = L.has('dar') ? 1 : L.has('darin') ? [0, 0.5, 1][Math.min(b, 2)] : L.has('darout') ? (b < 3 ? 1 : b === 3 ? 0.5 : 0) : 0;                          // darbuka: spokojny maqsum (D T . T D . T .), wchodzi i schodzi stopniowo
+        if (dm > 0) { [['dum', 0, 0.3], ['tek', 0.5, 0.15], ['tek', 1.5, 0.15], ['dum', 2, 0.22], ['tek', 3, 0.15]].forEach(([v, o, g]) => add(t0 + o * spb + (rnd() - 0.5) * 0.01, v, 50, 0.3, (g + (v === 'tek' ? rnd() * 0.04 : 0)) * vel * dm));
+          if (dm >= 1 && b % 4 === 3) add(t0 + 3.5 * spb, 'tek', 50, 0.2, 0.09 * vel); } } },
 
     /* Wikingowie — „Cisza fiordu”: powolna (54 uderzeń/min), niska i mroźna. Bordon na A (A1–E2–A2) odnawiany rzadko (co 4 takty), pod nim bęben obręczowy jak bicie serca (dwa „lub-dub” na takt);
        smyk (talharpa) śpiewa długimi nutami w niskim rejestrze (e3–e4, wokół akordu), głównie krokami; ciepłe tło („tlo”) dopowiada akord co dwa takty; kantele odzywają się pojedynczymi dźwiękami pod melodią („iskry”)
