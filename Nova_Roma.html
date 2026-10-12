@@ -10587,13 +10587,29 @@ const Music = (() => {
      arp {voice, base (stopnie nad akordem), pats (wzory), low (bas szarpany w oktawie niżej)}, pad {voice, oct}, lead {voice, range [dół, góra] (stopnie), shift (stopnie), oct, pool (długości nut w uderzeniach), vel, orn (ozdobnik 0–1), rest}.
      extra(c) wołane raz na takt: c = { add(t, głos, MIDI, czas, siła), t0, b (takt w sekcji), d0 (stopień akordu), L (zbiór warstw), vel, bar, spb, rnd, ch(stopień, ton), R, M, sec } */
   const PIECES = {
-    franks: { name: 'Pokój w grodzie', bpm: 72, beats: 4, root: 50, mode: 'dorian', wet: 0.28, cutoff: 6500, trim: 1,
-      prog: { A: [0, 6, 3, 0, 0, 2, 6, 4], B: [3, 0, 6, 3, 2, 6, 3, 4], C: [0, 3, 0, 4] },
-      form: [['A', 4, 'lute'], ['A', 8, 'lute flute'], ['B', 8, 'lute strings'], ['A', 8, 'lute flute strings tabor'], ['B', 8, 'lute flute strings tabor'], ['C', 4, 'lute strings'], ['A', 8, 'lute flute strings'], ['A', 8, 'lute strings fade']],
-      arp: { voice: 'lute', base: 0, low: true, pats: [[0, 2, 1, 3, 2, 1, 3, 2], [0, 1, 2, 1, 3, 2, 1, 2], [0, -1, 2, 1, 3, -1, 2, 1]] },
+    franks: { name: 'Pokój w grodzie', bpm: 66, beats: 4, root: 50, mode: 'dorian', wet: 0.3, cutoff: 6500, trim: 1,
+      /* Frankowie: temat A (flet, 8 taktów: zdanie pytające i odpowiadające, rośnie do D5 i opada) wraca trzykrotnie; część B (dłuższe nuty, najpierw smyczek solo, potem flet) kontrastuje;
+         między nimi cichy mostek bez melodii; koniec — pożegnalne zdanie fletu i lutnia na toniczny D. Melodia jest zapisana ręcznie (tabela `tema`: takt → [uderzenie, stopień nad D4, czas w uderzeniach]),
+         nuty na mocnych częściach taktu to tony akordu, reszta kroki; własne znaczniki warstw (mA, mBw, mBf, mBl, mO) wołają ją w `extra`, a automatyczny `lead` zostaje wyłączony (w formie nie ma znacznika `flute`). */
+      prog: { I: [0, 6, 3, 0], A: [0, 6, 3, 0, 0, 2, 6, 0], B: [3, 0, 6, 3, 2, 6, 4, 0], C: [0, 3, 0, 4], E: [0, 2, 6, 0, 6, 3, 0, 0] },
+      form: [['I', 4, 'lute'], ['A', 8, 'lute mA'], ['B', 8, 'lute strings mBw'], ['A', 8, 'lute strings tabor mA orn'], ['B', 8, 'lute strings tabor mBf mBl'], ['C', 4, 'lute strings'], ['A', 8, 'lute strings mA'], ['E', 8, 'lute strings mO fade']],
+      arp: { voice: 'lute', base: 0, low: true, pats: [[0, 2, 1, 3, 2, 1, 3, 2], [0, 1, 2, 1, 3, 2, 1, 2], [0, -1, 2, 1, 3, -1, 2, 1], [0, 1, -1, 2, 1, -1, 3, 2]] },
       pad: { voice: 'strings', oct: 12 },
       lead: { voice: 'flute', range: [4, 11], shift: -7, oct: 12, pool: [1, 1, 1.5, 0.5, 2, 1], vel: 0.42, orn: 0, rest: 0.12 },
-      extra(c) { const { add, t0, L, vel, spb } = c; if (L.has('tabor')) { add(t0, 'tabor', 50, 0.4, 0.36 * vel); add(t0 + 2 * spb, 'tabor', 50, 0.4, 0.26 * vel); add(t0 + 3.5 * spb, 'tabor', 50, 0.4, 0.14 * vel); } } },
+      tema: {
+        A: [[[0, 4, 2], [2, 5, 1], [3, 4, 1]], [[0, 3, 2], [2, 4, 1], [3, 5, 1]], [[0, 7, 1], [1, 6, 1], [2, 5, 2]], [[0, 4, 3]],
+            [[0, 4, 2], [2, 5, 1], [3, 4, 1]], [[0, 6, 2], [2, 4, 1], [3, 6, 1]], [[0, 8, 1.5], [1.5, 7, 0.5], [2, 6, 2]], [[0, 7, 3]]],
+        B: [[[0, 7, 1.5], [1.5, 6, 0.5], [2, 5, 2]], [[0, 4, 2], [2, 2, 1], [3, 4, 1]], [[0, 3, 3], [3, 4, 1]], [[0, 5, 2], [2, 7, 2]],
+            [[0, 6, 3], [3, 7, 1]], [[0, 8, 1.5], [1.5, 7, 0.5], [2, 6, 2]], [[0, 8, 2], [2, 6, 1], [3, 4, 1]], [[0, 4, 3]]] },
+      extra(c) { const { add, t0, b, L, vel, spb, R, M, rnd } = c, T = this.tema;
+        const W = (n, v, o, g, d = 0.97) => add(t0 + n[0] * spb + (rnd() - 0.5) * 0.03, v, deg(R + 12 + o, M, n[1]), n[2] * spb * d, g * vel * (0.93 + rnd() * 0.14));   // nuta tematu → zdarzenie
+        const fv = L.has('tabor') ? 0.46 : 0.42;
+        if (L.has('mA')) for (const n of T.A[b]) { W(n, 'flute', 0, fv); if (L.has('orn') && n[2] >= 1.5 && rnd() < 0.4) add(t0 + n[0] * spb - 0.1, 'flute', deg(R + 12, M, n[1] + 1), 0.1, 0.2 * vel); }
+        if (L.has('mBw')) for (const n of T.B[b]) W(n, 'bowed', 0, 0.34, 1.0);
+        if (L.has('mBf')) for (const n of T.B[b]) W(n, 'flute', 0, fv);
+        if (L.has('mBl')) for (const n of T.B[b]) W(n, 'bowed', -12, 0.22, 1.0);
+        if (L.has('mO') && b < 4) for (const n of T.A[4 + b]) W(n, 'flute', 0, 0.38 * [1, 0.85, 0.7, 0.55][b]);
+        if (L.has('tabor')) { add(t0, 'tabor', 50, 0.4, 0.3 * vel); add(t0 + 2 * spb, 'tabor', 50, 0.4, 0.2 * vel); add(t0 + 3.5 * spb, 'tabor', 50, 0.4, 0.1 * vel); } } },
 
     saracens: { name: 'Wiatr nad wydmami', bpm: 68, beats: 4, root: 50, mode: 'hijaz', wet: 0.3, cutoff: 7000, trim: 1,
       prog: { A: [0, 0, 1, 0, 3, 0, 4, 0], B: [3, 0, 3, 1, 0, 1, 4, 0], C: [0, 1, 0, 0] },
