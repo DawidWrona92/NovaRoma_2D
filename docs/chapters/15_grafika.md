@@ -19,6 +19,8 @@ Każdy budynek to zbiór brył (`src/26_build.js`): prostopadłościanów, walc�
 
 Zużycie (łaty, ślady) jest dopasowane do materiału i można je wyłączyć parametrem `?nowear=1` w prototypie. Każdy wypiek jest deterministyczny: tekstura i sprite powstają z ziarna per obiekt, więc za każdym razem wychodzą takie same.
 
+Przystań i Okręt mają dodatkowo warianty kierunku `vikings_dock@1…3` i `vikings_ship@1…3` (lista `ROT_VARIANTS` w `src/29_catalog.js`, generatory `dockSprite(rot)` i `shipSprite(rot)` w `src/53_vikings.js`). Warianty nie malują wody ani gruntu pod sobą, bo stoją na prawdziwych polach gry (molo i okręt na wodzie), a głowa smoka na dziobie zwraca się w stronę dziobu. Każdy wariant ma własny obrys, wejście i kotwicę w katalogu (`SPRITE_META`).
+
 ## Mieszkańcy {#mieszkancy}
 
 Postacie mają wygląd wspólny dla nacji, zapisany w tabeli `CAST` (kolory stroju, włosy, nakrycie głowy, rekwizyty). Robotnicy mają po dwa warianty na nację: `*Worker` i `*WorkerB` (np. `frankWorker`, `vikWorkerB`), dobierane według koloru stroju. Myśliwi z łukiem (`frankHunter` i pozostałe) dopisano na końcu tabeli, żeby nie przesunąć indeksów wybieranych w grze.

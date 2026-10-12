@@ -1,6 +1,6 @@
 # Zasady zabudowy {#zabudowa}
 
-Gracz stawia budynek, wskazując lewy górny róg obrysu na mapie. Gra sprawdza wtedy `World.canPlace(id, x, y)`, które zwraca `{ ok }` albo `{ ok: false, reason }` — powód jest pokazywany w podglądzie i w Doradcy. Ta sama funkcja jest wołana przez budowę (`Build.enqueue`), przez generator botów testowych i przez `Fauna` i `Path` przy ocenie pól. Obrys budynku (w×h pól) pochodzi z katalogu `SPRITE_META` (`Data.footprint`), więc wymiary są opisane w rozdz. {{ref:budynki}}.
+Gracz stawia budynek, wskazując lewy górny róg obrysu na mapie. Gra sprawdza wtedy `World.canPlace(id, x, y, rot)`, które zwraca `{ ok }` albo `{ ok: false, reason }` — powód jest pokazywany w podglądzie i w Doradcy. Argument `rot` (kierunek 0–3) ma wartość 0 dla większości budynków; obraca się tylko Przystań i Okręt (sekcja {{ref:obrot}}). Ta sama funkcja jest wołana przez budowę (`Build.enqueue`), przez generator botów testowych i przez `Fauna` i `Path` przy ocenie pól. Obrys budynku (w×h pól) pochodzi z katalogu `SPRITE_META` (`Data.footprint(id, fid, rot)`), więc wymiary są opisane w rozdz. {{ref:budynki}}.
 
 ## Przerwa między budynkami {#przerwa}
 
@@ -27,10 +27,12 @@ Tabela: Wymagania terenowe budynków (pole `req` w `Data.BUILDINGS`)
 |---|---|---|---|
 | `deposit:<rodzaj>` | złoże tego rodzaju na co najmniej jednym polu obrysu | kopalnie i kamieniołom (Frankowie, Saraceni, Wikingowie) | „Wymaga złoża (…)” |
 | `shore` | morze, jezioro lub lód w obrysie albo pierścieniu | Chata rybaka (Wikingowie) | „Wymaga brzegu morza lub jeziora” |
-| `waterEdge` | morze w obrysie albo pierścieniu | Przystań, Okręt (Wikingowie) | „Wymaga bezpośredniego dostępu do morza” |
+| `waterEdge` | morze w obrysie albo pierścieniu, gdy budynek nie ma stref wody | żaden budynek (dawny wymóg Przystani i Okrętu zastąpiły strefy, sekcja {{ref:obrot}}) | „Wymaga bezpośredniego dostępu do morza” |
 | `forest` | co najmniej 4 drzewa w obrysie i pierścieniu | żaden budynek (kod istnieje, lecz nie jest używany) | „Wymaga lasu w pobliżu” |
 
-Kilka reguł stoi poza tabelą. Złoże jest zarezerwowane: pole ze złożem może zająć tylko kopalnia pasującego rodzaju (pozostałe budynki dostają „Złoże — miejsce tylko na kopalnię”). Chata rybaka ma dodatkowy limit `settings.shoreSpots` (domyślnie 6) miejsc na wybrzeżu. Okręt wymaga, by w osadzie stała już Przystań. Chata myśliwego nie ma żadnego wymogu terenowego — zwierzyna jest liczona w łowisku, a nie przez las (rozdz. {{ref:fauna}}).
+Kilka reguł stoi poza tabelą. Złoże jest zarezerwowane: pole ze złożem może zająć tylko kopalnia pasującego rodzaju (pozostałe budynki dostają „Złoże — miejsce tylko na kopalnię”). Chata rybaka ma dodatkowy limit `settings.shoreSpots` (domyślnie 6) miejsc na wybrzeżu. Okręt wymaga, by w osadzie stała już gotowa Przystań, a jego kadłub styka się bokiem z molem tej Przystani. Chata myśliwego nie ma żadnego wymogu terenowego — zwierzyna jest liczona w łowisku, a nie przez las (rozdz. {{ref:fauna}}).
+
+> [!uwaga] Przystań i Okręt wciąż mają w katalogu `req: 'waterEdge'`, ale ten warunek w `canPlace` jest pomijany, gdy budynek ma strefy (`Data.zonesOf` zwraca obiekt), a obie jednostki je mają. Wymóg działa więc tylko dla hipotetycznego budynku bez stref.
 
 > [!pulapka] Flaga `forest` w katalogu budynków (Słowianie: Chata zbieracza, Barć, Chata łowcy futer) wpływa na plon, a nie na miejsce budowy: plon to × min(1, drzewa / próg nacji). Wymóg `req: 'forest'` istnieje w `canPlace`, ale żaden budynek go nie ustawia, więc te budynki da się postawić także bez lasu.
 
@@ -43,6 +45,19 @@ Rezerwacja pól działa na dwóch poziomach. Generator mapy (`MapGen`, funkcja `
 ## Anulowanie placu {#anulowanie}
 
 Anulowanie (`Build.cancel(site)`) jest możliwe przed końcem budowy. Gra zwraca to, co dowieziono na plac: każdy dostarczony towar wraca do magazynu, złoto zapłacone przy otwarciu placu wraca do `res.złoto`, a pola obrysu zostają zwolnione. Statystyka zużytych desek (`stats.planksSpent`) jest korygowana o zwrócone deski. Materiał jeszcze niedowieziony nie jest liczony.
+
+## Obrót budynków i strefy ląd/woda {#obrot}
+
+Każdy budynek i plac budowy może mieć pole `rot` (kierunek 0–3; brak pola oznacza 0). Obrys i wejście zależą od kierunku (`Data.footprint(id, fid, rot)`, `Data.entrance(id, fid, rot)`), a sprite i wpis w katalogu mają klucz `id` (kierunek 0) albo `id@rot`. Dostępne kierunki podaje `Data.rotsOf(id, fid)` z katalogu sprite'ów: dziś **cztery mają tylko Przystań i Okręt**, pozostałe budynki wyłącznie kierunek 0. Obracanie reszty w czterech kierunkach jest osobnym, dużym etapem grafiki (sprite'y modelują tylko ściany południową i wschodnią, więc trzeba dorysować tylne ściany), patrz plan prac.
+
+**Strefy.** `Data.zonesOf(id, fid, rot)` dzieli obrys na pola lądu i wody (współrzędne od północnego rogu obrysu) albo zwraca `null`, gdy budynek stoi w całości na lądzie:
+
+- **Przystań** ma obrys 4×2 (kierunki 0 i 2) albo 2×4 (1 i 3): szopa na 2 polach **lądu** na jednym krańcu i molo na 6 polach **wody morza** (3 pola długości) w stronę kierunku: 0 na wschód, 1 na południe, 2 na zachód, 3 na północ. Szopa leży na przeciwległym krańcu. Pola mola muszą być wolną wodą morza, pola szopy wolnym lądem jak dla innych budynków.
+- **Okręt** (4×2 albo 2×4, dziób w kierunku 0–3) stoi w całości na wolnej wodzie morza i przynajmniej jednym polem styka się bokiem z molem istniejącej, gotowej Przystani (`World.dockPierTiles()`). Jest jedynym wyjątkiem od twardej przerwy: może stać tuż przy molu.
+
+Komunikaty: „Szopa Przystani musi stać na wolnym lądzie”, „Molo musi stać na wolnej wodzie morza”, „Okręt stoi tylko na wolnej wodzie morza”, „Okręt musi stanąć przy molo Przystani”, „Okręt wymaga Przystani”, a dla budynku bez wariantu „Ten budynek nie obraca się w tym kierunku”. Plac i gotowy budynek zajmują (`occup`) także pola wody; wyrównanie terenu (`levelOf`) liczy tylko ląd. Wejście Przystani to najbliższe wolne pole lądu przy szopie (`Walkers.doorOf`), a Okręt na wyprawie odpływa w stronę dziobu, jeśli tam jest woda.
+
+**Sterowanie.** W trybie budowy obracasz budynek klawiszem R (Shift+R w przeciwną stronę) albo przyciskiem „⟳ Obróć (R)”, widocznym tylko dla budynków, które się obracają, także na telefonie. Dopóki gracz nie obróci ręcznie, kierunek dobiera się sam pod kursorem (pierwszy dozwolony), więc molo zwykle samo ustawia się ku wodzie; podgląd zaznacza pola wody na niebiesko. Bot (`TestBots.findPlace`) zwraca także `rot` i na 100 mapach nadmorskich (4 klimaty po 25 ziaren) zawsze znajduje miejsce na Przystań i Okręt.
 
 ## Funkcje i dane {#funkcje}
 

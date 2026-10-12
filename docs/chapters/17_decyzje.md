@@ -18,6 +18,7 @@ Tabela: Fazy prac i ich efekty (commity w gałęzi `claude/festive-meitner-ejo4l
 | 9B-0, 9B-1 | tempo gry 12 s/min; role i czynności postaci (`Workers`) | `c2f1c36`, `c158a7c` |
 | 9B-2 … 9B-4 | fizyczna sprawność transportu, drwal, budowniczowie, karawany, okręty | (ten etap) |
 | 9B-5 | strojenie: karawana kosmetyczna (złoto od razu), L_ref 5, histereza robotników (`tools/workers.js` 60/60), bramka bilansu 75% bazowej i 85% krzywej | `ce00013` |
+| 9C | obrót budynków, Przystań i Okręt na wodzie (strefy ląd/woda), kopalnie w górach, fauna unikająca miasta, artefakt, ekran diagnostyczny startu | (ten etap) |
 
 Stan i plan dalszych prac: `docs/PLAN.md` (kopia w repozytorium).
 
@@ -39,6 +40,7 @@ Tabela: Decyzje użytkownika
 | **Surowsze parametry fizyki**: odległość odniesienia `RULES.cycle.ref` 8 → 5 pól („odległość boli mocniej”); bramka bilansu botów ≥ 75% wyniku bazowego i ≥ 85% wyniku z dawną krzywą (bot N tylko informacyjnie) | `Data.RULES.cycle.ref`, `tools/physical.js` | {{ref:fizyka}}, {{ref:e-wyniki}} |
 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach**; na mapach bez gór powstaje skalisty masyw (dziś dla Franków) | złoża tylko na polach o wysokości ≥ 3, masyw 17–25 pól od Dworu z własnym generatorem losowym, walidacja wymaga kompletu złóż | {{ref:teren}} |
 | **Zwierzęta unikają miasta, są rzadsze i odradzają się w punktach spawnu** | strefa 3,5 pola wokół budynków, liczebność ok. 50% (łowna 70%), `ref` 4, punkty spawnu wałęsających się i ptaków | {{ref:fauna}} |
+| **Przystań (szopa na lądzie, molo na wodzie) i Okręt (na wodzie przy molo) z obrotem; docelowo wszystkie budynki w 4 kierunkach** | strefy ląd/woda, `rot` w budynku i placu, klawisz R / przycisk ⟳; port i okręt w 4 kierunkach teraz, reszta jako osobny etap grafiki | {{ref:obrot}} |
 
 ## Decyzje projektowe (z uzasadnieniem) {#decyzje-projektowe}
 

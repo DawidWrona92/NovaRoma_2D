@@ -11,6 +11,7 @@ Cel: sprawdzić, czy delegowanie opłaca się względem pracy samodzielnej. Wpis
 | 10.10 | haiku-documentation | dokumentacja 9B-5 (12, 16, 17, tables, README) | ? | ? | ? | P | pominięty aneks E (6 miejsc) — poprawił rodzic |
 | 10.10 | haiku-tester | 8 testów przeglądarkowych | ? | ? | ? | T | 8/8 exit 0, bez poprawek |
 | 12.10 | haiku-documentation | góry i fauna: rozdz. 10, 12, 13, 16 | 112 tys. | 22 | 170 s | P | limit 14 tur bez raportu; rozdz. 17, `tables.js` i PDF dokończył rodzic |
+| 12.10 | haiku-documentation | obrót, Przystań i Okręt: rozdz. 11 i inne | 144 tys. | 21 | 148 s | N | limit 14 tur: zdążył tylko zacząć rozdz. 11 i zostawił odwołanie do nieistniejącej sekcji; resztę (11, 14, 15, 16, 17, tabele, README) napisał rodzic |
 
 ## Błędy rodzica (do porównania)
 - Commit fazy 9B przy padającym `tools/workers.js` (kod wyjścia zamaskowany przez `| tail`).

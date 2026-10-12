@@ -140,7 +140,7 @@ function dependencyMatrix() {
 
 const STATE_DOC = {
   factionId: 'id nacji: franks, saracens, vikings, slavs', map: 'mapa: size 48, tiles[2304], meta {climate, type, seed, valid, why, stats}, dirty (pola do odświeżenia chunków), roadRev',
-  buildings: 'gotowe budynki {id, x, y, w, h, uid}; pola robocze: st (status), eff, logi, huntAcc, awayUntil, carrierT', citizens: 'obywatele „cienia symulacji” (losowania RNG logiki); widoczne postacie rysuje Walkers',
+  buildings: 'gotowe budynki {id, x, y, w, h, uid, rot (kierunek 1–3; brak = 0)}; pola robocze: st (status), eff, logi, huntAcc, awayUntil, carrierT', citizens: 'obywatele „cienia symulacji” (losowania RNG logiki); widoczne postacie rysuje Walkers',
   time: 'czas gry w minutach', speed: 'mnożnik prędkości 0 / 1 / 2 / 3 / 6 (0 = pauza; przyciski ×1 → ×2 → ×3 → ×6)', res: 'magazyn: towary (Economy.LIMIT), złoto, narzędzia, popularity', nextId: 'licznik uid budynków i placów',
   pop: 'ludność (liczba rzeczywista; w obliczeniach Math.floor)', controls: '{ rations: 0,5 / 1 / 1,5 / 2, tax: 0–3 }', starveTimer: 'minuty ciągłego braku jedzenia (≥ 5 → ginie 1 osoba na minutę)',
   immigrantTimer: 'akumulator czasu do kolejnego imigranta', tooled: 'uid → true: budynek już dostał narzędzie', staffed: 'uid → true: budynek obsadzony w bieżącym ticku',
@@ -149,7 +149,7 @@ const STATE_DOC = {
   workersStaffed: 'liczba obsadzonych budynków', workersNeeded: 'liczba budynków potrzebujących pracownika', waitingForTool: 'czy jakiś budynek czeka na narzędzie',
   stats: 'liczniki raportowe: toolsBought, toolsForged, planksSpent, starveMin', settings: 'przełączniki scenariusza: raids, voyageGuard, shoreSpots, logistics, fauna',
   animals: 'zwierzęta (lista JSON-owa, Faza 8)', fauna: 'stan modułu Fauna: rs (PRNG), nid, bt, dens (legowiska, przenoszone, gdy wyrośnie wokół nich miasto), spawns (punkty spawnu wałęsających się i ptaków {k,x,y}), sacc (liczniki odradzania {gatunek: akumulator}), hunts, kills (null przy wyłączonej faunie)', depositLeft: 'opcjonalne skończone złoża, np. { clay: 60 }',
-  sites: 'place budowy {id, x, y, w, h, uid, need, got, work, workNeed, levelLeft, crowd, assigned}', builders: 'ustawienie liczby budowniczych (2–5)', buildersActive: 'budowniczowie faktycznie rekrutowani w ticku',
+  sites: 'place budowy {id, x, y, w, h, uid, rot (kierunek 1–3; brak = 0), need, got, work, workNeed, levelLeft, crowd, assigned}', builders: 'ustawienie liczby budowniczych (2–5)', buildersActive: 'budowniczowie faktycznie rekrutowani w ticku',
   buildersWorking: 'budowniczowie przydzieleni do placów (jedzą 1,5 racji)', carriers: 'nosiciele „cienia symulacji” (wizualni; ekonomia jest nominalna)', tribute: 'bieżący haracz: preset, level, firstTerm, terms, met, missed, delivered, byGood, log…',
   marketPrices: 'ceny Targu (kadzidło, tkanina, ceramika)', voyageMode: 'tryb wypraw Wikingów: normal | mixed', crewAway: 'załoga na wyprawach (osoby poza pracą)', voyages: 'trwające wyprawy {until, crew, great, ships}',
   voyageStats: 'wykonane wyprawy: done (jednostki haraczu), trips', raids: 'napady na karawanę: count, lost, next (czas kolejnego sprawdzenia)', crisis: 'harmonogram kryzysów (null = wyłączony) lub { idx }',

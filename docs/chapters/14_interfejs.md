@@ -80,6 +80,8 @@ U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Dre
 
 **Kamera:** przeciąganie prawym przyciskiem lub WASD, kółko myszy — zoom; na telefonie przeciąganie jednym palcem i szczypanie. Dotknięcie ekranu działa jak lewy klik (`BuildMode.click`).
 
+Budynki, które się obracają (dziś Przystań i Okręt), obsługuje klawisz R albo przycisk „⟳ Obróć (R)” w trybie budowy; kierunek dobiera się sam pod kursorem, dopóki gracz nie obróci ręcznie (rozdz. {{ref:obrot}}).
+
 ## Panele informacyjne {#panele}
 
 - **Magazyn** (`#resPanel`, prawa strona) składa się z sekcji: **MAGAZYN** (towary z ilością i pojemnością `ilość / cap`; pełny magazyn jest wyróżniony), **ŻYWNOŚĆ** (produkcja, zużycie ludzi, podatek górniczy, maksymalna ludność), „Głód za”, ostrzeżenia (narzędzie, popularność < 45, podatek 3), link do Doradcy z liczbą ostrzeżeń, budowniczowie (czynni / ustawieni), **BUDOWA** (do 4 placów z postępem), **HARACZ** (następna rata, dostawa / wymagane, terminy; koszyk daniny Słowian), załoga na morzu (Wikingowie) i **NAPADY** (Saraceni, gdy był już napad). Panel odświeża się co 0,2 min gry.
