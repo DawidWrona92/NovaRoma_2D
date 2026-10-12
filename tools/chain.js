@@ -28,6 +28,30 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   ok(sawActs > n * 0.2, `${fid}: robotnik Tartaku piłuje (${sawActs}/${n} próbek)`);
   console.log(`${fid}: eff Tartaku ${Math.round(eff * 100)}% · piłuje ${sawActs}/${n} · zamiata ${sweeping} · ładunki ${[...loadSeen].join(',')}`);
 }
+// Leśnik: sadzi sadzonki na polach wybranych przez logikę, ręka pusta po sadzeniu, powrót do domu po następną, drzewo wyrasta tam, gdzie posadzono
+for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
+  World.init(fid, { climate: Data.FACTIONS[fid].climate, type: fid === 'vikings' ? 'coast' : 'plain', seed: 5 });
+  const s = World.state(); s.res.narzędzia = 50; s.settings.workers = true; s.settings.physical = true;
+  const put = id => { for (let r = 3; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
+  const fo = put('forester'); s.staffed[fo.uid] = true; const door = Walkers.doorOf(fo), N = s.map.size;
+  let away = false, wasPlant = false, violHome = 0, plants = 0, loadAfter = 0, tracked = new Map(), matured = 0, ok1 = 0, sawPlanted = 0, sawTotal = 0, farPlant = 0;
+  const growth = Data.FACTIONS[fid].treeGrowthMin;
+  for (let i = 0; i < Math.ceil((growth + 40) / 0.05); i++) {
+    const before = s.saplings.slice(); World.tick(0.05); Walkers.update(0.05);
+    for (const q of before) if (q.i != null && !s.saplings.includes(q)) { matured++; sawTotal++; if (Workers.plantedAt(q) != null) sawPlanted++; if (s.map.tiles[q.i].trees >= 1) ok1++; }
+    const w = Walkers.figures().find(a => a.kind === 'worker' && a.uid === fo.uid); if (!w) continue;
+    const dd = Math.hypot(w.x - door[0], w.y - door[1]);
+    if (w.act === 'plant') { if (!wasPlant) { plants++; if (away && fid !== 'vikings') violHome++; away = true; if (dd > 12) farPlant++; } }
+    else if (wasPlant && w.load && fid !== 'vikings' && !s.saplings.some(q => q.b === fo.uid && !Workers.plantedAt(q))) loadAfter++;   // po sadzeniu (ostatniej sadzonki) ręka ma być pusta
+    if (dd < 1.6 && w.act !== 'plant') away = false;
+    wasPlant = w.act === 'plant';
+  }
+  ok(plants >= 10, `${fid}: leśnik sadzi (${plants} sadzeń)`);
+  ok(violHome === 0, `${fid}: po każdej sadzonce wraca do domu po następną (${violHome} naruszeń)`);
+  ok(sawTotal > 5 && sawPlanted >= sawTotal * 0.8, `${fid}: dojrzałe drzewa były wcześniej posadzone przez leśnika (${sawPlanted}/${sawTotal})`);
+  ok(sawTotal > 5 && ok1 >= sawTotal * 0.9, `${fid}: drzewo wyrasta na polu sadzonki (${ok1}/${sawTotal})`);
+  console.log(`${fid}: sadzeń ${plants}, dojrzało ${matured}, na swoim polu ${ok1}, posadzonych wcześniej ${sawPlanted}`);
+}
 // status w interfejsie: częściowe wejście to ostrzeżenie z procentem, brak wejścia to błąd
 {
   World.init('franks', { climate: 'temperate', type: 'plain', seed: 3 }); const s = World.state(); s.res.narzędzia = 50;

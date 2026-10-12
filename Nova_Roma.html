@@ -7842,8 +7842,24 @@ const World = (() => {
   }
   const treeOk = t => t.h === 1 && !t.occup && !t.road && !t.pad && t.trees < 3 && !t.deposit && (!t.k || t.k === 'oasis');   // pad = obrys kopalni/brzegu zarezerwowany przez generator: drzewa tu nie odrastają
   /* sadzonka dojrzała: drzewo wyrasta losowo na mapie (dawniej) albo — przy settings.physical — blisko Leśniczówki, która ją posadziła (deterministycznie, bez RNG) */
+  /* pole, na którym Leśniczówka b posadzi sadzonkę nr k (settings.physical): pole w odległości 2,5–9 od jej drzwi, wolne i nieobrane przez inną oczekującą sadzonkę (trzy z czterech tuż obok poprzedniej); wybór deterministyczny
+     (bez RNG). Sadzonka zapamiętuje to pole (sp.i), robotnik idzie je posadzić, a drzewo wyrasta dokładnie tam. Brak miejsca → null (drzewo trafi w dowolne pole jak dawniej) */
+  function saplingSpot(b, k) {
+    const tiles = state.map.tiles, N = state.map.size, door = Walkers.doorOf(b), cand = [], taken = new Set(); for (const q of state.saplings) if (q.i != null) taken.add(q.i);
+    for (let y = Math.max(0, Math.floor(door[1] - 9)); y <= Math.min(N - 1, Math.floor(door[1] + 9)); y++) for (let x = Math.max(0, Math.floor(door[0] - 9)); x <= Math.min(N - 1, Math.floor(door[0] + 9)); x++) {
+      const d = Math.hypot(x + 0.5 - door[0], y + 0.5 - door[1]); if (d >= 2.5 && d <= 9 && treeOk(tiles[y * N + x]) && !taken.has(y * N + x)) cand.push(y * N + x);
+    }
+    if (!cand.length) return null;
+    let pool = cand;
+    if ((k | 0) % 4 !== 0) {                                                                                   // trzy z czterech sadzonek tuż obok poprzedniej tej Leśniczówki: zagajnik, krótkie marsze
+      let last = null; for (let j = state.saplings.length - 1; j >= 0; j--) if (state.saplings[j].b === b.uid && state.saplings[j].i != null) { last = state.saplings[j].i; break; }
+      if (last != null) { const lx = last % N, ly = (last / N) | 0, near = cand.filter(i => Math.hypot((i % N) - lx, ((i / N) | 0) - ly) <= 2.3); if (near.length) pool = near; }
+    }
+    const h = Math.imul((k | 0) + 1, 2654435761) >>> 0; return pool[(h >>> 7) % pool.length];
+  }
   function addTree(sp) {
     const tiles = state.map.tiles, N = state.map.size;
+    if (sp && sp.i != null && treeOk(tiles[sp.i])) { tiles[sp.i].trees++; return true; }                          // sadzonka rośnie na swoim polu
     if (sp && sp.b != null && state.settings.physical) {
       const fb = state.buildings.find(q => q.uid === sp.b);
       if (fb) {
@@ -7940,7 +7956,7 @@ const World = (() => {
 
   function state$() { return state; }
   return { init, state: state$, build, placeFree, placeBuilding, canPlace, crowdOf, levelOf, canAfford, costOf,
-           tick, spawnCitizen, treeCount, addTree, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf, dockPierTiles };
+           tick, spawnCitizen, treeCount, addTree, saplingSpot, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf, dockPierTiles };
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
@@ -8181,7 +8197,7 @@ const Economy = (() => {
           // akumulacja ułamkowa — przy małym dt produkcja < 1 sadzonki/tick
           s.plantFrac += rate * sc * frac * popMult * dt;
           const growth = Data.FACTIONS[s.factionId].treeGrowthMin;
-          while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push(s.settings.physical ? { t: s.time + growth, b: b.uid, k: s.plantSeq++ } : { t: s.time + growth }); }
+          while (s.plantFrac >= 1) { s.plantFrac -= 1; s.saplings.push(s.settings.physical ? { t: s.time + growth, b: b.uid, k: s.plantSeq++, i: World.saplingSpot(b, s.plantSeq - 1) } : { t: s.time + growth }); }
           continue;
         }
         if (!(og in LIMIT)) continue;
@@ -10774,8 +10790,24 @@ const Workers = (() => {
   }
   const goodsOfDef = def => Object.keys(def.inp || {}).concat(Object.keys(def.out || {})).filter(LIMITED);
   /* cykl pracy budynku b: lista kroków {k:'go'|'act'|'take'|'drop'|'idle'} */
+  /* Leśniczówka (settings.physical): sadzonki, które logika zapisała na polach (sp.i), robotnik sadzi po kolei — bierze z domu wiązkę (1 sztuka; Wikingowie, których Leśniczówka daje 2/min — 4),
+     idzie kolejno na pola i sadzi, po ostatniej sadzonce ma pustą rękę i wraca po następną wiązkę. Posadzoną sadzonkę widać od tej chwili jako rosnące drzewko (planted → Game.render); bez zaległych
+     sadzonek robotnik zostaje przy domu. Zapis „posadzono” jest tylko wizualny (WeakMap), stanu gry nie dotyka */
+  const planted = new WeakMap();
+  function foresterCycle(s, b, door) {
+    const N = s.map.size, rate = Object.values(Data.BUILDINGS.forester.out)[0] * (s.factionId === 'vikings' ? (Economy.VIK_RATE.forester || 1) : 1), n = rate <= 1.2 ? 1 : 4;               // zwykła Leśniczówka (1/min): jedna sadzonka na kurs; Wikingowie (2/min) niosą po cztery, bo jeden kurs na sztukę nie nadążałby
+    const pend = s.saplings.filter(q => q.b === b.uid && q.i != null && !planted.has(q) && s.time < q.t).slice(0, n); if (!pend.length) return [];
+    const steps = [{ k: 'go', p: door, tool: null }, { k: 'act', act: null, dur: 0.12, face: [door[0], door[1] + 1], tool: null }, { k: 'take', g: 'sadzonki' }];
+    for (const q of pend) {
+      const x = (q.i % N) + 0.5, y = ((q.i / N) | 0) + 0.5;
+      steps.push({ k: 'go', p: [x, y], tool: null }, { k: 'act', act: 'plant', dur: 0.12, face: [x, y + 0.5], tool: null, plant: q });
+    }
+    steps.push({ k: 'drop' }, { k: 'go', p: door, tool: null });                                           // ręka pusta dopiero po ostatniej sadzonce; po następną wraca do domu
+    return steps;
+  }
   function cycleOf(s, b, w, claimed) {
     const def = Data.BUILDINGS[b.id], role = Data.ROLES[b.id], C = Data.RULES.cycle, door = Walkers.doorOf(b), store = nearestStore(s, door, goodsOfDef(def)), steps = [];
+    if (b.id === 'forester' && s.settings.physical) { const f = foresterCycle(s, b, door); return f.length ? f : [{ k: 'go', p: door, tool: null }, { k: 'idle', dur: 0.4, face: [door[0], door[1] + 1] }]; }
     if (role.spot === 'service') {                                             // obsługa: stoi i krąży przy drzwiach
       const sp = spotsOf(s, b, role, door, claimed);
       for (let i = 0; i < sp.length; i++) { steps.push({ k: 'go', p: sp[i] }, { k: 'act', act: role.act, dur: 1.2 + hash(b.uid, 10 + i) * 1.6, face: [sp[i][2], sp[i][3]] }); }
@@ -10823,7 +10855,7 @@ const Workers = (() => {
   function enterStep(w, st, map) {
     const a = w.a; w.planned = true;
     if (st.k === 'go') { Walkers.kit.plan(a, st.p[0], st.p[1], map); a.act = null; }
-    else if (st.k === 'act') { a.act = st.act; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
+    else if (st.k === 'act') { a.act = st.act; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } if (st.plant) planted.set(st.plant, w.b.uid === st.plant.b ? World.state().time : 0); }
     else if (st.k === 'idle') { a.act = null; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
     else if (st.k === 'take') { a.load = Data.LOADS[st.g] || null; }
     else if (st.k === 'drop') { a.load = null; }
@@ -10869,7 +10901,7 @@ const Workers = (() => {
     }
     list = []; for (const w of figs.values()) list.push(w.a);
   }
-  return { update, figures: () => list, reset() { figs.clear(); list = []; lastMap = null; }, cycleOf, spotsOf, idleNow };
+  return { update, figures: () => list, plantedAt: sp => planted.get(sp), reset() { figs.clear(); list = []; lastMap = null; }, cycleOf, spotsOf, idleNow };
 })();
 
 /* ================================ MODUL: GAME ============================== */
@@ -11062,6 +11094,8 @@ const Game = (() => {
     { const mx = 270 * K + 40, my = 520 * K + 40, cs = [[-mx, -50], [W + mx, -50], [W + mx, H + my], [-mx, H + my]].map(([a, b]) => Camera.screenToWorld(a, b));
       tx0 = Math.max(0, Math.floor(Math.min(cs[0].x, cs[1].x, cs[2].x, cs[3].x)) - 1); tx1 = Math.min(size - 1, Math.ceil(Math.max(cs[0].x, cs[1].x, cs[2].x, cs[3].x)) + 1);
       ty0 = Math.max(0, Math.floor(Math.min(cs[0].y, cs[1].y, cs[2].y, cs[3].y)) - 1); ty1 = Math.min(size - 1, Math.ceil(Math.max(cs[0].y, cs[1].y, cs[2].y, cs[3].y)) + 1); }
+    let sapAt = null;                                                                                          // posadzone sadzonki: indeks pola → postęp wzrostu 0–1
+    if (s.saplings.length) for (const q of s.saplings) { if (q.i == null) continue; const t0 = Workers.plantedAt(q); if (t0 == null || q.t <= t0) continue; (sapAt || (sapAt = new Map())).set(q.i, Math.max(0, Math.min(1, (s.time - t0) / (q.t - t0)))); }
     for (let y = ty0; y <= ty1; y++) {
       for (let x = tx0; x <= tx1; x++) {
         const ti = y * size + x, tile = s.map.tiles[ti];
@@ -11075,6 +11109,13 @@ const Game = (() => {
           const sp = treePick(climate, x, y, i); if (!sp) continue;
           const o = treeSpot(x, y, i, tile.trees), k = K * o.k, p = Camera.worldToScreen(x + o.fx, y + o.fy);
           push({ d: x + y + o.fx + o.fy, kind: 't', spr: sp, sx: p.x, sy: p.y, k, bb: bbOf(sp, p.x, p.y, k), x: x + o.fx, y: y + o.fy, ph: o.ph });
+        }
+        const sap = sapAt && sapAt.get(ti);                                                                    // posadzona sadzonka rośnie w miejscu przyszłego drzewa (od 25% do 100% wielkości)
+        if (sap) {
+          const sp = treePick(climate, x, y, tile.trees); if (sp) {
+            const o = treeSpot(x, y, tile.trees, tile.trees + 1), k = K * o.k * (0.22 + 0.78 * sap), p = Camera.worldToScreen(x + o.fx, y + o.fy);
+            push({ d: x + y + o.fx + o.fy, kind: 't', spr: sp, sx: p.x, sy: p.y, k, bb: bbOf(sp, p.x, p.y, k), x: x + o.fx, y: y + o.fy, ph: o.ph });
+          }
         }
         if (dec && !tile.occup) {
           const arr = dec.byTile.get(ti);
