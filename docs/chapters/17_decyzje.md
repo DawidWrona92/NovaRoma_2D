@@ -18,7 +18,9 @@ Tabela: Fazy prac i ich efekty (commity w gałęzi `claude/festive-meitner-ejo4l
 | 9B-0, 9B-1 | tempo gry 12 s/min; role i czynności postaci (`Workers`) | `c2f1c36`, `c158a7c` |
 | 9B-2 … 9B-4 | fizyczna sprawność transportu, drwal, budowniczowie, karawany, okręty | (ten etap) |
 | 9B-5 | strojenie: karawana kosmetyczna (złoto od razu), L_ref 5, histereza robotników (`tools/workers.js` 60/60), bramka bilansu 75% bazowej i 85% krzywej | `ce00013` |
-| 9C | obrót budynków, Przystań i Okręt na wodzie (strefy ląd/woda), kopalnie w górach, fauna unikająca miasta, artefakt, ekran diagnostyczny startu | (ten etap) |
+| 9C | obrót budynków, Przystań i Okręt na wodzie (strefy ląd/woda), kopalnie w górach, fauna unikająca miasta, artefakt, ekran diagnostyczny startu | `693f686` |
+| 9D-1 | rozmiar mapy 48 / 72 / 96 do wyboru w Piaskownicy (domyślnie Średnia 72) | `e9b8312` |
+| 9D-2, 9D-3 | Osada (druga wioska) i Składy wyspecjalizowane (górniczy, drzewny); węzły logistyczne `hub` | `a7b37a3` |
 
 Stan i plan dalszych prac: `docs/PLAN.md` (kopia w repozytorium).
 
@@ -41,6 +43,8 @@ Tabela: Decyzje użytkownika
 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach**; na mapach bez gór powstaje skalisty masyw (dziś dla Franków) | złoża tylko na polach o wysokości ≥ 3, masyw 17–25 pól od Dworu z własnym generatorem losowym, walidacja wymaga kompletu złóż | {{ref:teren}} |
 | **Zwierzęta unikają miasta, są rzadsze i odradzają się w punktach spawnu** | strefa 3,5 pola wokół budynków, liczebność ok. 50% (łowna 70%), `ref` 4, punkty spawnu wałęsających się i ptaków | {{ref:fauna}} |
 | **Przystań (szopa na lądzie, molo na wodzie) i Okręt (na wodzie przy molo) z obrotem; docelowo wszystkie budynki w 4 kierunkach** | strefy ląd/woda, `rot` w budynku i placu, klawisz R / przycisk ⟳; port i okręt w 4 kierunkach teraz, reszta jako osobny etap grafiki | {{ref:obrot}} |
+| **Rozmiar mapy do wyboru w Piaskownicy**: Mała 48, Średnia 72 (domyślna), Duża 96; testy i 58 scenariuszy specyfikacji zostają na 48 | `MapGen.SIZES`, skalowanie K = N/48 (cechy ×K², odległości ×K, złoża ×K), fauna ×K; `tools/mapsize.js` | {{ref:teren}} |
+| **Druga wioska i magazyny „tylko dla kopalń w górach” i „tylko dla lasów w oddalonych kopalniach”: Osada + Składy wyspecjalizowane** (zamiast jednego dużego Składu) | `Data.hub`, `RULES.hub`, `Logistics.distVia`; Osada: miejsca dwóch Chat, +40 szt., bonus 3 pól, baza budowniczych, tylko daleko od Dworu; Skład górniczy i drzewny przyjmują tylko swoje towary (+100 szt.) | {{ref:wezly}} |
 
 ## Decyzje projektowe (z uzasadnieniem) {#decyzje-projektowe}
 
@@ -72,7 +76,7 @@ Tabela: Decyzje użytkownika
 
 **Każdy ma zajęcie** (decyzja użytkownika z Fazy 9B): robotnik budynku, który stoi, zamiata lub idzie sprawdzić Skład; jedynie budowniczowie bez placu i wolni obywatele stoją lub spacerują (rozdz. {{ref:workers}}).
 
-**Magazyn centralny = Dwór** (bez nowego budynku): Skład skraca marsz lokalnie, a gracz ma realny wybór między drogą, Składem i zagęszczeniem zabudowy. Karawany są tylko wizualizacją (złoto wpływa od razu, jak w Twierdzy), a okręty wizualizacją rejsu; napady nadal liczone ze skarbca.
+**Magazyn centralny = Dwór** (do Fazy 9C bez nowego budynku; od Fazy 9D węzłami są także Osada i Składy wyspecjalizowane, rozdz. {{ref:wezly}}): Skład skraca marsz lokalnie, a gracz ma realny wybór między drogą, Składem i zagęszczeniem zabudowy. Karawany są tylko wizualizacją (złoto wpływa od razu, jak w Twierdzy), a okręty wizualizacją rejsu; napady nadal liczone ze skarbca.
 
 ## Decyzje otwarte {#decyzje-otwarte}
 
@@ -80,5 +84,5 @@ Poniższe wartości mają **domyślne rozstrzygnięcie**, które użytkownik mo�
 
 - (rozstrzygnięte w Fazie 9B-0) tempo bazowe czasu gry — 12 s na minutę gry zamiast 4;
 - napady na karawanę pozostają rozliczane ze skarbca (specyfikacja); karawana kosmetyczna nie jest ich „celem”;
-- magazyn centralny = Dwór;
+- (rozstrzygnięte w Fazie 9D) magazyn centralny = Dwór, a oddalone grupy producentów obsługuje Osada i Składy wyspecjalizowane;
 - po Fazie 10: czy zostawić styl „klasyczny” (`?classic=1`) jako zapas.

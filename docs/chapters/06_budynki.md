@@ -16,11 +16,13 @@ Każda nacja ma zestaw własnych budynków i wspólnych, które różnią się k
 
 ## Budynki wspólne {#wspolne}
 
-Jedenaście budynków występuje u wszystkich czterech nacji:
+{{v:Object.keys(Data.BUILDINGS).filter(id => id !== 'keep' && !Data.BUILDINGS[id].factions).length}} budynków występuje u wszystkich czterech nacji:
 
 {{tabela:koszty_wspolne}}
 
 U Wikingów Chata (Długi dom) mieści 8 osób zamiast 6, a drwal, leśnik i tartak pracują szybciej (rozdz. {{ref:ekonomia}}); u Słowian cennik bazuje na Wikingach bez zwiększonej Chaty (Chata 4 d, Tartak 8 d, reszta jak u Franków bez kamienia). Kościół nazywa się u Saracenów Meczetem, a u Słowian Kapliczką.
+
+Trzy z tych budynków są **węzłami logistycznymi** (Faza 9D; zasady w rozdz. {{ref:wezly}}). **Osada** (obrys 4×3, kategoria Mieszkania) to druga wioska: mieści tyle co dwie Chaty, dodaje {{v:Data.RULES.hub.cap}} szt. każdego towaru do pojemności i może stanąć tylko daleko od Dworu i innych Osad. **Skład górniczy** i **Skład drzewny** (obrys 3×2, kategoria Handel) przyjmują wyłącznie swoje towary — rudę, węgiel, kamień, glinę i sztabki, albo pnie i deski — i dodają po {{v:Data.RULES.hub.special}} szt. tych towarów. Ich koszty są w tabeli powyżej.
 
 ## Dwór {#dwor}
 

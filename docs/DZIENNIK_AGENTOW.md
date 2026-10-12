@@ -14,6 +14,10 @@ Cel: sprawdzić, czy delegowanie opłaca się względem pracy samodzielnej. Wpis
 | 12.10 | haiku-documentation | obrót, Przystań i Okręt: rozdz. 11 i inne | 144 tys. | 21 | 148 s | N | limit 14 tur: zdążył tylko zacząć rozdz. 11 i zostawił odwołanie do nieistniejącej sekcji; resztę (11, 14, 15, 16, 17, tabele, README) napisał rodzic |
 | 12.10 | haiku-documentation (nowa definicja, 40 tur) | rozdz. C i D po obrocie, artefakcie i dzienniku | 69 tys. | 15 | 105 s | T | pełny raport w formacie z definicji; 15 narzędzi (starym limitem 14 by się urwał); jedyna usterka: uznał za niespójność, że „skrypt diagnostyczny startu” nie jest plikiem (to blok wewnątrz gry) — bez wpływu na tekst |
 
+| 12.10 | haiku-documentation | rozmiary map 9D-1: rozdz. 10, 14, 16, README | 97 tys. | 16 | 110 s | N | limit 14 tur bez raportu, nic nie zapisał na dysku; całość napisał rodzic |
+| 12.10 | haiku-documentation | Osada i składy 9D-2/3: rozdz. 12, 06, 15, E | 134 tys. | 28 | 121 s | P | limit 14 tur bez raportu; zapisał rozdz. 12 (dobry, zgodny z faktami), 06 i 15 (błędne `{{v:SPRITE_META…}}` poprawił rodzic); aneksu E nie dotknął |
+
 ## Błędy rodzica (do porównania)
 - Commit fazy 9B przy padającym `tools/workers.js` (kod wyjścia zamaskowany przez `| tail`).
 - Bramka `physical.js --full` nie została uruchomiona po ostatnim strojeniu (wyszła awaria bota N dopiero później).
+- Definicja agenta dokumentacji ma `maxTurns: 40`, ale narzędzie `Agent` zatrzymuje go po 14 turach; poprawka definicji z 12.10 nie pomogła. Wniosek: dawać mu jeden plik i gotowy tekst do wklejenia albo pisać dokumentację samemu.

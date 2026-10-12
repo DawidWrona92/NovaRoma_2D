@@ -18,11 +18,12 @@ Tabela: Ekrany przed grą i w grze
 
 ### Piaskownica {#piaskownica}
 
-Wybór ma trzy osie, a **podgląd odświeża się po każdej zmianie** (po 60 ms zwłoki):
+Wybór ma cztery osie, a **podgląd odświeża się po każdej zmianie** (po 60 ms zwłoki):
 
 1. **Nacja** — karty te same, co na dawnym ekranie wyboru (`UI.buildFactionCards(wrap, onPick, compact)` — wersja `compact` jest mniejsza i nie startuje gry, tylko woła `onPick`).
 2. **Klimat** — {{v:Object.keys(Data.CLIMATES).length}} klimaty (rozdz. {{ref:teren}}). Domyślnie klimat własny nacji (oznaczony „klimat nacji”); po ręcznej zmianie klimatu wybór zostaje przy zmianie nacji.
 3. **Typ mapy** — {{v:Object.keys(Data.MAPTYPES).length}} typów, nazwy zależne od klimatu (np. „Wydmy i oazy” zamiast „Bagnista” na pustyni). **Wikingowie są zablokowani na typie „Nadmorska”**, bo ich budynki (Przystań, Okręt) wymagają morza; przy wyborze Wikingów pole typu przełącza się na nadmorską i wyświetla się odpowiednia uwaga.
+4. **Rozmiar mapy** (kafle `#sbSizes`, wartość `sb.size`) — Mała 48, **Średnia 72 (domyślna)** i Duża 96; opis podglądu podaje rozmiar („średnia 72×72”). Rozmiar można też podać w adresie parametrem `?size=`. Start z Piaskownicy tworzy mapę wybranego rozmiaru; kamera, minimapa i fauna biorą N z `map.size`.
 
 **Podgląd** (`Minimap`, kanwa 192×192 px, 1 pole = 4 px) rysuje mapę z tych samych danych, z których powstanie gra: `Minimap.generate` woła `MapGen.generate` z identycznymi argumentami, więc po Starcie świat jest **identyczny z podglądem** (jedyna różnica to rezerwacja pól Dworu — test `tools/minimap.js` porównuje pole po polu). Kolory: woda wg rodzaju (morze, jezioro, rzeka, bród, lód), skały, cechy terenu (bagno, wydma, ruchome piaski, oaza, zaspa, klif), złoża (kamień, żelazo, węgiel, glina, ruda darniowa), zagęszczenie drzew; biała ramka 4×4 pośrodku oznacza Dwór. Pod podglądem widać opis („Dolina rzeki · Pustynny · ziarno 597318”) i podsumowanie: udział wody i wzgórz, liczba drzew, rzeki z brodami / jeziora / morze, cechy terenu, złoża.
 

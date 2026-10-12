@@ -22,6 +22,10 @@ Zwierzęta unikają miasta. Każdy budynek i każdy plac budowy ma **strefę** o
 
 Wałęsające się zwierzęta i ptaki mają **punkty spawnu** (`state.fauna.spawns`: {k, x, y}, po jednym na grupę lub ptaka, wybierane przy zaludnieniu mapy). Brakujące osobniki odradzają się w punkcie spawnu swojego gatunku, który leży poza strefami zabudowy. Tempo to `respawn` = {{v:Data.FAUNA_RULES.respawn}} osobnika/min pomnożone przez brak populacji (1 − liczba/`n`); ułamkowe osobniki gromadzi licznik `state.fauna.sacc` ({gatunek: akumulator}). Zwierzyna łowna odradza się, jak dotąd, przy legowiskach.
 
+## Rozmiar mapy {#fauna-rozmiar}
+
+Liczebność zwierzyny, legowiska i punkty spawnu skalują się z rozmiarem mapy (K = N / 48, rozdz. {{ref:mapa}}): na mapie 72 i 96 pól zwierząt jest odpowiednio więcej (pomiar: około 289 zwierząt na mapie 96, `Fauna.tick` ≈ 0,17 ms). Mapa 48 daje dokładnie dotychczasowe liczby.
+
 ## Polowanie z łukiem {#polowanie}
 
 Chata myśliwego (budynek z `game: true`) ma łowisko — promień `radius` = {{v:Data.FAUNA_RULES.radius}} pól wokół obrysu. Gdy zebrane mięso (`b.huntAcc`) osiągnie `minMeat` = {{v:Data.FAUNA_RULES.minMeat}}, a myśliwy jest obsadzony, wybiera najbliższą zwierzynę łowną (sarny i inne o wadze ≥ 0,9 mają pierwszeństwo) i rusza ścieżką `Path`. Wyprawa jest opisana wyłącznie przez czas gry: `Fauna.poseOf(h, time)` zwraca pozycję i tryb myśliwego jako czystą funkcję czasu, bez zmiennych stanu między klatkami.

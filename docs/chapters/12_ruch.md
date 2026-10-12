@@ -1,6 +1,6 @@
 # Ruch, drogi i logistyka {#ruch}
 
-Ruch ludzi jest w grze osobną warstwą nad ekonomią. Dziś składa się z czterech części: **Path** (A\* po polach mapy), **Walkers** (widoczni piesi — „cień symulacji”), **Roads** (drogi przyspieszające ruch) i **Logistics** (sprawność producentów zależna od odległości do Składu lub Dworu). Tylko ostatnia z nich wpływa na liczby ekonomii; pozostałe są wizualne lub służą kontroli dostępu. Plan ożywienia ludzi tak, by ich czynności były spójne z ekonomią (Faza 9B), opisuje aneks {{ref:aneks-fizyka}}.
+Ruch ludzi jest w grze osobną warstwą nad ekonomią. Dziś składa się z czterech części: **Path** (A\* po polach mapy), **Walkers** (widoczni piesi — „cień symulacji”), **Roads** (drogi przyspieszające ruch) i **Logistics** (sprawność producentów zależna od odległości do najbliższego węzła: Składu, Dworu, Osady lub Składu wyspecjalizowanego; zob. {{ref:wezly}}). Tylko ostatnia z nich wpływa na liczby ekonomii; pozostałe są wizualne lub służą kontroli dostępu. Plan ożywienia ludzi tak, by ich czynności były spójne z ekonomią (Faza 9B), opisuje aneks {{ref:aneks-fizyka}}.
 
 ## Ścieżki: moduł Path {#path}
 
@@ -22,8 +22,8 @@ Test `tools/path.js` porównuje A\* z niezależnym Dijkstrą (optymalność), sp
 - **Drzwi budynku** (`Walkers.doorOf`): punkt tuż przed wejściem z katalogu sprite'ów (strona S lub E i punkt na ścianie), przesunięty na najbliższe wolne pole.
 - **Prędkość na polu:** droga ×1,6, wolniej po bagnie, brodzie i wydmach (`1/√koszt`).
 - **Ewakuacja:** gdy plac lub budynek stanie pod postacią, wychodzi prosto na najbliższe wolne pole, a potem wraca do celu.
-- **Budowniczowie** noszą materiały z Dworu na plac (etap noszenia), potem budują przy obrysie; bez przydziału lub po ukończeniu wracają do Dworu i znikają.
-- **Nosiciele** wychodzą z drzwi producenta i kończą marsz przy drzwiach najbliższego Składu lub Dworu (cel wybiera logika).
+- **Budowniczowie** noszą materiały z najbliższej bazy budowy — Dworu, Składu lub Osady (etap noszenia), potem budują przy obrysie; bez przydziału lub po ukończeniu wracają do tej bazy i znikają.
+- **Nosiciele** wychodzą z drzwi producenta i kończą marsz przy drzwiach najbliższego węzła, który przyjmuje ich towar (cel wybiera logika; zob. {{ref:wezly}}).
 - **Myśliwi** nie są częścią `Walkers`: ich pozycja to czysta funkcja czasu gry (rozdz. {{ref:fauna}}).
 
 Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w Fazie 9B-0)
@@ -42,7 +42,7 @@ Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w 
 
 Od Fazy 9B-1 (przełącznik `settings.workers`, w grze włączony; `?workers=0` przywraca dawne cienie) **każdy obsadzony budynek z rolą ma jednego widocznego robotnika**, który wykonuje swoją pętlę pracy. Moduł `Workers` korzysta z `Walkers` (ścieżki, drogi, ewakuacja spod placów), ale nie zmienia logiki gry: tak jak piesi jest „cieniem symulacji” — stan żyje poza stanem gry, nie losuje (miejsca pracy wybiera funkcja skrótu z `uid` budynku) i nie wywołuje globalnego `RNG`. Na ekranie widać więc to, co dzieje się w ekonomii, ale niczego to nie zmienia w wynikach.
 
-**Pętla pracy** (`Workers.cycleOf`): *weź wejście ze Składu lub Dworu* → *idź na miejsce pracy* (z wejściem w rękach, które tam odkłada) → *pracuj* (animacja narzędzia; kilka odcinków w różnych miejscach, jeśli praca trwa dłużej niż {{v:Data.RULES.cycle.spell}} min) → *weź wyjście i zanieś je do najbliższego Składu lub Dworu*. Czas pracy w jednej pętli to `ładunek / tempo wyjścia`, gdzie ładunek wynosi {{v:Data.RULES.cycle.load}} szt. (pojemność lokalnego składziku); marsz trwa tyle, ile wynika z odległości, prędkości {{v:Data.RULES.walk.v}} pola/min i terenu (droga ×1,6, bagno i bród wolniej). Dlatego **droga i bliski Skład skracają marsz** — to ten sam cykl, z którego w Fazie 9B-2 wynika sprawność transportu (aneks {{ref:e-model}}).
+**Pętla pracy** (`Workers.cycleOf`): *weź wejście z najbliższego węzła* → *idź na miejsce pracy* (z wejściem w rękach, które tam odkłada) → *pracuj* (animacja narzędzia; kilka odcinków w różnych miejscach, jeśli praca trwa dłużej niż {{v:Data.RULES.cycle.spell}} min) → *weź wyjście i zanieś je do najbliższego węzła, który je przyjmuje*. Czas pracy w jednej pętli to `ładunek / tempo wyjścia`, gdzie ładunek wynosi {{v:Data.RULES.cycle.load}} szt. (pojemność lokalnego składziku); marsz trwa tyle, ile wynika z odległości, prędkości {{v:Data.RULES.walk.v}} pola/min i terenu (droga ×1,6, bagno i bród wolniej). Dlatego **droga i bliski Skład skracają marsz** — to ten sam cykl, z którego w Fazie 9B-2 wynika sprawność transportu (aneks {{ref:e-model}}).
 
 Tabela: Role robotników w grze (z kodu)
 {{tabela:role_robotnikow}}
@@ -75,11 +75,11 @@ Test `tools/roads.js` sprawdza m.in. koszt tylko za nowe pola, odmowy, zdejmowan
 Producent daleko od Składu lub Dworu daje mniej. `Logistics.effOf` zwraca mnożnik plonu (przerobu) `eff`, który wchodzi do `Economy.tick` i `potentialFood` obok mnożnika lasu i zwierzyny:
 
 ```
-dist  =  koszt drogi (Path.field) od drzwi producenta do drzwi najbliższego Składu lub Dworu
+dist  =  koszt drogi (Path.field) od drzwi producenta do drzwi najbliższego węzła, który przyjmuje jego towary
 eff   =  1 − (1 − min) × clamp( (dist − free) / span, 0, 1 )
 ```
 
-Parametry (`Data.RULES.logistics`): `free` = {{v:Data.RULES.logistics.free}} pól (bez kary), `span` = {{v:Data.RULES.logistics.span}} pól (zakres spadku), `min` = {{v:Data.RULES.logistics.min}} (najniższa sprawność).
+Parametry (`Data.RULES.logistics`): `free` = {{v:Data.RULES.logistics.free}} pól (bez kary), `span` = {{v:Data.RULES.logistics.span}} pól (zakres spadku), `min` = {{v:Data.RULES.logistics.min}} (najniższa sprawność). Węzły i zasady wyboru, w tym bonus Osady, opisuje sekcja {{ref:wezly}}.
 
 Odległość liczona jest po polach z kosztami terenu: pole lądu kosztuje 1, **droga 0,6**, a budynki, bagna i woda wydłużają trasę (zajęte pola są blokadą). Producentem jest każdy budynek z wyjściem będącym towarem z listy limitów. Wynik jest pamiętany do zmiany układu (liczba budynków i placów, wersja dróg); budynek dostaje `b.logi = { eff, dist }` do pokazania w interfejsie („transport do Składu ≈ N pól (−X%): zbliż budynki lub połóż drogę”). Opcja `settings.logistics` jest wyłączona w testach specyfikacji (żaden scenariusz się nie zmienia) i włączona w grze (przycisk 🚚, `?logistics=0`).
 
@@ -97,12 +97,12 @@ Przełącznik `settings.physical` (w grze domyślnie włączony razem z logistyk
 
 ```
 Tw    =  ładunek / Σ wyjść [szt./min]                 ładunek = RULES.cycle.load
-trips =  max(1, Σ wejść / Σ wyjść)                    kursy ze Składu do budynku na cykl (wejście tam, wyjście z powrotem)
+trips =  max(1, Σ wejść / Σ wyjść)                    kursy do węzła na cykl (wejście tam, wyjście z powrotem)
 Th(L) =  trips · (2·L / v + obsługa)                  v = RULES.walk.v, L — koszt drogi (pole lądu 1, droga 0,6)
 eff   =  min( 1,  (Tw + Th(L_ref)) / (Tw + Th(L)) )   L_ref = RULES.cycle.ref; bez dojścia: RULES.cycle.min
 ```
 
-Stałe: ładunek **{{v:Data.RULES.cycle.load}} szt.**, obsługa {{v:Data.RULES.cycle.handle}} min, prędkość {{v:Data.RULES.walk.v}} pól/min, `L_ref` = **{{v:Data.RULES.cycle.ref}} pól** (bliżej nie ma ani kary, ani premii), najniższa sprawność {{v:Data.RULES.cycle.min}} (brak dojścia — Doradca pisze „brak dojścia do Składu / Dworu”). Cechy modelu:
+Stałe: ładunek **{{v:Data.RULES.cycle.load}} szt.**, obsługa {{v:Data.RULES.cycle.handle}} min, prędkość {{v:Data.RULES.walk.v}} pól/min, `L_ref` = **{{v:Data.RULES.cycle.ref}} pól** (bliżej nie ma ani kary, ani premii), najniższa sprawność {{v:Data.RULES.cycle.min}} (brak dojścia — Doradca pisze „brak dojścia do magazynu”). Cechy modelu:
 
 - **Tylko na niekorzyść:** `eff ≤ 1` — nic nie przyspiesza gospodarki ponad specyfikację (test `tools/physical.js` sprawdza to dla każdego producenta każdej osady bota).
 - **Wrażliwość zależy od budynku:** im szybciej producent wytwarza towar, tym większą część cyklu zajmuje marsz — Piekarnia (3,3 szt./min) traci przy tej samej odległości więcej niż drwal (1 szt./min), a Huta (dwa wejścia na jedno wyjście) jedzie po wejścia dwa razy.
@@ -119,7 +119,7 @@ Przy `settings.physical` drwal **ścina najbliższe drzewo** (`World.nearestTree
 
 ### Budowniczowie {#budowniczowie-fizyka}
 
-Przy `settings.physical` budowa ma dwa czasy zależne od odległości: **dojście** budowniczych z Dworu na plac (`odległość / v` minut, raz dla każdego przydziału — przez ten czas plac stoi) oraz **noszenie materiału kursami po `RULES.cycle.carry` ({{v:Data.RULES.cycle.carry}}) sztuk**: czas jednej sztuki to `max(0,2 min, (2·L / v + obsługa) / kurs)`, gdzie `L` to droga od najbliższego Składu lub Dworu do placu. Bliskie place budują się jak dawniej (0,2 min na sztukę), dalekie — dłużej, więc **droga do placu i Skład w pobliżu budowy skracają budowę**. Budowniczowie bez placu czekają przy Dworze (rozdz. {{ref:workers}}).
+Przy `settings.physical` budowa ma dwa czasy zależne od odległości: **dojście** budowniczych z ich bazy (najbliższego Dworu, Składu lub Osady) na plac (`odległość / v` minut, raz dla każdego przydziału — przez ten czas plac stoi) oraz **noszenie materiału kursami po `RULES.cycle.carry` ({{v:Data.RULES.cycle.carry}}) sztuk**: czas jednej sztuki to `max(0,2 min, (2·L / v + obsługa) / kurs)`, gdzie `L` to droga od najbliższej bazy do placu. Bliskie place budują się jak dawniej (0,2 min na sztukę), dalekie — dłużej, więc **droga do placu i Skład w pobliżu budowy skracają budowę**. Budowniczowie bez placu czekają przy Dworze (rozdz. {{ref:workers}}).
 
 ### Karawany Saracenów {#karawany}
 
@@ -131,8 +131,37 @@ Przy `settings.physical` karawana Saracenów jest **kosmetyczna**, jak karawana 
 
 Gdy okręt jest w rejsie (`b.awayUntil`), na ekranie **odpływa** z przystani w głąb morza (najdalej 14 pól, w kierunku najdłuższego pasa wody) i wraca w chwili końca rejsu; położenie jest czystą funkcją czasu rejsu, a logika wypraw (załoga, miód, broń, 10 / 12 min) się nie zmienia. Załoga, która odpłynęła, znika z ekranu (jest odjęta od wolnych obywateli).
 
+## Węzły logistyczne: Osada i Składy wyspecjalizowane {#wezly}
+
+Faza 9D dodała do Dworu i Składu dwa nowe rodzaje węzłów, do których niesie się towar: **Osadę** (druga wioska) i **Składy wyspecjalizowane** (górniczy i drzewny). Węzeł to budynek, który przyjmuje towar od producentów i nosicieli oraz jest punktem startu budowniczych. Węzły zmieniają **odległość marszu i pojemność**, ale nie tworzą osobnych magazynów: cała osada nadal ma jedną pulę każdego towaru (zob. niżej).
+
+Tabela: Węzły logistyczne i co przyjmują
+| Węzeł | Przyjmuje | Rola |
+|---|---|---|
+| Dwór | wszystkie towary | magazyn centralny (komora 20 szt. każdego towaru), cel nosicieli bez Składu, baza budowniczych |
+| Skład | wszystkie towary | +80 szt. każdego towaru; baza budowniczych |
+| Osada | wszystkie towary | +{{v:Data.RULES.hub.cap}} szt. każdego towaru; miejsca jak dwie Chaty; baza budowniczych |
+| Skład górniczy | ruda, węgiel, kamień, glina, sztabki | +{{v:Data.RULES.hub.special}} szt. tych towarów; skraca marsz kopalniom i hucie |
+| Skład drzewny | pnie, deski | +{{v:Data.RULES.hub.special}} szt. tych towarów; skraca marsz drwalowi i tartakowi |
+
+Składy wyspecjalizowane **nie są bazą budowniczych** i nie dają miejsc w domach.
+
+**Wybór węzła.** Producent i jego robotnik idą do najbliższego węzła, który przyjmuje **wszystkie** towary tego budynku (wejścia i wyjścia). Dlatego kopalnie żelaza i węgla, kamieniołom, glinianka, kopalnia darniowa i huta korzystają z Składu górniczego, drwal i tartak z drzewnego, a budynki mieszane (np. Wypalarka węgla, która bierze pnie i oddaje węgiel) i młyny — tylko z węzłów ogólnych. Producentom liczącym dojazd do Osady odejmuje się {{v:Data.RULES.hub.free}} pola od kosztu drogi (bonus `free`). Funkcja `Data.hubAccepts` decyduje, czy węzeł przyjmuje dany zestaw towarów; jej wynik widać w karcie budynku (`transport do Składu górniczego ≈ N pól drogi …`) i w podglądzie stawiania.
+
+**Gdzie wolno stawiać Osadę.** Osada musi stać co najmniej {{v:Data.RULES.hub.minDist}} pól od Dworu i {{v:Data.RULES.hub.apart}} pól od innej Osady na mapie 48×48. Obie odległości rosną proporcjonalnie do rozmiaru mapy (`K` = rozmiar / 48). Liczba Osad jest ograniczona: `max(1, ⌊rozmiar / 24⌋ − 1)` — na mapie 48 pól jedna, na 72 dwie, na 96 trzy; liczą się też place budowy. Odmowę podaje komunikat w podglądzie: „Osada musi stać co najmniej X pól od Dworu”, „Limit Osad na tej mapie: N” lub „Za blisko innej Osady (min. X pól)”.
+
+**Pojemność.** Każdy towar ma w osadzie limit `min(limit towaru, 6 × czynni producenci + 20 (komora Dworu) + 80 × Składy + 40 × Osady + 100 × Składy wyspecjalizowane przyjmujące ten towar)`. Zasady pojemności i wpływ na ekonomię opisuje rozdz. {{ref:ekonomia}}.
+
+**Podgląd i Doradca.** Przy stawianiu Składu, Osady i Składów wyspecjalizowanych pokazuje się mapa ciepła zasięgu (`heatDraw`). Doradca sprawdza producentów o sprawności poniżej 85% i podpowiada węzeł: Skład górniczy przy kopalniach i hucie, drzewny przy drwalu i tartaku, a Skład albo Osadę, gdy daleko do magazynu jest co najmniej trzech innych budynków.
+
+> [!uwaga] **Model gospodarki pozostaje globalny.** Węzły nie dzielą osady na wioski: deski do budowy, zapasy i popyt liczą się dla całej osady, a węzeł zmienia tylko to, ile pola kosztuje dojazd i ile towaru się w nim mieści. Osada daje miejsca w domach, pojemność i skrócony dojazd dla producentów wokół siebie, ale nie tworzy odrębnej gospodarki.
+
+> [!decyzja] **Duży Skład odrzucony na rzecz Osady i Składów wyspecjalizowanych** (Faza 9D, decyzja użytkownika). Zamiast jednego dużego Składu z większym promieniem powstały trzy węzły z różnymi rolami. Dwór pozostaje magazynem centralnym, zgodnie z decyzją z Fazy 9B (aneks {{ref:e-decyzje}}).
+
+Test `tools/hubs.js` sprawdza dane i sprite'y czterech nacji, reguły stawiania Osady na mapach 48, 72 i 96 pól, miejsca w domach i pojemność, wybór węzła przez logistykę, bonus Osady i bazę budowniczych oraz pełną budowę z kosztem.
+
 ## Co z tego wynika dla gracza {#wnioski}
 
-- **Składy przy producentach i drogi do nich** podnoszą wydajność (do −10% bez nich); Skład ma więc dwie role: pojemność (rozdz. {{ref:ekonomia}}) i skrócenie transportu.
-- Dwór jest **magazynem centralnym** każdej osady: do niego idzie transport, gdy nie ma Składu; im bliżej Dworu stoi producent, tym mniejsza kara — kosztem zagęszczenia (przerwa i kara za ciasną zabudowę, rozdz. {{ref:zabudowa}}).
+- **Składy przy producentach i drogi do nich** podnoszą wydajność (do −10% bez nich); Skład ma więc dwie role: pojemność (rozdz. {{ref:ekonomia}}) i skrócenie transportu. Węzły wyspecjalizowane i Osada (sekcja {{ref:wezly}}) służą temu samemu celowi tam, gdzie Skład ogólny nie wystarcza.
+- Dwór jest **magazynem centralnym** każdej osady: do niego idzie transport, gdy nie ma innego węzła; im bliżej Dworu stoi producent, tym mniejsza kara — kosztem zagęszczenia (przerwa i kara za ciasną zabudowę, rozdz. {{ref:zabudowa}}).
 - Budynki daleko od wszystkiego (kopalnie na złożach, rybacy na brzegu) można „uleczyć” drogą lub własnym Składem. Kopalnie kamienia, żelaza i węgla leżą teraz w górskim masywie, 11–30 pól od Dworu (rozdz. {{ref:masyw}}), więc dla nich droga lub Skład bardziej się liczy.

@@ -17,14 +17,25 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | 9C-1 | warianty grafiki Przystani i Okrętu w 4 kierunkach (`vikings_dock@1…3`, `vikings_ship@1…3`), katalog i `SPRITE_META` z wariantami | ✔ |
 | 9C-2 | logika: `rot` w budynku i placu, strefy ląd/woda (`Data.zonesOf`), Przystań = szopa na lądzie + molo na wodzie morza, Okręt = tylko woda przy molo, wejście od strony lądu, Okręt płynie w stronę dziobu | ✔ (`tools/rotation.js` 44/44, scenariusze 58/58, bramka bilansu Wikingów 82% / 94%) |
 | 9C-3 | sterowanie: klawisz R / przycisk ⟳ (także telefon), auto-obrót pod kursorem, podświetlenie wody; bot wybiera kierunek (100 map nadmorskich bez niepowodzeń) | ✔ |
-| 9C-docs | rozdziały 11, 14, 15, 16, 17, tabele stanu, README testów | ◐ agent dokumentacji w toku |
+| 9C-docs | rozdziały 11, 14, 15, 16, 17, C, D, tabele stanu, README testów | ✔ |
 | 9C-4 | **obracanie pozostałych ~80 budynków w 4 kierunkach** (decyzja użytkownika: wszystkie w 4 kierunkach). Wymaga dorysowania tylnych ścian (północnej i zachodniej) w silniku sprite'ów, bo dziś modelowane są tylko ściany S i E; dekoracje „na ścianie” (tarcze, szyldy, liny) trzeba oznaczyć ścianą. Plan: najpierw wspólny mechanizm obrotu brył w `prototyp/src` (rzut z obrotem + widoczność ścian), potem nacja po nacji z kontrolą wizualną; wejście budynku wybiera gracz (drogi, ścieżki) | ○ osobny duży etap |
+
+**Faza 9D — większe mapy, druga wioska, składy wyspecjalizowane** (zamówienie użytkownika po uwagach kolegów: zabudowa zajmuje całą mapę, budynki stoją „wokół kopalń”; chcą drugiej wioski i magazynów tylko dla kopalń w górach i dla lasów przy oddalonych kopalniach).
+
+| Etap | Zakres | Stan |
+|---|---|---|
+| 9D-1 | **rozmiar mapy do wyboru w Piaskownicy**: Mała 48, Średnia 72 (domyślna), Duża 96; skalowanie K = N/48 (cechy i drzewa ×K², odległości ×K, złoża ×K), fauna i kamera z rozmiaru; testy i 58 scenariuszy zostają na 48 (bit-w-bit jak dotąd); `tools/mapsize.js` 360 sprawdzeń | ✔ |
+| 9D-2 | **Osada** (druga wioska, 4 nacje, grafika 4×3): miejsca dwóch Chat, +40 szt. każdego towaru, punkt zbiorczy z bonusem 3 pól, baza budowniczych; stawiana tylko ≥ 12·K pól od Dworu i ≥ 10·K od innej Osady, limit N/24 − 1 (48: 1, 72: 2, 96: 3); koszt np. Frankowie 14 desek + 6 kamienia + 100 zł | ✔ |
+| 9D-3 | **Składy wyspecjalizowane**: górniczy (ruda, węgiel, kamień, glina, sztabki) i drzewny (pień, deski) — +100 szt. tylko swoich towarów, obsługują producenta, którego wszystkie towary przyjmują; logistyka liczy najbliższy pasujący węzeł (`via`), mapa ciepła i Doradca podpowiadają właściwy węzeł; `tools/hubs.js` 112 sprawdzeń | ✔ |
+| 9D-docs | rozdz. 10, 12, 14, 15, 16, 17, 06, aneks E, README testów | ◐ agenci dokumentacji w toku |
+
+Do sprawdzenia przy dużych testach: wydajność 96×96 na telefonie (pomiar tylko w Chromium: start 4,4 s, tick 0,17 ms), bilans botów na mapach 72/96 (wzorzec `baseline6`).
 
 Wcześniej w tej serii (✔): kopalnie tylko w górach (masyw), zwierzęta unikają miasta i odradzają się w punktach spawnu, karawana kosmetyczna, `L_ref` 5, gra jako artefakt (https://claude.ai/artifact/KqRh8cYnMbqEnTdCYN85kd), ekran diagnostyczny startu.
 
 Na koniec (duże testy, wg ustaleń): pełna regresja `regress.sh`, bramka `physical.js --full`, scenariusze ekonomii, nowy wzorzec `baseline6`.
 
-## 3. Kolejka (po zmianach 1–3)
+## 3. Kolejka (po zmianach 1–3 i Fazie 9D)
 
 1. **Zamknięcie 9B-5:** wzorzec regresji `baseline6` (do Fazy 10 w scratchpadzie, potem `tools/baseline/` + `tools/regress.sh` w repo), PDF, WIP.
 2. **Dokumentacja do v1.0:** rozdz. 18 (spec a implementacja) i aneks A (wyniki symulatora ze specyfikacji) — wymagają treści specyfikacji; zrzuty ekranu (`docs/img`, `docs/shots.js`); przegląd wizualny wszystkich stron PDF; wpis w rozdz. 17 o każdej decyzji.
@@ -39,6 +50,7 @@ Na koniec (duże testy, wg ustaleń): pełna regresja `regress.sh`, bramka `phys
 - Chata myśliwego nie wymaga lasu; menu główne RTS z Piaskownicą; tryb pracy „auto” (bez dopytywania, commit + push + WIP po fazie);
 - **Faza 9B:** ludzie naprawdę pracują (drwal, cieśla, budowniczowie, karawana), drogi ważniejsze, magazyn centralny = Dwór, bez zepsucia balansu;
 - **karawana Saracenów kosmetyczna** (złoto od razu, jak w Twierdzy); **odległość boli mocniej** (`RULES.cycle.ref` 8 → 5), bramka bilansu ≥ 75% wyniku bazowego i ≥ 85% dawnej krzywej (osiągnięte: 79% / 91%); bot N tylko informacyjnie (kruchy);
+- **rozmiar mapy do wyboru (48/72/96) i druga wioska: Osada + Składy wyspecjalizowane (górniczy, drzewny)** zamiast jednego dużego Składu; Dwór nadal jest magazynem centralnym;
 - **kopalnie tylko w górach, masyw na każdej mapie**; **Przystań (szopa na lądzie, molo na wodzie) i Okręt (na wodzie przy molo) z obrotem; wszystkie budynki docelowo w 4 kierunkach**; zwierzęta unikają miasta, są rzadsze i odradzają się w legowiskach;
 - dziennik pracy agentów w `docs/DZIENNIK_AGENTOW.md`.
 

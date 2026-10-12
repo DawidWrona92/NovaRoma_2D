@@ -26,6 +26,8 @@ Faktyczną pojemność towaru w danej chwili wyznacza `Economy.capOf` — wzór 
 pojemność(towar) = min( limit(towar),  6 × (czynni producenci towaru)  +  20 (komora Dworu)  +  80 × (liczba Składów) )
 ```
 
+Od Fazy 9D wzór ma dwa dodatki spoza specyfikacji, które działają tylko, gdy gracz zbuduje te budynki (w testach specyfikacji ich nie ma): **+{{v:Data.RULES.hub.cap}} szt. każdego towaru za każdą Osadę** oraz **+{{v:Data.RULES.hub.special}} szt. za każdy Skład górniczy lub drzewny, ale tylko dla towarów, które ten Skład przyjmuje** (rozdz. {{ref:wezly}}).
+
 Producent odkłada towar „u siebie” (6 szt. każdego wytwarzanego towaru); dopóki jest miejsce, produkcja idzie. Gdy lokalny zapas jest pełny, a Składu nie ma lub jest pełny, producent **stoi** (status **Z**) — towar nie ginie. Skład (+80 szt. każdego towaru, bez pracownika i bez narzędzia) jest neutralny w zwykłej grze, a niezbędny przy dużych jednorazowych zadaniach (np. 40 żołnierzy naraz, 12 sztuk miodu i broni na wielką wyprawę, daniny Słowian powyżej poziomu 6). „Czynny producent” to budynek **obsadzony**, którego dowolne wyjście jest danym towarem.
 
 > [!pulapka] Pojemność liczy się per towar, a nie per budynek: np. trzy tartaki i jeden Skład dają pojemność desek `min(250, 18 + 20 + 80) = 118`. Dlatego bez Składu deski potrafią zatrzymać Tartak, gdy gracz nie wydaje ich dość szybko (Doradca ostrzega, gdy ≥ 2 budynki stoją z pełnym magazynem).
