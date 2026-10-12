@@ -10677,7 +10677,7 @@ const Music = (() => {
         const padOn = L.has('strings') || L.has('pad');
         if (padOn && b % 2 === 0) for (const k of [0, 2, 4]) add(t0, P.pad.voice, ch(d0, k) + P.pad.oct, bar * 2 + 0.6, (k === 0 ? 0.26 : 0.2) * vel);
         // --- warstwy specyficzne dla nacji ---
-        if (P.extra) P.extra({ add, t0, b, d0, L, vel, bar, spb, rnd, ch, R, M, sec: pn });
+        if (P.extra) P.extra({ add, t0, b, d0, L, vel, bar, spb, rnd, ch, R, M, sec: pn, loop, bi, bars });
       }
     }
     // --- melodie (druga pętla po taktach, by frazy dzieliły się między sekcjami) ---
@@ -10745,7 +10745,7 @@ const Music = (() => {
     const tone = v === 'tek' ? [0, 0, 0.0001] : v === 'dum' ? [135, 78, 0.28] : v === 'tabor' ? [150, 85, 0.24] : [110, 58, 0.34];
     if (tone[0]) { o.frequency.setValueAtTime(tone[0], t); o.frequency.exponentialRampToValueAtTime(tone[1], t + 0.12); g.gain.setValueAtTime(G, t); g.gain.exponentialRampToValueAtTime(0.0001, t + tone[2]); o.connect(g); g.connect(out); o.start(t); o.stop(t + tone[2] + 0.05); }
     nz.buffer = noise(ctx); nf.type = v === 'tek' ? 'bandpass' : 'lowpass'; nf.frequency.value = v === 'tek' ? 4200 : 700; nf.Q.value = v === 'tek' ? 1.2 : 0.7;
-    ng.gain.setValueAtTime(G * (v === 'tek' ? 1.0 : 0.22), t); ng.gain.exponentialRampToValueAtTime(0.0001, t + (v === 'tek' ? 0.07 : 0.1)); nz.connect(nf); nf.connect(ng); ng.connect(out); nz.start(t, Math.random() * 0); nz.stop(t + 0.15);
+    ng.gain.setValueAtTime(G * (v === 'tek' ? 1.0 : 0.22), t); ng.gain.exponentialRampToValueAtTime(0.0001, t + (v === 'tek' ? 0.07 : 0.1)); nz.connect(nf); nf.connect(ng); ng.connect(out); nz.start(t); nz.stop(t + 0.15);
   }
   /* tor wyjściowy: suma → (sucha + pogłos z wygenerowanej odpowiedzi impulsowej) → filtr dolnoprzepustowy → kompresor → głośność */
   function chain(ctx, nation, dest) {
@@ -10759,8 +10759,8 @@ const Music = (() => {
   }
 
   /* ---------- odtwarzanie w czasie rzeczywistym ---------- */
-  let ctx = null, master = null, mix = null, st = null, timer = null, armed = null, level = 2, gestureOn = false, ksNation = null;
-  const saved = store.get(); if (saved && typeof saved.level === 'number') level = Math.max(0, Math.min(LEVELS.length - 1, saved.level | 0));
+  let ctx = null, master = null, mix = null, st = null, timer = null, armed = null, level = 2, lastLevel = 2, gestureOn = false;
+  const saved = store.get(); if (saved && typeof saved.level === 'number') { level = Math.max(0, Math.min(LEVELS.length - 1, saved.level | 0)); if (level > 0) lastLevel = level; }
   const gainOf = () => LEVELS[level][1] * 0.9;
   function begin(nation, loop, at) { const c = compose(nation, loop); return { nation, loop, ev: c.events, i: 0, t0: at, len: c.len, name: c.name }; }
   function pump() {
@@ -10787,14 +10787,14 @@ const Music = (() => {
     if (ctx) startAudio();
   }
   function stop() { armed = null; st = null; if (timer) { clearInterval(timer); timer = null; } if (master && ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0, ctx.currentTime, 0.3); } }
-  function setLevel(i) { level = Math.max(0, Math.min(LEVELS.length - 1, i | 0)); store.set({ level }); if (master && ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(gainOf(), ctx.currentTime, 0.25); } }
+  function setLevel(i) { level = Math.max(0, Math.min(LEVELS.length - 1, i | 0)); if (level > 0) lastLevel = level; store.set({ level }); if (master && ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(gainOf(), ctx.currentTime, 0.25); } }
   const cycle = () => { setLevel((level + 1) % LEVELS.length); return LEVELS[level][0]; };
-  const toggle = () => { setLevel(level === 0 ? 2 : 0); return LEVELS[level][0]; };
+  const toggle = () => { setLevel(level === 0 ? lastLevel : 0); return LEVELS[level][0]; };
 
   /* render poza czasem rzeczywistym (testy, podgląd): nacja, obieg, liczba sekund, częstotliwość próbkowania → Promise<{ left, right, sampleRate }> */
   async function render(nation, loop = 0, seconds = 30, sr = 22050, from = 0) {
     const OC = typeof window !== 'undefined' && (window.OfflineAudioContext || window.webkitOfflineAudioContext); if (!OC) throw new Error('Brak OfflineAudioContext');
-    const oc = new OC(2, Math.floor(seconds * sr), sr), out = chain(oc, nation, oc.destination), c = compose(nation, loop), g = oc.createGain(); ksCache.clear();
+    const oc = new OC(2, Math.floor(seconds * sr), sr), out = chain(oc, nation, oc.destination), c = compose(nation, loop); ksCache.clear();
     for (const e of c.events) { const t = e.t - from; if (t < -2 || t > seconds) continue; play(oc, out, e, Math.max(0, t)); }
     const buf = await oc.startRendering(); return { left: buf.getChannelData(0), right: buf.getChannelData(1), sampleRate: sr };
   }
