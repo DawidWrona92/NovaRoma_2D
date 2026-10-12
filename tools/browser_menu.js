@@ -64,6 +64,8 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     await pg.fill('#sbSeed', '777'); await pg.dispatchEvent('#sbSeed', 'change'); await pg.waitForTimeout(250);
     const want = await pg.evaluate(() => Menu.state().meta);
     await pg.click('#sbStart'); await ready(pg);
+    ok(await vis(pg, '#missionBox') && /Cel gry/.test(await pg.textContent('#missionBox')), `${fid}: po starcie z Piaskownicy pokazuje się ekran celu`);
+    await pg.getByRole('button', { name: /Swobodna gra/ }).click(); await pg.waitForTimeout(150);
     const got = await pg.evaluate(() => { const s = World.state(), m = s.map.meta; return { fid: s.factionId, climate: m.climate, type: m.type, seed: m.seed, menus: ['mainMenu', 'sandbox', 'pauseMenu', 'factionPick'].map(id => getComputedStyle(document.getElementById(id)).display), hud: document.getElementById('hudFaction').textContent }; });
     ok(got.fid === fid && got.climate === climate && got.type === type && got.seed === want.seed && got.climate === want.climate && got.type === want.type, `${fid}: gra na mapie z podglądu (${got.climate} · ${got.type} · ziarno ${got.seed})`);
     ok(got.menus.every(d => d === 'none') && got.hud.includes(name), `${fid}: ekrany menu ukryte, HUD opisuje nację i mapę (${got.hud})`);
@@ -114,7 +116,7 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     await pg.locator('#mmList button[data-id="sandbox"]').tap(); await pg.waitForTimeout(250);
     const lay = await pg.evaluate(() => { const r = document.getElementById('sbPreview').getBoundingClientRect(), f = document.querySelector('#sbFactions').getBoundingClientRect(); return { previewAbove: r.bottom <= f.top + 2, noOverflow: document.documentElement.scrollWidth <= innerWidth + 1 }; });
     ok(lay.previewAbove && lay.noOverflow, 'Piaskownica na telefonie: podgląd nad kafelkami, bez przewijania poziomego');
-    await pg.locator('#sbStart').tap(); await ready(pg);
+    await pg.locator('#sbStart').tap(); await ready(pg); await pg.getByRole('button', { name: /Swobodna gra/ }).tap(); await pg.waitForTimeout(150);
     ok(await vis(pg, '#btnMenu'), 'telefon: ☰ Menu widoczny w HUD po starcie'); await c.close(); }
 
   { // rozmiar mapy w Piaskownicy: domyślnie Średnia (72), wybór Dużej daje mapę 96×96 w podglądzie i w grze
@@ -123,7 +125,7 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     ok((await pg.locator('#sbSizes button').count()) === 3 && (await pg.locator('#sbSizes button.sel').getAttribute('data-id')) === '72', 'Piaskownica: trzy rozmiary mapy, domyślnie Średnia (72)');
     await pg.click('#sbSizes button[data-id="96"]'); await pg.fill('#sbSeed', '321'); await pg.dispatchEvent('#sbSeed', 'change'); await pg.waitForTimeout(400);
     const prev = await pg.evaluate(() => Menu.state().meta); ok(prev.size === 96 && /96×96/.test(await pg.textContent('#sbDesc')), 'podgląd Dużej mapy: ' + (await pg.textContent('#sbDesc')));
-    await pg.click('#sbStart'); await ready(pg);
+    await pg.click('#sbStart'); await ready(pg); await pg.getByRole('button', { name: /Swobodna gra/ }).click();
     ok((await pg.evaluate(() => World.state().map.size)) === 96, 'start z Piaskownicy: mapa gry 96×96'); await c.close(); }
   ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close();

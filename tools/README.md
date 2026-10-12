@@ -24,6 +24,8 @@ Wymagany jest Node 18+ (skrypty `browser_*.js` dodatkowo Playwright z Chromium).
 | `node tools/fauna.js [plik]` | Fauna (Faza 8): zaludnienie 12 map wg klimatu, pozycje zwierząt na polach przechodnich i wolnych przez 120 min gry z botem, zero wywołań globalnego `RNG`, determinizm, snapshot → restore, parytet logiki z fauną i bez, wyprawy myśliwego (fazy, strzała), przetrzebienie przy wielu Chatach i odrodzenie, parytet ekonomii botów (`TestBots.runSync({ fauna: true })`), koszt ticku. |
 | `node tools/browser_mobile_build.js` | Budowa na telefonie (390×780, dotyk): duch przesuwany dotknięciem, „Postaw” stawia, „Zakończ” wychodzi, Magazyn jako chwilowy podgląd, strona nie szersza od ekranu. |
 | `node tools/rotation.js [plik]` | Obrót budynków (Faza 9C): Przystań (szopa na lądzie, molo na wodzie morza) i Okręt (na wodzie przy molu) w 4 kierunkach — strefy, reguły stawiania, plac, wyburzenie, wejście, JSON, bot na wielu mapach. |
+| `node tools/mission.js [plik]` | Misja (Punkt 11): komunikaty po terminach, porażka/zwycięstwo, wyludnienie, swobodna gra (18 sprawdzeń) |
+| `node tools/browser_mission.js [plik]` | Misja w przeglądarce: ekran celu, podsumowanie, telefon (14 sprawdzeń) |
 | `node tools/chain.js [plik]` | Łańcuch Drwal → Tartak, Leśnik (sadzonki na polach, ręka pusta, powrót po następną) i opis Targu (53 sprawdzenia; Punkt 10: praca na zewnątrz i w budynku) |
 | `node tools/clearing.js [plik]` | Oczyszczanie terenu pod budowę (Faza 9E-3): drzewa i bagno, czas, stopniowe znikanie, blokady (42 sprawdzenia) |
 | `node tools/browser_figure.js [plik]` | Karta postaci i przycisk „Idź do budynku” (przeglądarka, 11 sprawdzeń) |

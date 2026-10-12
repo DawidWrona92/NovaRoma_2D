@@ -2,6 +2,14 @@
 
 Haracz jest **jedynym sposobem wywierania presji** w tej grze: scenarzysta (gracz w menu HUD) wybiera preset trudności albo poziom 1–11, a gra przelicza go na jednostki nacji tak, żeby każda płaciła w przybliżeniu tyle samo pracy. Za niedobór nie ma kary ekonomicznej w locie — niedobór zwiększa licznik braków (reputacja albo porażka misji to decyzja scenariusza). Moduł `Tribute` obsługuje terminy, płatności nacji, rynek Targu i wyprawy Wikingów.
 
+## Misja: cel gry i koniec przygody {#misja}
+
+Haracz jest osią **misji** (Punkt 11, moduł `Mission`, stan `s.mission`, przełącznik `settings.mission`; testy specyfikacji go nie używają). Cel: **przetrwać N terminów haraczu** — {{v:Mission.GOAL.easy}} (Łatwy), {{v:Mission.GOAL.normal}} (Normalny), {{v:Mission.GOAL.hard}} (Trudny), {{v:Mission.GOAL.master}} (Mistrz); terminy przypadają co {{v:Tribute.TERM_EVERY}} min gry, pierwszy po czasie zależnym od nacji. **Porażka** następuje, gdy {{v:Mission.MAX_MISS}} terminy z rzędu pozostaną niespełnione albo gdy osada się wyludni.
+
+Gracz dostaje informację zwrotną na każdym kroku: **ekran celu** przy starcie z menu (opis żądania seniora dla nacji, zasady wygranej i przegranej, wybór trudności albo swobodna gra), **komunikat po każdym terminie** (spełniony lub nie, dostarczono z wymaganego, ile terminów zostało, ostrzeżenie przy serii porażek), przycisk **🎯 Terminy k/N** w pasku z oknem celu i postępu oraz **ekran podsumowania** (zwycięstwo lub porażka, czas, terminy, dostawy, ludność, budynki, złoto) z przyciskami „Zagraj ponownie / Spróbuj ponownie”, „Menu główne” i „Buduj dalej swobodnie” (haracz wyłączony). Start misji: parametr adresu `?mission=ask|easy|normal|hard|master|free` (menu używa `ask`; „Nowa mapa” zachowuje tryb); bez parametru (testy, zrzuty) misji nie ma.
+
+> [!decyzja] Progi (6/8/10/12 terminów, porażka po 3 z rzędu) ustalił rodzic jako domyślne; zmienia się je stałymi `Mission.GOAL` i `Mission.MAX_MISS`.
+
 ## Poziomy i osobominuty {#poziomy}
 
 Poziom **L** żąda **2L osobominut pracy na minutę** (1 osoba pracująca minutę = 1 osobominuta), czyli ok. 5% siły roboczej na poziom przy 42 osobach. Wartość osoby (10 osobominut) i ceny jednostek są założeniami modelu. Nacje płacą różnymi jednostkami:

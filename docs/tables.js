@@ -152,7 +152,7 @@ const STATE_DOC = {
   sites: 'place budowy {id, x, y, w, h, uid, rot (kierunek 1–3; brak = 0), need, got, work, workNeed, levelLeft (minuty etapu 0: wyrównanie + czyszczenie), levelTotal, clr (przy settings.clearing: { items: [[pole, \'t\' drzewo | \'b\' bagno]…], n: ile wykonano, trees }), crowd, assigned}', builders: 'ustawienie liczby budowniczych (2–5)', buildersActive: 'budowniczowie faktycznie rekrutowani w ticku',
   buildersWorking: 'budowniczowie przydzieleni do placów (jedzą 1,5 racji)', carriers: 'nosiciele „cienia symulacji” (wizualni; ekonomia jest nominalna)', tribute: 'bieżący haracz: preset, level, firstTerm, terms, met, missed, delivered, byGood, log…',
   marketPrices: 'ceny Targu (kadzidło, tkanina, ceramika)', voyageMode: 'tryb wypraw Wikingów: normal | mixed', crewAway: 'załoga na wyprawach (osoby poza pracą)', voyages: 'trwające wyprawy {until, crew, great, ships}',
-  voyageStats: 'wykonane wyprawy: done (jednostki haraczu), trips', raids: 'napady na karawanę: count, lost, next (czas kolejnego sprawdzenia)', crisis: 'harmonogram kryzysów (null = wyłączony) lub { idx }',
+  voyageStats: 'wykonane wyprawy: done (jednostki haraczu), trips', raids: 'napady na karawanę: count, lost, next (czas kolejnego sprawdzenia)', mission: 'misja (Punkt 11): { status: active | won | lost | free, preset, goal (liczba terminów), maxMiss, streak (niespełnione z rzędu), startT, endT, reason, msgs: [{ kind, title, text, time }], summary }; null = bez misji', crisis: 'harmonogram kryzysów (null = wyłączony) lub { idx }',
   eventMsgs: 'komunikaty zdarzeń { text, time }', keep: 'wskaźnik na budynek Dworu (po restore odtwarzany z listy budynków)'
 };
 

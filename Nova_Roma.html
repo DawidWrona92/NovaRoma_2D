@@ -195,6 +195,15 @@
   #fCard h3 { color: var(--gold); font-size: 14px; margin: 0 0 1px; } #fCard .sub { color: #a89878; font-size: 11px; } #fCard .row { margin-top: 3px; }
   #fCard button { margin-top: 6px; margin-right: 6px; padding: 5px 9px; font-size: 12px; cursor: pointer; background: #3a2c18; color: var(--gold); border: 1px solid var(--panel-border); }
   #fCard .fClose { position: absolute; right: 4px; top: 2px; margin: 0; padding: 0 6px; border: 0; background: none; color: #c8bda8; font-size: 15px; }
+  /* --- komunikaty misji i okno celu / podsumowania (Punkt 11) --- */
+  #announce { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); top: calc(var(--hud-h) + 10px); width: min(460px, calc(100vw - 20px)); display: none; background: var(--panel-bg); border: 1px solid var(--panel-border); border-left: 5px solid #8fce8f; padding: 8px 12px; font-size: 13px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,.5); cursor: pointer; }
+  #announce.bad { border-left-color: #e08484; } #announce.info { border-left-color: var(--gold); } #announce b { color: var(--gold); display: block; font-size: 14px; margin-bottom: 2px; }
+  #missionBox { position: fixed; inset: 0; z-index: 75; display: none; align-items: center; justify-content: center; background: rgba(8,6,3,.78); padding: 10px; }
+  #missionBox .mbBox { width: min(480px, 100%); max-height: calc(100vh - 20px); overflow-y: auto; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 18px 20px; font-size: 14px; line-height: 1.5; }
+  #missionBox h2 { color: var(--gold); letter-spacing: 2px; margin: 0 0 8px; font-size: 20px; } #missionBox h2.won { color: #8fce8f; } #missionBox h2.lost { color: #e08484; }
+  #missionBox .mbSub { color: #a89878; font-size: 12px; margin-top: 8px; } #missionBox table { width: 100%; border-collapse: collapse; margin: 10px 0 4px; } #missionBox td { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.07); } #missionBox td:last-child { text-align: right; color: var(--gold); }
+  #missionBox .mbBtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; } #missionBox .mbBtns button { flex: 1 1 130px; padding: 10px 8px; font: inherit; font-size: 14px; cursor: pointer; background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; }
+  #missionBox .mbBtns button.main { background: #4d6b2a; border-color: #8fbf5a; font-weight: bold; }
   #bInfo h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
   #bInfo .sub { color: #a89878; font-size: 11px; }
 
@@ -280,6 +289,7 @@
   <button id="btnRations" class="sec">Racje: ×1</button>
   <button id="btnTax" class="sec">Podatek: 1</button>
   <button id="btnBuilders" class="sec">👷 Budowniczowie: 3</button>
+  <button id="btnGoal" class="sec" style="display:none" title="Cel misji i postęp">🎯 Cel</button>
   <select id="btnTribute" class="sec" title="Haracz seniora: preset trudności albo własny poziom 1–11"></select>
   <button id="btnVoyages" class="sec">⛵ Wyprawy: Zwykłe</button>
   <button id="btnGuard" class="sec" title="Reguła wysyłki: po odjeździe załogi zostaje ≥ 90% potrzebnych robotników">⛵ Zapas załogi: 90%</button>
@@ -7643,7 +7653,7 @@ const World = (() => {
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false, mission: false },
     animals: [], fauna: null,                                  // zwierzęta (Faza 8): lista JSON-owa i stan modułu Fauna (włączane przez Fauna.enable)
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
@@ -7652,7 +7662,7 @@ const World = (() => {
     tribute: null, marketPrices: { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 },
     voyageMode: 'normal', crewAway: 0, voyages: [], voyageStats: { done: 0, trips: 0 },
     /* Etap 5 — świat dynamiczny */
-    raids: { count: 0, lost: 0, next: 40 }, crisis: null, eventMsgs: []
+    raids: { count: 0, lost: 0, next: 40 }, crisis: null, eventMsgs: [], mission: null
   };
 
   function init(factionId, opts) {
@@ -7666,7 +7676,7 @@ const World = (() => {
     state.treeFrac = 0; state.plantFrac = 0; state.plantSeq = 0; state.caravans = []; state.caravanWait = 0; state.caravanPile = {};
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
-    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false, mission: false };
     state.animals = []; state.fauna = null;
     state.depositLeft = null;
     Data.cur.faction = factionId;
@@ -7675,7 +7685,7 @@ const World = (() => {
     state.tribute = null;
     state.marketPrices = { kadzidło: 4.2, tkanina: 3.6, ceramika: 2.4 };
     state.voyageMode = 'normal'; state.crewAway = 0; state.voyages = []; state.voyageStats = { done: 0, trips: 0 };
-    state.raids = { count: 0, lost: 0, next: 40 };
+    state.raids = { count: 0, lost: 0, next: 40 }; state.mission = null;
     state.crisis = null; state.eventMsgs = [];
     const f = Data.FACTIONS[factionId];
     // pełny magazyn towarów wg limitów z sekcji "Magazyny"
@@ -7935,6 +7945,7 @@ const World = (() => {
     Economy.tick(dt);
     Build.tick(dt); // kolejka placów, budowniczowie (po Economy — zna obsadę)
     Tribute.tick(dt); // haracz, sprzedaż na Targu, wyprawy Wikingów
+    Mission.tick(dt); // cele misji: wyludnienie osady (porażka); zwycięstwo i porażka z terminów — w Tribute → Mission.onTerm
     Events.tick(dt); // napady na karawany, kryzysy
     Fauna.tick(dt); // zwierzęta i wyprawy myśliwych (własne PRNG; przy wyłączonej faunie nic nie robi)
     // liczba figurek = ludność
@@ -8578,6 +8589,7 @@ const Tribute = (() => {
       t.lastOk = ok;
       t.log.push({ n: t.terms + 1, time: s.time, required, delivered: t.delivered, ok });
       t.terms++;
+      if (typeof Mission !== 'undefined') Mission.onTerm(s, t.log[t.log.length - 1]);                 // misja: komunikat po terminie, zwycięstwo lub porażka
     }
   }
 
@@ -8760,6 +8772,58 @@ const Tribute = (() => {
    się liczą) zmniejsza ryzyko o 40% i łup o 25% za cenę utrzymania. Sprawdzenie
    co 10 min od 40. minuty. Kryzysy (zaraza, pożar łańcucha, krach cen) idą z
    harmonogramu — silnik pozostaje deterministyczny (RNG z ziarnem). */
+/* ============================ MODUL: MISJA (Punkt 11) ============================
+   Cel gry: przetrwać N terminów haraczu seniora (co 15 min gry; N zależy od trudności). Komunikat po każdym terminie, zwycięstwo po N terminach, porażka po 3 niespełnionych z rzędu
+   albo gdy osada się wyludni; na końcu ekran podsumowania (UI.showSummary). Stan: s.mission = { status: 'active' | 'won' | 'lost' | 'free', preset, goal, maxMiss, streak, startT, endT, reason, msgs, summary }.
+   Wszystko za settings.mission (w testach specyfikacji wyłączone). 'free' — swobodna gra bez celów i bez haraczu (Punkt 12 dodaje wejście z menu). */
+const Mission = (() => {
+  const GOAL = { easy: 6, normal: 8, hard: 10, master: 12 }, MAX_MISS = 3;
+  const BRIEF = {
+    franks: 'Senior żąda od Dworu **żołnierzy**. Wybuduj Koszary, Kopalnię żelaza i węgla, Hutę oraz Zbrojownię, wyszkol oddziały i płać żołd w złocie.',
+    saracens: 'Senior żąda **złota**. Postaw Targ, Chatę nosiwody, Las kadzidlany i Wytwórnię kadzidła, sprzedawaj towary handlowe i strzeż karawan przed napadami.',
+    vikings: 'Senior żąda **wypraw**. Wybuduj Miodosytnię, Kopalnię darniową, Wypalarkę węgla, Hutę, Zbrojownię, Przystań i Okręt — wyprawy płyną z załogą, miodem i bronią.',
+    slavs: 'Senior żąda **daniny w towarach** (futra, miód, wosk). Postaw Barć, Woskarnię, Chatę łowcy futer i Garbarnię oraz Skład na zapasy.'
+  };
+  const cur = () => World.state().mission;
+  const goalOf = preset => GOAL[preset] || 8;
+  function free() { const s = World.state(); Tribute.set('off'); s.mission = { status: 'free', preset: 'off', goal: 0, maxMiss: 0, streak: 0, startT: s.time, endT: null, reason: '', msgs: [] }; s.settings.mission = false; return s.mission; }
+  function start(preset) {
+    const s = World.state(); Tribute.set(preset);
+    s.mission = { status: 'active', preset, goal: goalOf(preset), maxMiss: MAX_MISS, streak: 0, startT: s.time, endT: null, reason: '', msgs: [] }; s.settings.mission = true; return s.mission;
+  }
+  const f1 = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
+  function notify(m, kind, title, text) { const msg = { kind, title, text, time: World.state().time }; m.msgs.push(msg); if (m.msgs.length > 40) m.msgs.shift(); try { if (typeof UI !== 'undefined' && UI.announce) UI.announce(kind, title, text); } catch (e) { /* UI jeszcze nie gotowe */ } }
+  /* podsumowanie do ekranu końcowego */
+  function summary(s) {
+    const t = s.tribute || {}, m = s.mission;
+    return { time: Math.floor(s.time), pop: Math.floor(s.pop), popularity: Math.round(s.res.popularity || 50), gold: Math.floor(s.res.złoto), buildings: s.buildings.length - 1, terms: t.terms || 0, met: t.met || 0, missed: t.missed || 0, delivered: Math.round((t.delivered || 0) * 10) / 10, unit: Tribute.UNIT[s.factionId], goal: m ? m.goal : 0 };
+  }
+  function end(s, status, reason) {
+    const m = s.mission; m.status = status; m.reason = reason; m.endT = s.time; m.summary = summary(s);
+    notify(m, status === 'won' ? 'good' : 'bad', status === 'won' ? 'Zwycięstwo!' : 'Porażka', reason);
+    try { if (typeof UI !== 'undefined' && UI.showSummary) UI.showSummary(); } catch (e) { /* UI jeszcze nie gotowe */ }
+  }
+  /* po każdym terminie haraczu (e = wpis dziennika { n, required, delivered, ok }) */
+  function onTerm(s, e) {
+    const m = s.mission; if (!m || m.status !== 'active') return;
+    const u = Tribute.UNIT[s.factionId], left = Math.max(0, m.goal - (s.tribute ? s.tribute.terms : e.n));
+    if (e.ok) {
+      m.streak = 0;
+      notify(m, 'good', 'Termin ' + e.n + ' z ' + m.goal + ' spełniony', 'Senior przyjął haracz: dostarczono łącznie ' + f1(e.delivered) + ' z wymaganych ' + f1(e.required) + ' ' + u + '. ' + (left > 0 ? 'Do zwycięstwa: ' + left + ' ' + (left === 1 ? 'termin' : 'terminy') + '. Następny za 15 min.' : ''));
+    } else {
+      m.streak++;
+      notify(m, 'bad', 'Termin ' + e.n + ' niespełniony', 'Dostarczono ' + f1(e.delivered) + ' z wymaganych ' + f1(e.required) + ' ' + u + '. Niespełnione z rzędu: ' + m.streak + ' z ' + m.maxMiss + (m.streak >= m.maxMiss - 1 ? ' — jeszcze jeden i przegrywasz!' : '. Nadrób zaległości przed następnym terminem.'));
+    }
+    if (m.streak >= m.maxMiss) end(s, 'lost', 'Senior stracił cierpliwość: ' + m.maxMiss + ' terminy haraczu z rzędu pozostały niespełnione.');
+    else if ((s.tribute ? s.tribute.terms : e.n) >= m.goal) end(s, 'won', 'Przetrwałeś ' + m.goal + ' terminów haraczu — senior uznał Twój gród za godny zaufania.');
+  }
+  function tick(dt) {
+    const s = World.state(), m = s.mission; if (!m || m.status !== 'active' || !s.settings.mission) return;
+    if (s.time > 8 && s.pop < 1) end(s, 'lost', 'Osada się wyludniła — nie ma już komu pracować ani płacić.');
+  }
+  return { start, free, onTerm, tick, summary, GOAL, MAX_MISS, BRIEF, goalOf, cur };
+})();
+
 const Events = (() => {
   const GUARD_UPKEEP = 0.6;  // zł/min
   const GUARD_MAX = 2;
@@ -9884,7 +9948,11 @@ const UI = (() => {
     upd();
     document.getElementById('resPanel').style.display = 'block';
     syncHudHeight();
+    const mm = opts && opts.mission;                                                              // 'ask' — ekran celu z wyborem trudności (start z menu); 'free' | easy…master — bez pytania (Nowa mapa); brak — jak w testach: bez misji
+    if (mm === 'free') Mission.free(); else if (mm && Mission.GOAL[mm]) Mission.start(mm);
+    syncGoalUi();
     Game.start();
+    if (mm === 'ask') showBriefing(); else if (mm && Mission.GOAL[mm]) showGoal();
     window.__gameReady = true;
   }
 
@@ -10112,6 +10180,53 @@ const UI = (() => {
     if (advisorOpen) el.innerHTML = Advisor.render();
   }
 
+  /* ---------- Misja: komunikaty, ekran celu, podsumowanie (Punkt 11) ---------- */
+  const annEl = document.createElement('div'); annEl.id = 'announce'; document.body.appendChild(annEl);
+  const mbEl = document.createElement('div'); mbEl.id = 'missionBox'; document.body.appendChild(mbEl); let annT = null, mbSpeed = null;
+  annEl.onclick = () => { annEl.style.display = 'none'; };
+  function announce(kind, title, text) {
+    annEl.className = kind === 'bad' ? 'bad' : kind === 'info' ? 'info' : ''; annEl.innerHTML = '<b>' + title + '</b>' + text; annEl.style.display = 'block';
+    clearTimeout(annT); annT = setTimeout(() => { annEl.style.display = 'none'; }, 14000);
+  }
+  const md = t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  function modal(title, cls, body, buttons) {
+    const s = World.state(); if (mbSpeed == null) { mbSpeed = s.speed || 1; s.speed = 0; }
+    mbEl.innerHTML = '<div class="mbBox"><h2 class="' + (cls || '') + '">' + title + '</h2>' + body + '<div class="mbBtns"></div></div>';
+    const box = mbEl.querySelector('.mbBtns');
+    for (const [label, fn, main] of buttons) { const b = document.createElement('button'); b.textContent = label; if (main) b.className = 'main'; b.onclick = fn; box.appendChild(b); }
+    mbEl.style.display = 'flex';
+  }
+  function closeModal() { mbEl.style.display = 'none'; const s = World.state(); if (mbSpeed != null) { s.speed = mbSpeed; mbSpeed = null; document.getElementById('btnSpeed').textContent = 'Prędkość: ×' + s.speed; } }
+  const unitOf = s => Tribute.UNIT[s.factionId];
+  function syncGoalUi() {
+    const s = World.state(), m = s.mission, b = document.getElementById('btnGoal'), sel = document.getElementById('btnTribute');
+    if (sel) sel.value = !s.tribute ? 'off' : s.tribute.preset === 'custom' ? 'L' + s.tribute.level : s.tribute.preset;
+    if (!m) { b.style.display = 'none'; return; }
+    b.style.display = ''; b.textContent = m.status === 'active' ? '🎯 Terminy ' + (s.tribute ? s.tribute.terms : 0) + '/' + m.goal : m.status === 'won' ? '🏆 Zwycięstwo' : m.status === 'lost' ? '💀 Porażka' : '🏗 Swobodna gra';
+  }
+  function showGoal() {
+    const s = World.state(), m = s.mission, t = s.tribute, u = unitOf(s);
+    if (!m || m.status === 'free') { modal('Swobodna gra', '', '<p>Budujesz gród bez celów i bez haraczu — jak chcesz i ile chcesz.</p><p class="mbSub">Haracz możesz włączyć w pasku u góry (lista „Haracz”).</p>', [['Zamknij', closeModal, true]]); return; }
+    const next = t ? Math.max(0, t.firstTerm + t.terms * Tribute.TERM_EVERY - s.time) : 0, req = t ? Tribute.requiredCum(t.level, s.factionId, Math.max(1, t.terms + 1)) : 0;
+    modal('Cel misji', '', '<p>' + md(Mission.BRIEF[s.factionId]) + '</p><p><b>Wygrywasz</b>, gdy przetrwasz <b>' + m.goal + '</b> terminów haraczu (co ' + Tribute.TERM_EVERY + ' min gry). <b>Przegrywasz</b>, gdy ' + m.maxMiss + ' terminy z rzędu pozostaną niespełnione albo osada się wyludni.</p><table><tr><td>Poziom trudności</td><td>' + Tribute.labelOf(t) + '</td></tr><tr><td>Terminy</td><td>' + (t ? t.terms : 0) + ' z ' + m.goal + ' (✔ ' + (t ? t.met : 0) + ' / ✘ ' + (t ? t.missed : 0) + ')</td></tr><tr><td>Najbliższy termin za</td><td>' + (m.status === 'active' ? Math.ceil(next) + ' min' : '—') + '</td></tr><tr><td>Do tego terminu potrzeba łącznie</td><td>' + req + ' ' + u + '</td></tr><tr><td>Dostarczono dotąd</td><td>' + (t ? Math.round(t.delivered * 10) / 10 : 0) + ' ' + u + '</td></tr></table><p class="mbSub">Postęp i zalecenia pokazuje też Doradca (🧭).</p>', [['Do gry', closeModal, true]]);
+  }
+  /* ekran początkowy: wybór celu — misja o wybranej trudności albo swobodna gra */
+  function showBriefing() {
+    const s = World.state(), fid = s.factionId, u = unitOf(s);
+    const pick = preset => () => { if (preset === 'free') Mission.free(); else Mission.start(preset); syncGoalUi(); closeModal(); if (preset !== 'free') announce('info', 'Misja rozpoczęta', 'Pierwszy termin haraczu za ' + Tribute.FIRST_TERM[fid] + ' min gry. Cel i postęp: przycisk „🎯” u góry.'); };
+    modal('Cel gry — ' + Data.FACTIONS[fid].name, '', '<p>' + md(Mission.BRIEF[fid]) + '</p><p>Haracz płaci się <b>co ' + Tribute.TERM_EVERY + ' min gry</b>, pierwszy termin po <b>' + Tribute.FIRST_TERM[fid] + ' min</b> (żądanie: ' + Tribute.UNIT[fid] + '). <b>Wygrywasz</b>, przetrwawszy wymaganą liczbę terminów; <b>przegrywasz</b>, gdy trzy z rzędu pozostaną niespełnione albo osada się wyludni.</p><p class="mbSub">Wybierz poziom trudności (liczba terminów do przetrwania) albo graj swobodnie.</p>',
+      [['Łatwy (' + Mission.GOAL.easy + ' terminów)', pick('easy')], ['Normalny (' + Mission.GOAL.normal + ' terminów)', pick('normal'), true], ['Trudny (' + Mission.GOAL.hard + ')', pick('hard')], ['Mistrz (' + Mission.GOAL.master + ')', pick('master')], ['Swobodna gra (bez celów)', pick('free')]]);
+  }
+  /* ekran końca przygody: zwycięstwo lub porażka, statystyki i dalsze kroki */
+  function showSummary() {
+    const s = World.state(), m = s.mission; if (!m || !m.summary) return; const q = m.summary, won = m.status === 'won', meta = s.map.meta || {};
+    const again = () => Menu.restart(m.preset), menu = () => Menu.toMain();
+    modal(won ? 'Zwycięstwo!' : 'Porażka', won ? 'won' : 'lost', '<p>' + m.reason + '</p><table><tr><td>Czas gry</td><td>' + q.time + ' min</td></tr><tr><td>Terminy haraczu</td><td>' + q.terms + ' z ' + q.goal + ' (✔ ' + q.met + ' / ✘ ' + q.missed + ')</td></tr><tr><td>Dostarczono seniorowi</td><td>' + q.delivered + ' ' + q.unit + '</td></tr><tr><td>Ludność</td><td>' + q.pop + '</td></tr><tr><td>Zadowolenie</td><td>' + q.popularity + '</td></tr><tr><td>Budynki</td><td>' + q.buildings + '</td></tr><tr><td>Złoto</td><td>' + q.gold + '</td></tr></table><p class="mbSub">' + (won ? 'Gratulacje! Możesz zagrać jeszcze raz, wrócić do menu albo budować dalej swobodnie.' : 'Wyciągnij wnioski (Doradca podpowiada brakujące budynki) i spróbuj jeszcze raz.') + '</p>',
+      [[won ? 'Zagraj ponownie' : 'Spróbuj ponownie', again, !won], ['Menu główne', menu, won], ['Buduj dalej swobodnie', () => { m.status = 'free'; Tribute.set('off'); s.settings.mission = false; syncGoalUi(); closeModal(); }]]);
+    syncGoalUi();
+  }
+  document.getElementById('btnGoal').onclick = () => showGoal();
+
   let lastPanel = -1;
   function refreshResPanel() {
     const s = World.state();
@@ -10221,7 +10336,7 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, announce, showBriefing, showGoal, showSummary, syncGoalUi, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
 })();
 
 /* ================================ MODUL: MENU ================================
@@ -10315,7 +10430,7 @@ const Menu = (() => {
   function start() {
     clampSb(); if (sb.meta && sb.meta.seed !== sb.seed) sb.seed = sb.meta.seed;
     store.set({ fid: sb.fid, climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size });
-    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size });
+    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size, mission: 'ask' });
   }
 
   /* ---------- menu w grze ---------- */
@@ -10330,7 +10445,7 @@ const Menu = (() => {
     paused = true; prevSpeed = s.speed || 1; s.speed = 0; $('btnSpeed').textContent = 'Pauza';
     const meta = s.map.meta || {}; $('pmInfo').textContent = Data.FACTIONS[s.factionId].name + ' · ' + Minimap.describe(meta);
     const list = $('pmList'); list.innerHTML = '';
-    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu']) p.delete(k); })]];
+    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); if (s.mission) p.set('mission', s.mission.status === 'free' ? 'free' : s.mission.preset); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu', 'mission']) p.delete(k); })]];
     items.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'mi' + (i === 0 ? ' focus' : ''); b.textContent = label; b.setAttribute('data-id', ['resume', 'newmap', 'options', 'main'][i]);
       if (fn) b.onclick = fn; else { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; b.innerHTML = label + '<small>Wkrótce</small>'; } list.appendChild(b); });
     $('pauseMenu').style.display = 'flex'; mode = 'pause';
@@ -10353,7 +10468,10 @@ const Menu = (() => {
     else if (mode === 'pause' && e.key === 'Enter') { const b = document.querySelector('#pmList button.focus'); if (b && b.getAttribute('aria-disabled') !== 'true') b.click(); }
   }
   function init() { $('btnMenu').onclick = () => (paused ? closePause() : openPause()); window.addEventListener('keydown', key); }
-  return { init, showMain, showSandbox, hideAll, openPause, closePause, escape, pauseOpen: () => paused, mode: () => mode, state: () => sb };
+  /* nowa mapa tej samej misji / powrót do menu głównego (z ekranu podsumowania) */
+  function restart(preset) { const s = World.state(), meta = s.map.meta || {}; navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); p.set('mission', preset && preset !== 'off' ? preset : 'free'); p.delete('menu'); }); }
+  function toMain() { navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu', 'mission']) p.delete(k); }); }
+  return { init, showMain, showSandbox, hideAll, restart, toMain, openPause, closePause, escape, pauseOpen: () => paused, mode: () => mode, state: () => sb };
 })();
 
 /* ============================== MODUL: FAUNA ==============================
@@ -11756,7 +11874,7 @@ const Game = (() => {
   if (typeof location !== 'undefined') {
     let next = null; try { next = sessionStorage.getItem('novaroma.next'); sessionStorage.removeItem('novaroma.next'); } catch (e) { /* bez pamięci sesji */ }
     const q = new URLSearchParams(location.search || next || ''), p = q.get('play');
-    if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined, size: q.has('size') ? +q.get('size') : undefined });
+    if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined, size: q.has('size') ? +q.get('size') : undefined, mission: q.get('mission') || undefined });
     else if (q.get('menu') !== '0') {
       try { Menu.showMain(); if (!document.querySelector('#mmList button')) throw new Error('lista menu jest pusta'); }       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
       catch (e) { document.getElementById('mainMenu').style.display = 'none'; document.getElementById('factionPick').style.display = 'flex'; if (window.__bootShow) window.__bootShow('menu: ' + e.message + ' — pokazano dawny wybór nacji'); }   // awaria menu nie blokuje gry
