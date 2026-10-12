@@ -318,7 +318,8 @@
       <div class="sbLeft">
         <h3>1. Nacja</h3><div id="sbFactions" class="sbCards"></div>
         <h3>2. Klimat</h3><div id="sbClimates" class="sbTiles"></div>
-        <h3>3. Typ mapy</h3><div id="sbTypes" class="sbTiles"></div>
+        <h3>3. Rozmiar mapy</h3><div id="sbSizes" class="sbTiles"></div>
+        <h3>4. Typ mapy</h3><div id="sbTypes" class="sbTiles"></div>
         <div id="sbNote"></div>
       </div>
       <div class="sbRight">
@@ -5428,6 +5429,10 @@ const Data = (() => {
     snow: { lakes: 'Jeziorna (zamarznięta)', wetlands: 'Torfowiska', mountains: 'Górzysta (lodowa)', coast: 'Fiordy' },
     eastern: { wetlands: 'Rozlewiska', plain: 'Step i puszcza' }
   };
+  /* rozmiary map do wyboru w Piaskownicy (bok w polach); 48 to rozmiar bazowy testów i scenariuszy specyfikacji, większe dostają proporcjonalnie więcej lasu, złóż, wody i zwierzyny */
+  const MAP_SIZES = [{ id: 48, name: 'Mała', desc: '48×48 pól — rozmiar bazowy (jak dotąd)' }, { id: 72, name: 'Średnia', desc: '72×72 — ponad dwa razy więcej miejsca' }, { id: 96, name: 'Duża', desc: '96×96 — cztery razy więcej miejsca, dalekie góry i lasy' }];
+  const DEFAULT_MAP_SIZE = 72;
+  const sizeName = n => (MAP_SIZES.find(z => z.id === n) || MAP_SIZES[0]).name;
   function mapTypeName(type, climate) { return ((MAPTYPE_NAMES[climate] || {})[type]) || MAPTYPES[type].name; }
 
   /* obrys budynku [szerokość, głębokość] w polach i wejście [strona, x, y] względem środka obrysu — z katalogu sprite'ów (SPRITE_META);
@@ -5458,7 +5463,7 @@ const Data = (() => {
     return { land, water };
   }
 
-  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, ROLES, LOADS, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, rotsOf, zonesOf, metaKey, metaOf, cur };
+  return { FACTIONS, BUILDINGS, CATS, RES_LABEL, RULES, RULES_NOTE, FOREST_REF, FAUNA, FAUNA_RULES, ROLES, LOADS, DANINA, CLIMATES, MAPTYPES, mapTypeName, nameOf, footprint, entrance, rotsOf, zonesOf, metaKey, metaOf, MAP_SIZES, DEFAULT_MAP_SIZE, sizeName, cur };
 })();
 
 /* ============================= MODUL: CAMERA ============================== */
@@ -5488,7 +5493,7 @@ const Camera = (() => {
   /* zoom: domyślnie ok. 10 pól na szerokość ekranu (pole 100–160 px; telefon ~6,5 pola); oddalanie aż do widoku całej mapy — na telefonie to ratuje czytelność */
   api.defaultZoom = () => { const w = viewSize().w; return Math.max(56, Math.min(160, w / (w < 720 ? 6.5 : 10))) / TW; }; // telefon: ~6,5 pola na szerokość
   api.zoomMax = () => api.defaultZoom() * 1.8;
-  api.zoomMin = () => Math.max(0.1, Math.min(api.defaultZoom() * 0.3, 0.97 * viewSize().w / (MapGen.SIZE * TW)));
+  api.zoomMin = () => Math.max(0.1, Math.min(api.defaultZoom() * 0.3, 0.97 * viewSize().w / ((typeof World !== 'undefined' && World.state() && World.state().map ? World.state().map.size : MapGen.SIZE) * TW)));
   api.clampZoom = z => Math.min(api.zoomMax(), Math.max(api.zoomMin(), z));
   return api;
 })();
@@ -5499,7 +5504,7 @@ const Camera = (() => {
    Pola kafla: h (0 woda / 1 ląd / 2 skała — jak dotąd), e (wysokość 0–4; woda 0), wk (rodzaj wody: sea|lake|river|ford|ice),
    k (cecha: bog|dune|quick|oasis|cliff|drift). Brody i lód: h = 0, ale przechodnie. */
 const Terrain = (() => {
-  const CX = 24, CY = 24;                  // środek planu (środek Dworu 4×4), w polach
+  let CX = 24, CY = 24;                    // środek planu (środek Dworu 4×4), w polach; zależy od rozmiaru mapy (N/2) i jest ustawiany przy generowaniu i obliczaniu osiągalności
   const PLAZA_R = 9.5;                     // płaski plac wokół Dworu (promień w polach)
   const EARLY_R = 13.5;                    // obszar początkowej zabudowy: bez stoków (nic nie utrudnia pierwszych budynków); dalej wzgórza rosną stopniowo
   const BLOCK_K = { bog: 1, dune: 1, quick: 1, cliff: 1, drift: 1 };   // cechy wykluczające zabudowę
@@ -5539,7 +5544,7 @@ const Terrain = (() => {
     return d;
   }
   function reach(map, passFn = passable) {
-    const N = map.size, t = map.tiles, seen = new Uint8Array(N * N), q = [];
+    const N = map.size, t = map.tiles, seen = new Uint8Array(N * N), q = []; CX = CY = N / 2;
     const s = (CY - 1) * N + (CX - 1); seen[s] = 1; q.push(s);
     for (let h = 0; h < q.length; h++) {
       const i = q[h], x = i % N, y = (i / N) | 0;
@@ -5609,12 +5614,12 @@ const Terrain = (() => {
   }
 
   /* ---------- kroki generatora ---------- */
-  function build(map, o, C, T, seed, fid, target) {
+  function build(map, o, C, T, seed, fid, target, K = 1) {
     const N = map.size, tiles = map.tiles, rnd = prng(seed), meta = map.meta;
     // 1. woda: pas morza (stary generator) → wk=sea; jeziora, stawy, rzeka
     for (const t of tiles) { if (t.h === 0) t.wk = 'sea'; }
     const lake = 'lake';       // w klimacie śnieżnym jeziora zamarzną poniżej (ice)
-    const nLakes = T.lakes[0] + Math.floor(rnd() * (T.lakes[1] - T.lakes[0] + 1)), nPonds = T.ponds[0] + Math.floor(rnd() * (T.ponds[1] - T.ponds[0] + 1));
+    const nLakes = Math.round((T.lakes[0] + Math.floor(rnd() * (T.lakes[1] - T.lakes[0] + 1))) * K * K), nPonds = Math.round((T.ponds[0] + Math.floor(rnd() * (T.ponds[1] - T.ponds[0] + 1))) * K * K);
     const lakesPlaced = placeLakes(map, rnd, C, T, lake, nLakes, o.type === 'lakes' ? 3.2 : 2.6, o.type === 'lakes' ? 6.0 : 4.2);
     const ponds = placeLakes(map, rnd, C, T, lake, nPonds, 1.3, 2.3);
     if (T.rivers) meta.river = makeRiver(map, rnd, C);
@@ -5651,9 +5656,9 @@ const Terrain = (() => {
     }
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = tiles[y * N + x]; if (t.h !== 0 && dPlaza(x, y) <= EARLY_R) t.e = 1; }
     /* „wzgórza decyzyjne”: kilka płaskowzgórz (e = 2) w pierścieniu 16–24 pól od Dworu (poza obszarem startowym); ich stoki wymagają wyrównania (Faza 7), więc wpływają na wybór miejsc dopiero po rozbudowie osady */
-    { const nH = o.type === 'mountains' ? 0 : o.type === 'wetlands' ? 1 : 2 + Math.floor(rnd() * 3);
-      for (let k = 0, tries = 0; k < nH && tries < 80; tries++) {
-        const a = rnd() * 6.283, rr = 16 + rnd() * 8, cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 2.6 + rnd() * 2.2, p1 = rnd() * 6.28, p2 = rnd() * 6.28, blob = [];
+    { const nH = Math.round((o.type === 'mountains' ? 0 : o.type === 'wetlands' ? 1 : 2 + Math.floor(rnd() * 3)) * K * K);
+      for (let k = 0, tries = 0; k < nH && tries < 80 * K * K; tries++) {
+        const a = rnd() * 6.283, rr = 16 + rnd() * 8 * K, cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 2.6 + rnd() * 2.2, p1 = rnd() * 6.28, p2 = rnd() * 6.28, blob = [];
         if (cx < 4 || cy < 4 || cx > N - 4 || cy > N - 4) continue;
         let wet = 0;
         for (let y = Math.floor(cy - rad - 1); y <= Math.ceil(cy + rad + 1); y++) for (let x = Math.floor(cx - rad - 1); x <= Math.ceil(cx + rad + 1); x++) {
@@ -5672,7 +5677,7 @@ const Terrain = (() => {
       const raise = (cells, rad, tries) => { for (const [t, d] of cells) if (t.h === 1 && dPlaza(t.x, t.y) > EARLY_R + 1.5) t.e = Math.max(t.e, d < 2.2 ? 4 : d < rad ? 3 : 2); map.meta.massif = { x: Math.round(cells.cx), y: Math.round(cells.cy), r: +rad.toFixed(1), tries }; };   // pola obszaru startowego zostają płaskie
       let best = null, done = false; const mr = prng(seed ^ 0x5A17C0DE);                                     // własny strumień: reszta generatora zostaje taka sama jak bez masywu
       for (let tries = 0; !done && tries < 900; tries++) {
-        const a = mr() * 6.283, rr = 17 + mr() * 8 + (tries > 300 ? 3 : 0), cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 8.0 + mr() * 1.0, p1 = mr() * 6.28, p2 = mr() * 6.28, R2 = rad + 2.2, cells = [];
+        const a = mr() * 6.283, rr = 17 + mr() * 8 * K + (tries > 300 ? 3 : 0), cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 8.0 + mr() * 1.0, p1 = mr() * 6.28, p2 = mr() * 6.28, R2 = rad + 2.2, cells = [];
         if (cx < 8 || cy < 8 || cx > N - 8 || cy > N - 8) continue;
         let wet = 0, sea = 0;
         for (let y = Math.floor(cy - R2 - 1); y <= Math.ceil(cy + R2 + 1); y++) for (let x = Math.floor(cx - R2 - 1); x <= Math.ceil(cx + R2 + 1); x++) {
@@ -5805,7 +5810,7 @@ const Terrain = (() => {
   }
   const MOUNTAIN_KINDS = new Set(['stone', 'iron', 'coal']);                      // złoża, które leżą wyłącznie w górach (pola o wysokości e ≥ 3)
   function reDeposit(map, rnd, o, seen, pad) {
-    const N = map.size, tiles = map.tiles, bad = [], block = new Uint8Array(N * N), G = Data.RULES.gap | 0;
+    const N = map.size, tiles = map.tiles, bad = [], block = new Uint8Array(N * N), G = Data.RULES.gap | 0, K = N / 48;
     const hold = org => { reserve(map, pad, org[0], org[1], 3, 3); for (let yy = -G; yy < 3 + G; yy++) for (let xx = -G; xx < 3 + G; xx++) { const bx = org[0] + xx, by = org[1] + yy; if (bx >= 0 && by >= 0 && bx < N && by < N) block[by * N + bx] = 1; } };   // kopalnie 3×3 muszą się zmieścić z przerwą (Data.RULES.gap)
     for (let i = 0; i < N * N; i++) {
       const t = tiles[i]; if (!t.deposit) continue;
@@ -5815,7 +5820,7 @@ const Terrain = (() => {
     for (const kind of bad) {
       for (let guard = 0; guard < 9000; guard++) {
         const x = 3 + Math.floor(rnd() * (N - 6)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x, t = tiles[i], d = dPlaza(x, y);
-        if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : guard < 7000 ? 30 : 40) || (MOUNTAIN_KINDS.has(kind) && t.e < 3)) continue;   // kamień, żelazo i węgiel — tylko w górach
+        if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : guard < 7000 ? 30 : 40) * K || (MOUNTAIN_KINDS.has(kind) && t.e < 3)) continue;   // kamień, żelazo i węgiel — tylko w górach
         const org = mineOrigin(map, x, y, seen, true, block); if (!org) continue;
         t.deposit = kind; t.trees = 0; hold(org); break;
       }
@@ -5906,14 +5911,14 @@ const Terrain = (() => {
 
   /* ---------- wejście: nakładka na mapę starego generatora ---------- */
   function apply(map, o, fid, target) {
-    const N = map.size, tiles = map.tiles, C = Data.CLIMATES[o.climate], T = Data.MAPTYPES[o.type];
+    const N = map.size, tiles = map.tiles, C = Data.CLIMATES[o.climate], T = Data.MAPTYPES[o.type]; CX = CY = N / 2; const K = N / 48;   // K: skala rozmiaru względem mapy bazowej 48×48 (liczby cech rosną z polem K², odległości z K)
     const base = tiles.map(t => [t.h, t.trees, t.deposit]);
     let res = null;
     for (let attempt = 0; attempt < 8; attempt++) {
       tiles.forEach((t, i) => { t.h = base[i][0]; t.trees = base[i][1]; t.deposit = base[i][2]; t.e = 0; t.wk = null; t.k = null; });
-      map.meta = { climate: o.climate, type: o.type, seed: o.seed, fid, attempt };
+      map.meta = { climate: o.climate, type: o.type, seed: o.seed, fid, attempt, size: N };
       const seed = (strHash(o.climate + '|' + o.type) ^ Math.imul(o.seed + attempt * 7919, 2654435761)) >>> 0, rnd = prng(seed ^ 0x9E3779B9);
-      build(map, o, C, T, seed, fid, target);
+      build(map, o, C, T, seed, fid, target, K);
       if (map.meta.massif) for (const t of tiles) if (t.h === 1 && t.e >= 3 && t.k && t.k !== 'cliff') t.k = null;   // w górach nie ma wydm, bagien, zasp ani oaz — skała pod kopalnie
       ensureConnected(map);
       REACH.delete(map.tiles); const seen = reachSet(map), pad = new Uint8Array(N * N);       // osiągalność liczona od nowa po zmianie terenu
@@ -5940,57 +5945,59 @@ const Terrain = (() => {
     return false;
   }
 
-  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, CX, CY, PLAZA_R, EARLY_R, fbm, hash2, prng };
+  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, get CX() { return CX; }, get CY() { return CY; }, PLAZA_R, EARLY_R, fbm, hash2, prng };
 })();
 
 /* ============================= MODUL: MAPGEN ============================== */
 /* Kafel: { h: typ terenu (0 woda, 1 piasek/trawa, 2 skała), trees: 0..3,
            deposit: null|'stone'|'iron'|'coal'|'clay'|'peat', occup: uid|null } */
 const MapGen = (() => {
-  const SIZE = 48;
+  const SIZE = 48;                                        // rozmiar bazowy (testy, scenariusze); opts.size wybiera inny (SIZES)
+  const SIZES = [48, 72, 96];
   const LEGACY_SEED = { franks: 777, saracens: 888, vikings: 999, slavs: 1111 };
   /* opts: { climate, type, seed } — domyślnie klimat nacji, mapa nadmorska i dotychczasowe ziarno (układ drzew i złóż jak dotąd); Wikingowie zawsze nadmorska.
      Teren v2 (wysokości, woda, klify, cechy klimatu) nakłada Terrain.apply własnym PRNG — globalny RNG pozostaje nietknięty. */
   function generate(factionId, opts = {}) {
+    const size = SIZES.includes(opts.size) ? opts.size : SIZE, K = size / SIZE, shift = Math.round((size - SIZE) / 2);          // shift: mapa bazowa 48×48 leży pośrodku większej (morze i góry względem Dworu jak dotąd)
     const o = { climate: Data.CLIMATES[opts.climate] ? opts.climate : Data.FACTIONS[factionId].climate,
       type: factionId === 'vikings' || !Data.MAPTYPES[opts.type] ? 'coast' : opts.type,
       seed: Number.isFinite(opts.seed) ? opts.seed >>> 0 : LEGACY_SEED[factionId] };
     const coastal = o.type === 'coast';
     RNG.seed(o.seed);
-    const c = Math.floor(SIZE/2);
-    const tiles = new Array(SIZE * SIZE);
-    for (let i = 0; i < SIZE * SIZE; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null, x: i % SIZE, y: Math.floor(i / SIZE) };
+    const c = Math.floor(size / 2);
+    const tiles = new Array(size * size);
+    for (let i = 0; i < size * size; i++) tiles[i] = { h: 1, trees: 0, deposit: null, occup: null, x: i % size, y: Math.floor(i / size) };
 
     // Morze po jednej krawędzi (Wikingowie — pełne morze; inni — jezioro/zatoka)
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const i = y * SIZE + x;
-        const nx = x / SIZE, ny = y / SIZE;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        const nx = x / size, ny = y / size;
         // Wikingowie: szerokie morze tuż przy osadzie (start zawsze nad morzem); inne nacje: zatoka przy krawędzi
         const coast = 5 + Math.sin(y * 0.35) * 2.5 + RNG.range(-0.8, 0.8)
                       + (factionId === 'vikings' ? 7.5 : 3.5);
-        if (coastal && x < coast) tiles[i].h = 0;
+        if (coastal && x - shift < coast) tiles[i].h = 0;                       // linia brzegu liczona od brzegu mapy bazowej (shift = 0 dla 48×48)
         const mtn = Math.sin(nx*9)*Math.cos(ny*7)*0.9 + Math.sin((nx+ny)*13)*0.5;
         if (mtn > 0.92 && tiles[i].h === 1 && Math.hypot(x - c, y - c) > 9) tiles[i].h = 2; // skały nie na starcie
       }
     }
     // Drzewa — kępy; cel docelowy z danych nacji (przybliżenie gęstością)
     const f = Data.FACTIONS[factionId];
-    const density = f.treesTarget / (SIZE * SIZE * 0.6);
-    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
-      const i = y * SIZE + x;
+    const density = f.treesTarget / (SIZE * SIZE * 0.6), treesTarget = Math.round(f.treesTarget * K * K);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = y * size + x;
       if (tiles[i].h !== 1) continue;
       const clump = Math.sin(x*0.9)*Math.cos(y*0.8) + RNG.range(-0.5, 0.5);
       if (clump > 0.1 && RNG.next() < density * 2.2)
         tiles[i].trees = RNG.int(1, 3);
     }
     // Złoża: gwarantowane minima; poza placem Dworu, na kaflu bez drzew
-    const depPlan = Object.entries(f.deposits || {}); // liczba miejsc pod kopalnie to parametr generatora (dane nacji)
+    const depPlan = Object.entries(f.deposits || {}).map(([k, n]) => [k, Math.max(n, Math.round(n * K))]);        // liczba złóż rośnie z rozmiarem (liniowo) // liczba miejsc pod kopalnie to parametr generatora (dane nacji)
     for (const [kind, count] of depPlan) {
       let placed = 0, guard = 0;
       while (placed < count && guard++ < 500) {
-        const x = RNG.int(6, SIZE-3), y = RNG.int(2, SIZE-3);
-        const i = y * SIZE + x;
+        const x = RNG.int(6, size - 3), y = RNG.int(2, size - 3);
+        const i = y * size + x;
         const inPlaza = x >= c - 4 && x <= c + 3 && y >= c - 4 && y <= c + 3;
         if (tiles[i].h === 1 && !tiles[i].deposit && !inPlaza) {
           tiles[i].deposit = kind; tiles[i].trees = 0; placed++;
@@ -5999,18 +6006,18 @@ const MapGen = (() => {
     }
     // Wyczyść plac pod Dwór 4×4 (środek mapy): 8×8 pól, po 2 pola zapasu wokół Dworu
     for (let dy = -4; dy <= 3; dy++) for (let dx = -4; dx <= 3; dx++) {
-      const t = tiles[(c+dy)*SIZE + (c+dx)];
+      const t = tiles[(c+dy)*size + (c+dx)];
       if (t) { t.h = 1; t.trees = 0; t.deposit = null; }
     }
-    fitTrees(tiles, f.treesTarget, c);
-    const map = { size: SIZE, tiles };
-    Terrain.apply(map, o, factionId, f.treesTarget);
+    fitTrees(tiles, treesTarget, c, size);
+    const map = { size, tiles };
+    Terrain.apply(map, o, factionId, treesTarget);
     return map;
   }
 
   /* Liczba drzew na mapie = parametr generatora z danych nacji (300 / 150 / 450 / 300).
      Nadmiar przerzedza kępy losowo; niedobór dosadza drzewa przy istniejących (kępy), potem gdziekolwiek. */
-  function fitTrees(tiles, target, c) {
+  function fitTrees(tiles, target, c, size = SIZE) {
     let total = 0;
     for (const t of tiles) total += t.trees;
     const ok = t => t.h === 1 && !t.deposit && !(t.x >= c - 4 && t.x <= c + 3 && t.y >= c - 4 && t.y <= c + 3);
@@ -6022,7 +6029,7 @@ const MapGen = (() => {
       const t = tiles[RNG.int(0, tiles.length - 1)];
       if (!ok(t) || t.trees >= 3) continue;
       if (t.trees === 0 && guard < 100000) { // najpierw rozrost istniejących kęp
-        const i = tiles.indexOf(t), S = SIZE;
+        const i = tiles.indexOf(t), S = size;
         const near = [i - 1, i + 1, i - S, i + S].some(j => tiles[j] && tiles[j].trees > 0);
         if (!near) continue;
       }
@@ -6036,7 +6043,7 @@ const MapGen = (() => {
   function neighbors(map, x, y) {
     return [[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy]) => at(map, x+dx, y+dy)).filter(Boolean);
   }
-  return { generate, at, neighbors, SIZE };
+  return { generate, at, neighbors, SIZE, SIZES };
 })();
 
 /* =============================== MODUL: GFX =============================== */
@@ -9425,7 +9432,7 @@ const Minimap = (() => {
   function describe(meta) {
     if (!meta) return '';
     const c = Data.CLIMATES[meta.climate];
-    return Data.mapTypeName(meta.type, meta.climate) + ' · ' + (c ? c.name : meta.climate) + ' · ziarno ' + meta.seed;
+    return Data.mapTypeName(meta.type, meta.climate) + ' · ' + (c ? c.name : meta.climate) + ' · ' + Data.sizeName(meta.size || 48).toLowerCase() + ' ' + (meta.size || 48) + '×' + (meta.size || 48) + ' · ziarno ' + meta.seed;
   }
   /* podsumowanie mapy: { lines, valid } z map.meta.stats (Terrain.validate) i listy złóż */
   function summary(map) {
@@ -9564,7 +9571,7 @@ const UI = (() => {
     World.init(fid, opts);
     document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b><span class="mapdesc">' + Minimap.describe(World.state().map.meta) + '</span>';
     // kamera na Dwór (środek mapy)
-    const c = MapGen.SIZE / 2;
+    const c = World.state().map.size / 2;
     Camera.zoom = Camera.defaultZoom();
     Camera.x = 0; Camera.y = 0;
     const target = Camera.worldToScreen(c, c);
@@ -9984,10 +9991,15 @@ const Menu = (() => {
     if (sb.fid === 'vikings') sb.type = 'coast';                               // Wikingowie zawsze startują nad morzem
     if (!Data.CLIMATES[sb.climate]) sb.climate = Data.FACTIONS[sb.fid].climate;
     if (!Data.MAPTYPES[sb.type]) sb.type = 'plain';
+    if (!Data.MAP_SIZES.some(z => z.id === sb.size)) sb.size = Data.DEFAULT_MAP_SIZE;
     if (!Number.isFinite(sb.seed)) sb.seed = Math.floor(Math.random() * 1e6);
   }
   function renderTiles() {
-    const cl = $('sbClimates'), ty = $('sbTypes'); cl.innerHTML = ''; ty.innerHTML = '';
+    const cl = $('sbClimates'), ty = $('sbTypes'), sz = $('sbSizes'); cl.innerHTML = ''; ty.innerHTML = ''; sz.innerHTML = '';
+    for (const m of Data.MAP_SIZES) {
+      const b = document.createElement('button'); b.className = 'tile' + (m.id === sb.size ? ' sel' : ''); b.setAttribute('data-id', String(m.id));
+      b.innerHTML = '<b>' + m.name + '</b><span>' + m.desc + '</span>'; b.onclick = () => { sb.size = m.id; sync(); }; sz.appendChild(b);
+    }
     for (const c of Object.values(Data.CLIMATES)) {
       const b = document.createElement('button'); b.className = 'tile' + (c.id === sb.climate ? ' sel' : '') + (c.id === Data.FACTIONS[sb.fid].climate ? ' native' : ''); b.setAttribute('data-id', c.id);
       b.innerHTML = '<b>' + c.name + '</b><span>' + c.region + ' — ' + c.desc + '</span>'; b.onclick = () => { sb.climate = c.id; sb.climateTouched = true; sync(); }; cl.appendChild(b);
@@ -10006,7 +10018,7 @@ const Menu = (() => {
   }
   function regen() {
     let map = null, seed = sb.seed;
-    for (let k = 0; k < 8; k++) { map = Minimap.generate(sb.fid, { climate: sb.climate, type: sb.type, seed }); if (map.meta.valid) break; seed++; }   // niepoprawna mapa → następne ziarno
+    for (let k = 0; k < 8; k++) { map = Minimap.generate(sb.fid, { climate: sb.climate, type: sb.type, seed, size: sb.size }); if (map.meta.valid) break; seed++; }   // niepoprawna mapa → następne ziarno
     if (seed !== sb.seed) { sb.seed = seed; $('sbSeed').value = seed; }
     Minimap.draw($('sbPreview'), map); $('sbDesc').textContent = Minimap.describe(map.meta);
     $('sbSummary').innerHTML = Minimap.summary(map).lines.map(l => l.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>'); sb.meta = map.meta;
@@ -10015,7 +10027,7 @@ const Menu = (() => {
     $('mainMenu').style.display = 'none'; $('sandbox').style.display = 'flex'; mode = 'sandbox';
     if (!sb) {
       const saved = store.get() || {}, fid = Data.FACTIONS[saved.fid] ? saved.fid : 'franks';
-      sb = { fid, climate: saved.climate, type: saved.type || 'plain', seed: Number.isFinite(saved.seed) ? saved.seed : NaN, climateTouched: !!saved.climate && saved.climate !== Data.FACTIONS[fid].climate };
+      sb = { fid, climate: saved.climate, size: Data.MAP_SIZES.some(z => z.id === saved.size) ? saved.size : Data.DEFAULT_MAP_SIZE, type: saved.type || 'plain', seed: Number.isFinite(saved.seed) ? saved.seed : NaN, climateTouched: !!saved.climate && saved.climate !== Data.FACTIONS[fid].climate };
       if (!saved.climate) sb.climate = Data.FACTIONS[fid].climate;
       cards = UI.buildFactionCards($('sbFactions'), fid => { const was = Data.FACTIONS[sb.fid].climate; sb.fid = fid; if (!sb.climateTouched || sb.climate === was) { sb.climate = Data.FACTIONS[fid].climate; sb.climateTouched = false; } sync(); }, true);
       $('sbRandom').onclick = () => { sb.seed = Math.floor(Math.random() * 1e6); sync(); };
@@ -10026,8 +10038,8 @@ const Menu = (() => {
   }
   function start() {
     clampSb(); if (sb.meta && sb.meta.seed !== sb.seed) sb.seed = sb.meta.seed;
-    store.set({ fid: sb.fid, climate: sb.climate, type: sb.type, seed: sb.seed });
-    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed });
+    store.set({ fid: sb.fid, climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size });
+    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size });
   }
 
   /* ---------- menu w grze ---------- */
@@ -10042,7 +10054,7 @@ const Menu = (() => {
     paused = true; prevSpeed = s.speed || 1; s.speed = 0; $('btnSpeed').textContent = 'Pauza';
     const meta = s.map.meta || {}; $('pmInfo').textContent = Data.FACTIONS[s.factionId].name + ' · ' + Minimap.describe(meta);
     const list = $('pmList'); list.innerHTML = '';
-    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('seed', String(Math.floor(Math.random() * 1e6))); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu']) p.delete(k); })]];
+    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu']) p.delete(k); })]];
     items.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'mi' + (i === 0 ? ' focus' : ''); b.textContent = label; b.setAttribute('data-id', ['resume', 'newmap', 'options', 'main'][i]);
       if (fn) b.onclick = fn; else { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; b.innerHTML = label + '<small>Wkrótce</small>'; } list.appendChild(b); });
     $('pauseMenu').style.display = 'flex'; mode = 'pause';
@@ -10104,7 +10116,7 @@ const Fauna = (() => {
 
   /* ---------- zaludnienie mapy ---------- */
   function populate(s) {
-    const map = s.map, meta = map.meta || {}, climate = meta.climate || Data.FACTIONS[s.factionId].climate, N = map.size, reach = Terrain.reachSet(map), kc = centerOfB(s.keep);
+    const map = s.map, meta = map.meta || {}, climate = meta.climate || Data.FACTIONS[s.factionId].climate, N = map.size, reach = Terrain.reachSet(map), kc = centerOfB(s.keep), Kf = N / 48;       // Kf: skala rozmiaru mapy (populacje rosną z polem, odległości legowisk z bokiem)
     const f = s.fauna = { rs: (Math.imul((meta.seed | 0) + 17, 2654435761) ^ 0xFA11A5) >>> 0, nid: 1, bt: 0, dens: [], spawns: [], sacc: {}, hunts: [], kills: 0 };
     s.animals = [];
     const distK = (x, y) => Math.hypot(x - kc.x, y - kc.y);
@@ -10122,24 +10134,24 @@ const Fauna = (() => {
     for (const k of Object.keys(KINDS)) {
       const K = KINDS[k]; if (!K.climates.includes(climate)) continue;
       if (K.role === 'prey') {
-        const dens = [], per = Math.max(1, Math.round(K.n / K.den));
-        for (let i = 0; i < K.den; i++) {
-          const p = pick(K.hab, 10, 21, dens) || pick('any', 10, 24, dens); if (!p) continue;
+        const nDen = Math.round(K.den * Kf * Kf), dens = [], per = Math.max(1, Math.round(K.n / K.den));
+        for (let i = 0; i < nDen; i++) {
+          const p = pick(K.hab, 10, 21 * Kf, dens) || pick('any', 10, 24 * Kf, dens); if (!p) continue;
           const d = { k, x: p[0], y: p[1], acc: 0 }; dens.push(d); f.dens.push(d);
           const didx = f.dens.length - 1;
           for (let j = 0; j < per; j++) { const q = around(d.x, d.y, 3); if (q) addAnimal(s, f, k, q[0], q[1], didx); }
         }
       } else if (K.role === 'roamer') {
-        let left = K.n;
+        let left = Math.round(K.n * Kf * Kf);
         while (left > 0) {
-          const p = pick(K.hab, 10, 30, null) || (K.hab === 'shore' ? null : pick('any', 10, 30, null)); if (!p) break;
+          const p = pick(K.hab, 10, 30 * Kf, null) || (K.hab === 'shore' ? null : pick('any', 10, 30 * Kf, null)); if (!p) break;
           f.spawns.push({ k, x: +p[0].toFixed(2), y: +p[1].toFixed(2) });                       // punkt spawnu: tu odradzają się wałęsające się po wytrzebieniu
           const grp = Math.min(left, K.herd ? Math.max(1, Math.round(rr(f, K.herd[0], K.herd[1] + 0.49))) : 1);
           for (let j = 0; j < grp; j++) { const q = around(p[0], p[1], 2.5); if (q) { addAnimal(s, f, k, q[0], q[1], -1); left--; } else left--; }
         }
       } else {                                                                    // ptaki: część stoi na ziemi, część jest w locie
-        for (let i = 0; i < K.n; i++) {
-          const p = pick(K.hab, 8, 34, null, false) || (K.hab === 'shore' || K.hab === 'water' ? null : pick('any', 8, 34, null, false)); if (!p) continue;
+        for (let i = 0, nB = Math.round(K.n * Kf * Kf); i < nB; i++) {
+          const p = pick(K.hab, 8, 34 * Kf, null, false) || (K.hab === 'shore' || K.hab === 'water' ? null : pick('any', 8, 34 * Kf, null, false)); if (!p) continue;
           f.spawns.push({ k, x: +p[0].toFixed(2), y: +p[1].toFixed(2) });
           const a = addAnimal(s, f, k, p[0], p[1], -1);
           if (K.soar || rnd(f) < 0.4) { a.fl = 1; a.z = +rr(f, 0.45, 0.85).toFixed(2); a.m = WALK; flyTarget(s, f, a, K); }
@@ -10259,16 +10271,16 @@ const Fauna = (() => {
       const kc = centerOfB(s.keep), N = s.map.size;
       for (let g = 0; g < 400; g++) {
         const x = rr(f, 1, N - 1), y = rr(f, 1, N - 1), dk = Math.hypot(x - kc.x, y - kc.y);
-        if (dk < 11 || dk > 30 || inTown(x, y) || !spawnTile(tileAt(s.map, x, y)) || !HAB[KINDS[d.k].hab](s.map, x, y) || f.dens.some(q => q !== d && Math.hypot(q.x - x, q.y - y) < 7)) continue;
+        if (dk < 11 || dk > 30 * (N / 48) || inTown(x, y) || !spawnTile(tileAt(s.map, x, y)) || !HAB[KINDS[d.k].hab](s.map, x, y) || f.dens.some(q => q !== d && Math.hypot(q.x - x, q.y - y) < 7)) continue;
         d.x = +x.toFixed(2); d.y = +y.toFixed(2); break;
       }
     }
     for (const k of Object.keys(KINDS)) {                                       // wałęsające się i ptaki: brakujące osobniki odradzają się w punktach spawnu gatunku
       const K = KINDS[k]; if (K.role === 'prey') continue;
       const sp = f.spawns.filter(q => q.k === k && !inTown(q.x, q.y)); if (!sp.length) continue;
-      let cnt = 0; for (const a of s.animals) if (a.k === k) cnt++;
-      if (cnt >= K.n) { f.sacc[k] = 0; continue; }
-      f.sacc[k] = (f.sacc[k] || 0) + dtb * R.respawn * (1 - cnt / K.n);
+      const nCap = Math.round(K.n * (s.map.size / 48) * (s.map.size / 48)); let cnt = 0; for (const a of s.animals) if (a.k === k) cnt++;
+      if (cnt >= nCap) { f.sacc[k] = 0; continue; }
+      f.sacc[k] = (f.sacc[k] || 0) + dtb * R.respawn * (1 - cnt / nCap);
       if (f.sacc[k] < 1) continue;
       f.sacc[k] -= 1;
       const q = sp[Math.floor(rnd(f) * sp.length)];
@@ -10825,7 +10837,7 @@ const Game = (() => {
       const ti = y * N + x, t = T[ti]; if (t.h === 0) continue;
       const fx = 0.2 + 0.6 * H(x, y, 1), fy = 0.2 + 0.6 * H(x, y, 2), r = H(x, y, 3), kk = 0.9 + 0.25 * H(x, y, 4);
       if (t.h === 2 || t.k === 'cliff') { add(ti, 'cliffs', x, y, 0.5, 0.55, 0.92 + 0.12 * H(x, y, 6)); continue; }
-      if (t.trees || t.deposit || t.k === 'quick' || t.k === 'drift' || Math.hypot(x + 0.5 - Terrain.CX, y + 0.5 - Terrain.CY) < 5.2) continue;
+      if (t.trees || t.deposit || t.k === 'quick' || t.k === 'drift' || Math.hypot(x + 0.5 - map.size / 2, y + 0.5 - map.size / 2) < 5.2) continue;
       if (P.reed && (t.k === 'bog' ? H(x, y, 5) < 0.3 : waterNear(x, y) && H(x, y, 5) < P.reed)) { add(ti, 'reeds', x, y, fx, fy, kk); continue; }
       if (t.k === 'bog') continue;
       if (P.cactus && (t.k === 'dune' ? r < P.cactus * 0.5 : !t.k && r < P.cactus)) add(ti, 'cacti', x, y, fx, fy, kk);
@@ -11387,7 +11399,7 @@ const Game = (() => {
   if (typeof location !== 'undefined') {
     let next = null; try { next = sessionStorage.getItem('novaroma.next'); sessionStorage.removeItem('novaroma.next'); } catch (e) { /* bez pamięci sesji */ }
     const q = new URLSearchParams(location.search || next || ''), p = q.get('play');
-    if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined });
+    if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined, size: q.has('size') ? +q.get('size') : undefined });
     else if (q.get('menu') !== '0') {
       try { Menu.showMain(); if (!document.querySelector('#mmList button')) throw new Error('lista menu jest pusta'); }       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
       catch (e) { document.getElementById('mainMenu').style.display = 'none'; document.getElementById('factionPick').style.display = 'flex'; if (window.__bootShow) window.__bootShow('menu: ' + e.message + ' — pokazano dawny wybór nacji'); }   // awaria menu nie blokuje gry

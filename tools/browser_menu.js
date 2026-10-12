@@ -117,6 +117,14 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     await pg.locator('#sbStart').tap(); await ready(pg);
     ok(await vis(pg, '#btnMenu'), 'telefon: ☰ Menu widoczny w HUD po starcie'); await c.close(); }
 
+  { // rozmiar mapy w Piaskownicy: domyślnie Średnia (72), wybór Dużej daje mapę 96×96 w podglądzie i w grze
+    const c = await browser.newContext({ viewport: { width: 1200, height: 800 } }), pg = track(await c.newPage());
+    await pg.goto(file + '?q=1'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(200);
+    ok((await pg.locator('#sbSizes button').count()) === 3 && (await pg.locator('#sbSizes button.sel').getAttribute('data-id')) === '72', 'Piaskownica: trzy rozmiary mapy, domyślnie Średnia (72)');
+    await pg.click('#sbSizes button[data-id="96"]'); await pg.fill('#sbSeed', '321'); await pg.dispatchEvent('#sbSeed', 'change'); await pg.waitForTimeout(400);
+    const prev = await pg.evaluate(() => Menu.state().meta); ok(prev.size === 96 && /96×96/.test(await pg.textContent('#sbDesc')), 'podgląd Dużej mapy: ' + (await pg.textContent('#sbDesc')));
+    await pg.click('#sbStart'); await ready(pg);
+    ok((await pg.evaluate(() => World.state().map.size)) === 96, 'start z Piaskownicy: mapa gry 96×96'); await c.close(); }
   ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close();
   console.log(fails ? `\n${fails} testów nie przeszło` : '\nWszystko OK');
