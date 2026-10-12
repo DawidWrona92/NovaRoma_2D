@@ -1,0 +1,109 @@
+/* Styl dokumentacji Nova Roma — A4, druk i ekran. Czcionki systemowe: Liberation Sans / DejaVu (polskie znaki i symbole). */
+:root { --ink: #1c2330; --muted: #5b6573; --line: #cfd6df; --accent: #8a3b1f; --accent2: #2f6f9f; --paper: #ffffff; --zebra: #f4f6f9; --code: #f1f3f6; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font: 9.6pt/1.42 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif; color: var(--ink); background: #fff; hyphens: manual; }
+@page { size: A4; margin: 20mm 17mm 20mm 17mm;
+  @bottom-left { content: "Nova Roma — dokumentacja projektu"; font: 7.5pt 'Liberation Sans', sans-serif; color: #7a8594; }
+  @bottom-right { content: "strona " counter(page); font: 7.5pt 'Liberation Sans', sans-serif; color: #7a8594; } }
+@page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+/* okładka */
+.cover { page: cover; height: 297mm; width: 210mm; position: relative; overflow: hidden; color: #f6efe2; background: linear-gradient(160deg, #1d2a3d 0%, #2a2f45 55%, #4a2c26 100%); }
+.cover .band { position: absolute; left: 0; right: 0; top: 118mm; height: 2.2mm; background: #d6a64a; }
+.cover .wm { position: absolute; left: 22mm; top: 52mm; font: 700 38pt/1 'DejaVu Serif', 'Liberation Serif', serif; letter-spacing: 3pt; }
+.cover .wm small { display: block; font: 400 12pt/1.3 'Liberation Sans', sans-serif; letter-spacing: 2pt; color: #d9c9a8; margin-top: 4mm; }
+.cover .sub { position: absolute; left: 22mm; top: 128mm; width: 160mm; font-size: 13pt; line-height: 1.45; color: #efe6d4; }
+.cover .meta { position: absolute; left: 22mm; bottom: 26mm; width: 166mm; font-size: 9pt; color: #cfc4ad; line-height: 1.5; }
+.cover .meta b { color: #f2e4c2; }
+.cover svg.emb { position: absolute; right: 18mm; top: 20mm; width: 54mm; opacity: .9; }
+
+/* spis treści */
+.toc { page: toc; }
+@page toc { @top-right { content: "Spis treści"; font: 7.5pt 'Liberation Sans', sans-serif; color: #7a8594; } }
+.toc h1 { font: 700 20pt 'DejaVu Serif', serif; color: var(--accent); margin: 0 0 6mm; border-bottom: .6mm solid var(--accent); padding-bottom: 2mm; }
+.toc a { display: flex; align-items: baseline; gap: 2mm; color: var(--ink); text-decoration: none; padding: .5mm 0; }
+.toc a .t { flex: 0 1 auto; }
+.toc a .dots { flex: 1 1 auto; border-bottom: .3mm dotted #9aa3af; transform: translateY(-1mm); min-width: 6mm; }
+.toc a .p { flex: 0 0 auto; width: 9mm; text-align: right; font-variant-numeric: tabular-nums; }
+.toc .l1 { font-weight: 700; margin-top: 2.2mm; font-size: 10pt; }
+.toc .l2 { padding-left: 7mm; font-size: 9pt; color: #2a3340; }
+.toc .l1 .num, .toc .l2 .num { display: inline-block; min-width: 7mm; color: var(--accent); }
+.toc .l2 .num { min-width: 9mm; }
+
+/* rozdziały */
+.chapter { }
+h1, h2, h3, h4 { font-family: 'DejaVu Serif', 'Liberation Serif', serif; color: #12304a; line-height: 1.22; break-after: avoid; }
+h1 { font-size: 20pt; color: var(--accent); margin: 0 0 5mm; padding-bottom: 2mm; border-bottom: .6mm solid var(--accent); }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm; padding-bottom: .8mm; border-bottom: .25mm solid var(--line); }
+h3 { font-size: 11pt; margin: 5mm 0 1.8mm; color: #234b6b; }
+h4 { font: 700 9.8pt 'Liberation Sans', sans-serif; margin: 3.5mm 0 1mm; color: #3a4655; }
+h1 .num, h2 .num, h3 .num { color: var(--accent); margin-right: 1.2mm; }
+p { margin: 0 0 2.6mm; text-align: left; orphans: 2; widows: 2; }
+a { color: var(--accent2); text-decoration: none; }
+code { font: 8.4pt 'DejaVu Sans Mono', 'Liberation Mono', monospace; background: var(--code); padding: .2mm .9mm; border-radius: .7mm; color: #20344a; }
+pre { background: var(--code); border: .25mm solid var(--line); border-radius: 1.2mm; padding: 2.4mm 3mm; margin: 0 0 3mm; overflow: hidden; break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: 7.8pt; line-height: 1.34; white-space: pre-wrap; }
+ul, ol { margin: 0 0 2.8mm; padding-left: 5.2mm; }
+li { margin: 0 0 .9mm; }
+li > ul, li > ol { margin: .8mm 0 .6mm; }
+hr { border: 0; border-top: .25mm solid var(--line); margin: 4mm 0; }
+blockquote { margin: 0 0 3mm; padding: 1.4mm 3.2mm; border-left: .9mm solid #b5bfcc; color: #3a4655; background: #f7f8fa; }
+blockquote p:last-child { margin: 0; }
+strong { color: #101826; }
+
+/* ramki */
+.callout { margin: 0 0 3.2mm; padding: 1.6mm 3.2mm 1.2mm; border-radius: 1.3mm; border-left: 1.1mm solid #888; background: #f5f7fa; break-inside: avoid; }
+.callout .ct { font: 700 7.4pt 'Liberation Sans', sans-serif; letter-spacing: .5pt; text-transform: uppercase; margin-bottom: .6mm; color: #55606f; }
+.callout p, .callout ul, .callout ol { margin-bottom: 1.2mm; }
+.callout.decyzja { border-color: #2f6f9f; background: #eef5fb; } .callout.decyzja .ct { color: #2f6f9f; }
+.callout.uwaga { border-color: #c98a1a; background: #fff8e8; } .callout.uwaga .ct { color: #a8700f; }
+.callout.pulapka { border-color: #b83a3a; background: #fdeeee; } .callout.pulapka .ct { color: #b83a3a; }
+.callout.spec { border-color: #5b6573; background: #f1f3f6; }
+.callout.kod { border-color: #3f8a4f; background: #eff8f1; } .callout.kod .ct { color: #3f8a4f; }
+.callout.test { border-color: #8a5aa8; background: #f6f0fa; } .callout.test .ct { color: #8a5aa8; }
+.callout.wazne { border-color: #8a3b1f; background: #fbf1ec; } .callout.wazne .ct { color: #8a3b1f; }
+.callout.historia { border-color: #7a8594; background: #f4f4f1; } .callout.historia .ct { color: #6a6f78; }
+
+/* tabele */
+.tw { margin: 0 0 3.6mm; break-inside: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 8.3pt; line-height: 1.3; }
+caption { caption-side: top; text-align: left; font-size: 8.2pt; color: #3a4655; padding: 0 0 1.2mm; }
+caption b { color: var(--accent); }
+.tcap { font-size: 8.2pt; color: #3a4655; padding: 0 0 1.2mm; break-after: avoid; }
+.tcap b { color: var(--accent); }
+th { background: #e6ecf3; color: #12304a; text-align: left; font-weight: 700; padding: 1.1mm 1.6mm; border: .2mm solid #c3ccd8; vertical-align: bottom; }
+td { padding: .9mm 1.6mm; border: .2mm solid #d8dee6; vertical-align: top; }
+tbody tr:nth-child(even) td { background: var(--zebra); }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+.small table { font-size: 7.4pt; } .small th, .small td { padding: .7mm 1.2mm; }
+.bld table { font-size: 7.1pt; } .bld th, .bld td { padding: .6mm 1mm; }
+.sub { color: #7a8594; font-size: .85em; }
+td ol.cols { margin: 0; padding-left: 4mm; columns: 3; column-gap: 5mm; font-size: 7.4pt; }
+td ol.cols li { margin: 0; break-inside: avoid; }
+.matrix { break-inside: avoid; }
+.matrix table { font-size: 6.4pt; table-layout: fixed; }
+.matrix th.rot { height: 20mm; width: 5.4mm; padding: 0; vertical-align: bottom; text-align: left; background: #e6ecf3; }
+.matrix th.rot span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); padding: .8mm 0; font-weight: 600; }
+.matrix th.rl { width: 20mm; background: #e6ecf3; font-size: 6.8pt; padding: .3mm 1mm; }
+.matrix td { text-align: center; padding: .25mm 0; height: 3.7mm; }
+.matrix tbody tr:nth-child(even) td { background: none; }
+
+/* rysunki */
+figure { margin: 0 0 4mm; break-inside: avoid; text-align: center; }
+figure img { max-width: 100%; max-height: 150mm; border: .25mm solid var(--line); border-radius: 1mm; }
+figcaption { font-size: 8pt; color: #3a4655; margin-top: 1.2mm; text-align: left; }
+figcaption b { color: var(--accent); }
+svg.dg, svg.chart { width: 100%; height: auto; max-height: 190mm; }
+.dgfig svg { border: .25mm solid var(--line); border-radius: 1.2mm; background: #fbfcfd; }
+.dg-box rect { fill: #eef2f7; stroke: #6c7a8c; stroke-width: 1; }
+.dg-box.k rect { fill: #e5f0fa; stroke: #2f6f9f; } .dg-box.g rect { fill: #f2efe6; stroke: #a79e86; stroke-dasharray: 3 2; } .dg-box.t rect { fill: #f3ecf8; stroke: #8a5aa8; } .dg-box.d rect { fill: #eef6ee; stroke: #3f8a4f; }
+.dg-t { font: 600 9.2px 'Liberation Sans', sans-serif; fill: #17283b; } .dg-t.sm { font-size: 8.4px; }
+.dg-s { font: 7.6px 'Liberation Sans', sans-serif; fill: #566274; } .dg-lt { font: 700 7.8px 'Liberation Sans', sans-serif; fill: #6a7686; letter-spacing: .5px; }
+.dg-layer { fill: none; stroke: #c3ccd8; stroke-width: 1; } .dg-layer.l1 { fill: #f4f8fc; } .dg-layer.l2 { fill: #f9f6ee; } .dg-layer.l3 { fill: #eef5fb; } .dg-layer.l4 { fill: #f2f6f2; } .dg-layer.l5 { fill: #f6f3f8; }
+.dg-arrow { stroke: #6c7a8c; stroke-width: 1.2; fill: none; } .dg-flow { stroke: #2f6f9f; } .dg-neg { stroke: #b83a3a; } .dg-ahead { fill: #6c7a8c; }
+.dg-seg { stroke: #fff; stroke-width: 1; } .dg-shot { stroke: #b83a3a; stroke-width: 1.4; stroke-dasharray: 3 2; } .dg-tick { stroke: #566274; stroke-width: 1; }
+.dg-fo { font: 7.7px/1.25 'Liberation Sans', sans-serif; color: #2a3646; padding: 1px 2px; } .dg-fo.c { text-align: center; }
+.chart .grid { stroke: #e3e8ee; stroke-width: 1; } .chart .ax { font: 8px 'Liberation Sans', sans-serif; fill: #566274; } .chart .axl { font: 8.4px 'Liberation Sans', sans-serif; fill: #3a4655; }
+.chartfig svg { border: .25mm solid var(--line); border-radius: 1.2mm; background: #fff; }
