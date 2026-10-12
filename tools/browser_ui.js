@@ -33,14 +33,15 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     ok(await page.evaluate(() => BuildMode.isSelected()) === null, 'ESC kończy tryb budowy');
     // 2) pasek budowy: wszystkie zakładki i pozycje mają nazwy/koszty, tooltip działa
     const tabs = await page.locator('#buildTabs button').count();
-    let items = 0, roadItems = 0;
+    let items = 0, roadItems = 0, wallItems = 0;
     for (let i = 0; i < tabs; i++) {
       const btn = page.locator('#buildTabs button').nth(i), tabName = (await btn.innerText()).trim(), isRoads = tabName === 'Drogi' || tabName === 'Mury';   // zakładki Drogi i Mury to narzędzia (Droga/Mur i ich rozbiórka), nie budynki
-      await btn.click(); const n = await page.locator('.buildItem').count(); if (isRoads) roadItems = n; else items += n;
+      await btn.click(); const n = await page.locator('.buildItem').count(); if (tabName === 'Drogi') roadItems = n; else if (tabName === 'Mury') wallItems = n; else items += n;
     }
     const total = await page.evaluate(() => Object.keys(Data.BUILDINGS).filter(id => id !== 'keep' && (!Data.BUILDINGS[id].factions || Data.BUILDINGS[id].factions.includes(World.state().factionId))).length);
     ok(items === total, 'pasek budowy pokazuje wszystkie ' + total + ' budynków nacji (znaleziono ' + items + ')');
-    ok(roadItems === 2, 'zakładki Drogi i Mury: po dwa narzędzia (wytycz i rozbierz; ostatnia: ' + roadItems + ')');
+    ok(roadItems === 2, 'zakładka Drogi: narzędzia Droga i Rozbierz drogę (znaleziono ' + roadItems + ')');
+    ok(wallItems === 3, 'zakładka Mury: narzędzia Mur, Brama i Rozbierz mur (znaleziono ' + wallItems + ')');
     await page.locator('.buildItem').first().hover();
     ok((await page.locator('#tooltip').innerText()).includes('Koszt'), 'tooltip pozycji budowy pokazuje koszt');
     // 3) karta budynku: klik na Dwór przypina, klik w puste pole zamyka

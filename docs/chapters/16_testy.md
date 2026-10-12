@@ -45,7 +45,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `path.js` | `Path` | koszt = niezależny Dijkstra, trasa tylko po polach przechodnich, brak ścinania rogów, brak RNG, determinizm, szybkość |
 | `walkers.js` | `Walkers` | postacie tylko na wolnych polach, nosiciele dochodzą do drzwi, **logika identyczna z Walkers i bez** (cień symulacji) |
 | `roads.js` | `Roads` | koszt tylko za nowe pola, odmowy, zdejmowanie drogi przez budowę, preferowanie drogi przez A\*, JSON |
-| `walls.js` | `Walls` | koszt wg nacji, odmowy (drzewa, droga, brak surowców), nieprzechodniość i obejście przez A\*, odcięcie budynku od Dworu, burzenie, brak wpływu bez murów (+ `browser_walls.js`: zakładka Mury, dwa kliknięcia, oba tryby grafiki) |
+| `walls.js` | `Walls` | koszt wg nacji, odmowy (drzewa, droga, brak surowców), nieprzechodniość i obejście przez A\*, odcięcie budynku od Dworu, burzenie, brak wpływu bez murów; **bramy**: koszt, oś, przejście A\*, droga przez bramę, teren zamknięty bez bramy (+ `browser_walls.js`: zakładka Mury z trzema narzędziami, oba tryby grafiki) |
 | `spacing.js`, `leveling.js` | `World.canPlace`, `Build` | przerwa 1 pole, strefa kary 2–3, wyrównywanie stoków, wzgórza decyzyjne |
 | `logistics.js` | `Logistics` | blisko Składu bez kary, daleko spadek do minimum, drogi i Skład pomagają, ekonomia produkuje mniej |
 | `fauna.js` | `Fauna` | zaludnienie map, pozycje tylko na wolnych polach, zero RNG globalnego, determinizm, snapshot, parytet z fauną; **unikanie zabudowy** (< 2% próbek przy ścianie), **punkty spawnu** i odradzanie po wyłapaniu (≥ 70% gatunków wraca), „1 Chata” ze średnim plonem ≥ 0,60 |

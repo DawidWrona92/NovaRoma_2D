@@ -33,7 +33,7 @@ Tabela: Decyzje użytkownika
 | **Przerwa między budynkami = 1 pole** (twardy zakaz stawiania „ściana w ścianę”) | `World.canPlace` odmawia „Za blisko innego budynku — zostaw wolne pole (ulicę)” | {{ref:zabudowa}} |
 | **Strefa wydłużonego czasu budowy** = pola w odległości 2 i 3 od budynku (+10% za sąsiada, maks. +40%), **widoczna przed wyborem miejsca** | kara `crowd` w placu budowy; podświetlenie w trybie budowy | {{ref:zabudowa}}, {{ref:budowa}} |
 | **Drogi** przyspieszają ruch, A\* je preferuje | koszt pola 0,6, prędkość ×1,6, 1 deska za pole | {{ref:drogi}} |
-| **Mury obronne** (prośba znajomych; tylko wygląd i punkty wejścia/wyjścia, bez wartości militarnej); wygląd jak mury zamkowe nacji, palisada u Wikingów i Słowian | `Walls`, `tile.wall`, 16 sprite'ów na nację; mur nie odcina budynków od Dworu | {{ref:mury}} |
+| **Mury obronne** (prośba znajomych; tylko wygląd i punkty wejścia/wyjścia, bez wartości militarnej); wygląd jak mury zamkowe nacji, palisada u Wikingów i Słowian; **brama** = 1 pole, zawsze otwarta, droższa od muru, oś z sąsiadów | `Walls`, `tile.wall` 1/2/3, 16 + 2 sprite'y na nację; mur nie odcina budynków od Dworu, pierścień wymaga bramy, w zamkniętym terenie bez bramy nie wolno budować | {{ref:mury}} |
 | **Wzgórza do wyrównania** mają własną grafikę i **nie utrudniają startu** | obszar startowy ≤ 13,5 pola od Dworu jest płaski; wyrównywanie wydłuża budowę | {{ref:teren}} |
 | **Chata myśliwego nie wymaga lasu** („myśliwy i tak poluje na zwierzęta”) | plon = × min(1, zwierzyna w łowisku / próg); boty nadal stawiają ją przy lesie, więc wzorce regresji bez zmian | {{ref:fauna}} |
 | **Menu główne w stylu RTS + Piaskownica** (nacja, klimat, typ mapy) | moduł `Menu`, `Minimap`, ☰ Menu w grze | {{ref:menu}} |

@@ -952,6 +952,28 @@
       "ay": 147
      }
     },
+    "gate": {
+     "sprite": "franks_gate",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 148,
+      "h": 204,
+      "ax": 57,
+      "ay": 143
+     }
+    },
     "quarry": {
      "sprite": "franks_quarry",
      "nazwa": "Kamieniołom",
@@ -1822,6 +1844,28 @@
       "ax": 53,
       "ay": 147
      }
+    },
+    "gate@1": {
+     "sprite": "franks_gate@1",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 148,
+      "h": 204,
+      "ax": 57,
+      "ay": 143
+     }
     }
    }
   },
@@ -2606,6 +2650,28 @@
       "h": 196,
       "ax": 45,
       "ay": 144
+     }
+    },
+    "gate": {
+     "sprite": "saracens_gate",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 140,
+      "h": 208,
+      "ax": 53,
+      "ay": 152
      }
     },
     "claypit": {
@@ -3405,6 +3471,28 @@
       "ax": 53,
       "ay": 144
      }
+    },
+    "gate@1": {
+     "sprite": "saracens_gate@1",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 140,
+      "h": 208,
+      "ax": 53,
+      "ay": 152
+     }
     }
    }
   },
@@ -4196,6 +4284,28 @@
       "h": 140,
       "ax": 25,
       "ay": 101
+     }
+    },
+    "gate": {
+     "sprite": "vikings_gate",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 192,
+      "ax": 41,
+      "ay": 133
      }
     },
     "fisherhut": {
@@ -5023,6 +5133,28 @@
       "ax": 41,
       "ay": 101
      }
+    },
+    "gate@1": {
+     "sprite": "vikings_gate@1",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 192,
+      "ax": 41,
+      "ay": 133
+     }
     }
    }
   },
@@ -5646,6 +5778,28 @@
       "h": 132,
       "ax": 25,
       "ay": 93
+     }
+    },
+    "gate": {
+     "sprite": "slavs_gate",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 184,
+      "ax": 41,
+      "ay": 125
      }
     },
     "gatherer": {
@@ -6324,6 +6478,28 @@
       "h": 132,
       "ax": 41,
       "ay": 93
+     }
+    },
+    "gate@1": {
+     "sprite": "slavs_gate@1",
+     "nazwa": "Brama",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 184,
+      "ax": 41,
+      "ay": 125
      }
     }
    }

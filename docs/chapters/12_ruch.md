@@ -96,7 +96,14 @@ Mur (Punkt 13) to pole z `tile.wall = 1` — **nieprzechodnie** dla ludzi i zwie
 
 **Grafika:** każdy segment to osobny sprite 1×1 pole w 16 wariantach sąsiedztwa (maska N=1, E=2, S=4, W=8; `${nacja}_wall@${maska}`), wypiekany silnikiem sprite'ów jak budynki (`prototyp/src/56_walls.js`): Frankowie i Saraceni — ten sam kamień, blanki i wieżyczki co w ich zamkach (wieżyczka na zakrętach, rozgałęzieniach i końcach), Wikingowie i Słowianie — palisada z zaostrzonych pali i grubszym słupem narożnym. W trybie klasycznym (`?classic=1`) mur rysuje się dynamicznie z pryzm.
 
-Test `tools/walls.js` sprawdza koszt, odmowy, nieprzechodniość i obejście przez A\*, odcięcie budynku, burzenie i brak wpływu przy braku murów; `tools/browser_walls.js` — zakładkę, dwa kliknięcia i rysowanie w obu trybach.
+**Bramy** (Punkt 14) to przejście w murze: pole `tile.wall = 2` (oś wschód–zachód) albo `3` (oś północ–południe), przechodnie dla ludzi i zwierząt (`Terrain.passable` blokuje tylko `wall === 1`), więc A\* prowadzi prosto przez bramę. Narzędzie **Brama** kładzie się jednym kliknięciem na polu muru (zastępuje je), na wolnym polu albo na drodze; oś wynika z sąsiednich pól muru (bez sąsiadów — wschód–zachód), a podgląd pokazuje przejście i koszt. Brama kosztuje więcej niż pole muru (`Data.RULES.wall.gate`: Frankowie 4 kamienia i 2 deski, Saraceni 4 gliny i 2 deski, Wikingowie i Słowianie 5 desek). Zasady:
+
+- **mur z bramą może zamknąć gród**: walidacja `Walls.cutsOff` przepuszcza pierścień, w którym jest brama, bo brama nie blokuje dojścia; przed postawieniem bramy ostatni odcinek pierścienia zamykającego budynki jest odrzucany („zostaw przejście”),
+- **teren zamknięty bez bramy**: `Terrain.ringReachable` liczy osiągalność z terenu, nie z murów, dlatego `World.canPlace` dodatkowo woła `Walls.ringOpen` (osiągalność od drzwi Dworu po polach przechodnich, z pamięcią podręczną po `map.roadRev`) i odmawia budowy wewnątrz pierścienia bez bramy: „Brak dojścia — mur zamyka ten teren; dobuduj bramę”,
+- droga może przejść przez bramę (`Roads.free` dopuszcza `wall > 1`), a brama może stanąć na drodze; muru na drodze postawić nie można,
+- pole muru i bramy nie jest miejscem postoju ludzi (`Workers`) ani zwierząt (`Fauna`); **Rozbierz mur** zdejmuje i mur, i bramę.
+
+Test `tools/walls.js` sprawdza koszt, odmowy, nieprzechodniość i obejście przez A\*, odcięcie budynku, burzenie, brak wpływu przy braku murów, a dla bram: koszt, oś, przejście A\* prosto przez bramę, drogę przez bramę, brak surowców, teren zamknięty bez bramy i po jej dobudowaniu; `tools/browser_walls.js` — zakładkę z trzema narzędziami, kliknięcia (mur, brama, rozbiórka) i rysowanie w obu trybach.
 
 ## Sprawność logistyczna: moduł Logistics {#logistyka}
 

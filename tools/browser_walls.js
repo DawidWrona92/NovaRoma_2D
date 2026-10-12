@@ -14,8 +14,8 @@ let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (!c) { fails++; c
     await p.locator('#btnBuild, button:has-text("Buduj")').first().click().catch(() => {});
     const tabs = await p.locator('#buildTabs button').allInnerTexts(); ok(tabs.includes('Mury'), `${tag}: jest zakładka Mury`);
     await p.locator('#buildTabs button', { hasText: 'Mury' }).click();
-    ok(await p.locator('.buildItem').count() === 2, `${tag}: dwa narzędzia w zakładce Mury`);
-    ok((await p.locator('.buildItem .bname').allInnerTexts()).join('|') === 'Mur|Rozbierz mur', `${tag}: nazwy Mur i Rozbierz mur`);
+    ok(await p.locator('.buildItem').count() === 3, `${tag}: trzy narzędzia w zakładce Mury`);
+    ok((await p.locator('.buildItem .bname').allInnerTexts()).join('|') === 'Mur|Brama|Rozbierz mur', `${tag}: nazwy Mur, Brama, Rozbierz mur`);
     await p.locator('.buildItem').first().click();
     ok(await p.evaluate(() => BuildMode.isSelected()) === 'wall', `${tag}: wybrane narzędzie 'wall'`);
     const pts = await p.evaluate(() => { const k = World.state().keep, ws = (x, y) => Camera.worldToScreen(x, y); const a = ws(k.x - 4 + 0.5, k.y + 6.5), c = ws(k.x + 3 + 0.5, k.y + 6.5); return [a, c]; });
@@ -25,8 +25,14 @@ let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (!c) { fails++; c
     ok(n === 8 && r0 - r1 === 8, `${tag}: dwa kliknięcia kładą 8 pól muru za 8 kamienia (pól ${n}, kamień ${r0}→${r1})`);
     await p.waitForTimeout(500);
     await p.screenshot({ path: process.env.SHOT || (require('os').tmpdir() + '/walls' + (mode ? '_classic' : '') + '.png') });
+    await p.locator('.buildItem').nth(1).click();
+    ok(await p.evaluate(() => BuildMode.isSelected()) === 'gate', `${tag}: wybrane narzędzie 'gate'`);
+    const gp = await p.evaluate(() => { const k = World.state().keep; return Camera.worldToScreen(k.x - 4 + 2 + 0.5, k.y + 6.5); });
+    await p.mouse.move(gp.x, gp.y); await p.mouse.click(gp.x, gp.y);
+    ok(await p.evaluate(() => World.state().map.tiles.filter(t => t.wall > 1).length) === 1, `${tag}: klik na murze stawia bramę (wall > 1)`);
+    await p.waitForTimeout(400); await p.screenshot({ path: (process.env.SHOT || require('os').tmpdir() + '/walls') + '_gate' + (mode ? '_classic' : '') + '.png' });
     await p.keyboard.press('Escape');
-    await p.locator('#buildTabs button', { hasText: 'Mury' }).click(); await p.locator('.buildItem').nth(1).click();
+    await p.locator('#buildTabs button', { hasText: 'Mury' }).click(); await p.locator('.buildItem').nth(2).click();
     const q = await p.evaluate(() => { const k = World.state().keep, t = World.state().map.tiles.findIndex(t => t.wall), N = World.state().map.size; return Camera.worldToScreen(t % N + 0.5, ((t / N) | 0) + 0.5); });
     await p.mouse.move(q.x, q.y); await p.mouse.click(q.x, q.y);
     ok(await p.evaluate(() => World.state().map.tiles.filter(t => t.wall).length) === 7, `${tag}: Rozbierz mur zdejmuje jedno pole`);

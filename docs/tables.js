@@ -139,7 +139,7 @@ function dependencyMatrix() {
 }
 
 const STATE_DOC = {
-  factionId: 'id nacji: franks, saracens, vikings, slavs', map: 'mapa: size 48, tiles[2304], meta {climate, type, seed, valid, why, stats}, dirty (pola do odświeżenia chunków), roadRev, hasWall (są mury; pola z t.wall = 1)',
+  factionId: 'id nacji: franks, saracens, vikings, slavs', map: 'mapa: size 48, tiles[2304], meta {climate, type, seed, valid, why, stats}, dirty (pola do odświeżenia chunków), roadRev, hasWall (są mury; pola z t.wall: 1 mur, 2 brama wschód–zachód, 3 brama północ–południe)',
   buildings: 'gotowe budynki {id, x, y, w, h, uid, rot (kierunek 1–3; brak = 0)}; pola robocze: st (status), eff, logi, huntAcc, awayUntil, carrierT', citizens: 'obywatele „cienia symulacji” (losowania RNG logiki); widoczne postacie rysuje Walkers',
   time: 'czas gry w minutach', speed: 'mnożnik prędkości 0 / 1 / 2 / 3 / 6 (0 = pauza; przyciski ×1 → ×2 → ×3 → ×6)', res: 'magazyn: towary (Economy.LIMIT), złoto, narzędzia, popularity', nextId: 'licznik uid budynków i placów',
   pop: 'ludność (liczba rzeczywista; w obliczeniach Math.floor)', controls: '{ rations: 0,5 / 1 / 1,5 / 2, tax: 0–3 }', starveTimer: 'minuty ciągłego braku jedzenia (≥ 5 → ginie 1 osoba na minutę)',

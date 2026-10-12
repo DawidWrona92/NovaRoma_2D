@@ -45,6 +45,45 @@ for (const fid of FIDS) {
   ok(!Walls.remove(cx + 2, cy), `${fid}: rozbiórka pustego pola — brak`);
 }
 
+// bramy (Punkt 14): koszt wg nacji, przejście A*, oś z sąsiadów, droga przez bramę, zamknięty teren bez bramy, rozbiórka
+for (const fid of FIDS) {
+  let seed = 5; World.init(fid, { climate: 'temperate', type: 'plain', seed }); while (!dry(World.state().map, World.state().map.size) && seed < 40) World.init(fid, { climate: 'temperate', type: 'plain', seed: ++seed });
+  const s = World.state(), map = s.map, N = map.size, T = (x, y) => map.tiles[y * N + x]; for (const t of map.tiles) { t.trees = 0; t.deposit = null; }
+  const [cx, cy] = dry(map, N) || [-1, -1]; if (cx < 0) continue;
+  s.res.deski = 500; s.res.kamień = 500; s.res.glina = 500;
+  const gc = Walls.gateCost(); ok(Object.keys(gc).length >= 1 && Object.values(gc).every(v => v > 0), `${fid}: koszt bramy zdefiniowany`);
+  ok(Object.values(gc).reduce((a, b) => a + b, 0) > Object.values(Walls.costOf()).reduce((a, b) => a + b, 0), `${fid}: brama droższa niż pole muru`);
+  Walls.lay(cx, cy, cx + 6, cy);                                                                                           // mur w poprzek (oś wschód–zachód)
+  ok(Walls.gateAxis(cx + 3, cy) === 2, `${fid}: oś bramy w murze wschód–zachód = 2`);
+  const before = { ...s.res }, g = Walls.layGate(cx + 3, cy);
+  ok(g.ok && T(cx + 3, cy).wall === 2, `${fid}: brama zastępuje pole muru (wall = 2)`);
+  ok(Object.keys(gc).every(k => before[k] - s.res[k] === gc[k]), `${fid}: odjęto koszt bramy`);
+  ok(Terrain.passable(T(cx + 3, cy)) && !Terrain.passable(T(cx + 2, cy)), `${fid}: brama przechodnia, mur obok nie`);
+  ok(!Walls.layGate(cx + 3, cy).ok, `${fid}: druga brama w tym samym polu — odmowa`);
+  const p = Path.find(map, cx + 3.5, cy - 1.5, cx + 3.5, cy + 2.5, {}); ok(p && p.length === 2, `${fid}: A* przechodzi prosto przez bramę (${p ? p.length : 'brak'} punktów)`);
+  // oś północ–południe
+  Walls.lay(cx, cy + 4, cx, cy + 8); ok(Walls.gateAxis(cx, cy + 6) === 3, `${fid}: oś bramy w murze północ–południe = 3`);
+  ok(Walls.layGate(cx, cy + 6).ok && T(cx, cy + 6).wall === 3, `${fid}: brama północ–południe (wall = 3)`);
+  // brama na drodze i droga przez bramę
+  T(cx + 10, cy).road = 1; ok(Walls.layGate(cx + 10, cy).ok && T(cx + 10, cy).road === 1, `${fid}: brama na polu drogi zachowuje drogę`);
+  ok(Roads.free(T(cx + 3, cy)) && !Roads.free(T(cx + 2, cy)), `${fid}: droga może przejść przez bramę, przez mur nie`);
+  // brak surowców
+  for (const k in gc) s.res[k] = 0; ok(/Brak surowców/.test(Walls.gatePreview(cx + 11, cy).reason || ''), `${fid}: brak surowców na bramę — odmowa`); s.res.deski = 500; s.res.kamień = 500; s.res.glina = 500;
+  // rozbiórka bramy
+  ok(Walls.remove(cx + 3, cy) && !T(cx + 3, cy).wall, `${fid}: rozbiórka zdejmuje bramę`);
+  // zamknięty teren: pierścień bez bramy zamyka obszar (puste pole), z bramą — otwiera dojście
+  const R = 3, x0 = cx + 2, y0 = cy + 12 > N - 6 ? cy - 12 : cy + 12; if (x0 + R + 2 < N && y0 >= 2 && y0 + R + 2 < N) {
+    for (let j = -1; j <= R + 1; j++) for (let i = -1; i <= R + 1; i++) { const t = T(x0 + i, y0 + j); t.wall = 0; t.occup = null; t.trees = 0; t.road = 0; }
+    Walls.lay(x0, y0, x0 + R, y0); Walls.lay(x0 + R, y0, x0 + R, y0 + R); Walls.lay(x0 + R, y0 + R, x0, y0 + R); Walls.lay(x0, y0 + R, x0, y0);
+    if (T(x0, y0).wall && T(x0 + R, y0 + R).wall) {
+      ok(!Walls.ringOpen(map, x0 + 1, y0 + 1, 1, 1), `${fid}: wnętrze pierścienia bez bramy zamknięte (ringOpen = false)`);
+      ok(!G.World.canPlace('hut', x0 + 1, y0 + 1).ok, `${fid}: budowa w zamkniętym terenie odmowa`);
+      ok(Walls.layGate(x0 + 2, y0).ok, `${fid}: brama w pierścieniu`);
+      ok(Walls.ringOpen(map, x0 + 1, y0 + 1, 1, 1), `${fid}: po dodaniu bramy wnętrze osiągalne`);
+    } else ok(false, `${fid}: nie udało się położyć pierścienia testowego`);
+  }
+}
+
 // odcięcie budynku od Dworu: pierścień muru wokół budynku, do którego dało się dojść, jest odrzucony; gdy budynku nie ma — wolno
 World.init('franks', { climate: 'temperate', type: 'plain', seed: 5 });
 {
