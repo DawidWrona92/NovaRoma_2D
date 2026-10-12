@@ -234,6 +234,12 @@
 </style>
 </head>
 <body>
+<div id="boot" style="position:fixed;inset:0;z-index:99;background:#0d0b08;color:#e8c860;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;font-family:Georgia,serif">
+  <div style="font-size:34px;letter-spacing:4px;font-weight:bold">NOVA ROMA</div>
+  <p id="bootMsg" style="color:#b9a982;margin-top:10px">Ładowanie gry…</p>
+  <pre id="bootErr" style="white-space:pre-wrap;word-break:break-word;color:#e0a090;font-size:12px;max-width:92vw;margin-top:14px;text-align:left"></pre>
+  <noscript><p style="color:#e0a090">Ta gra wymaga włączonego JavaScriptu.</p></noscript>
+</div>
 <canvas id="game"></canvas>
 <div id="hud" style="display:none">
   <button id="btnMenu" title="Menu (Esc)">☰ Menu</button>
@@ -314,6 +320,16 @@
   </div>
 </div>
 
+<script>
+/* diagnostyka startu: jeśli główny skrypt się wywróci (np. starsza przeglądarka mobilna), błąd widać na ekranie startowym zamiast pustej strony */
+window.__bootErrs = [];
+(function () {
+  function show(m) { window.__bootErrs.push(m); var e = document.getElementById('bootErr'); if (e) e.textContent = window.__bootErrs.slice(-4).join('\n'); var t = document.getElementById('bootMsg'); if (t) t.textContent = 'Gra nie wystartowała — zrób zrzut ekranu tego komunikatu:'; }
+  window.addEventListener('error', function (ev) { show((ev.message || 'błąd') + (ev.lineno ? ' (wiersz ' + ev.lineno + ')' : '')); });
+  window.addEventListener('unhandledrejection', function (ev) { show('obietnica: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason)); });
+  window.__bootShow = show;
+})();
+</script>
 <script>
 "use strict";
 /* nakładka błędów: każdy błąd JS pokazuje się na ekranie (debug na telefonie) */
@@ -11247,8 +11263,14 @@ const Game = (() => {
   if (typeof location !== 'undefined') {
     const q = new URLSearchParams(location.search), p = q.get('play');
     if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined });
-    else if (q.get('menu') !== '0') Menu.showMain();                       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
+    else if (q.get('menu') !== '0') {
+      try { Menu.showMain(); if (!document.querySelector('#mmList button')) throw new Error('lista menu jest pusta'); }       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
+      catch (e) { document.getElementById('mainMenu').style.display = 'none'; document.getElementById('factionPick').style.display = 'flex'; if (window.__bootShow) window.__bootShow('menu: ' + e.message + ' — pokazano dawny wybór nacji'); }   // awaria menu nie blokuje gry
+    }
   }
+  { const bt = document.getElementById('boot'), bad = window.__bootErrs && window.__bootErrs.length;
+    if (bt && !bad) bt.remove();
+    else if (bt && document.querySelector('#factionCards .factionCard')) { bt.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;background:rgba(13,11,8,.92);color:#e0a090;padding:6px 10px;font:12px Georgia,serif;max-height:30vh;overflow:auto'; bt.firstElementChild.style.display = 'none'; } }   // ekran startowy znika dopiero po udanym starcie; przy błędzie zostaje z komunikatem
   return { start, initGround, groundInfo: () => gnd ? { baked: gnd.stats.baked, over: gnd.stats.over, ms: Math.round(gnd.stats.ms), mpx: +(gnd.pixels / 1e6).toFixed(1), queue: gnd.queue.length } : null };
 })();
 </script>
