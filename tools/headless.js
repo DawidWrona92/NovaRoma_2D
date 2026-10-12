@@ -63,7 +63,7 @@ function load(htmlFile, opts = {}) {
   vm.createContext(sandbox);
   vm.runInContext(m[1], sandbox, { filename: path.basename(htmlFile) });
   const names = ['RNG', 'Data', 'Camera', 'Terrain', 'MapGen', 'Gfx', 'Sprites', 'Path', 'World', 'Economy', 'Build', 'Tribute', 'Mission', 'Events',
-    'TestBots', 'Roads', 'Logistics', 'Minimap', 'Menu', 'Fauna', 'BuildMode', 'UI', 'Walkers', 'Workers', 'Game', 'Advisor'];
+    'TestBots', 'Roads', 'Walls', 'Logistics', 'Minimap', 'Menu', 'Fauna', 'BuildMode', 'UI', 'Walkers', 'Workers', 'Game', 'Advisor'];
   const out = { sandbox, els, document };
   for (const n of names) {
     try { out[n] = vm.runInContext('typeof ' + n + " !== 'undefined' ? " + n + ' : undefined', sandbox); } catch (e) { /* brak modułu */ }

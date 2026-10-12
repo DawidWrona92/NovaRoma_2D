@@ -1,7 +1,7 @@
 /* ====================== KATALOG BUDYNKÓW: id z gry → sprite, obrys, nazwa ======================
    Sprite budynku `id` nacji `n` nazywa się `${n}_${id}` (np. franks_mill). Obrys (fw×fh w polach) pochodzi z wypieczonego sprite'a.
    Lista id odpowiada Data.BUILDINGS z Nova_Roma.html: 12 budynków wspólnych + budynki specyficzne dla nacji. */
-const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple', 'settlement', 'minestore', 'timberstore'];
+const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple', 'settlement', 'minestore', 'timberstore', 'wall'];
 const NATIONS = {
   franks: COMMON_IDS.concat(['quarry', 'farm', 'mill', 'bakery', 'ironmine', 'coalmine', 'smelter', 'toolforge', 'armory', 'vineyard', 'winery', 'barracks']),
   saracens: COMMON_IDS.concat(['claypit', 'dategrove', 'incensewood', 'incense', 'cotton', 'weaver', 'pottery', 'qanat', 'bathhouse', 'caravanserai', 'guardpost']),
@@ -9,11 +9,12 @@ const NATIONS = {
   slavs: COMMON_IDS.concat(['gatherer', 'field', 'kasha', 'bartnik', 'waxery', 'trapper', 'tannery', 'sauna'])
 };
 /* warianty obrotu (kierunki 1–3; kierunek 0 to sprite podstawowy): sprite `${nacja}_${id}@${kierunek}` ma własny obrys, wejście i kotwicę — dziś tylko Przystań i Okręt (stoją na wodzie, więc muszą się obracać) */
-const ROT_VARIANTS = { vikings: { dock: [1, 2, 3], ship: [1, 2, 3] } };
+const WALL_MASKS = Array.from({ length: 15 }, (_, i) => i + 1);                   // mury obronne: wariant = maska sąsiadów (N=1, E=2, S=4, W=8); maska 0 to słupek bez sąsiadów (sprite podstawowy)
+const ROT_VARIANTS = { franks: { wall: WALL_MASKS }, saracens: { wall: WALL_MASKS }, vikings: { dock: [1, 2, 3], ship: [1, 2, 3], wall: WALL_MASKS }, slavs: { wall: WALL_MASKS } };
 const variantIds = n => Object.entries(ROT_VARIANTS[n] || {}).flatMap(([id, rs]) => rs.map(r => `${id}@${r}`));
 const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
 const NAMES = {
-  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia', settlement: 'Osada', minestore: 'Skład górniczy', timberstore: 'Skład drzewny',
+  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia', settlement: 'Osada', minestore: 'Skład górniczy', timberstore: 'Skład drzewny', wall: 'Mur',
   quarry: 'Kamieniołom', farm: 'Farma', mill: 'Młyn', bakery: 'Piekarnia', ironmine: 'Kopalnia żelaza', coalmine: 'Kopalnia węgla', smelter: 'Huta', toolforge: 'Kuźnia narzędzi', armory: 'Zbrojownia', vineyard: 'Winnica', winery: 'Winiarz', barracks: 'Koszary',
   claypit: 'Glinianka', dategrove: 'Gaj daktylowy', incensewood: 'Las kadzidlany', incense: 'Wytwórnia kadzidła', cotton: 'Plantacja bawełny', weaver: 'Tkalnia', pottery: 'Garncarnia', qanat: 'Qanat', bathhouse: 'Łaźnia', caravanserai: 'Karawanseraj', guardpost: 'Strażnica',
   fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',

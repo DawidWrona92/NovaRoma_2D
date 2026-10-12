@@ -32,6 +32,10 @@ Test `tools/hubs.js` sprawdza, że sprite'y czterech nacji się wypiekają, a ob
 
 Przystań i Okręt mają dodatkowo warianty kierunku `vikings_dock@1…3` i `vikings_ship@1…3` (lista `ROT_VARIANTS` w `src/29_catalog.js`, generatory `dockSprite(rot)` i `shipSprite(rot)` w `src/53_vikings.js`). Warianty nie malują wody ani gruntu pod sobą, bo stoją na prawdziwych polach gry (molo i okręt na wodzie), a głowa smoka na dziobie zwraca się w stronę dziobu. Każdy wariant ma własny obrys, wejście i kotwicę w katalogu (`SPRITE_META`).
 
+## Mury obronne {#mury-grafika}
+
+Segmenty murów (rozdz. {{ref:mury}}) mają własny plik `prototyp/src/56_walls.js`: dla każdej nacji 16 sprite'ów 1×1 pole, po jednym na maskę sąsiadów (N=1, E=2, S=4, W=8; maska 0 to samotny słupek). Są w katalogu jak budynki (`wall`, `wall@1…15`) i wypiekają się z nacją, ale mają tylko obrys 1×1 bez drzwi. Ramiona mają wspólne pozycje blanek i pali (krok 0,17 pola) na krawędziach, więc sąsiednie pola zlewają się w ciągły mur. **Frankowie** i **Saraceni** używają materiałów i blanek swoich zamków (kamień, piaskowiec), a wieżyczka stoi na zakrętach, rozgałęzieniach i końcach muru (Frankowie: kamienny walec z czerwonym stożkiem, Saraceni: piaskowiec z małą kopułą); **Wikingowie** i **Słowianie** mają palisadę z zaostrzonych pali (`Build.palisade`, teraz z parametrem koloru) i grubszy słup narożny. W grze `Game.render` wybiera wariant po masce sąsiadów i rysuje cień sprite'a w osobnym przebiegu (mury nie są częścią chunków podłoża).
+
 ## Mieszkańcy {#mieszkancy}
 
 Postacie mają wygląd wspólny dla nacji, zapisany w tabeli `CAST` (kolory stroju, włosy, nakrycie głowy, rekwizyty). Robotnicy mają po dwa warianty na nację: `*Worker` i `*WorkerB` (np. `frankWorker`, `vikWorkerB`), dobierane według koloru stroju. Myśliwi z łukiem (`frankHunter` i pozostałe) dopisano na końcu tabeli, żeby nie przesunąć indeksów wybieranych w grze.

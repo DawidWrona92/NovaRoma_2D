@@ -85,6 +85,19 @@ Droga to pole z `tile.road = 1` (zapisywane w kaflu, więc trafia do snapshotu).
 
 Test `tools/roads.js` sprawdza m.in. koszt tylko za nowe pola, odmowy, zdejmowanie drogi przez budowę, preferowanie drogi przez A\*, brak RNG i zapis przez JSON.
 
+## Mury obronne: moduł Walls {#mury}
+
+Mur (Punkt 13) to pole z `tile.wall = 1` — **nieprzechodnie** dla ludzi i zwierząt (`Terrain.passable`, więc `Path`, `Walkers`, `Workers` i `Fauna` je omijają), z zakazem budowy i kładzenia dróg. Gracz wytycza go narzędziem **Mur** w zakładce **Mury** (dwa kliknięcia: początek i koniec; odcinek prosty albo „L”: najpierw wzdłuż dłuższej osi). Mur jest **tylko ozdobą i przeszkodą** — bez wartości militarnej; stawia się go od razu (bez budowniczych). Zasady (`Walls.preview`/`Walls.lay`):
+
+- koszt: **1 surowiec za pole**, zależny od nacji (`Data.RULES.wall.cost`): Frankowie — kamień, Saraceni — glina, Wikingowie i Słowianie — deski (palisada); podgląd pokazuje liczbę pól i koszt,
+- mur nie powstanie na wodzie, bagnie, wydmie, klifie, drzewach (trzeba je wyciąć), złożach, drogach ani zajętych polach,
+- **walidacja osiągalności** (`Walls.cutsOff`): mur nie może odciąć od Dworu żadnego budynku, do którego dało się wcześniej dojść; zamknięcie grodu wymaga bram (Punkt 14),
+- narzędzie **Rozbierz mur** zdejmuje pojedyncze pola (bez zwrotu); każda zmiana podnosi `map.roadRev`, więc logistyka przelicza dojścia.
+
+**Grafika:** każdy segment to osobny sprite 1×1 pole w 16 wariantach sąsiedztwa (maska N=1, E=2, S=4, W=8; `${nacja}_wall@${maska}`), wypiekany silnikiem sprite'ów jak budynki (`prototyp/src/56_walls.js`): Frankowie i Saraceni — ten sam kamień, blanki i wieżyczki co w ich zamkach (wieżyczka na zakrętach, rozgałęzieniach i końcach), Wikingowie i Słowianie — palisada z zaostrzonych pali i grubszym słupem narożnym. W trybie klasycznym (`?classic=1`) mur rysuje się dynamicznie z pryzm.
+
+Test `tools/walls.js` sprawdza koszt, odmowy, nieprzechodniość i obejście przez A\*, odcięcie budynku, burzenie i brak wpływu przy braku murów; `tools/browser_walls.js` — zakładkę, dwa kliknięcia i rysowanie w obu trybach.
+
 ## Sprawność logistyczna: moduł Logistics {#logistyka}
 
 Producent daleko od Składu lub Dworu daje mniej. `Logistics.effOf` zwraca mnożnik plonu (przerobu) `eff`, który wchodzi do `Economy.tick` i `potentialFood` obok mnożnika lasu i zwierzyny:

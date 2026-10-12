@@ -80,7 +80,7 @@ Na telefonie pasek jest zwinięty: widać stan i najważniejsze przyciski, a poz
 
 ## Pasek budowy {#pasek-budowy}
 
-U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Drewno, Surowce, Rzemiosło, Handel, Militaria, Społeczne) oraz kategorią **Drogi** (narzędzia: wytycz drogę, rozbierz drogę). Każdy przycisk budynku pokazuje miniaturę sprite'a (z katalogu `SPRITE_META`), nazwę (zależną od nacji — `Data.nameOf`) i koszt. Wybór budynku włącza **tryb budowy** (`BuildMode`):
+U dołu ekranu leży pasek z **ośmioma kategoriami** (Mieszkania, Jedzenie, Drewno, Surowce, Rzemiosło, Handel, Militaria, Społeczne) oraz kategoriami narzędzi **Drogi** (wytycz drogę, rozbierz drogę) i **Mury** (wytycz mur, rozbierz mur; rozdz. {{ref:mury}}). Każdy przycisk budynku pokazuje miniaturę sprite'a (z katalogu `SPRITE_META`), nazwę (zależną od nacji — `Data.nameOf`) i koszt. Wybór budynku włącza **tryb budowy** (`BuildMode`):
 
 - **duch budynku** podąża za kursorem w obrysie `w×h` (rozdz. {{ref:zabudowa}}); zielony oznacza poprawne miejsce, czerwony — odmowę z powodem w podpowiedzi (np. „za blisko innego budynku”, „na wodzie”, „wymaga lasu”);
 - pola w strefie wydłużonego czasu budowy (odległość 2–3 od sąsiada) są podświetlone **przed** kliknięciem, a podpowiedź podaje karę czasu;

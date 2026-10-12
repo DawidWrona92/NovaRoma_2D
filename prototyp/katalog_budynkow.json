@@ -930,6 +930,28 @@
       "ay": 238
      }
     },
+    "wall": {
+     "sprite": "franks_wall",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 200,
+      "ax": 45,
+      "ay": 147
+     }
+    },
     "quarry": {
      "sprite": "franks_quarry",
      "nazwa": "Kamieniołom",
@@ -1469,6 +1491,336 @@
       "h": 400,
       "ax": 213,
       "ay": 285
+     }
+    },
+    "wall@1": {
+     "sprite": "franks_wall@1",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 200,
+      "ax": 45,
+      "ay": 147
+     }
+    },
+    "wall@2": {
+     "sprite": "franks_wall@2",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 200,
+      "ax": 45,
+      "ay": 147
+     }
+    },
+    "wall@3": {
+     "sprite": "franks_wall@3",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 200,
+      "ax": 45,
+      "ay": 147
+     }
+    },
+    "wall@4": {
+     "sprite": "franks_wall@4",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@5": {
+     "sprite": "franks_wall@5",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 148,
+      "ax": 53,
+      "ay": 99
+     }
+    },
+    "wall@6": {
+     "sprite": "franks_wall@6",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@7": {
+     "sprite": "franks_wall@7",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@8": {
+     "sprite": "franks_wall@8",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@9": {
+     "sprite": "franks_wall@9",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@10": {
+     "sprite": "franks_wall@10",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 144,
+      "ax": 53,
+      "ay": 95
+     }
+    },
+    "wall@11": {
+     "sprite": "franks_wall@11",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@12": {
+     "sprite": "franks_wall@12",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@13": {
+     "sprite": "franks_wall@13",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@14": {
+     "sprite": "franks_wall@14",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
+     }
+    },
+    "wall@15": {
+     "sprite": "franks_wall@15",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 200,
+      "ax": 53,
+      "ay": 147
      }
     }
    }
@@ -2234,6 +2586,28 @@
       "ay": 159
      }
     },
+    "wall": {
+     "sprite": "saracens_wall",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 120,
+      "h": 196,
+      "ax": 45,
+      "ay": 144
+     }
+    },
     "claypit": {
      "sprite": "saracens_claypit",
      "nazwa": "Glinianka",
@@ -2700,6 +3074,336 @@
       "h": 296,
       "ax": 121,
       "ay": 218
+     }
+    },
+    "wall@1": {
+     "sprite": "saracens_wall@1",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 196,
+      "ax": 45,
+      "ay": 144
+     }
+    },
+    "wall@2": {
+     "sprite": "saracens_wall@2",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 196,
+      "ax": 45,
+      "ay": 144
+     }
+    },
+    "wall@3": {
+     "sprite": "saracens_wall@3",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 124,
+      "h": 196,
+      "ax": 45,
+      "ay": 144
+     }
+    },
+    "wall@4": {
+     "sprite": "saracens_wall@4",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@5": {
+     "sprite": "saracens_wall@5",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 140,
+      "ax": 53,
+      "ay": 92
+     }
+    },
+    "wall@6": {
+     "sprite": "saracens_wall@6",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@7": {
+     "sprite": "saracens_wall@7",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@8": {
+     "sprite": "saracens_wall@8",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@9": {
+     "sprite": "saracens_wall@9",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@10": {
+     "sprite": "saracens_wall@10",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 140,
+      "ax": 53,
+      "ay": 92
+     }
+    },
+    "wall@11": {
+     "sprite": "saracens_wall@11",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@12": {
+     "sprite": "saracens_wall@12",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 128,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@13": {
+     "sprite": "saracens_wall@13",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@14": {
+     "sprite": "saracens_wall@14",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
+     }
+    },
+    "wall@15": {
+     "sprite": "saracens_wall@15",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 132,
+      "h": 196,
+      "ax": 53,
+      "ay": 144
      }
     }
    }
@@ -3472,6 +4176,28 @@
       "ay": 190
      }
     },
+    "wall": {
+     "sprite": "vikings_wall",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 140,
+      "ax": 25,
+      "ay": 101
+     }
+    },
     "fisherhut": {
      "sprite": "vikings_fisherhut",
      "nazwa": "Chata rybaka",
@@ -3966,6 +4692,336 @@
       "h": 296,
       "ax": 137,
       "ay": 205
+     }
+    },
+    "wall@1": {
+     "sprite": "vikings_wall@1",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 140,
+      "ax": 25,
+      "ay": 101
+     }
+    },
+    "wall@2": {
+     "sprite": "vikings_wall@2",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 140,
+      "ax": 25,
+      "ay": 101
+     }
+    },
+    "wall@3": {
+     "sprite": "vikings_wall@3",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 140,
+      "ax": 25,
+      "ay": 101
+     }
+    },
+    "wall@4": {
+     "sprite": "vikings_wall@4",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@5": {
+     "sprite": "vikings_wall@5",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 84,
+      "h": 108,
+      "ax": 41,
+      "ay": 85
+     }
+    },
+    "wall@6": {
+     "sprite": "vikings_wall@6",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@7": {
+     "sprite": "vikings_wall@7",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@8": {
+     "sprite": "vikings_wall@8",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@9": {
+     "sprite": "vikings_wall@9",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@10": {
+     "sprite": "vikings_wall@10",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 84,
+      "h": 108,
+      "ax": 41,
+      "ay": 85
+     }
+    },
+    "wall@11": {
+     "sprite": "vikings_wall@11",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@12": {
+     "sprite": "vikings_wall@12",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@13": {
+     "sprite": "vikings_wall@13",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@14": {
+     "sprite": "vikings_wall@14",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
+     }
+    },
+    "wall@15": {
+     "sprite": "vikings_wall@15",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 140,
+      "ax": 41,
+      "ay": 101
      }
     }
    }
@@ -4570,6 +5626,28 @@
       "ay": 218
      }
     },
+    "wall": {
+     "sprite": "slavs_wall",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 132,
+      "ax": 25,
+      "ay": 93
+     }
+    },
     "gatherer": {
      "sprite": "slavs_gatherer",
      "nazwa": "Chata zbieracza",
@@ -4916,6 +5994,336 @@
       "h": 212,
       "ax": 117,
       "ay": 151
+     }
+    },
+    "wall@1": {
+     "sprite": "slavs_wall@1",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 132,
+      "ax": 25,
+      "ay": 93
+     }
+    },
+    "wall@2": {
+     "sprite": "slavs_wall@2",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 132,
+      "ax": 25,
+      "ay": 93
+     }
+    },
+    "wall@3": {
+     "sprite": "slavs_wall@3",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 80,
+      "h": 132,
+      "ax": 25,
+      "ay": 93
+     }
+    },
+    "wall@4": {
+     "sprite": "slavs_wall@4",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@5": {
+     "sprite": "slavs_wall@5",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 84,
+      "h": 104,
+      "ax": 41,
+      "ay": 77
+     }
+    },
+    "wall@6": {
+     "sprite": "slavs_wall@6",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@7": {
+     "sprite": "slavs_wall@7",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@8": {
+     "sprite": "slavs_wall@8",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@9": {
+     "sprite": "slavs_wall@9",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@10": {
+     "sprite": "slavs_wall@10",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 84,
+      "h": 104,
+      "ax": 41,
+      "ay": 77
+     }
+    },
+    "wall@11": {
+     "sprite": "slavs_wall@11",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@12": {
+     "sprite": "slavs_wall@12",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@13": {
+     "sprite": "slavs_wall@13",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@14": {
+     "sprite": "slavs_wall@14",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
+     }
+    },
+    "wall@15": {
+     "sprite": "slavs_wall@15",
+     "nazwa": "Mur",
+     "obrys": [
+      1,
+      1
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.5
+     },
+     "drzwi": null,
+     "dym": [],
+     "okna": [],
+     "sprite_px": {
+      "w": 96,
+      "h": 132,
+      "ax": 41,
+      "ay": 93
      }
     }
    }
