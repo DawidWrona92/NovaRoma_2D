@@ -199,11 +199,16 @@
   #announce { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); top: calc(var(--hud-h) + 10px); width: min(460px, calc(100vw - 20px)); display: none; background: var(--panel-bg); border: 1px solid var(--panel-border); border-left: 5px solid #8fce8f; padding: 8px 12px; font-size: 13px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,.5); cursor: pointer; }
   #announce.bad { border-left-color: #e08484; } #announce.info { border-left-color: var(--gold); } #announce b { color: var(--gold); display: block; font-size: 14px; margin-bottom: 2px; }
   #missionBox { position: fixed; inset: 0; z-index: 75; display: none; align-items: center; justify-content: center; background: rgba(8,6,3,.78); padding: 10px; }
+  #missionBox, #missionBox .mbBox, #missionBox p, #missionBox td, #announce, #termWarn { color: var(--text); }
+  #missionBox td { color: #efe3c6; } #missionBox td:last-child { color: var(--gold); }
   #missionBox .mbBox { width: min(480px, 100%); max-height: calc(100vh - 20px); overflow-y: auto; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 18px 20px; font-size: 14px; line-height: 1.5; }
   #missionBox h2 { color: var(--gold); letter-spacing: 2px; margin: 0 0 8px; font-size: 20px; } #missionBox h2.won { color: #8fce8f; } #missionBox h2.lost { color: #e08484; }
-  #missionBox .mbSub { color: #a89878; font-size: 12px; margin-top: 8px; } #missionBox table { width: 100%; border-collapse: collapse; margin: 10px 0 4px; } #missionBox td { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.07); } #missionBox td:last-child { text-align: right; color: var(--gold); }
+  #missionBox .mbSub { color: #a89878; font-size: 12px; margin-top: 8px; } #missionBox table { width: 100%; border-collapse: collapse; margin: 10px 0 4px; } #missionBox td { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.07); } #missionBox td:last-child { text-align: right; }
   #missionBox .mbBtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; } #missionBox .mbBtns button { flex: 1 1 130px; padding: 10px 8px; font: inherit; font-size: 14px; cursor: pointer; background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; }
   #missionBox .mbBtns button.main { background: #4d6b2a; border-color: #8fbf5a; font-weight: bold; }
+  #termWarn { position: fixed; z-index: 58; top: calc(var(--hud-h) + 10px); right: 10px; width: min(300px, calc(100vw - 20px)); display: none; background: #3a2a10; border: 1px solid #d8a840; border-left: 5px solid #f0b840; padding: 8px 28px 8px 12px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,.55); }
+  #termWarn b { display: block; color: #ffd878; font-size: 13.5px; margin-bottom: 2px; } #termWarn .twx { position: absolute; right: 2px; top: 0; border: 0; background: none; color: #f0e0b8; font-size: 18px; padding: 2px 8px; cursor: pointer; }
+  @media (min-width: 721px) { #termWarn { right: 200px; } }
   #bInfo h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
   #bInfo .sub { color: #a89878; font-size: 11px; }
 
@@ -328,7 +333,7 @@
 </div>
 <div id="sandbox">
   <div class="sbBox">
-    <h2>Piaskownica</h2>
+    <h2>Pojedyncza gra</h2>
     <div class="sbCols">
       <div class="sbLeft">
         <h3>1. Nacja</h3><div id="sbFactions" class="sbCards"></div>
@@ -8786,7 +8791,7 @@ const Mission = (() => {
   };
   const cur = () => World.state().mission;
   const goalOf = preset => GOAL[preset] || 8;
-  function free() { const s = World.state(); Tribute.set('off'); s.mission = { status: 'free', preset: 'off', goal: 0, maxMiss: 0, streak: 0, startT: s.time, endT: null, reason: '', msgs: [] }; s.settings.mission = false; return s.mission; }
+  function free() { const s = World.state(); Tribute.set('off'); s.settings.raids = false; s.mission = { status: 'free', preset: 'off', goal: 0, maxMiss: 0, streak: 0, startT: s.time, endT: null, reason: '', msgs: [] }; s.settings.mission = false; return s.mission; }
   function start(preset) {
     const s = World.state(); Tribute.set(preset);
     s.mission = { status: 'active', preset, goal: goalOf(preset), maxMiss: MAX_MISS, streak: 0, startT: s.time, endT: null, reason: '', msgs: [] }; s.settings.mission = true; return s.mission;
@@ -8806,6 +8811,7 @@ const Mission = (() => {
   /* po każdym terminie haraczu (e = wpis dziennika { n, required, delivered, ok }) */
   function onTerm(s, e) {
     const m = s.mission; if (!m || m.status !== 'active') return;
+    try { if (typeof UI !== 'undefined' && UI.hideTermWarn) UI.hideTermWarn(); } catch (err) { /* UI jeszcze nie gotowe */ }
     const u = Tribute.UNIT[s.factionId], left = Math.max(0, m.goal - (s.tribute ? s.tribute.terms : e.n));
     if (e.ok) {
       m.streak = 0;
@@ -8819,9 +8825,24 @@ const Mission = (() => {
   }
   function tick(dt) {
     const s = World.state(), m = s.mission; if (!m || m.status !== 'active' || !s.settings.mission) return;
-    if (s.time > 8 && s.pop < 1) end(s, 'lost', 'Osada się wyludniła — nie ma już komu pracować ani płacić.');
+    if (s.time > 8 && s.pop < 1) { end(s, 'lost', 'Osada się wyludniła — nie ma już komu pracować ani płacić.'); return; }
+    warnSoon(s, m);
   }
-  return { start, free, onTerm, tick, summary, GOAL, MAX_MISS, BRIEF, goalOf, cur };
+  /* ostrzeżenie WARN_MIN minut przed terminem: ile już dostarczono, ile brakuje i co zrobić (raz na termin) */
+  const WARN_MIN = 3, HINT = {
+    franks: 'Wyszkol brakujących żołnierzy w Koszarach (potrzebna broń ze Zbrojowni; żołd 3 zł na żołnierza).',
+    saracens: 'Termin zostanie opłacony ze skarbca — zadbaj o złoto (sprzedaż kadzidła, tkaniny i ceramiki na Targu).',
+    vikings: 'Okręt musi wypłynąć z załogą, miodem pitnym i bronią przed terminem (Przystań, Miodosytnia, Zbrojownia).',
+    slavs: 'Danina w towarach: sprawdź w Składzie zapasy futra wyprawionego, miodu i wosku.'
+  };
+  function warnSoon(s, m) {
+    const t = s.tribute; if (!t || !t.announced && s.time < t.firstTerm - 30) return;
+    const next = t.firstTerm + t.terms * Tribute.TERM_EVERY, remain = next - s.time;
+    if (remain > WARN_MIN || remain <= 0 || m.warned === t.terms + 1) return;
+    m.warned = t.terms + 1; const required = Tribute.requiredCum(t.level, s.factionId, t.terms + 1), delivered = Math.round(t.delivered * 10) / 10;
+    try { if (typeof UI !== 'undefined' && UI.warnTerm) UI.warnTerm({ n: t.terms + 1, goal: m.goal, remain: Math.max(1, Math.ceil(remain)), required, delivered, need: Math.max(0, Math.round((required - delivered) * 10) / 10), unit: Tribute.UNIT[s.factionId], hint: HINT[s.factionId] }); } catch (e) { /* UI jeszcze nie gotowe */ }
+  }
+  return { start, free, onTerm, tick, summary, GOAL, MAX_MISS, WARN_MIN, BRIEF, goalOf, cur };
 })();
 
 const Events = (() => {
@@ -10188,6 +10209,13 @@ const UI = (() => {
     annEl.className = kind === 'bad' ? 'bad' : kind === 'info' ? 'info' : ''; annEl.innerHTML = '<b>' + title + '</b>' + text; annEl.style.display = 'block';
     clearTimeout(annT); annT = setTimeout(() => { annEl.style.display = 'none'; }, 14000);
   }
+  const twEl = document.createElement('div'); twEl.id = 'termWarn'; document.body.appendChild(twEl);
+  function hideTermWarn() { twEl.style.display = 'none'; }
+  /* małe okienko tuż przed terminem haraczu: ile brakuje i co zrobić; zamyka się krzyżykiem albo samo w chwili terminu */
+  function warnTerm(w) {
+    twEl.innerHTML = '<button class="twx" aria-label="Zamknij">✕</button><b>⏰ Termin haraczu ' + w.n + ' z ' + w.goal + ' za ok. ' + w.remain + ' min</b>Wymagane łącznie ' + w.required + ' ' + w.unit + ', dostarczono ' + w.delivered + ' — <b style="display:inline;color:' + (w.need > 0 ? '#ff9a8a' : '#a8e0a0') + '">' + (w.need > 0 ? 'brakuje ' + w.need + ' ' + w.unit : 'wszystko gotowe') + '</b><br>' + w.hint;
+    twEl.style.display = 'block'; twEl.querySelector('.twx').onclick = hideTermWarn;
+  }
   const md = t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   function modal(title, cls, body, buttons) {
     const s = World.state(); if (mbSpeed == null) { mbSpeed = s.speed || 1; s.speed = 0; }
@@ -10201,28 +10229,29 @@ const UI = (() => {
   function syncGoalUi() {
     const s = World.state(), m = s.mission, b = document.getElementById('btnGoal'), sel = document.getElementById('btnTribute');
     if (sel) sel.value = !s.tribute ? 'off' : s.tribute.preset === 'custom' ? 'L' + s.tribute.level : s.tribute.preset;
-    if (!m) { b.style.display = 'none'; return; }
-    b.style.display = ''; b.textContent = m.status === 'active' ? '🎯 Terminy ' + (s.tribute ? s.tribute.terms : 0) + '/' + m.goal : m.status === 'won' ? '🏆 Zwycięstwo' : m.status === 'lost' ? '💀 Porażka' : '🏗 Swobodna gra';
+    const free = !!m && m.status === 'free', rd = document.getElementById('btnRaids'); if (sel) sel.style.display = free ? 'none' : ''; if (rd && free) rd.style.display = 'none';        // wolne budowanie: bez haraczu, celów i napadów
+    if (!m || free) { b.style.display = 'none'; return; }
+    b.style.display = ''; b.textContent = m.status === 'active' ? '🎯 Terminy ' + (s.tribute ? s.tribute.terms : 0) + '/' + m.goal : m.status === 'won' ? '🏆 Zwycięstwo' : m.status === 'lost' ? '💀 Porażka' : '🏗 Wolne budowanie';
   }
   function showGoal() {
     const s = World.state(), m = s.mission, t = s.tribute, u = unitOf(s);
-    if (!m || m.status === 'free') { modal('Swobodna gra', '', '<p>Budujesz gród bez celów i bez haraczu — jak chcesz i ile chcesz.</p><p class="mbSub">Haracz możesz włączyć w pasku u góry (lista „Haracz”).</p>', [['Zamknij', closeModal, true]]); return; }
+    if (!m || m.status === 'free') { modal('Wolne budowanie', '', '<p>Budujesz gród bez celów, bez haraczu i bez napadów — jak chcesz i ile chcesz.</p>', [['Zamknij', closeModal, true]]); return; }
     const next = t ? Math.max(0, t.firstTerm + t.terms * Tribute.TERM_EVERY - s.time) : 0, req = t ? Tribute.requiredCum(t.level, s.factionId, Math.max(1, t.terms + 1)) : 0;
     modal('Cel misji', '', '<p>' + md(Mission.BRIEF[s.factionId]) + '</p><p><b>Wygrywasz</b>, gdy przetrwasz <b>' + m.goal + '</b> terminów haraczu (co ' + Tribute.TERM_EVERY + ' min gry). <b>Przegrywasz</b>, gdy ' + m.maxMiss + ' terminy z rzędu pozostaną niespełnione albo osada się wyludni.</p><table><tr><td>Poziom trudności</td><td>' + Tribute.labelOf(t) + '</td></tr><tr><td>Terminy</td><td>' + (t ? t.terms : 0) + ' z ' + m.goal + ' (✔ ' + (t ? t.met : 0) + ' / ✘ ' + (t ? t.missed : 0) + ')</td></tr><tr><td>Najbliższy termin za</td><td>' + (m.status === 'active' ? Math.ceil(next) + ' min' : '—') + '</td></tr><tr><td>Do tego terminu potrzeba łącznie</td><td>' + req + ' ' + u + '</td></tr><tr><td>Dostarczono dotąd</td><td>' + (t ? Math.round(t.delivered * 10) / 10 : 0) + ' ' + u + '</td></tr></table><p class="mbSub">Postęp i zalecenia pokazuje też Doradca (🧭).</p>', [['Do gry', closeModal, true]]);
   }
-  /* ekran początkowy: wybór celu — misja o wybranej trudności albo swobodna gra */
+  /* ekran początkowy: wybór trudności misji (wolne budowanie to osobna pozycja menu) */
   function showBriefing() {
     const s = World.state(), fid = s.factionId, u = unitOf(s);
-    const pick = preset => () => { if (preset === 'free') Mission.free(); else Mission.start(preset); syncGoalUi(); closeModal(); if (preset !== 'free') announce('info', 'Misja rozpoczęta', 'Pierwszy termin haraczu za ' + Tribute.FIRST_TERM[fid] + ' min gry. Cel i postęp: przycisk „🎯” u góry.'); };
-    modal('Cel gry — ' + Data.FACTIONS[fid].name, '', '<p>' + md(Mission.BRIEF[fid]) + '</p><p>Haracz płaci się <b>co ' + Tribute.TERM_EVERY + ' min gry</b>, pierwszy termin po <b>' + Tribute.FIRST_TERM[fid] + ' min</b> (żądanie: ' + Tribute.UNIT[fid] + '). <b>Wygrywasz</b>, przetrwawszy wymaganą liczbę terminów; <b>przegrywasz</b>, gdy trzy z rzędu pozostaną niespełnione albo osada się wyludni.</p><p class="mbSub">Wybierz poziom trudności (liczba terminów do przetrwania) albo graj swobodnie.</p>',
-      [['Łatwy (' + Mission.GOAL.easy + ' terminów)', pick('easy')], ['Normalny (' + Mission.GOAL.normal + ' terminów)', pick('normal'), true], ['Trudny (' + Mission.GOAL.hard + ')', pick('hard')], ['Mistrz (' + Mission.GOAL.master + ')', pick('master')], ['Swobodna gra (bez celów)', pick('free')]]);
+    const pick = preset => () => { Mission.start(preset); syncGoalUi(); closeModal(); announce('info', 'Misja rozpoczęta', 'Pierwszy termin haraczu za ' + Tribute.FIRST_TERM[fid] + ' min gry. Cel i postęp: przycisk „🎯” u góry.'); };
+    modal('Cel gry — ' + Data.FACTIONS[fid].name, '', '<p>' + md(Mission.BRIEF[fid]) + '</p><p>Haracz płaci się <b>co ' + Tribute.TERM_EVERY + ' min gry</b>, pierwszy termin po <b>' + Tribute.FIRST_TERM[fid] + ' min</b> (żądanie: ' + Tribute.UNIT[fid] + '). <b>Wygrywasz</b>, przetrwawszy wymaganą liczbę terminów; <b>przegrywasz</b>, gdy trzy z rzędu pozostaną niespełnione albo osada się wyludni.</p><p class="mbSub">Wybierz poziom trudności — liczbę terminów do przetrwania. Chcesz budować bez celów? W menu głównym jest „Wolne budowanie”.</p>',
+      [['Łatwy (' + Mission.GOAL.easy + ' terminów)', pick('easy')], ['Normalny (' + Mission.GOAL.normal + ' terminów)', pick('normal'), true], ['Trudny (' + Mission.GOAL.hard + ')', pick('hard')], ['Mistrz (' + Mission.GOAL.master + ')', pick('master')]]);
   }
   /* ekran końca przygody: zwycięstwo lub porażka, statystyki i dalsze kroki */
   function showSummary() {
     const s = World.state(), m = s.mission; if (!m || !m.summary) return; const q = m.summary, won = m.status === 'won', meta = s.map.meta || {};
     const again = () => Menu.restart(m.preset), menu = () => Menu.toMain();
     modal(won ? 'Zwycięstwo!' : 'Porażka', won ? 'won' : 'lost', '<p>' + m.reason + '</p><table><tr><td>Czas gry</td><td>' + q.time + ' min</td></tr><tr><td>Terminy haraczu</td><td>' + q.terms + ' z ' + q.goal + ' (✔ ' + q.met + ' / ✘ ' + q.missed + ')</td></tr><tr><td>Dostarczono seniorowi</td><td>' + q.delivered + ' ' + q.unit + '</td></tr><tr><td>Ludność</td><td>' + q.pop + '</td></tr><tr><td>Zadowolenie</td><td>' + q.popularity + '</td></tr><tr><td>Budynki</td><td>' + q.buildings + '</td></tr><tr><td>Złoto</td><td>' + q.gold + '</td></tr></table><p class="mbSub">' + (won ? 'Gratulacje! Możesz zagrać jeszcze raz, wrócić do menu albo budować dalej swobodnie.' : 'Wyciągnij wnioski (Doradca podpowiada brakujące budynki) i spróbuj jeszcze raz.') + '</p>',
-      [[won ? 'Zagraj ponownie' : 'Spróbuj ponownie', again, !won], ['Menu główne', menu, won], ['Buduj dalej swobodnie', () => { m.status = 'free'; Tribute.set('off'); s.settings.mission = false; syncGoalUi(); closeModal(); }]]);
+      [[won ? 'Zagraj ponownie' : 'Spróbuj ponownie', again, !won], ['Menu główne', menu, won], ['Buduj dalej (wolne budowanie)', () => { m.status = 'free'; Tribute.set('off'); s.settings.mission = false; syncGoalUi(); closeModal(); }]]);
     syncGoalUi();
   }
   document.getElementById('btnGoal').onclick = () => showGoal();
@@ -10336,7 +10365,7 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, announce, showBriefing, showGoal, showSummary, syncGoalUi, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, announce, warnTerm, hideTermWarn, showBriefing, showGoal, showSummary, syncGoalUi, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
 })();
 
 /* ================================ MODUL: MENU ================================
@@ -10346,7 +10375,9 @@ const Menu = (() => {
   const $ = id => document.getElementById(id), KEY = 'novaroma.sandbox';
   const store = { get() { try { return typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(KEY)) : null; } catch (e) { return null; } },
                   set(v) { try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* tryb prywatny — bez pamięci */ } } };
-  const ITEMS = [['campaign', 'Kampania'], ['skirmish', 'Potyczka'], ['sandbox', 'Piaskownica', 'Nację, klimat i typ mapy wybierasz sam'], ['multi', 'Wieloosobowa'], ['tutorial', 'Samouczek'], ['editor', 'Edytor map'], ['settings', 'Ustawienia'], ['credits', 'Twórcy'], ['exit', 'Wyjście']];
+  const ITEMS = [['campaign', 'Kampania'], ['skirmish', 'Potyczka'], ['sandbox', 'Pojedyncza gra', 'Misja z haraczem seniora — nację, klimat i mapę wybierasz sam'], ['free', 'Wolne budowanie', 'Gród bez haraczu i celów — buduj, jak chcesz'], ['multi', 'Wieloosobowa'], ['tutorial', 'Samouczek'], ['editor', 'Edytor map'], ['settings', 'Ustawienia'], ['credits', 'Twórcy'], ['exit', 'Wyjście']];
+  const ACTIVE = ['sandbox', 'free'];                                                                      // aktywne pozycje menu głównego: Pojedyncza gra (misja) i Wolne budowanie
+  let sbKind = 'single';
   const TYPE_ICON = { coast: '🌊', plain: '🌾', river: '🏞', lakes: '💧', mountains: '⛰', wetlands: '🪷' };
   let mode = null, built = false, sb = null, regenT = null, focus = 0, prevSpeed = 1, paused = false, cards = null;
 
@@ -10364,10 +10395,10 @@ const Menu = (() => {
     if (!built) {
       built = true; backdrop(); const ul = $('mmList');
       ITEMS.forEach(([id, label, hint], i) => {
-        const li = document.createElement('li'), b = document.createElement('button'), on = id === 'sandbox'; b.setAttribute('data-id', id); b.setAttribute('role', 'menuitem');
+        const li = document.createElement('li'), b = document.createElement('button'), on = ACTIVE.includes(id); b.setAttribute('data-id', id); b.setAttribute('role', 'menuitem');
         b.innerHTML = label + (on ? (hint ? '<small>' + hint + '</small>' : '') : '<small>Wkrótce</small>');
         if (!on) { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; }
-        b.onclick = () => { if (on) showSandbox(); }; b.onmouseenter = () => { if (on) setFocus(i); };           // nieaktywne pozycje nie przejmują fokusu (kursor po nawigacji bywa nad nimi)
+        b.onclick = () => { if (on) showSandbox(id === 'free' ? 'free' : 'single'); }; b.onmouseenter = () => { if (on) setFocus(i); };           // nieaktywne pozycje nie przejmują fokusu (kursor po nawigacji bywa nad nimi)
         li.appendChild(b); ul.appendChild(li);
       });
     }
@@ -10375,7 +10406,7 @@ const Menu = (() => {
   }
   const mmButtons = () => [...document.querySelectorAll('#mmList button')];
   function setFocus(i) { focus = i; mmButtons().forEach((b, k) => b.classList.toggle('focus', k === i)); }
-  function moveFocus(d) { const n = ITEMS.length; let i = focus; for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (ITEMS[i][0] === 'sandbox') break; } setFocus(i); }
+  function moveFocus(d) { const n = ITEMS.length; let i = focus; for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (ACTIVE.includes(ITEMS[i][0])) break; } setFocus(i); }
 
   /* ---------- Piaskownica ---------- */
   function clampSb() {
@@ -10414,7 +10445,8 @@ const Menu = (() => {
     Minimap.draw($('sbPreview'), map); $('sbDesc').textContent = Minimap.describe(map.meta);
     $('sbSummary').innerHTML = Minimap.summary(map).lines.map(l => l.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>'); sb.meta = map.meta;
   }
-  function showSandbox() {
+  function showSandbox(kind) {
+    sbKind = kind === 'free' ? 'free' : 'single'; document.querySelector('#sandbox h2').textContent = sbKind === 'free' ? 'Wolne budowanie' : 'Pojedyncza gra';
     $('mainMenu').style.display = 'none'; $('sandbox').style.display = 'flex'; mode = 'sandbox';
     if (!sb) {
       const saved = store.get() || {}, fid = Data.FACTIONS[saved.fid] ? saved.fid : 'franks';
@@ -10430,7 +10462,7 @@ const Menu = (() => {
   function start() {
     clampSb(); if (sb.meta && sb.meta.seed !== sb.seed) sb.seed = sb.meta.seed;
     store.set({ fid: sb.fid, climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size });
-    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size, mission: 'ask' });
+    UI.startGame(sb.fid, { climate: sb.climate, type: sb.type, seed: sb.seed, size: sb.size, mission: sbKind === 'free' ? 'free' : 'ask' });
   }
 
   /* ---------- menu w grze ---------- */

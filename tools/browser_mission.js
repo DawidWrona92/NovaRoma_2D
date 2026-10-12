@@ -9,7 +9,7 @@ const pw = require('/opt/node22/lib/node_modules/playwright'); const path = requ
   const box = pg => pg.evaluate(() => { const e = document.getElementById('missionBox'); return { shown: getComputedStyle(e).display !== 'none', text: e.textContent, buttons: [...e.querySelectorAll('button')].map(x => x.textContent) }; });
   // 1. start z menu (mission=ask): ekran celu
   let pg = await open('play=franks&climate=temperate&map=plain&seed=11&mission=ask');
-  let r = await box(pg); ok(r.shown && /Cel gry/.test(r.text) && r.buttons.length === 5, `ekran celu pokazany, ${r.buttons.length} przycisków: ${r.buttons.join(' | ')}`);
+  let r = await box(pg); ok(r.shown && /Cel gry/.test(r.text) && r.buttons.length === 4 && !r.buttons.some(x => /Swobodna/.test(x)), `ekran celu pokazany, ${r.buttons.length} przyciski trudności (bez swobodnej gry): ${r.buttons.join(' | ')}`);
   ok(/żołnierzy/.test(r.text) && /Wygrywasz/.test(r.text) && /przegrywasz/.test(r.text), 'opis celu: co jest wymagane, jak się wygrywa i przegrywa');
   ok(await pg.evaluate(() => World.state().speed === 0), 'gra czeka (pauza) na wybór celu'); await shot(pg, 'mission_briefing');
   await pg.getByRole('button', { name: /Normalny/ }).click(); await pg.waitForTimeout(300);
@@ -22,11 +22,11 @@ const pw = require('/opt/node22/lib/node_modules/playwright'); const path = requ
   await pg.waitForTimeout(300); r = await box(pg); const ann = await pg.evaluate(() => document.getElementById('announce').textContent);
   ok(r.shown && /Porażka/.test(r.text) && /Czas gry/.test(r.text) && /Terminy haraczu/.test(r.text), 'ekran podsumowania po porażce ze statystykami'); ok(r.buttons.length === 3 && /Spróbuj ponownie/.test(r.buttons[0]), 'przyciski: ' + r.buttons.join(' | ')); await shot(pg, 'mission_summary');
   ok(/Porażka|niespełniony/.test(ann), 'komunikat po terminie widoczny: ' + ann.slice(0, 60));
-  await pg.getByRole('button', { name: /Buduj dalej swobodnie/ }).click(); await pg.waitForTimeout(250);
-  const st2 = await pg.evaluate(() => ({ shown: getComputedStyle(document.getElementById('missionBox')).display !== 'none', status: World.state().mission.status, tribute: World.state().tribute, goalBtn: document.getElementById('btnGoal').textContent, speed: World.state().speed }));
-  ok(!st2.shown && st2.status === 'free' && st2.tribute === null && /Swobodna/.test(st2.goalBtn) && st2.speed >= 1, `„Buduj dalej swobodnie”: haracz wyłączony, gra płynie (${st2.goalBtn})`); await pg.close();
+  await pg.getByRole('button', { name: /Buduj dalej/ }).click(); await pg.waitForTimeout(250);
+  const st2 = await pg.evaluate(() => ({ shown: getComputedStyle(document.getElementById('missionBox')).display !== 'none', status: World.state().mission.status, tribute: World.state().tribute, goalBtn: getComputedStyle(document.getElementById('btnGoal')).display, sel: getComputedStyle(document.getElementById('btnTribute')).display, speed: World.state().speed }));
+  ok(!st2.shown && st2.status === 'free' && st2.tribute === null && st2.goalBtn === 'none' && st2.sel === 'none' && st2.speed >= 1, `„Buduj dalej”: wolne budowanie — haracz wyłączony i ukryty, gra płynie`); await pg.close();
   // 3. swobodna gra od razu i brak misji w trybie testowym
-  pg = await open('play=franks&climate=temperate&map=plain&seed=11&mission=free'); r = await box(pg); ok(!r.shown && /Swobodna/.test(await pg.textContent('#btnGoal')), 'mission=free: bez okna, przycisk „Swobodna gra”'); await pg.close();
+  pg = await open('play=franks&climate=temperate&map=plain&seed=11&mission=free'); r = await box(pg); ok(!r.shown && await pg.evaluate(() => World.state().mission.status === 'free' && World.state().settings.raids === false), 'mission=free: bez okna celu, wolne budowanie bez napadów'); await pg.close();
   pg = await open('play=franks&climate=temperate&map=plain&seed=11'); r = await box(pg); ok(!r.shown && await pg.evaluate(() => World.state().mission === null && getComputedStyle(document.getElementById('btnGoal')).display === 'none'), 'bez parametru mission (testy): brak okna, brak przycisku'); await pg.close();
   // 4. telefon: okno mieści się w ekranie
   pg = await open('play=franks&climate=temperate&map=plain&seed=11&mission=ask', { width: 390, height: 780 }); r = await pg.evaluate(() => { const bx = document.querySelector('#missionBox .mbBox').getBoundingClientRect(); return { l: bx.left, r: bx.right, t: bx.top, b: bx.bottom, w: innerWidth, h: innerHeight, sw: document.documentElement.scrollWidth }; });

@@ -1,4 +1,4 @@
-// Test menu głównego, Piaskownicy i menu w grze (Faza 9): tylko Piaskownica aktywna, klawiatura, przepływ nacja → klimat → typ → ziarno → Start dla każdej nacji (mapa gry = mapa podglądu),
+// Test menu głównego, Pojedynczej gry (dawna Piaskownica), Wolnego budowania i menu w grze (Faza 9): aktywne dwie pozycje, klawiatura, przepływ nacja → klimat → typ → ziarno → Start dla każdej nacji (mapa gry = mapa podglądu),
 // blokada typów map dla Wikingów, pamięć wyboru (localStorage), przycisk ☰ i Esc (pauza, priorytet nad anulowaniem budowy), „Nowa mapa” i „Menu główne” (nawigacja), widok telefonu, brak błędów JS.
 // Użycie: node tools/browser_menu.js
 const path = require('path');
@@ -21,14 +21,16 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
   await page.goto(file + '?q=1');
   ok(await vis(page, '#mainMenu') && !(await vis(page, '#factionPick')) && !(await vis(page, '#sandbox')), 'start strony: menu główne, bez dawnego wyboru nacji');
   const items = await page.evaluate(() => [...document.querySelectorAll('#mmList button')].map(b => ({ id: b.getAttribute('data-id'), off: b.getAttribute('aria-disabled') === 'true', title: b.title })));
-  ok(items.length === 9 && items.filter(i => !i.off).map(i => i.id).join() === 'sandbox', 'pozycji 9, aktywna tylko Piaskownica (' + items.filter(i => !i.off).map(i => i.id).join() + ')');
+  ok(items.length === 10 && items.filter(i => !i.off).map(i => i.id).join() === 'sandbox,free', 'pozycji 10, aktywne: Pojedyncza gra i Wolne budowanie (' + items.filter(i => !i.off).map(i => i.id).join() + ')');
   ok(items.filter(i => i.off).every(i => i.title === 'Wkrótce'), 'pozycje nieaktywne mają podpowiedź „Wkrótce”');
-  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowUp');
-  ok(await page.evaluate(() => document.querySelector('#mmList button.focus').getAttribute('data-id')) === 'sandbox', '↑↓ zostają na jedynej aktywnej pozycji');
+  await page.keyboard.press('ArrowDown');
+  ok(await page.evaluate(() => document.querySelector('#mmList button.focus').getAttribute('data-id')) === 'free', '↓ przechodzi do „Wolne budowanie” (pomija nieaktywne)');
+  await page.keyboard.press('ArrowUp');
+  ok(await page.evaluate(() => document.querySelector('#mmList button.focus').getAttribute('data-id')) === 'sandbox', '↑ wraca do „Pojedyncza gra”');
   await page.evaluate(() => document.querySelector('#mmList button[data-id="campaign"]').click());
   ok(await vis(page, '#mainMenu') && !(await vis(page, '#sandbox')), 'klik w pozycję nieaktywną nic nie robi');
   await page.keyboard.press('Enter');
-  ok(await vis(page, '#sandbox') && !(await vis(page, '#mainMenu')), 'Enter otwiera Piaskownicę');
+  ok(await vis(page, '#sandbox') && !(await vis(page, '#mainMenu')), 'Enter otwiera ekran Pojedynczej gry');
 
   console.log('Piaskownica');
   const tiles = await page.evaluate(() => ({ climates: document.querySelectorAll('#sbClimates button').length, types: document.querySelectorAll('#sbTypes button').length, cards: document.querySelectorAll('#sbFactions .factionCard').length }));
@@ -65,7 +67,7 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     const want = await pg.evaluate(() => Menu.state().meta);
     await pg.click('#sbStart'); await ready(pg);
     ok(await vis(pg, '#missionBox') && /Cel gry/.test(await pg.textContent('#missionBox')), `${fid}: po starcie z Piaskownicy pokazuje się ekran celu`);
-    await pg.getByRole('button', { name: /Swobodna gra/ }).click(); await pg.waitForTimeout(150);
+    await pg.getByRole('button', { name: /Normalny/ }).click(); await pg.waitForTimeout(150);
     const got = await pg.evaluate(() => { const s = World.state(), m = s.map.meta; return { fid: s.factionId, climate: m.climate, type: m.type, seed: m.seed, menus: ['mainMenu', 'sandbox', 'pauseMenu', 'factionPick'].map(id => getComputedStyle(document.getElementById(id)).display), hud: document.getElementById('hudFaction').textContent }; });
     ok(got.fid === fid && got.climate === climate && got.type === type && got.seed === want.seed && got.climate === want.climate && got.type === want.type, `${fid}: gra na mapie z podglądu (${got.climate} · ${got.type} · ziarno ${got.seed})`);
     ok(got.menus.every(d => d === 'none') && got.hud.includes(name), `${fid}: ekrany menu ukryte, HUD opisuje nację i mapę (${got.hud})`);
@@ -90,7 +92,8 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
       const nav = pg.waitForNavigation({ timeout: 20000 }); await pg.click('#pmList button[data-id="newmap"]'); await nav; await ready(pg);
       const nm = await pg.evaluate(() => { const m = World.state().map.meta; return { fid: World.state().factionId, climate: m.climate, type: m.type, seed: m.seed }; });
       ok(nm.fid === 'vikings' && nm.climate === 'temperate' && nm.type === 'coast' && nm.seed !== 777, `„Nowa mapa”: ta sama nacja, klimat i typ, nowe ziarno (${nm.seed})`);
-      // Menu główne
+      // Menu główne (po „Nowa mapa” misja pokazuje okno celu — zamykamy je)
+      if (await vis(pg, '#missionBox')) { await pg.getByRole('button', { name: /Do gry/ }).click(); await pg.waitForTimeout(150); }
       await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
       const nav2 = pg.waitForNavigation({ timeout: 20000 }); await pg.click('#pmList button[data-id="main"]'); await nav2; await pg.waitForTimeout(300);
       ok(await vis(pg, '#mainMenu') && !(await vis(pg, '#hud')), '„Menu główne”: wraca do menu głównego (bez gry)');
@@ -112,11 +115,11 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
   { const c = await browser.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 } }), pg = track(await c.newPage());
     await pg.goto(file + '?q=1'); await pg.waitForTimeout(200);
     const h = await pg.evaluate(() => [...document.querySelectorAll('#mmList button')].map(b => b.getBoundingClientRect().height));
-    ok(h.length === 9 && h.every(x => x >= 44), 'menu główne na telefonie: 9 pozycji, każda ≥ 44 px (min ' + Math.round(Math.min(...h)) + ')');
+    ok(h.length === 10 && h.every(x => x >= 44), 'menu główne na telefonie: 10 pozycji, każda ≥ 44 px (min ' + Math.round(Math.min(...h)) + ')');
     await pg.locator('#mmList button[data-id="sandbox"]').tap(); await pg.waitForTimeout(250);
     const lay = await pg.evaluate(() => { const r = document.getElementById('sbPreview').getBoundingClientRect(), f = document.querySelector('#sbFactions').getBoundingClientRect(); return { previewAbove: r.bottom <= f.top + 2, noOverflow: document.documentElement.scrollWidth <= innerWidth + 1 }; });
     ok(lay.previewAbove && lay.noOverflow, 'Piaskownica na telefonie: podgląd nad kafelkami, bez przewijania poziomego');
-    await pg.locator('#sbStart').tap(); await ready(pg); await pg.getByRole('button', { name: /Swobodna gra/ }).tap(); await pg.waitForTimeout(150);
+    await pg.locator('#sbStart').tap(); await ready(pg); await pg.getByRole('button', { name: /Normalny/ }).tap(); await pg.waitForTimeout(150);
     ok(await vis(pg, '#btnMenu'), 'telefon: ☰ Menu widoczny w HUD po starcie'); await c.close(); }
 
   { // rozmiar mapy w Piaskownicy: domyślnie Średnia (72), wybór Dużej daje mapę 96×96 w podglądzie i w grze
@@ -125,8 +128,15 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
     ok((await pg.locator('#sbSizes button').count()) === 3 && (await pg.locator('#sbSizes button.sel').getAttribute('data-id')) === '72', 'Piaskownica: trzy rozmiary mapy, domyślnie Średnia (72)');
     await pg.click('#sbSizes button[data-id="96"]'); await pg.fill('#sbSeed', '321'); await pg.dispatchEvent('#sbSeed', 'change'); await pg.waitForTimeout(400);
     const prev = await pg.evaluate(() => Menu.state().meta); ok(prev.size === 96 && /96×96/.test(await pg.textContent('#sbDesc')), 'podgląd Dużej mapy: ' + (await pg.textContent('#sbDesc')));
-    await pg.click('#sbStart'); await ready(pg); await pg.getByRole('button', { name: /Swobodna gra/ }).click();
+    await pg.click('#sbStart'); await ready(pg); await pg.getByRole('button', { name: /Normalny/ }).click();
     ok((await pg.evaluate(() => World.state().map.size)) === 96, 'start z Piaskownicy: mapa gry 96×96'); await c.close(); }
+  { // Wolne budowanie: osobna pozycja menu, ten sam ekran wyboru, start bez haraczu i celów
+    const c = await browser.newContext({ viewport: { width: 1200, height: 800 } }), pg = track(await c.newPage());
+    await pg.goto(file + '?q=1'); await pg.waitForTimeout(200); await pg.locator('#mmList button[data-id="free"]').click(); await pg.waitForTimeout(250);
+    ok(await vis(pg, '#sandbox') && /Wolne budowanie/.test(await pg.textContent('#sandbox h2')), 'Wolne budowanie: ekran wyboru z własnym tytułem');
+    await pg.click('#sbStart'); await ready(pg); await pg.waitForTimeout(250);
+    const r = await pg.evaluate(() => ({ box: getComputedStyle(document.getElementById('missionBox')).display, mission: World.state().mission && World.state().mission.status, tribute: World.state().tribute, raids: World.state().settings.raids, sel: getComputedStyle(document.getElementById('btnTribute')).display, goal: getComputedStyle(document.getElementById('btnGoal')).display }));
+    ok(r.box === 'none' && r.mission === 'free' && r.tribute === null && r.raids === false && r.sel === 'none' && r.goal === 'none', `start Wolnego budowania: bez okna celu, bez haraczu i napadów, bez listy haraczu (${JSON.stringify(r)})`); await c.close(); }
   ok(errors.length === 0, 'brak błędów JS' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close();
   console.log(fails ? `\n${fails} testów nie przeszło` : '\nWszystko OK');

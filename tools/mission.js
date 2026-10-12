@@ -43,9 +43,18 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) ok(Mission.BRIEF[f
   World.init('slavs', { climate: 'eastern', type: 'plain', seed: 3 }); const s = World.state(); Mission.start('easy'); run(s, q => q.time > 10, 1); s.pop = 0; World.tick(0.1);
   ok(s.mission.status === 'lost' && /wyludni/.test(s.mission.reason), 'wyludnienie osady kończy misję porażką: ' + s.mission.reason);
 }
+// ostrzeżenie przed terminem: raz na termin, WARN_MIN minut wcześniej, z liczbami i wskazówką
+{
+  World.init('franks', { climate: 'temperate', type: 'plain', seed: 3 }); const s = World.state(); s.res.złoto = 0; Mission.start('normal'); const seen = [];
+  const UIo = G.UI; const orig = UIo.warnTerm; UIo.warnTerm = w => seen.push(w);
+  run(s, q => q.time > 65, 0.5);
+  ok(seen.length === 1 && seen[0].n === 1 && seen[0].remain <= Mission.WARN_MIN && seen[0].required > 0 && seen[0].need === seen[0].required - seen[0].delivered && /Koszar/.test(seen[0].hint), 'ostrzeżenie przed pierwszym terminem: raz, ' + JSON.stringify(seen[0] || {}).slice(0, 120));
+  run(s, q => q.time > 80, 0.5); ok(seen.length === 2 && seen[1].n === 2, 'kolejne ostrzeżenie przed drugim terminem (razem ' + seen.length + ')');
+  UIo.warnTerm = orig;
+}
 // swobodna gra
 {
   World.init('vikings', { climate: 'snow', type: 'coast', seed: 3 }); const s = World.state(); Mission.start('hard'); Mission.free(); run(s, q => q.time > 140, 2);
-  ok(s.mission.status === 'free' && s.tribute === null && s.settings.mission === false && !s.mission.msgs.length, 'swobodna gra: bez haraczu, bez celów i bez komunikatów');
+  ok(s.mission.status === 'free' && s.tribute === null && s.settings.mission === false && s.settings.raids === false && !s.mission.msgs.length, 'wolne budowanie: bez haraczu, napadów, celów i komunikatów');
 }
 console.log(fails ? `\n✘ ${fails} z ${checks} sprawdzeń nie przeszło` : `Wszystko OK — ${checks} sprawdzeń`); process.exit(fails ? 1 : 0);

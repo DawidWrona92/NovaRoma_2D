@@ -24,7 +24,9 @@ Tabela: Ekrany przed grą i w grze
 
 **Targ.** Karta Targu, jego opis w menu budowy i Doradca wyjaśniają jego rolę: kupno narzędzi za 20 zł, gdy budynek na nie czeka; Saraceni dodatkowo sprzedają tu towary handlowe (rozdz. {{ref:haracz}}).
 
-### Piaskownica {#piaskownica}
+### Pojedyncza gra i Wolne budowanie (dawna Piaskownica) {#piaskownica}
+
+Od Punktów 11–12 menu główne ma dwie aktywne pozycje: **Pojedyncza gra** (dawna Piaskownica) — wybór nacji, klimatu, typu i rozmiaru mapy, po Starcie ekran celu z wyborem trudności misji (rozdz. {{ref:misja}}) — oraz **Wolne budowanie**: ten sam ekran wyboru, ale start **bez haraczu, celów i napadów** (`mission: 'free'`, w pasku nie ma listy haraczu ani przycisku celu). Nazwa „Piaskownica” zostaje w dalszej części rozdziału tam, gdzie opisuje wspólny ekran wyboru.
 
 Wybór ma cztery osie, a **podgląd odświeża się po każdej zmianie** (po 60 ms zwłoki):
 
