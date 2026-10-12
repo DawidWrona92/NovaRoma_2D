@@ -16,8 +16,13 @@ Cel: sprawdzić, czy delegowanie opłaca się względem pracy samodzielnej. Wpis
 
 | 12.10 | haiku-documentation | rozmiary map 9D-1: rozdz. 10, 14, 16, README | 97 tys. | 16 | 110 s | N | limit 14 tur bez raportu, nic nie zapisał na dysku; całość napisał rodzic |
 | 12.10 | haiku-documentation | Osada i składy 9D-2/3: rozdz. 12, 06, 15, E | 134 tys. | 28 | 121 s | P | limit 14 tur bez raportu; zapisał rozdz. 12 (dobry, zgodny z faktami), 06 i 15 (błędne `{{v:SPRITE_META…}}` poprawił rodzic); aneksu E nie dotknął |
+| 13.10 | Sonnet (worktree) | muzyka Punkt 16: test `tools/music.js` + dokumentacja | 127 tys. | 26 | 420 s | T | 89 sprawdzeń, `docs --check` czysto; worktree startował z `main` (bez gry) — agent sam przełączył się na bazę; uwagi o module (toggle, martwy kod) wdrożyłem |
+| 13.10 | Sonnet (worktree) | muzyka: strój Franków | 112 tys. | 24 | 420 s | T | nuty ręczne zamiast losowych, dobre liczby; scalone bez poprawek |
+| 13.10 | Sonnet (worktree ×3) | muzyka: strój Saracenów, Wikingów, Słowian | ? | ? | ? | N | pierwszy przebieg zatrzymany przez użytkownika w trakcie (zostały niezatwierdzone zmiany) |
+| 13.10 | Sonnet (kontynuacja ×3) | muzyka: dokończenie strojów Saracenów, Wikingów, Słowian | 118/94/96 tys. | 17/15/9 | 540/330/170 s | T | pracowali na niezatwierdzonych zmianach poprzedników w tych samych worktree; własne pomiary (`music_analyze.js`) potwierdziły raporty; scalone bez poprawek |
 
 ## Błędy rodzica (do porównania)
 - Commit fazy 9B przy padającym `tools/workers.js` (kod wyjścia zamaskowany przez `| tail`).
 - Bramka `physical.js --full` nie została uruchomiona po ostatnim strojeniu (wyszła awaria bota N dopiero później).
 - Definicja agenta dokumentacji ma `maxTurns: 40`, ale narzędzie `Agent` zatrzymuje go po 14 turach; poprawka definicji z 12.10 nie pomogła. Wniosek: dawać mu jeden plik i gotowy tekst do wklejenia albo pisać dokumentację samemu.
+- Muzyka (13.10): nie doczekałem raportów przed pierwszym „stop”; wznowienie zatrzymanych agentów jest niemożliwe (trzeba uruchamiać nowych, wskazując istniejące worktree). Worktree agentów startują z `main` bez gry — w briefie podać `git merge --ff-only <gałąź>` albo katalog roboczy.
