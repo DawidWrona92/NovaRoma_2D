@@ -54,7 +54,7 @@ async function bake(nation, onProgress = null, opts = {}) {
   for (const k of Object.keys(SETS)) delete SETS[k];
   bakedFor = null; bakedKey = null;
   const jobs = [];
-  for (const id of NATIONS[nation]) { const n = spriteName(nation, id); if (BAKED[n]) jobs.push(['Budynki', () => { LINT_NAME = n; SPR[n] = BAKED[n](); }]); }
+  for (const id of NATIONS[nation].concat(variantIds(nation))) { const n = spriteName(nation, id); if (BAKED[n]) jobs.push(['Budynki', () => { LINT_NAME = n; SPR[n] = BAKED[n](); }]); }
   jobs.push(...natureJobs(climate));
   for (const kind of opts.deposits || []) jobs.push(['Złoża', () => { (SETS.deposits = SETS.deposits || {})[kind] = bakeDeposit(kind, 700 + kind.length); }]);
   for (const key of castKeys(nation)) jobs.push(['Mieszkańcy', () => { (SETS.cast = SETS.cast || {})[key] = bakeCast(key, FIG); }]);
@@ -80,7 +80,7 @@ return {
   version: 'v4', S, AX, AY, VH, FIG,
   setQuality, quality, bake, draw, sort: sortDrawables,
   baked: () => bakedFor, bakeMs: () => bakeMs,
-  ids: nation => NATIONS[nation].slice(), name: nameOfBuilding, nations: () => Object.keys(NATIONS),
+  ids: nation => NATIONS[nation].slice(), variants: ROT_VARIANTS, name: nameOfBuilding, nations: () => Object.keys(NATIONS),
   get: (nation, id) => SPR[spriteName(nation, id)] || null,
   spr: SPR, sets: SETS, castKeys, cast: key => (SETS.cast || {})[key] || null, faunaKinds, fauna: kind => (SETS.fauna || {})[kind] || null,
   catalog: catalogJSON,

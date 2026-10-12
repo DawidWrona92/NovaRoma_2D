@@ -1694,9 +1694,9 @@
      },
      "dym": [],
      "sprite_px": {
-      "w": 376,
+      "w": 368,
       "h": 304,
-      "ax": 201,
+      "ax": 193,
       "ay": 203
      }
     },
@@ -1809,10 +1809,148 @@
      "drzwi": null,
      "dym": [],
      "sprite_px": {
-      "w": 308,
+      "w": 292,
+      "h": 268,
+      "ax": 137,
+      "ay": 181
+     }
+    },
+    "dock@1": {
+     "sprite": "vikings_dock@1",
+     "nazwa": "Przystań",
+     "obrys": [
+      2,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.32,
+      "y": -0.9
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 384,
+      "h": 304,
+      "ax": 157,
+      "ay": 203
+     }
+    },
+    "dock@2": {
+     "sprite": "vikings_dock@2",
+     "nazwa": "Przystań",
+     "obrys": [
+      4,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 1.2,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 1.2,
+      "y": 0.8
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 380,
+      "h": 312,
+      "ax": 157,
+      "ay": 187
+     }
+    },
+    "dock@3": {
+     "sprite": "vikings_dock@3",
+     "nazwa": "Przystań",
+     "obrys": [
+      2,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 2
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.32,
+      "y": 1.9
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 368,
+      "h": 312,
+      "ax": 193,
+      "ay": 187
+     }
+    },
+    "ship@1": {
+     "sprite": "vikings_ship@1",
+     "nazwa": "Okręt",
+     "obrys": [
+      2,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 2
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 292,
       "h": 272,
       "ax": 153,
       "ay": 181
+     }
+    },
+    "ship@2": {
+     "sprite": "vikings_ship@2",
+     "nazwa": "Okręt",
+     "obrys": [
+      4,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 292,
+      "h": 292,
+      "ax": 153,
+      "ay": 205
+     }
+    },
+    "ship@3": {
+     "sprite": "vikings_ship@3",
+     "nazwa": "Okręt",
+     "obrys": [
+      2,
+      4
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 2
+     },
+     "drzwi": null,
+     "dym": [],
+     "sprite_px": {
+      "w": 292,
+      "h": 296,
+      "ax": 137,
+      "ay": 205
      }
     }
    }

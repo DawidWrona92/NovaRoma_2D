@@ -8,6 +8,9 @@ const NATIONS = {
   vikings: COMMON_IDS.concat(['fisherhut', 'peatmine', 'charburner', 'mead', 'dock', 'smelter', 'toolforge', 'armory', 'ship']),
   slavs: COMMON_IDS.concat(['gatherer', 'field', 'kasha', 'bartnik', 'waxery', 'trapper', 'tannery', 'sauna'])
 };
+/* warianty obrotu (kierunki 1–3; kierunek 0 to sprite podstawowy): sprite `${nacja}_${id}@${kierunek}` ma własny obrys, wejście i kotwicę — dziś tylko Przystań i Okręt (stoją na wodzie, więc muszą się obracać) */
+const ROT_VARIANTS = { vikings: { dock: [1, 2, 3], ship: [1, 2, 3] } };
+const variantIds = n => Object.entries(ROT_VARIANTS[n] || {}).flatMap(([id, rs]) => rs.map(r => `${id}@${r}`));
 const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
 const NAMES = {
   keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia',
@@ -18,7 +21,7 @@ const NAMES = {
 };
 const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
 const spriteName = (nation, id) => `${nation}_${id}`;
-const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id];
+const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id.split('@')[0]];
 
 /* eksport katalogu do integracji z grą: id → sprite, obrys, wejście, kotwice dymu, rozmiar i kotwica sprite'a.
    Współrzędne (wejście, drzwi, dym): pola względem środka obrysu (x w prawo-dół, y w lewo-dół, z w górę); sprite: w px logicznych, (ax, ay) = środek obrysu na ziemi.
@@ -28,7 +31,7 @@ function catalogJSON() {
   const out = { wersja: 'v4-katalog', pole: { AX, AY, VH }, nacje: {} }, r2 = v => +v.toFixed(2), cl = (v, m) => Math.max(-m, Math.min(m, v));
   for (const n of Object.keys(NATIONS)) {
     out.nacje[n] = { nazwa: NATION_PL[n], budynki: {} };
-    for (const id of NATIONS[n]) {
+    for (const id of NATIONS[n].concat(variantIds(n))) {
       const s = SPR[spriteName(n, id)]; if (!s) continue;
       const d = (s.doors && s.doors[0]) || null, fw = s.fw, fh = s.fh;
       const wejscie = d && d.side === 'E' ? { strona: 'E', x: r2(fw / 2), y: r2(cl(d.y, fh / 2 - 0.3)) } : { strona: 'S', x: r2(cl(d ? d.x : 0, fw / 2 - 0.3)), y: r2(fh / 2) };

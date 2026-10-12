@@ -20,14 +20,14 @@ const api = fs.readFileSync(path.join(__dirname, 'game_api.js'), 'utf8');
 const noDom = { document: { createElement() { throw new Error('DOM niedostępny przy ładowaniu silnika'); } }, console, Math, JSON, Date, Object, Array, Map, Set, Number, String, parseInt, parseFloat, isNaN, setTimeout };
 const ctx = vm.createContext(Object.assign({}, noDom));
 let nations;
-try { nations = vm.runInContext(`(() => {'use strict';\n${engine}\n${api.replace(/^return \{[\s\S]*$/m, 'return { NATIONS, BAKED };')}\n})()`, ctx, { filename: 'Sprites(build)' }); }
+try { nations = vm.runInContext(`(() => {'use strict';\n${engine}\n${api.replace(/^return \{[\s\S]*$/m, 'return { NATIONS, BAKED, variantIds };')}\n})()`, ctx, { filename: 'Sprites(build)' }); }
 catch (e) { console.error('Silnik sprite\'ów nie ładuje się bez DOM:', e.stack || e); process.exit(2); }
 
 const cat = JSON.parse(fs.readFileSync(path.join(__dirname, 'katalog_budynkow.json'), 'utf8'));
 const meta = {}; let missing = [];
 for (const [n, ids] of Object.entries(nations.NATIONS)) {
   meta[n] = {};
-  for (const id of ids) {
+  for (const id of ids.concat(nations.variantIds(n))) {
     const b = cat.nacje[n] && cat.nacje[n].budynki[id];
     if (!b) { missing.push(`${n}_${id}`); continue; }
     if (!nations.BAKED[`${n}_${id}`]) missing.push(`${n}_${id} (brak generatora)`);
