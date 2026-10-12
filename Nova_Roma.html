@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Nova Roma — Etap 6</title>
+<title>Nova Roma</title>
 <style>
   :root {
     --panel-bg: rgba(20, 16, 12, 0.92);
@@ -9916,7 +9916,12 @@ const Menu = (() => {
   }
 
   /* ---------- menu w grze ---------- */
-  function navigate(mutate) { const u = new URL(location.href); mutate(u.searchParams); location.href = u.toString(); }
+  /* nawigacja z parametrami adresu; w artefakcie (ramka bez parametrów adresu) parametry przechodzą też przez sessionStorage, a gdyby przejście nic nie zrobiło, strona przeładowuje się sama */
+  function navigate(mutate) {
+    const u = new URL(location.href); mutate(u.searchParams);
+    try { sessionStorage.setItem('novaroma.next', u.search); } catch (e) { /* bez pamięci sesji — zostaje sam adres */ }
+    location.href = u.toString(); setTimeout(() => { try { location.reload(); } catch (e) { /* ramka bez przeładowania */ } }, 400);
+  }
   function openPause() {
     const s = World.state(); if (!s.factionId || paused) return;
     paused = true; prevSpeed = s.speed || 1; s.speed = 0; $('btnSpeed').textContent = 'Pauza';
@@ -11261,7 +11266,8 @@ const Game = (() => {
   Menu.init();
   /* skrót do testów i zrzutów: ?play=franks&climate=snow&map=river&seed=7 omija wybór nacji (to samo wejście co Piaskownica: UI.startGame) */
   if (typeof location !== 'undefined') {
-    const q = new URLSearchParams(location.search), p = q.get('play');
+    let next = null; try { next = sessionStorage.getItem('novaroma.next'); sessionStorage.removeItem('novaroma.next'); } catch (e) { /* bez pamięci sesji */ }
+    const q = new URLSearchParams(location.search || next || ''), p = q.get('play');
     if (p && Data.FACTIONS[p]) UI.startGame(p, { climate: q.get('climate') || undefined, type: q.get('map') || undefined, seed: q.has('seed') ? +q.get('seed') : undefined });
     else if (q.get('menu') !== '0') {
       try { Menu.showMain(); if (!document.querySelector('#mmList button')) throw new Error('lista menu jest pusta'); }       // domyślnie menu główne; ?menu=0 — dawny ekran wyboru nacji (testy)
