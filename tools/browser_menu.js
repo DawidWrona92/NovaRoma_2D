@@ -79,7 +79,7 @@ const vis = (page, sel) => page.evaluate(s => { const e = document.querySelector
       ok(await vis(pg, '#pauseMenu') && await pg.evaluate(() => World.state().speed) === 0 && (await pg.textContent('#btnSpeed')) === 'Pauza', 'menu w grze: pauza (speed 0, etykieta „Pauza”)');
       const cam0 = await pg.evaluate(() => Camera.x); await pg.keyboard.down('d'); await pg.waitForTimeout(300); await pg.keyboard.up('d');
       ok(await pg.evaluate(() => Camera.x) === cam0, 'klawisze kamery ignorowane przy otwartym menu');
-      ok(await pg.evaluate(() => [...document.querySelectorAll('#pmList button')].map(b => b.getAttribute('data-id') + ':' + (b.getAttribute('aria-disabled') === 'true' ? 'off' : 'on')).join()) === 'resume:on,newmap:on,options:off,main:on', 'pozycje: Wznów, Nowa mapa, Opcje (szare), Menu główne');
+      ok(await pg.evaluate(() => [...document.querySelectorAll('#pmList button')].map(b => b.getAttribute('data-id') + ':' + (b.getAttribute('aria-disabled') === 'true' ? 'off' : 'on')).join()) === 'resume:on,newmap:on,music:on,options:off,main:on', 'pozycje: Wznów, Nowa mapa, Opcje (szare), Menu główne');
       await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
       ok(!(await vis(pg, '#pauseMenu')) && await pg.evaluate(() => World.state().speed) === 2 && (await pg.textContent('#btnSpeed')) === 'Prędkość: ×2', 'Esc zamyka menu i przywraca prędkość ×2');
       // priorytet Esc: zaznaczona budowa → Esc anuluje budowę, nie otwiera menu

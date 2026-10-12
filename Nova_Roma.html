@@ -10058,6 +10058,7 @@ const UI = (() => {
     buildBar.style.display = 'block';
     document.getElementById('hint').style.display = 'block';
     World.init(fid, opts);
+    Music.arm(fid);                                                                       // muzyka nacji ruszy po pierwszym geście (przeglądarki nie grają bez niego)
     document.getElementById('hudFaction').innerHTML = '<b>' + Data.FACTIONS[fid].name + '</b><span class="mapdesc">' + Minimap.describe(World.state().map.meta) + '</span>';
     // kamera na Dwór (środek mapy)
     const c = World.state().map.size / 2;
@@ -10562,6 +10563,231 @@ const UI = (() => {
   return { buildFactionCards, startGame, refreshHUD, flashHint, announce, warnTerm, hideTermWarn, showBriefing, showGoal, showSummary, syncGoalUi, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
 })();
 
+/* MUSIC:BEGIN */
+/* ============================== MODUL: MUSIC (Punkt 16) ==============================
+   Spokojna muzyka tła generowana w przeglądarce (WebAudio, bez plików dźwiękowych): po jednym utworze na nację/klimat, 3–4 minuty, w pętli z nowym wariantem przy każdym obiegu.
+   Frankowie (klimat umiarkowany): średniowieczne lutnia, flet prosty i smyczki w dorycku — spokój jak w Twierdzy. Saraceni (pustynia): oud, ney i darbuka w skali hidżaz z wolnym wstępem (taqsim) — jak w Twierdzy Krzyżowiec.
+   Wikingowie (śnieg): niski bordon, smyk, kantele i powolny bęben obręczowy; Słowianie (Europa Wschodnia): gęśle, niski flet i basowe szarpnięcia na trzy — folkowo, wolno i nisko.
+   Kompozytor (`compose`) jest czystą funkcją nacji i numeru obiegu (własny PRNG, globalny RNG gry nietknięty) i zwraca listę zdarzeń { t s, głos, nuta MIDI, czas trwania, siła };
+   syntezator gra je na dowolnym kontekście audio (czas rzeczywisty z harmonogramem z wyprzedzeniem albo OfflineAudioContext w testach). Dźwięk startuje po pierwszym geście użytkownika (zasady przeglądarek). */
+const Music = (() => {
+  const KEY = 'novaroma.music', LEVELS = [['Wył.', 0], ['Cicho', 0.25], ['Średnio', 0.5], ['Głośno', 0.8]];
+  const store = { get() { try { return typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(KEY)) : null; } catch (e) { return null; } },
+                  set(v) { try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* tryb prywatny — bez pamięci */ } } };
+  const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const hashS = s => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  const MODES = { dorian: [0, 2, 3, 5, 7, 9, 10], aeolian: [0, 2, 3, 5, 7, 8, 10], hijaz: [0, 1, 4, 5, 7, 8, 10] };
+  const deg = (root, mode, d) => root + MODES[mode][((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);              // stopień skali (także poza oktawą) → numer MIDI
+
+  /* ---------- kompozytor ---------- */
+  /* Utwory opisane danymi: tempo, metrum, tonika, skala, progresje akordów (stopnie skali), forma (sekcje z warstwami). Warstwy dodają zdarzenia na bazie taktu i akordu. */
+  /* Każda nacja ma własny blok (dane + hak `extra` z jej dodatkowymi warstwami), niezależny od pozostałych; wspólna jest tylko maszyna (arpeggio szarpane, bas, tło, melodia prowadząca).
+     Pola: bpm, beats (uderzeń w takcie), root (MIDI), mode, wet (pogłos 0–1), cutoff (Hz, filtr końcowy), trim (wzmocnienie utworu), prog (progresje: stopnie skali na takt), form ([progresja, taktów, warstwy]),
+     arp {voice, base (stopnie nad akordem), pats (wzory), low (bas szarpany w oktawie niżej)}, pad {voice, oct}, lead {voice, range [dół, góra] (stopnie), shift (stopnie), oct, pool (długości nut w uderzeniach), vel, orn (ozdobnik 0–1), rest}.
+     extra(c) wołane raz na takt: c = { add(t, głos, MIDI, czas, siła), t0, b (takt w sekcji), d0 (stopień akordu), L (zbiór warstw), vel, bar, spb, rnd, ch(stopień, ton), R, M, sec } */
+  const PIECES = {
+    franks: { name: 'Pokój w grodzie', bpm: 72, beats: 4, root: 50, mode: 'dorian', wet: 0.28, cutoff: 6500, trim: 1,
+      prog: { A: [0, 6, 3, 0, 0, 2, 6, 4], B: [3, 0, 6, 3, 2, 6, 3, 4], C: [0, 3, 0, 4] },
+      form: [['A', 4, 'lute'], ['A', 8, 'lute flute'], ['B', 8, 'lute strings'], ['A', 8, 'lute flute strings tabor'], ['B', 8, 'lute flute strings tabor'], ['C', 4, 'lute strings'], ['A', 8, 'lute flute strings'], ['A', 8, 'lute strings fade']],
+      arp: { voice: 'lute', base: 0, low: true, pats: [[0, 2, 1, 3, 2, 1, 3, 2], [0, 1, 2, 1, 3, 2, 1, 2], [0, -1, 2, 1, 3, -1, 2, 1]] },
+      pad: { voice: 'strings', oct: 12 },
+      lead: { voice: 'flute', range: [4, 11], shift: -7, oct: 12, pool: [1, 1, 1.5, 0.5, 2, 1], vel: 0.42, orn: 0, rest: 0.12 },
+      extra(c) { const { add, t0, L, vel, spb } = c; if (L.has('tabor')) { add(t0, 'tabor', 50, 0.4, 0.36 * vel); add(t0 + 2 * spb, 'tabor', 50, 0.4, 0.26 * vel); add(t0 + 3.5 * spb, 'tabor', 50, 0.4, 0.14 * vel); } } },
+
+    saracens: { name: 'Wiatr nad wydmami', bpm: 68, beats: 4, root: 50, mode: 'hijaz', wet: 0.3, cutoff: 7000, trim: 1,
+      prog: { A: [0, 0, 1, 0, 3, 0, 4, 0], B: [3, 0, 3, 1, 0, 1, 4, 0], C: [0, 1, 0, 0] },
+      form: [['C', 6, 'taqsim drone'], ['A', 8, 'oud drone darbuka'], ['B', 8, 'oud ney drone darbuka'], ['C', 6, 'taqsim drone'], ['A', 8, 'oud ney drone darbuka'], ['B', 8, 'oud ney drone darbuka'], ['A', 8, 'oud drone fade']],
+      arp: { voice: 'oud', base: 0, low: true, pats: [[0, 2, 3, 2, 0, 2, 3, 4], [0, 3, 2, 3, 0, 2, 1, 2], [0, 2, 3, 2, 4, 3, 2, 1]] },
+      pad: { voice: 'pad', oct: 12 },
+      lead: { voice: 'ney', range: [4, 12], shift: -7, oct: 12, pool: [0.5, 1, 1, 1.5, 2, 0.5], vel: 0.42, orn: 0.35, rest: 0.12 },
+      extra(c) { const { add, t0, b, L, vel, spb, bar, R } = c;
+        if (L.has('drone') && b % 2 === 0) { add(t0, 'drone', R - 12, bar * 2 + 0.5, 0.5 * vel); add(t0, 'drone', R - 5, bar * 2 + 0.5, 0.28 * vel); }
+        if (L.has('darbuka')) [['dum', 0], ['tek', 0.5], ['tek', 1.5], ['dum', 2], ['tek', 3], ['tek', 3.5]].forEach(([v, o]) => add(t0 + o * spb, v, 50, 0.3, (v === 'dum' ? 0.4 : 0.18 + c.rnd() * 0.05) * vel)); } },
+
+    vikings: { name: 'Cisza fiordu', bpm: 54, beats: 4, root: 45, mode: 'dorian', wet: 0.42, cutoff: 3200, trim: 1,
+      prog: { A: [0, 0, 6, 6, 3, 3, 0, 0], B: [0, 6, 3, 0, 0, 6, 4, 0], C: [0, 0, 3, 0] },
+      form: [['A', 4, 'drone frame'], ['A', 8, 'drone frame bowed pad'], ['B', 8, 'drone frame bowed pad kantele'], ['C', 4, 'drone kantele pad'], ['A', 8, 'drone frame bowed pad kantele'], ['B', 8, 'drone frame bowed pad'], ['A', 8, 'drone frame pad fade']],
+      arp: { voice: 'kantele', base: 7, low: false, pats: [[0, -1, 2, -1, 3, -1, 2, -1], [0, -1, -1, 2, -1, 3, -1, -1]] },
+      pad: { voice: 'pad', oct: 0 },
+      lead: { voice: 'bowed', range: [0, 7], shift: 0, oct: 0, pool: [2, 3, 4, 2, 3], vel: 0.5, orn: 0, rest: 0.12 },
+      extra(c) { const { add, t0, b, L, vel, spb, bar, R, rnd, d0 } = c;
+        if (L.has('drone') && b % 2 === 0) { add(t0, 'drone', R - 12, bar * 2 + 0.5, 0.5 * vel); add(t0, 'drone', R - 5, bar * 2 + 0.5, 0.28 * vel); }
+        if (L.has('frame')) { add(t0, 'frame', 45, 0.5, 0.5 * vel); add(t0 + 2 * spb, 'frame', 45, 0.5, 0.38 * vel); if (b % 4 === 3) add(t0 + 3 * spb, 'frame', 45, 0.5, 0.25 * vel); }
+        if (L.has('kantele') && b % 2 === 0) { const pen = [0, 2, 4, 5, 7, 9]; add(t0 + (rnd() < 0.5 ? 0 : spb * 2) + 0.02, 'kantele', deg(R + 12, c.M, d0 + pen[Math.floor(rnd() * pen.length)]), 3, 0.34 * vel); if (rnd() < 0.5) add(t0 + spb * 3, 'kantele', deg(R + 12, c.M, d0 + pen[Math.floor(rnd() * pen.length)] + 2), 3, 0.26 * vel); } } },
+
+    slavs: { name: 'Wieczór nad rzeką', bpm: 60, beats: 3, root: 52, mode: 'aeolian', wet: 0.34, cutoff: 4500, trim: 1,
+      prog: { A: [0, 6, 0, 4, 5, 6, 0, 0], B: [3, 0, 6, 0, 5, 3, 4, 0], C: [0, 6, 0, 0] },
+      form: [['A', 4, 'gusli bass'], ['A', 8, 'gusli bass sopilka'], ['B', 8, 'gusli bass sopilka pad'], ['A', 8, 'gusli bass sopilka frame'], ['C', 4, 'gusli pad'], ['B', 8, 'gusli bass sopilka pad frame'], ['A', 8, 'gusli bass sopilka pad'], ['A', 12, 'gusli bass pad fade']],
+      arp: { voice: 'gusli', base: 7, low: false, pats: [[0, 2, 3, 2, 3, 2], [0, 1, 2, 3, 2, 1], [0, 2, 1, 2, 3, 2]] },
+      pad: { voice: 'pad', oct: 12 },
+      lead: { voice: 'sopilka', range: [0, 8], shift: -7, oct: 12, pool: [1, 1, 1.5, 0.5, 2, 1], vel: 0.42, orn: 0, rest: 0.12 },
+      extra(c) { const { add, t0, b, L, vel, spb, d0, ch } = c;
+        if (L.has('bass')) { add(t0, 'gusli', ch(d0, -7), 2.0, 0.55 * vel); if (b % 2 === 1) add(t0 + 2 * spb, 'gusli', ch(d0, -3), 1.6, 0.3 * vel); }
+        if (L.has('frame')) { add(t0, 'frame', 52, 0.5, 0.36 * vel); add(t0 + 2 * spb, 'frame', 52, 0.5, 0.2 * vel); } } }
+  };
+
+  function compose(nation, loop = 0) {
+    const P = PIECES[nation], rnd = mulberry(hashS(nation) + loop * 977 + 13), spb = 60 / P.bpm, bar = spb * P.beats, ev = [];
+    const add = (t, v, n, d, g = 1) => { if (t >= 0) ev.push({ t: +t.toFixed(3), v, n, d: +d.toFixed(3), g: +g.toFixed(3) }); };
+    const R = P.root, M = P.mode, ch = (d, k) => deg(R, M, d + k);                                           // k: 0 prym, 2 tercja, 4 kwinta, 7 oktawa…
+    const mels = new Map();                                                                                  // frazy melodii: ten sam klucz = ta sama fraza (powroty tematu)
+    function phrase(key, chords, lo, hi, beatsPerBar) {                                                       // chords: stopnie akordów kolejnych taktów frazy; zwraca [{b (od początku frazy, w uderzeniach), d, deg}]
+      if (mels.has(key)) return mels.get(key);
+      const out = [], pool = P.lead.pool, tot = chords.length * beatsPerBar;
+      let b = 0, cur = chords[0] + 7 + (rnd() < 0.5 ? 0 : 2);
+      while (b < tot - 0.01) {
+        let d = pool[Math.floor(rnd() * pool.length)]; d = Math.min(d, tot - b);
+        const bi = Math.floor(b / beatsPerBar), onBar = Math.abs(b - bi * beatsPerBar) < 0.01;
+        if (onBar && rnd() < 0.65) { const c = chords[bi], opts = [c, c + 2, c + 4, c + 7, c + 9, c + 11].filter(x => x >= lo && x <= hi); cur = opts.reduce((a, x) => Math.abs(x - cur) < Math.abs(a - cur) ? x : a, opts[0]); }
+        else cur = Math.max(lo, Math.min(hi, cur + [-2, -1, -1, 0, 1, 1, 2][Math.floor(rnd() * 7)]));
+        if (rnd() < P.lead.rest) { b += d; continue; }                                                       // pauza
+        out.push({ b, d, deg: cur }); b += d;
+      }
+      if (out.length) { const last = out[out.length - 1], c = chords[chords.length - 1], opts = [c, c + 7, c + 4].filter(x => x >= lo && x <= hi); last.deg = opts.reduce((a, x) => Math.abs(x - last.deg) < Math.abs(a - last.deg) ? x : a, opts[0] ?? last.deg); }
+      mels.set(key, out); return out;
+    }
+    let bi = 0;
+    for (const [pn, bars, layers] of P.form) {
+      const L = new Set(layers.split(' ')), prog = P.prog[pn], fade = L.has('fade');
+      for (let b = 0; b < bars; b++, bi++) {
+        const t0 = bi * bar, d0 = prog[b % prog.length], last = fade && b >= bars - 3, vel = last ? 0.5 : 1, A = P.arp, n8 = P.beats * 2, pat = A.pats[(b >> 1) % A.pats.length];
+        // --- arpeggio szarpane (+ bas) ---
+        if (L.has(A.voice)) {
+          for (let i = 0; i < n8; i++) { const ix = pat[i % pat.length]; if (ix < 0) continue; add(t0 + i * spb / 2 + (rnd() - 0.5) * 0.012, A.voice, ch(d0, [0, 2, 4, 7, 9][ix] + A.base), 2.0, (i === 0 ? 0.55 : 0.34 + rnd() * 0.08) * vel); }
+          if (A.low) add(t0, A.voice, ch(d0, -7), 2.4, 0.5 * vel);
+        }
+        // --- tło: smyczki / pad (akord co dwa takty) ---
+        const padOn = L.has('strings') || L.has('pad');
+        if (padOn && b % 2 === 0) for (const k of [0, 2, 4]) add(t0, P.pad.voice, ch(d0, k) + P.pad.oct, bar * 2 + 0.6, (k === 0 ? 0.26 : 0.2) * vel);
+        // --- warstwy specyficzne dla nacji ---
+        if (P.extra) P.extra({ add, t0, b, d0, L, vel, bar, spb, rnd, ch, R, M, sec: pn });
+      }
+    }
+    // --- melodie (druga pętla po taktach, by frazy dzieliły się między sekcjami) ---
+    bi = 0;
+    for (const [pn, bars, layers] of P.form) {
+      const L = new Set(layers.split(' ')), prog = P.prog[pn], fade = L.has('fade'), lead = P.lead, beatsPerBar = P.beats, on = L.has(lead.voice) || L.has('taqsim');
+      if (on) {
+        const plen = L.has('taqsim') ? 3 : 2;
+        for (let p = 0; p * plen < bars; p++) {
+          const barsHere = Math.min(plen, bars - p * plen), chords = []; for (let k = 0; k < barsHere; k++) chords.push(prog[(p * plen + k) % prog.length]);
+          const key = pn + ':' + (p % 4) + (L.has('taqsim') ? 't' : ''), ph = phrase(key, chords, lead.range[0], lead.range[1], beatsPerBar), t0 = (bi + p * plen) * bar;
+          for (const n of ph) {
+            if (n.b >= barsHere * beatsPerBar) continue;
+            const t = t0 + n.b * spb * (L.has('taqsim') ? 1.15 : 1), vel = fade && (bi + p * plen) >= bi + bars - 4 ? 0.5 : 1;
+            if (lead.orn && rnd() < lead.orn) add(t - 0.09, lead.voice, deg(R, M, n.deg + 1) + lead.oct + lead.shift * 0, 0.12, 0.2 * vel);        // ozdobnik: krótka nuta pomocnicza z góry
+            add(t, lead.voice, deg(R + lead.oct, M, n.deg + lead.shift), n.d * spb * 0.97, lead.vel * vel);
+          }
+        }
+      }
+      bi += bars;
+    }
+    const len = bi * bar + 4;
+    ev.sort((a, b) => a.t - b.t);
+    return { events: ev, len, name: P.name, bar, bars: bi };
+  }
+
+  /* ---------- syntezator ---------- */
+  let noiseBuf = null;
+  const noise = ctx => noiseBuf && noiseBuf.sampleRate === ctx.sampleRate ? noiseBuf : (() => { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0), r = mulberry(7); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; return noiseBuf = b; })();
+  const ksCache = new Map();
+  function ksBuf(ctx, f, dur, decay, bright) {                                                               // Karplus–Strong: szarpnięta struna (lutnia, oud, gęśle, kantele)
+    const key = [ctx.sampleRate, Math.round(f * 10), dur, decay, bright].join('|'); if (ksCache.has(key)) return ksCache.get(key);
+    const sr = ctx.sampleRate, N = Math.max(2, Math.round(sr / f)), len = Math.floor(dur * sr), buf = ctx.createBuffer(1, len, sr), y = buf.getChannelData(0), r = mulberry(Math.round(f * 7));
+    let prev = 0; for (let i = 0; i < N; i++) { const x = r() * 2 - 1; prev = prev + bright * (x - prev); y[i] = prev; }
+    for (let i = N; i < len; i++) y[i] = decay * 0.5 * (y[i - N] + y[i - N + 1 < i ? i - N + 1 : i - N]);
+    for (let i = 0; i < Math.min(len, 80); i++) y[i] *= i / 80;
+    if (ksCache.size > 160) ksCache.clear(); ksCache.set(key, buf); return buf;
+  }
+  const PLUCK = { lute: [2.4, 0.9965, 0.55], oud: [2.4, 0.9955, 0.75], gusli: [2.4, 0.997, 0.6], kantele: [3.2, 0.9985, 0.4] };
+  function env(ctx, g, t, a, hold, rel, peak) { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.setValueAtTime(peak, t + a + Math.max(0, hold)); g.gain.exponentialRampToValueAtTime(0.0001, t + a + Math.max(0, hold) + rel); }
+  function play(ctx, out, e, t) {
+    const f = mtof(e.n), v = e.v, G = e.g;
+    if (PLUCK[v]) { const [dur, dec, br] = PLUCK[v], s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = ksBuf(ctx, f, Math.min(dur, e.d + 1.2), dec, br); g.gain.value = G * 0.9; s.connect(g); g.connect(out); s.start(t); return; }
+    if (v === 'flute' || v === 'ney' || v === 'sopilka') {
+      const dur = Math.max(0.1, e.d), g = ctx.createGain(), o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator(), g2 = ctx.createGain(), g3 = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), nz = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), ng = ctx.createGain();
+      const breath = v === 'ney' ? 0.14 : v === 'sopilka' ? 0.09 : 0.05, att = v === 'flute' ? 0.07 : 0.11;
+      o1.type = 'sine'; o2.type = 'sine'; o3.type = 'sine'; o1.frequency.value = f; o2.frequency.value = f * 2; o3.frequency.value = f * 3; g2.gain.value = v === 'ney' ? 0.3 : 0.16; g3.gain.value = 0.05;
+      if (v === 'ney' && dur > 0.4) { o1.frequency.setValueAtTime(f * 0.972, t); o1.frequency.exponentialRampToValueAtTime(f, t + 0.12); o2.frequency.setValueAtTime(f * 1.944, t); o2.frequency.exponentialRampToValueAtTime(f * 2, t + 0.12); }
+      lfo.frequency.value = 5.1; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.9, dur * 0.8)); lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+      nz.buffer = noise(ctx); nz.loop = true; bp.type = 'bandpass'; bp.frequency.value = Math.min(6000, f * 2.5); bp.Q.value = 1.5; ng.gain.value = breath; nz.connect(bp); bp.connect(ng);
+      env(ctx, g, t, att, dur - att, 0.3, G); o1.connect(g); o2.connect(g2); g2.connect(g); o3.connect(g3); g3.connect(g); ng.connect(g); g.connect(out);
+      const end = t + dur + 0.4; for (const s of [o1, o2, o3, lfo, nz]) { s.start(t); s.stop(end); } return;
+    }
+    if (v === 'bowed' || v === 'strings' || v === 'pad' || v === 'drone') {
+      const dur = Math.max(0.3, e.d), g = ctx.createGain(), lp = ctx.createBiquadFilter(), oscs = [], type = v === 'pad' ? 'triangle' : 'sawtooth';
+      const att = v === 'bowed' ? 0.45 : v === 'drone' ? 1.4 : 1.3, rel = v === 'bowed' ? 0.7 : 1.6;
+      lp.type = 'lowpass'; lp.frequency.value = v === 'drone' ? 220 : v === 'bowed' ? Math.min(1500, f * 3.2) : Math.min(1800, f * 3); lp.Q.value = 0.6;
+      for (const dt of v === 'pad' ? [-5, 0, 6] : [-7, 0, 7]) { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = dt; o.connect(lp); oscs.push(o); }
+      if (v === 'bowed') { const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 4.3; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(7, t + 0.9); lfo.connect(lg); for (const o of oscs) lg.connect(o.detune); oscs.push(lfo); }
+      env(ctx, g, t, att, dur - att, rel, G * (v === 'drone' ? 0.55 : v === 'pad' ? 0.5 : 0.42)); lp.connect(g); g.connect(out);
+      const end = t + dur + rel + 0.2; for (const o of oscs) { o.start(t); o.stop(end); } return;
+    }
+    // bębny: frame (obręczowy, nisko), tabor, dum / tek (darbuka)
+    const g = ctx.createGain(), o = ctx.createOscillator(), nz = ctx.createBufferSource(), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+    const tone = v === 'tek' ? [0, 0, 0.0001] : v === 'dum' ? [135, 78, 0.28] : v === 'tabor' ? [150, 85, 0.24] : [110, 58, 0.34];
+    if (tone[0]) { o.frequency.setValueAtTime(tone[0], t); o.frequency.exponentialRampToValueAtTime(tone[1], t + 0.12); g.gain.setValueAtTime(G, t); g.gain.exponentialRampToValueAtTime(0.0001, t + tone[2]); o.connect(g); g.connect(out); o.start(t); o.stop(t + tone[2] + 0.05); }
+    nz.buffer = noise(ctx); nf.type = v === 'tek' ? 'bandpass' : 'lowpass'; nf.frequency.value = v === 'tek' ? 4200 : 700; nf.Q.value = v === 'tek' ? 1.2 : 0.7;
+    ng.gain.setValueAtTime(G * (v === 'tek' ? 1.0 : 0.22), t); ng.gain.exponentialRampToValueAtTime(0.0001, t + (v === 'tek' ? 0.07 : 0.1)); nz.connect(nf); nf.connect(ng); ng.connect(out); nz.start(t, Math.random() * 0); nz.stop(t + 0.15);
+  }
+  /* tor wyjściowy: suma → (sucha + pogłos z wygenerowanej odpowiedzi impulsowej) → filtr dolnoprzepustowy → kompresor → głośność */
+  function chain(ctx, nation, dest) {
+    const P = PIECES[nation], mix = ctx.createGain(), trimG = ctx.createGain(), dry = ctx.createGain(), wet = ctx.createGain(), conv = ctx.createConvolver(), lp = ctx.createBiquadFilter(), comp = ctx.createDynamicsCompressor();
+    const sr = ctx.sampleRate, len = Math.floor(sr * 3.0), ir = ctx.createBuffer(2, len, sr), r = mulberry(99);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lo = 0; for (let i = 0; i < len; i++) { const x = (r() * 2 - 1) * Math.pow(1 - i / len, 2.4); lo += 0.35 * (x - lo); d[i] = lo; } }
+    trimG.gain.value = P.trim * 0.42; conv.buffer = ir; dry.gain.value = 1 - P.wet * 0.6; wet.gain.value = P.wet * 1.4; lp.type = 'lowpass'; lp.frequency.value = P.cutoff; lp.Q.value = 0.5;
+    comp.threshold.value = -26; comp.ratio.value = 3; comp.attack.value = 0.05; comp.release.value = 0.4;
+    mix.connect(dry); mix.connect(conv); conv.connect(wet); dry.connect(lp); wet.connect(lp); lp.connect(comp); comp.connect(trimG); trimG.connect(dest);
+    return mix;
+  }
+
+  /* ---------- odtwarzanie w czasie rzeczywistym ---------- */
+  let ctx = null, master = null, mix = null, st = null, timer = null, armed = null, level = 2, gestureOn = false, ksNation = null;
+  const saved = store.get(); if (saved && typeof saved.level === 'number') level = Math.max(0, Math.min(LEVELS.length - 1, saved.level | 0));
+  const gainOf = () => LEVELS[level][1] * 0.9;
+  function begin(nation, loop, at) { const c = compose(nation, loop); return { nation, loop, ev: c.events, i: 0, t0: at, len: c.len, name: c.name }; }
+  function pump() {
+    if (!ctx || !st || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    while (st.i < st.ev.length && st.t0 + st.ev[st.i].t < now + 2.5) { const e = st.ev[st.i++], t = st.t0 + e.t; if (t >= now - 0.05 && level > 0) play(ctx, mix, e, Math.max(t, now)); }
+    if (st.i >= st.ev.length && now > st.t0 + st.len - 3) { ksCache.clear(); st = begin(st.nation, st.loop + 1, st.t0 + st.len + 2); }
+  }
+  function startAudio() {
+    if (!armed) return; const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext); if (!AC) return;
+    try {
+      if (!ctx) { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination); }
+      if (ctx.state === 'suspended') ctx.resume();
+      if (!st || st.nation !== armed) { ksCache.clear(); try { if (mix) mix.disconnect(); } catch (e) { /* bez poprzedniego toru */ } mix = chain(ctx, armed, master); st = begin(armed, 0, ctx.currentTime + 0.6); }
+      master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(master.gain.value, ctx.currentTime); master.gain.linearRampToValueAtTime(gainOf(), ctx.currentTime + 5);
+      if (!timer) timer = setInterval(pump, 250);
+    } catch (e) { console.error('Muzyka niedostępna:', e); }
+  }
+  /* uzbrojenie: muzyka nacji ruszy po pierwszym geście (kliknięcie, klawisz, dotyk) — przeglądarki nie pozwalają grać bez niego */
+  function arm(nation) {
+    if (!PIECES[nation]) return; armed = nation;
+    if (typeof window === 'undefined') return;
+    if (!gestureOn) { gestureOn = true; const go = () => { startAudio(); if (ctx && ctx.state === 'running') for (const ev of ['pointerdown', 'keydown', 'touchend']) window.removeEventListener(ev, go, true), gestureOn = false; }; for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, go, true); }
+    if (ctx) startAudio();
+  }
+  function stop() { armed = null; st = null; if (timer) { clearInterval(timer); timer = null; } if (master && ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0, ctx.currentTime, 0.3); } }
+  function setLevel(i) { level = Math.max(0, Math.min(LEVELS.length - 1, i | 0)); store.set({ level }); if (master && ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(gainOf(), ctx.currentTime, 0.25); } }
+  const cycle = () => { setLevel((level + 1) % LEVELS.length); return LEVELS[level][0]; };
+  const toggle = () => { setLevel(level === 0 ? 2 : 0); return LEVELS[level][0]; };
+
+  /* render poza czasem rzeczywistym (testy, podgląd): nacja, obieg, liczba sekund, częstotliwość próbkowania → Promise<{ left, right, sampleRate }> */
+  async function render(nation, loop = 0, seconds = 30, sr = 22050, from = 0) {
+    const OC = typeof window !== 'undefined' && (window.OfflineAudioContext || window.webkitOfflineAudioContext); if (!OC) throw new Error('Brak OfflineAudioContext');
+    const oc = new OC(2, Math.floor(seconds * sr), sr), out = chain(oc, nation, oc.destination), c = compose(nation, loop), g = oc.createGain(); ksCache.clear();
+    for (const e of c.events) { const t = e.t - from; if (t < -2 || t > seconds) continue; play(oc, out, e, Math.max(0, t)); }
+    const buf = await oc.startRendering(); return { left: buf.getChannelData(0), right: buf.getChannelData(1), sampleRate: sr };
+  }
+  return { arm, stop, setLevel, cycle, toggle, compose, render, pieces: () => Object.keys(PIECES), info: n => ({ name: PIECES[n].name, bpm: PIECES[n].bpm, mode: PIECES[n].mode }), levelName: () => LEVELS[level][0], level: () => level, levels: () => LEVELS.length,
+    state: () => ({ armed, playing: !!(ctx && ctx.state === 'running' && st && level > 0), nation: st && st.nation, loop: st && st.loop, name: st && st.name, ctx: ctx && ctx.state, level }) };
+})();
+
+/* MUSIC:END */
+
 /* ================================ MODUL: MENU ================================
    Menu główne (lista pionowa, ↑↓ Enter, dotyk), Piaskownica (nacja → klimat → typ mapy → podgląd z Minimap → ziarno → Start; Wikingowie tylko nadmorska; wybór w localStorage)
    i menu w grze (przycisk ☰ i Esc: Wznów · Nowa mapa · Opcje · Menu główne; pauza przez speed = 0). „Nowa mapa” i „Menu główne” nawigują (location.href) — to omija pułapki ponownego wejścia do gry. */
@@ -10671,8 +10897,8 @@ const Menu = (() => {
     paused = true; prevSpeed = s.speed || 1; s.speed = 0; $('btnSpeed').textContent = 'Pauza';
     const meta = s.map.meta || {}; $('pmInfo').textContent = Data.FACTIONS[s.factionId].name + ' · ' + Minimap.describe(meta);
     const list = $('pmList'); list.innerHTML = '';
-    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); if (s.mission) p.set('mission', s.mission.status === 'free' ? 'free' : s.mission.preset); p.delete('menu'); })], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu', 'mission']) p.delete(k); })]];
-    items.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'mi' + (i === 0 ? ' focus' : ''); b.textContent = label; b.setAttribute('data-id', ['resume', 'newmap', 'options', 'main'][i]);
+    const items = [['Wznów', closePause], ['Nowa mapa', () => navigate(p => { p.set('play', s.factionId); p.set('climate', meta.climate); p.set('map', meta.type); p.set('size', String(meta.size || 48)); p.set('seed', String(Math.floor(Math.random() * 1e6))); if (s.mission) p.set('mission', s.mission.status === 'free' ? 'free' : s.mission.preset); p.delete('menu'); })], ['Muzyka', () => { Music.cycle(); const bt = document.querySelector('#pmList [data-id=music]'); if (bt) bt.textContent = 'Muzyka: ' + Music.levelName(); }], ['Opcje', null], ['Menu główne', () => navigate(p => { for (const k of ['play', 'climate', 'map', 'seed', 'menu', 'mission']) p.delete(k); })]];
+    items.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'mi' + (i === 0 ? ' focus' : ''); b.textContent = label; b.setAttribute('data-id', ['resume', 'newmap', 'music', 'options', 'main'][i]); if (i === 2) b.textContent = 'Muzyka: ' + Music.levelName();
       if (fn) b.onclick = fn; else { b.setAttribute('aria-disabled', 'true'); b.title = 'Wkrótce'; b.innerHTML = label + '<small>Wkrótce</small>'; } list.appendChild(b); });
     $('pauseMenu').style.display = 'flex'; mode = 'pause';
   }
@@ -12187,6 +12413,7 @@ const Game = (() => {
   window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
     if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && BuildMode.isSelected()) BuildMode.rotate(e.shiftKey ? -1 : 1);       // obrót budynku w trybie budowy
+    if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) && Menu.mode() == null) UI.flashHint('Muzyka: ' + Music.toggle());      // M — wycisz / włącz muzykę
     if (e.key === 'Escape') {
       if (Menu.escape()) return;
       BuildMode.exitBuild();
