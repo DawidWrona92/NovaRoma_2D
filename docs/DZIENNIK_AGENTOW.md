@@ -12,6 +12,7 @@ Cel: sprawdzić, czy delegowanie opłaca się względem pracy samodzielnej. Wpis
 | 10.10 | haiku-tester | 8 testów przeglądarkowych | ? | ? | ? | T | 8/8 exit 0, bez poprawek |
 | 12.10 | haiku-documentation | góry i fauna: rozdz. 10, 12, 13, 16 | 112 tys. | 22 | 170 s | P | limit 14 tur bez raportu; rozdz. 17, `tables.js` i PDF dokończył rodzic |
 | 12.10 | haiku-documentation | obrót, Przystań i Okręt: rozdz. 11 i inne | 144 tys. | 21 | 148 s | N | limit 14 tur: zdążył tylko zacząć rozdz. 11 i zostawił odwołanie do nieistniejącej sekcji; resztę (11, 14, 15, 16, 17, tabele, README) napisał rodzic |
+| 12.10 | haiku-documentation (nowa definicja, 40 tur) | rozdz. C i D po obrocie, artefakcie i dzienniku | 69 tys. | 15 | 105 s | T | pełny raport w formacie z definicji; 15 narzędzi (starym limitem 14 by się urwał); jedyna usterka: uznał za niespójność, że „skrypt diagnostyczny startu” nie jest plikiem (to blok wewnątrz gry) — bez wpływu na tekst |
 
 ## Błędy rodzica (do porównania)
 - Commit fazy 9B przy padającym `tools/workers.js` (kod wyjścia zamaskowany przez `| tail`).

@@ -22,6 +22,7 @@ Tabela: Mapa zmian i rozdziałów
 | haracz, terminy, presety, rynek, wyprawy | 7, 8, 9, aneks A |
 | teren, klimaty, typy map, generator | 10, 11 |
 | zasady zabudowy, wyrównywanie, strefy | 5, 11 |
+| obrót budynków, strefy ląd/woda (`Data.zonesOf`, `World.canPlace`) | 11 (sekcja {{ref:obrot}}), 14, 15, 16 |
 | ścieżki, drogi, piesi, logistyka | 12 |
 | fauna, polowanie | 13 |
 | HUD, Doradca, menu, parametry adresu | 1, 14 |
