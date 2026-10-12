@@ -12,11 +12,11 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 | # | Zmiana | Stan |
 |---|---|---|
-| 1 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach.** Decyzja: na każdej mapie jest skalisty masyw górski (poziom ≥ 3), złoża tylko tam. Masyw powstaje tylko dla nacji z kopalniami skalnymi (Frankowie), z własnym generatorem losowym; w górach nie ma wydm, bagien ani oaz; generator losuje mapę od nowa, gdy brakuje złóż | ◐ kod gotowy i przechodzi `terrain`, `footprints`, `spacing`, `leveling`, `path`, `walkers`, `roads`, `logistics`, `minimap`, `workers`, `scenarios` (58/58); **do zrobienia:** pełna regresja `regress.sh`, bramka `physical.js --faction=franks` (kopalnie leżą dalej), commit i push, dokumentacja (rozdz. 10, 17) |
-| 2 | **Zwierzęta oddalają się od budowli**, nie biegają po mieście (odpychanie od zabudowy, cele wędrówki poza strefą miasta, powrót do legowiska) | ○ nie zaczęte |
-| 3 | **Mniej zwierząt i odradzanie w punktach spawnu** (legowiska): zmniejszyć liczebność, odradzanie także wałęsających się, legowiska z dala od zabudowy; przestroić plon myśliwego | ○ nie zaczęte |
+| 1 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach.** Decyzja: na mapie Franków jest skalisty masyw górski (poziom ≥ 3), złoża tylko tam; własny generator losowy, walidacja wymaga kkompletu złóż | ✔ w kodzie; krótkie testy OK (`terrain`, `footprints`, `spacing`, `leveling`, `path`, `walkers`, `roads`, `logistics`, `minimap`, `workers`, `scenarios` 58/58). **Na koniec (duże testy):** pełna regresja `regress.sh`, bramka `physical.js` dla Franków (kopalnie dalej od Dworu), scenariusze ekonomii |
+| 2 | **Zwierzęta oddalają się od budowli** (strefa 3,5 pola wokół budynków i placów; legowisko w mieście się przenosi) | ✔ w kodzie, `fauna.js` 936/936, `browser_fauna` OK |
+| 3 | **Mniej zwierząt i odradzanie w punktach spawnu** (wałęsające się i ptaki po 50%, łowna po 70%, `ref` 4, szybsze odradzanie przy legowiskach) | ✔ w kodzie; test „1 Chata” poluzowany (średni plon ≥ 0,60) |
 
-Po zmianach 1–3: nowy wzorzec regresji (`baseline6`), przebudowa PDF, wersja WIP gry do przeklikania, zamknięcie Fazy 9B.
+Dokumentacja zmian 1–3: w toku (agent dokumentacji). Po niej: nowy wzorzec regresji (`baseline6`), przebudowa PDF, wersja WIP gry do przeklikania, zamknięcie Fazy 9B.
 
 ## 3. Kolejka (po zmianach 1–3)
 

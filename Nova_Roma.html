@@ -5215,29 +5215,29 @@ const Data = (() => {
      herd — wielkość stada przy legowisku, br — odradzanie (osobników/min przy pustym legowisku), sp — prędkość spaceru (pól/min gry), flee — prędkość ucieczki,
      hab — siedlisko: forest (skraje lasów), open (otwarty ląd), shore (brzeg morza i lodu), water (okolice wody), sand (piasek i wydmy), any. Klimat zmienia zestaw gatunków, nie ekonomię. */
   const FAUNA = {
-    roe:          { pl: 'Sarna',           role: 'prey',   w: 1,    n: 32, den: 8, herd: [3, 6], br: 0.18, sp: 0.5,  flee: 3.2, hab: 'forest', climates: ['temperate', 'eastern'] },
-    rabbit:       { pl: 'Królik',          role: 'prey',   w: 0.3,  n: 36, den: 9, herd: [3, 7], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['temperate', 'eastern'] },
-    reindeer:     { pl: 'Renifer',         role: 'prey',   w: 1.2,  n: 24, den: 6, herd: [3, 6], br: 0.15, sp: 0.45, flee: 3.0, hab: 'forest', climates: ['snow'] },
-    hare:         { pl: 'Zając polarny',   role: 'prey',   w: 0.35, n: 30, den: 7, herd: [3, 6], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['snow'] },
-    gazelle:      { pl: 'Gazela',          role: 'prey',   w: 0.9,  n: 26, den: 7, herd: [3, 6], br: 0.18, sp: 0.55, flee: 3.6, hab: 'open',   climates: ['desert'] },
-    desertRabbit: { pl: 'Królik pustynny', role: 'prey',   w: 0.3,  n: 32, den: 8, herd: [3, 7], br: 0.35, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['desert'] },
-    fox:          { pl: 'Lis',             role: 'roamer', n: 3, sp: 0.5,  flee: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'desert'] },
-    arcticFox:    { pl: 'Lis polarny',     role: 'roamer', n: 3, sp: 0.5,  flee: 2.6, hab: 'open',   climates: ['snow'] },
-    boar:         { pl: 'Dzik',            role: 'roamer', n: 4, sp: 0.4,  flee: 2.4, hab: 'forest', climates: ['temperate', 'eastern'], herd: [1, 3] },
-    elk:          { pl: 'Łoś',             role: 'roamer', n: 3, sp: 0.4,  flee: 2.2, hab: 'forest', climates: ['eastern'] },
-    camel:        { pl: 'Wielbłąd',        role: 'roamer', n: 5, sp: 0.3,  flee: 1.4, hab: 'sand',   climates: ['desert'], herd: [2, 3] },
-    seal:         { pl: 'Foka',            role: 'roamer', n: 5, sp: 0.18, flee: 0.5, hab: 'shore',  climates: ['snow'], herd: [2, 3] },
-    lizard:       { pl: 'Jaszczurka',      role: 'roamer', n: 6, sp: 0.5,  flee: 2.2, hab: 'sand',   climates: ['desert'] },
-    stork:        { pl: 'Bocian',          role: 'bird',   n: 3, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['temperate'] },
-    crane:        { pl: 'Żuraw',           role: 'bird',   n: 3, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['eastern'] },
-    crow:         { pl: 'Wrona',           role: 'bird',   n: 5, sp: 0.4,  fly: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'snow'] },
-    gull:         { pl: 'Mewa',            role: 'bird',   n: 6, sp: 0.4,  fly: 2.6, hab: 'shore',  climates: ['snow'] },
-    vulture:      { pl: 'Sęp',             role: 'bird',   n: 3, sp: 0.3,  fly: 1.8, hab: 'any',    climates: ['desert'], soar: true }
+    roe:          { pl: 'Sarna',           role: 'prey',   w: 1,    n: 22, den: 6, herd: [3, 6], br: 0.3, sp: 0.5,  flee: 3.2, hab: 'forest', climates: ['temperate', 'eastern'] },
+    rabbit:       { pl: 'Królik',          role: 'prey',   w: 0.3,  n: 25, den: 7, herd: [3, 7], br: 0.55, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['temperate', 'eastern'] },
+    reindeer:     { pl: 'Renifer',         role: 'prey',   w: 1.2,  n: 17, den: 5, herd: [3, 6], br: 0.26, sp: 0.45, flee: 3.0, hab: 'forest', climates: ['snow'] },
+    hare:         { pl: 'Zając polarny',   role: 'prey',   w: 0.35, n: 21, den: 6, herd: [3, 6], br: 0.55, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['snow'] },
+    gazelle:      { pl: 'Gazela',          role: 'prey',   w: 0.9,  n: 18, den: 5, herd: [3, 6], br: 0.3, sp: 0.55, flee: 3.6, hab: 'open',   climates: ['desert'] },
+    desertRabbit: { pl: 'Królik pustynny', role: 'prey',   w: 0.3,  n: 22, den: 6, herd: [3, 7], br: 0.55, sp: 0.4,  flee: 2.8, hab: 'open',   climates: ['desert'] },
+    fox:          { pl: 'Lis',             role: 'roamer', n: 2, sp: 0.5,  flee: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'desert'] },
+    arcticFox:    { pl: 'Lis polarny',     role: 'roamer', n: 2, sp: 0.5,  flee: 2.6, hab: 'open',   climates: ['snow'] },
+    boar:         { pl: 'Dzik',            role: 'roamer', n: 3, sp: 0.4,  flee: 2.4, hab: 'forest', climates: ['temperate', 'eastern'], herd: [1, 3] },
+    elk:          { pl: 'Łoś',             role: 'roamer', n: 2, sp: 0.4,  flee: 2.2, hab: 'forest', climates: ['eastern'] },
+    camel:        { pl: 'Wielbłąd',        role: 'roamer', n: 3, sp: 0.3,  flee: 1.4, hab: 'sand',   climates: ['desert'], herd: [2, 3] },
+    seal:         { pl: 'Foka',            role: 'roamer', n: 3, sp: 0.18, flee: 0.5, hab: 'shore',  climates: ['snow'], herd: [2, 3] },
+    lizard:       { pl: 'Jaszczurka',      role: 'roamer', n: 3, sp: 0.5,  flee: 2.2, hab: 'sand',   climates: ['desert'] },
+    stork:        { pl: 'Bocian',          role: 'bird',   n: 2, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['temperate'] },
+    crane:        { pl: 'Żuraw',           role: 'bird',   n: 2, sp: 0.35, fly: 2.4, hab: 'water',  climates: ['eastern'] },
+    crow:         { pl: 'Wrona',           role: 'bird',   n: 3, sp: 0.4,  fly: 2.6, hab: 'forest', climates: ['temperate', 'eastern', 'snow'] },
+    gull:         { pl: 'Mewa',            role: 'bird',   n: 3, sp: 0.4,  fly: 2.6, hab: 'shore',  climates: ['snow'] },
+    vulture:      { pl: 'Sęp',             role: 'bird',   n: 2, sp: 0.3,  fly: 1.8, hab: 'any',    climates: ['desert'], soar: true }
   };
   /* zasady: radius — promień łowiska Chaty myśliwego (pola), ref — punkty zwierzyny w łowisku dające pełny plon (gameMult = min(1, Σw / ref)), meat — mięsa z osobnika o wadze 1,
      hunterSpeed — prędkość myśliwego (pola/min), bow — zasięg łuku (pola), aim / arrow / pick — czasy celowania, lotu strzały i podniesienia zwierzyny (min gry),
-     minMeat — ile mięsa trzeba zebrać, by myśliwy wyruszył, owed — nadwyżka mięsa, powyżej której kolejne upolowania rozstrzygane są bez wyprawy, carcass — jak długo leży padlina (min) */
-  const FAUNA_RULES = { radius: 16, ref: 5, meat: 4, hunterSpeed: 6.6, bow: 4.5, aim: 0.3, arrow: 0.08, pick: 0.2, minMeat: 1.0, owed: 6, carcass: 3 };
+     minMeat — ile mięsa trzeba zebrać, by myśliwy wyruszył, owed — nadwyżka mięsa, powyżej której kolejne upolowania rozstrzygane są bez wyprawy, carcass — jak długo leży padlina (min), buf — strefa wokół budynków i placów, z której zwierzęta uciekają (pola), respawn — odradzanie wałęsających się i ptaków w punktach spawnu (osobników/min przy braku całej populacji) */
+  const FAUNA_RULES = { radius: 16, ref: 4, meat: 4, hunterSpeed: 6.6, bow: 4.5, aim: 0.3, arrow: 0.08, pick: 0.2, minMeat: 1.0, owed: 6, carcass: 3, buf: 3.5, respawn: 0.08 };
 
   /* Danina koszykowa Słowian: wartość towaru w osobominutach i jego udział w żądaniu. */
   const DANINA = {
@@ -9969,7 +9969,7 @@ const Fauna = (() => {
   /* ---------- zaludnienie mapy ---------- */
   function populate(s) {
     const map = s.map, meta = map.meta || {}, climate = meta.climate || Data.FACTIONS[s.factionId].climate, N = map.size, reach = Terrain.reachSet(map), kc = centerOfB(s.keep);
-    const f = s.fauna = { rs: (Math.imul((meta.seed | 0) + 17, 2654435761) ^ 0xFA11A5) >>> 0, nid: 1, bt: 0, dens: [], hunts: [], kills: 0 };
+    const f = s.fauna = { rs: (Math.imul((meta.seed | 0) + 17, 2654435761) ^ 0xFA11A5) >>> 0, nid: 1, bt: 0, dens: [], spawns: [], sacc: {}, hunts: [], kills: 0 };
     s.animals = [];
     const distK = (x, y) => Math.hypot(x - kc.x, y - kc.y);
     const okAt = (x, y, hab, minK, ground) => { const t = tileAt(map, x, y); return spawnTile(t) && (!ground || reach[Math.floor(y) * N + Math.floor(x)]) && distK(x, y) >= minK && HAB[hab](map, x, y); };
@@ -9988,7 +9988,7 @@ const Fauna = (() => {
       if (K.role === 'prey') {
         const dens = [], per = Math.max(1, Math.round(K.n / K.den));
         for (let i = 0; i < K.den; i++) {
-          const p = pick(K.hab, 11, 26, dens) || pick('any', 11, 28, dens); if (!p) continue;
+          const p = pick(K.hab, 10, 21, dens) || pick('any', 10, 24, dens); if (!p) continue;
           const d = { k, x: p[0], y: p[1], acc: 0 }; dens.push(d); f.dens.push(d);
           const didx = f.dens.length - 1;
           for (let j = 0; j < per; j++) { const q = around(d.x, d.y, 3); if (q) addAnimal(s, f, k, q[0], q[1], didx); }
@@ -9997,12 +9997,14 @@ const Fauna = (() => {
         let left = K.n;
         while (left > 0) {
           const p = pick(K.hab, 10, 30, null) || (K.hab === 'shore' ? null : pick('any', 10, 30, null)); if (!p) break;
+          f.spawns.push({ k, x: +p[0].toFixed(2), y: +p[1].toFixed(2) });                       // punkt spawnu: tu odradzają się wałęsające się po wytrzebieniu
           const grp = Math.min(left, K.herd ? Math.max(1, Math.round(rr(f, K.herd[0], K.herd[1] + 0.49))) : 1);
           for (let j = 0; j < grp; j++) { const q = around(p[0], p[1], 2.5); if (q) { addAnimal(s, f, k, q[0], q[1], -1); left--; } else left--; }
         }
       } else {                                                                    // ptaki: część stoi na ziemi, część jest w locie
         for (let i = 0; i < K.n; i++) {
           const p = pick(K.hab, 8, 34, null, false) || (K.hab === 'shore' || K.hab === 'water' ? null : pick('any', 8, 34, null, false)); if (!p) continue;
+          f.spawns.push({ k, x: +p[0].toFixed(2), y: +p[1].toFixed(2) });
           const a = addAnimal(s, f, k, p[0], p[1], -1);
           if (K.soar || rnd(f) < 0.4) { a.fl = 1; a.z = +rr(f, 0.45, 0.85).toFixed(2); a.m = WALK; flyTarget(s, f, a, K); }
         }
@@ -10032,10 +10034,14 @@ const Fauna = (() => {
       if (den && Math.hypot(a.x - den.x, a.y - den.y) > 5) { cx = den.x; cy = den.y; rad = rr(f, 0, 4); }       // zbyt daleko od legowiska — wraca w jego okolice
       const ang = rnd(f) * 6.283, tx = cx + Math.cos(ang) * rad, ty = cy + Math.sin(ang) * rad;
       if (K.hab === 'shore' && !HAB.shore(s.map, tx, ty)) continue;
-      if (clearLine(s.map, a.x, a.y, tx, ty)) { a.tx = tx; a.ty = ty; a.m = WALK; return true; }
+      if (!inTown(tx, ty) && clearLine(s.map, a.x, a.y, tx, ty)) { a.tx = tx; a.ty = ty; a.m = WALK; return true; }
     }
     a.m = IDLE; a.t = +rr(f, 0.5, 2).toFixed(2); return false;
   }
+  const bz = [];                                                                   // strefy zabudowy: x, y, promień (budynki i place budowy + R.buf) – zwierzęta z nich uciekają i do nich nie wędrują
+  const inTown = (x, y) => { for (let i = 0; i < bz.length; i += 3) { const dx = x - bz[i], dy = y - bz[i + 1]; if (dx * dx + dy * dy < bz[i + 2] * bz[i + 2]) return true; } return false; };
+  function buildZones(s) { bz.length = 0; for (const b of s.buildings) bz.push(b.x + b.w / 2, b.y + b.h / 2, Math.max(b.w, b.h) / 2 + R.buf); for (const b of s.sites) bz.push(b.x + b.w / 2, b.y + b.h / 2, Math.max(b.w, b.h) / 2 + R.buf); }
+  function townThreat(a) { for (let i = 0; i < bz.length; i += 3) { const dx = a.x - bz[i], dy = a.y - bz[i + 1]; if (dx * dx + dy * dy < bz[i + 2] * bz[i + 2]) { thTmp.x = bz[i]; thTmp.y = bz[i + 1]; return thTmp; } } return null; }
   const thr = [], thTmp = { x: 0, y: 0 };                                          // pozycje zagrożeń (obywatele, myśliwi) jako płaska lista x, y — odświeżana raz na tick
   function buildThreats(s, f) {
     thr.length = 0;
@@ -10073,7 +10079,7 @@ const Fauna = (() => {
       if (!flying) { const t = tileAt(map, a.x, a.y); if (!t || t.occup != null) { const p = Path.nearest(map, a.x, a.y, OPTS, 6); if (!p) return false; a.x = p[0]; a.y = p[1]; a.tx = a.x; a.ty = a.y; a.m = IDLE; a.t = 1; } }
       if (!flying || a.fl === 2) {
         const rad = K.role === 'prey' ? 3.8 : K.role === 'bird' ? 2.6 : (a.k === 'seal' ? 2.0 : 3.0);
-        if (a.m !== FLEE || flying) { const th = threatOf(a, rad); if (th) flee(s, f, a, K, th); }
+        if (a.m !== FLEE || flying) { const th = threatOf(a, rad) || townThreat(a); if (th) flee(s, f, a, K, th); }
       }
     }
     if (a.m === IDLE) {
@@ -10112,6 +10118,26 @@ const Fauna = (() => {
     return true;
   }
   function births(s, f, dtb) {
+    for (let di = 0; di < f.dens.length; di++) {                                // legowisko, wokół którego wyrosło miasto, przenosi się na wolne miejsce (zwierzęta wrócą do nowego)
+      const d = f.dens[di]; if (!inTown(d.x, d.y)) continue;
+      const kc = centerOfB(s.keep), N = s.map.size;
+      for (let g = 0; g < 400; g++) {
+        const x = rr(f, 1, N - 1), y = rr(f, 1, N - 1), dk = Math.hypot(x - kc.x, y - kc.y);
+        if (dk < 11 || dk > 30 || inTown(x, y) || !spawnTile(tileAt(s.map, x, y)) || !HAB[KINDS[d.k].hab](s.map, x, y) || f.dens.some(q => q !== d && Math.hypot(q.x - x, q.y - y) < 7)) continue;
+        d.x = +x.toFixed(2); d.y = +y.toFixed(2); break;
+      }
+    }
+    for (const k of Object.keys(KINDS)) {                                       // wałęsające się i ptaki: brakujące osobniki odradzają się w punktach spawnu gatunku
+      const K = KINDS[k]; if (K.role === 'prey') continue;
+      const sp = f.spawns.filter(q => q.k === k && !inTown(q.x, q.y)); if (!sp.length) continue;
+      let cnt = 0; for (const a of s.animals) if (a.k === k) cnt++;
+      if (cnt >= K.n) { f.sacc[k] = 0; continue; }
+      f.sacc[k] = (f.sacc[k] || 0) + dtb * R.respawn * (1 - cnt / K.n);
+      if (f.sacc[k] < 1) continue;
+      f.sacc[k] -= 1;
+      const q = sp[Math.floor(rnd(f) * sp.length)];
+      for (let g = 0; g < 12; g++) { const ang = rnd(f) * 6.283, rad = Math.sqrt(rnd(f)) * 2.5, x = q.x + Math.cos(ang) * rad, y = q.y + Math.sin(ang) * rad; if (spawnTile(tileAt(s.map, x, y)) && !inTown(x, y)) { addAnimal(s, f, k, x, y, -1); break; } }
+    }
     for (const d of f.dens) {
       const K = KINDS[d.k], cap = K.herd[1] + 1; let cnt = 0;
       for (const a of s.animals) if (a.k === d.k && a.m !== DEAD && Math.abs(a.x - d.x) < 7 && Math.abs(a.y - d.y) < 7) cnt++;
@@ -10119,7 +10145,7 @@ const Fauna = (() => {
       d.acc += dtb * K.br * (1 - cnt / cap);
       if (d.acc < 1) continue;
       d.acc -= 1;
-      for (let g = 0; g < 12; g++) { const ang = rnd(f) * 6.283, rad = Math.sqrt(rnd(f)) * 3, x = d.x + Math.cos(ang) * rad, y = d.y + Math.sin(ang) * rad; if (spawnTile(tileAt(s.map, x, y))) { addAnimal(s, f, d.k, x, y, f.dens.indexOf(d)); break; } }
+      for (let g = 0; g < 12; g++) { const ang = rnd(f) * 6.283, rad = Math.sqrt(rnd(f)) * 3, x = d.x + Math.cos(ang) * rad, y = d.y + Math.sin(ang) * rad; if (spawnTile(tileAt(s.map, x, y)) && !inTown(x, y)) { addAnimal(s, f, d.k, x, y, f.dens.indexOf(d)); break; } }
     }
   }
 
@@ -10184,7 +10210,7 @@ const Fauna = (() => {
   function tick(dt) {
     const s = World.state(), f = s.fauna;
     if (!s.settings.fauna || !f || !s.map || !(dt > 0)) return;
-    updateHunts(s, f); buildThreats(s, f);
+    buildZones(s); updateHunts(s, f); buildThreats(s, f);
     f.bt += dt; if (f.bt >= 1) { births(s, f, f.bt); f.bt = 0; }
     const list = s.animals;
     for (let i = list.length - 1; i >= 0; i--) if (!step(s, f, list[i], dt)) list.splice(i, 1);

@@ -86,6 +86,27 @@ console.log(`zaludnienie: ${SETS.length} map, pula zwierzyny ≥ ${minPrey.toFix
   console.log(`długa gra: ${samples} próbek, najdłuższa seria na polu zajętym ${worst} próbek`);
 }
 
+/* ---------- 2b. zwierzęta unikają zabudowy i odradzają się w punktach spawnu ---------- */
+{
+  let inZone = 0, total = 0;
+  const s = sim('franks', 'temperate', 'river', 7, 100, { fauna: true, hunters: 2, probe: (s, i) => {
+    if (i % 10) return;
+    for (const a of s.animals) {
+      if (a.fl || a.m === Fauna.DEAD || a.m === Fauna.HUNTED) continue; total++;
+      if (s.buildings.some(b => Math.hypot(a.x - (b.x + b.w / 2), a.y - (b.y + b.h / 2)) < Math.max(b.w, b.h) / 2 + 1.0)) inZone++;       // bezpośrednio przy ścianie (strefa ucieczki ma 3,5 pola)
+    }
+  } });
+  ok(total > 0 && inZone / total < 0.02, `zwierzęta unikają zabudowy: ${inZone} z ${total} próbek przy samej ścianie budynku (< 2%)`);
+  ok(s.fauna.spawns.length > 0 && s.fauna.dens.every(d => Number.isFinite(d.x)), `punkty spawnu istnieją (${s.fauna.spawns.length}), legowiska mają poprawne położenie`);
+  // odradzanie: wyłapane wałęsające się wracają w punktach spawnu
+  const s2 = World.state(); const kinds = [...new Set(s2.fauna.spawns.map(q => q.k))]; const before = {}; for (const k of kinds) before[k] = s2.animals.filter(a => a.k === k).length;
+  s2.animals = s2.animals.filter(a => !kinds.includes(a.k)); for (let t = 0; t < 400; t += 0.05) World.tick(0.05);
+  const after = {}; for (const k of kinds) after[k] = s2.animals.filter(a => a.k === k).length;
+  const back = kinds.filter(k => after[k] > 0).length;
+  ok(kinds.length > 0 && back >= Math.ceil(kinds.length * 0.7), `odradzanie w punktach spawnu: ${back} z ${kinds.length} gatunków wróciło po 400 min (${kinds.map(k => k + ' ' + after[k] + '/' + before[k]).join(', ')})`);
+  ok(s2.animals.every(a => !kinds.includes(a.k) || s2.fauna.spawns.some(q => q.k === a.k)), 'każdy odrodzony gatunek ma punkt spawnu');
+}
+
 /* ---------- 3. izolacja od globalnego RNG i parytet logiki ---------- */
 {
   // Słowianie nie mają Chaty myśliwego w przepisie: stan gry (zasoby, ludność, obywatele, nosiciele) musi być bit-w-bit identyczny z fauną i bez niej, a RNG w tym samym stanie
@@ -128,7 +149,7 @@ console.log(`zaludnienie: ${SETS.length} map, pula zwierzyny ≥ ${minPrey.toFix
   ok(['go', 'aim', 'approach', 'pick', 'back'].every(m => modes.has(m)), 'wyprawa przechodzi przez fazy: ' + [...modes].join(', '));
   ok(arrows > 3, `strzała leci (${arrows} próbek lotu)`);
   ok(st.kills >= 15, `myśliwy upolował ${st.kills} zwierząt w 150 min (≥ 15)`);
-  ok(gmN > 5 && gmMin >= 0.9 && gmSum / gmN >= 0.97, `1 Chata: gameMult min ${gmMin.toFixed(2)} śr. ${(gmSum / Math.max(1, gmN)).toFixed(3)} (≥ 0,90 / 0,97)`);
+  ok(gmN > 5 && gmSum / gmN >= 0.6, `1 Chata: gameMult min ${gmMin.toFixed(2)} śr. ${(gmSum / Math.max(1, gmN)).toFixed(3)} (średnia ≥ 0,60 — zwierzyny jest mniej i unika miasta, więc plon waha się z położeniem legowisk)`);
   ok(st.prey >= 20, `pula zwierzyny po 150 min nadal ${st.prey} pkt`);
   ok(maxHunts <= 1, 'jedna Chata prowadzi najwyżej jedną wyprawę naraz');
   // padlina leży tylko do podniesienia / upływu czasu
