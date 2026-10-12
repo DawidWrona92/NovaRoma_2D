@@ -1,0 +1,39 @@
+// Łańcuch Drwal → Tartak (poprawka błędu zgłoszonego przez grających): gdy Tartak dostaje tylko część pni, jego robotnik ma pracować (piłować), a nie stać i zamiatać,
+// pnie wnosi do Składu / Dworu drwal, a robotnik Tartaku je stamtąd zabiera i odnosi deski. Sprawdza stany logiki (ułamek pracy) i widoczne czynności robotnika.
+// Użycie: node tools/chain.js [plik.html]
+const G = require('./headless').load(process.argv[2] || 'Nova_Roma.html');
+const { World, Data, Workers, Walkers } = G;
+let fails = 0, checks = 0;
+const ok = (c, msg) => { checks++; if (!c) { fails++; console.log('  ✘ ' + msg); } return c; };
+for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
+  World.init(fid, { climate: Data.FACTIONS[fid].climate, type: fid === 'vikings' ? 'coast' : 'plain', seed: 3 });
+  const s = World.state(); s.res.deski = 999; s.res.kamień = 99; s.res.złoto = 999; s.res.narzędzia = 50; s.res['pień'] = 0; s.settings.workers = true; s.settings.physical = true;
+  const put = id => { for (let r = 3; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
+  const wc = put('woodcutter'), sw = put('sawmill'); s.staffed[wc.uid] = s.staffed[sw.uid] = true; s.res.deski = 0;
+  let n = 0, working = 0, idleSt = 0, sweeping = 0, partial = 0, sawActs = 0, loadSeen = new Set();
+  for (let i = 0; i < 1200; i++) {
+    World.tick(0.05); Walkers.update(0.05); if (i % 20 === 19) s.res.deski = 0;                      // deski są stale wydawane (budowa), więc Tartak nie stoi z pełnym magazynem
+    if (i < 400) continue; n++;
+    const w = Walkers.figures().find(a => a.kind === 'worker' && a.uid === sw.uid); if (!w) continue;
+    if (sw.st && sw.st.c === 'in' && (sw.eff || 0) >= 0.2) partial++;
+    if (Workers.idleNow(sw)) idleSt++;
+    if (w.act === 'sweep' || w.act === 'look') sweeping++;
+    if (w.act === 'saw') sawActs++;
+    if (w.load) loadSeen.add(w.load[0]);
+  }
+  const eff = sw.eff || 0;
+  ok(eff > 0.2 && (partial > n * 0.5 || (sw.st && sw.st.c !== 'in')), `${fid}: Tartak produkuje (${Math.round(eff * 100)}% nominału) i bywa w stanie „za mało pni” (${partial}/${n})`);
+  ok(idleSt === 0, `${fid}: robotnik Tartaku nie jest uznany za bezczynnego, gdy Tartak pracuje częściowo (${idleSt}/${n} próbek)`);
+  ok(sweeping < n * 0.15, `${fid}: robotnik Tartaku nie zamiata zamiast pracować (${sweeping}/${n} próbek)`);
+  ok(sawActs > n * 0.2, `${fid}: robotnik Tartaku piłuje (${sawActs}/${n} próbek)`);
+  console.log(`${fid}: eff Tartaku ${Math.round(eff * 100)}% · piłuje ${sawActs}/${n} · zamiata ${sweeping} · ładunki ${[...loadSeen].join(',')}`);
+}
+// status w interfejsie: częściowe wejście to ostrzeżenie z procentem, brak wejścia to błąd
+{
+  World.init('franks', { climate: 'temperate', type: 'plain', seed: 3 }); const s = World.state(); s.res.narzędzia = 50;
+  const put = id => { for (let r = 3; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
+  const sw = put('sawmill'); s.staffed[sw.uid] = true; sw.st = { c: 'in', g: 'pień' }; sw.eff = 0.56;
+  const st = G.Advisor.statusOf(sw); ok(st.code === 'in' && st.sev === 'warn' && /56%/.test(st.text), 'status Tartaku z 56% pni: ostrzeżenie z procentem (' + st.text + ')');
+  sw.eff = 0; const st0 = G.Advisor.statusOf(sw); ok(st0.sev === 'bad' && /Brak wejścia/.test(st0.text), 'status Tartaku bez pni: Brak wejścia (' + st0.text + ')');
+}
+console.log(fails ? `\n✘ ${fails} z ${checks} sprawdzeń nie przeszło` : `Wszystko OK — ${checks} sprawdzeń`); process.exit(fails ? 1 : 0);

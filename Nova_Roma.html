@@ -5465,7 +5465,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) i liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -9033,6 +9033,10 @@ const Advisor = (() => {
       return mk('nostaff', 'warn', 'Brak pracownika — za mało wolnej ludności (żywność obsadzana pierwsza)');
     }
     const st = b.st;
+    if (st && st.c === 'in' && (b.eff || 0) >= Data.RULES.cycle.partial) {                         // wejścia starcza częściowo: budynek pracuje na ułamku nominału
+      const src = st.g === 'drzewa' ? [] : sourcesOf(st.g, s.factionId);
+      return mk('in', 'warn', 'Za mało wejścia: ' + (st.g === 'drzewa' ? 'drzew na mapie' : st.g) + ' — pracuje na ' + Math.round(b.eff * 100) + '% wydajności' + (src.length ? ' (zbuduj więcej: ' + src.join(' / ') + ')' : ''));
+    }
     if (st && st.c === 'in') {
       if (st.g === 'drzewa') return mk('in', 'bad', 'Brak wejścia: drzewa na mapie — posadź je Leśniczówką');
       const src = sourcesOf(st.g, s.factionId);
@@ -9098,7 +9102,7 @@ const Advisor = (() => {
     }
     for (const k in groups) {
       const g = groups[k];
-      if (g.st.code === 'in') w.push({ sev: 'bad', text: g.n + '× ' + g.name + ' — ' + g.st.text });
+      if (g.st.code === 'in') w.push({ sev: g.st.sev === 'warn' ? 'warn' : 'bad', text: g.n + '× ' + g.name + ' — ' + g.st.text });
     }
     const fullN = s.buildings.filter(b => codeOf(b) === 'full').length;
     if (fullN >= 2 && !cnt('store') && !cnt('settlement')) w.push({ sev: 'warn', text: fullN + ' budynków stoi z pełnym magazynem — Skład (+80 szt. każdego towaru) odblokuje produkcję.' });
@@ -10797,7 +10801,9 @@ const Workers = (() => {
     return steps;
   }
   const IDLE_AFTER = 1.0, WORK_AFTER = 0.3;                                          // min gry: tyle musi trwać postój (praca), by robotnik zmienił tryb
-  const idleNow = b => !!b.st && (b.st.c === 'in' || b.st.c === 'full' || b.st.c === 'food' || b.st.c === 'depleted');
+  /* budynek stoi: brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże. Gdy wejścia lub miejsca starcza tylko częściowo (np. Tartak dostaje 56% pni), logika produkuje
+     ułamek nominału — robotnik wtedy pracuje, a nie stoi (RULES.cycle.partial: najniższy ułamek, od którego uznaje się budynek za pracujący) */
+  const idleNow = b => !!b.st && (b.st.c === 'food' || b.st.c === 'depleted' || ((b.st.c === 'in' || b.st.c === 'full') && !((b.eff || 0) >= Data.RULES.cycle.partial)));
   /* budynek stoi (brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże): robotnik nie stoi bezczynnie — przy braku wejścia idzie do Składu / Dworu zobaczyć, czy
      towar już jest, w pozostałych przypadkach zamiata i porządkuje wokół budynku; produkcji to nie zmienia (ją wstrzymuje logika), a Doradca podaje powód postoju */
   function stalledCycle(s, b, w) {
