@@ -239,7 +239,7 @@ GEN.popularnosc = (arg, state) => {
   rows.push(['Racje ×0,5 / ×1 / ×1,5 / ×2', Object.keys(Economy.RATIONS_POP).map(k => (Economy.RATIONS_POP[k] > 0 ? '+' : '') + Economy.RATIONS_POP[k]).join(' / ')]);
   rows.push(['Podatek 0 / 1 / 2 / 3', Object.keys(Economy.TAX_POP).map(k => (Economy.TAX_POP[k] > 0 ? '+' : '') + Economy.TAX_POP[k]).join(' / ')]);
   rows.push(['Różnorodność jedzenia', '+4 za każdy rodzaj poza pierwszym, którego zapas przekracza 5 szt.']);
-  rows.push(['Dobrobyt: Kościół / Meczet / Kapliczka', '+10, gdy zasilonych budynków × 50 ≥ ludność']);
+  rows.push(['Dobrobyt: Kościół / Meczet / Świątynia / Kapliczka', '+10, gdy zasilonych budynków × 50 ≥ ludność']);
   rows.push(['Dobrobyt: Łaźnia (Saraceni) / Bania (Słowianie)', '+6, gdy zasilonych budynków × 50 ≥ ludność']);
   rows.push(['Zakres końcowy', '0–100']);
   rows.push(['Mnożnik wydajności', 'clamp(1 + 0,004 × (popularność − 50), 0,8; 1,2)']);

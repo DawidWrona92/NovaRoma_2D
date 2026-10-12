@@ -34,8 +34,8 @@ console.log(`  (mapy oznaczone jako niepoprawne przy ziarnie 11: ${invalid} z ${
 for (const [fid, climate, type, seed] of [['franks', 'snow', 'lakes', 5], ['saracens', 'desert', 'river', 597318], ['slavs', 'eastern', 'bog', 42], ['vikings', 'temperate', 'coast', 9]]) {
   const prev = Minimap.generate(fid, { climate, type, seed });
   World.init(fid, { climate, type, seed });
-  // jedyna różnica to rezerwacja pól Dworu (occup) — World.init stawia budynek startowy
-  const strip = tiles => JSON.stringify(tiles.map(t => { const c = Object.assign({}, t); delete c.occup; return c; }));
+  // różnice: rezerwacja pól Dworu (occup) i darmowa droga startowa (road) — oba stawia dopiero World.init
+  const strip = tiles => JSON.stringify(tiles.map(t => { const c = Object.assign({}, t); delete c.occup; delete c.road; return c; }));
   const m2 = World.state().map, a = strip(prev.tiles), b = strip(m2.tiles), nOcc = m2.tiles.filter(t => t.occup).length;
   ok(a === b && JSON.stringify(prev.meta) === JSON.stringify(m2.meta) && nOcc >= 16, `podgląd ${fid}/${climate}/${type}/${seed} = mapa gry (${a.length} znaków; pól Dworu ${nOcc})`);
 }

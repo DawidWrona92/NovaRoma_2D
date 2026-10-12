@@ -1789,7 +1789,7 @@ const NAMES = {
   fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
   gatherer: 'Chata zbieracza', field: 'Pole stałe', kasha: 'Kaszarnia', bartnik: 'Barć', waxery: 'Woskarnia', trapper: 'Chata łowcy futer', tannery: 'Garbarnia', sauna: 'Bania'
 };
-const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
+const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Świątynia', slavs: 'Kapliczka' };
 const spriteName = (nation, id) => `${nation}_${id}`;
 const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id.split('@')[0]];
 
@@ -5533,7 +5533,7 @@ const Data = (() => {
     settlement:{ name:'Osada', cat:'Mieszkania', art:'hut', worker:0, hub:'*', costs:{ franks:{d:14,k:6,zl:100}, saracens:{d:10,gl:6,zl:100}, vikings:{d:20,zl:100}, slavs:{d:14,zl:100} }, note:'Druga wioska: miejsca jak 2 Chaty, +40 szt. każdego towaru, punkt zbiorczy i baza budowniczych (producenci w jej pobliżu mają o 3 pola krótszą drogę); tylko daleko od Dworu i innych Osad' },
     minestore:{ name:'Skład górniczy', cat:'Handel', art:'store', worker:0, out:{}, hub:['ruda','węgiel','kamień','glina','sztabki'], costs:{ franks:{d:3}, saracens:{d:2,gl:1}, vikings:{d:3}, slavs:{d:3} }, note:'Przyjmuje tylko rudę, węgiel, kamień, glinę i sztabki: +100 szt. tych towarów; skraca marsz kopalniom i hucie' },
     timberstore:{ name:'Skład drzewny', cat:'Handel', art:'store', worker:0, out:{}, hub:['pień','deski'], costs:{ franks:{d:3}, saracens:{d:2,gl:1}, vikings:{d:3}, slavs:{d:3} }, note:'Przyjmuje tylko pnie i deski: +100 szt. tych towarów; skraca marsz drwalom i tartakowi' },
-    temple:   { name:'Kościół / Meczet', names:{ franks:'Kościół', saracens:'Meczet', vikings:'Kościół', slavs:'Kapliczka' }, cat:'Społeczne', art:'temple', worker:1, costs:{ franks:{d:8,zl:80}, saracens:{d:6,gl:4,zl:80}, vikings:{d:12,zl:80}, slavs:{d:8,zl:80} }, note:'Dobrobyt +10: spala 0,3 dobra nacji/min (wino / kadzidło / miód pitny / wosk); 1 budynek na 50 osób' },
+    temple:   { name:'Świątynia', names:{ franks:'Kościół', saracens:'Meczet', vikings:'Świątynia', slavs:'Kapliczka' }, cat:'Społeczne', art:'temple', worker:1, costs:{ franks:{d:8,zl:80}, saracens:{d:6,gl:4,zl:80}, vikings:{d:12,zl:80}, slavs:{d:8,zl:80} }, note:'Dobrobyt +10: spala 0,3 dobra nacji/min (wino / kadzidło / miód pitny / wosk); 1 budynek na 50 osób' },
     /* --- Frankowie --- */
     quarry:   { name:'Kamieniołom', cat:'Surowce', art:'quarry', worker:1, tool:true, factions:['franks'], req:'deposit:stone', out:{ kamień:1.5 }, costs:{ franks:{d:4} } },
     farm:     { name:'Farma', cat:'Jedzenie', art:'farm', worker:1, factions:['franks'], out:{ zboże:1.5 }, costs:{ franks:{d:6,k:2} } },
@@ -5582,11 +5582,11 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2, chopMin: 1.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 }, clear: { tree: 0.6, bog: 2.0 }, wall: { cost: { franks: { 'kamień': 1 }, saracens: { glina: 1 }, vikings: { deski: 1 }, slavs: { deski: 1 } }, gate: { franks: { 'kamień': 4, deski: 2 }, saracens: { glina: 4, deski: 2 }, vikings: { deski: 5 }, slavs: { deski: 5 } } } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial), najkrótszy czas rąbania drzewa przez drwala w minutach gry (chopMin; logika może ściąć drzewo, zanim drwal dojdzie); wall: koszt jednego pola muru obronnego (surowiec zależny od nacji; Punkt 13) i bramy (gate; Punkt 14); clear: oczyszczanie terenu pod budowę (settings.clearing) — minut pracy budowniczych na drzewo (tree) i na pole bagna do osuszenia (bog); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { start: { road: 6 }, demolish: { refund: 0.3 }, gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2, chopMin: 1.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 }, clear: { tree: 0.6, bog: 2.0 }, wall: { cost: { franks: { 'kamień': 1 }, saracens: { glina: 1 }, vikings: { deski: 1 }, slavs: { deski: 1 } }, gate: { franks: { 'kamień': 4, deski: 2 }, saracens: { glina: 4, deski: 2 }, vikings: { deski: 5 }, slavs: { deski: 5 } } } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial), najkrótszy czas rąbania drzewa przez drwala w minutach gry (chopMin; logika może ściąć drzewo, zanim drwal dojdzie); wall: koszt jednego pola muru obronnego (surowiec zależny od nacji; Punkt 13) i bramy (gate; Punkt 14); clear: oczyszczanie terenu pod budowę (settings.clearing) — minut pracy budowniczych na drzewo (tree) i na pole bagna do osuszenia (bog); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
-  /* nazwa budynku zależna od nacji (Kościół / Meczet / Kapliczka); bieżąca nacja ustawiana przez World.init */
+  /* nazwa budynku zależna od nacji (Kościół / Meczet / Świątynia / Kapliczka); bieżąca nacja ustawiana przez World.init */
   const cur = { faction: null };
   function nameOf(id, fid) {
     const d = BUILDINGS[id]; if (!d) return id;
@@ -5706,6 +5706,7 @@ const Camera = (() => {
 const Terrain = (() => {
   let CX = 24, CY = 24;                    // środek planu (środek Dworu 4×4), w polach; zależy od rozmiaru mapy (N/2) i jest ustawiany przy generowaniu i obliczaniu osiągalności
   const PLAZA_R = 9.5;                     // płaski plac wokół Dworu (promień w polach)
+  const START_R = 10.5;                      // czysty obszar startowy wokół Dworu: bez drzew, bagien, wydm i zasp (pierwsze budynki nie płacą za oczyszczanie); dalej zarośla gęstnieją stopniowo
   const EARLY_R = 13.5;                    // obszar początkowej zabudowy: bez stoków (nic nie utrudnia pierwszych budynków); dalej wzgórza rosną stopniowo
   const BLOCK_K = { bog: 1, dune: 1, quick: 1, cliff: 1, drift: 1 };   // cechy wykluczające zabudowę
   const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -5913,7 +5914,7 @@ const Terrain = (() => {
     const land = [];                                              // pola dla cech blokujących; przy wodzie w pobliżu Dworu zostaje miejsce pod Przystań, Okręt i rybaków
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const i = y * N + x, t = tiles[i], d = dPlaza(x, y);
-      if (t.h === 1 && !t.k && d > PLAZA_R + 0.5 && !(dW[i] >= 0 && dW[i] <= 2 && d < 20)) land.push([x, y, i]);
+      if (t.h === 1 && !t.k && d > START_R && !(dW[i] >= 0 && dW[i] <= 2 && d < 20)) land.push([x, y, i]);
     }
     const byNoise = (share, nx, ny, s, oct, pred = () => true) => {                               // top-`share` pól wg szumu (kwantyl), spośród dopuszczalnych
       const cand = land.filter(([x, y, i]) => !tiles[i].k && pred(tiles[i], x, y)); const sc = cand.map(c => [fbm(c[0] / nx, c[1] / ny, s, oct), c]).sort((a, b) => b[0] - a[0]);
@@ -5937,7 +5938,7 @@ const Terrain = (() => {
       const n = Math.max(1, Math.round(C.quick * land.length / 4));
       for (let c = 0, tries = 0; c < n && tries < 100; tries++) {
         const [qx, qy] = land[Math.floor(rnd() * land.length)], t0 = tiles[qy * N + qx];
-        if (t0.k || dPlaza(qx, qy) < 11.5) continue;
+        if (t0.k || dPlaza(qx, qy) < START_R + 1.6) continue;
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const t = tiles[(qy + dy) * N + qx + dx]; if (t && t.h === 1 && !t.k && rnd() < 0.8) t.k = 'quick'; }
         c++;
       }
@@ -5986,9 +5987,9 @@ const Terrain = (() => {
   /* ---------- drzewa i złoża na nowym terenie ---------- */
   function treeWeight(map, C, i, x, y, dW, seed) {
     const t = map.tiles[i];
-    if (t.h !== 1 || t.k && t.k !== 'oasis' || t.deposit || dPlaza(x, y) <= PLAZA_R - 1) return 0;
+    if (t.h !== 1 || t.k && t.k !== 'oasis' || t.deposit || dPlaza(x, y) <= START_R) return 0;
     const clump = sstep(0.42, 0.68, fbm(x / 4, y / 4, seed + 60, 2));
-    let w = 0.12 + 0.88 * clump;
+    let w = (0.12 + 0.88 * clump) * (0.4 + 0.6 * sstep(START_R, START_R + 5, dPlaza(x, y)));       // przy czystym obszarze las rzednie, dalej pełna gęstość
     if (C.id === 'desert') { w = (0.015 + 0.985 * clump) * (dW[i] >= 0 ? Math.exp(-dW[i] / 2.6) : 0.05); if (t.k === 'oasis') w += 1.2; }
     else if (C.id === 'eastern') w *= 1.25; else if (C.id === 'snow') w *= 0.9;
     if (t.e >= 3) w *= 0.6;
@@ -5998,7 +5999,7 @@ const Terrain = (() => {
     const N = map.size, tiles = map.tiles, native = C.native === fid && o.type === 'coast';
     const dW = distField(N, tiles, isDeepWater, 12), ok = (t, i) => t.h === 1 && (!t.k || t.k === 'oasis') && !t.deposit && !t.occup && reachSet[i] && !pad[i];
     let removed = 0;
-    for (let i = 0; i < N * N; i++) { const t = tiles[i]; if (t.trees && (!ok(t, i) || !native)) { removed += t.trees; t.trees = 0; } }
+    for (let i = 0; i < N * N; i++) { const t = tiles[i]; if (t.trees && (!ok(t, i) || !native || dPlaza(i % N, (i / N) | 0) <= START_R)) { removed += t.trees; t.trees = 0; } }
     let cur = 0; for (const t of tiles) cur += t.trees;
     const cand = [], cum = []; let sum = 0;
     for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0, w = ok(tiles[i], i) ? treeWeight(map, C, i, x, y, dW, seed) : 0; if (w > 0) { sum += w; cand.push(i); cum.push(sum); } }
@@ -6145,7 +6146,7 @@ const Terrain = (() => {
     return false;
   }
 
-  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, get CX() { return CX; }, get CY() { return CY; }, PLAZA_R, EARLY_R, fbm, hash2, prng };
+  return { apply, stats, validate, reach, reachSet, ringReachable, passable, buildable, cost, isWater, isDeepWater, BLOCK_K, ROAD_COST, ROAD_SPEED, get CX() { return CX; }, get CY() { return CY; }, PLAZA_R, START_R, EARLY_R, fbm, hash2, prng };
 })();
 
 /* ============================= MODUL: MAPGEN ============================== */
@@ -7788,7 +7789,23 @@ const World = (() => {
     const [kw, kh] = fpOf('keep');
     placeBuilding('keep', Math.floor((state.map.size - kw) / 2), Math.floor((state.map.size - kh) / 2), true);
     state.keep = state.buildings[0];
+    startRoad();
     for (let i = 0; i < state.pop; i++) spawnCitizen();
+  }
+
+  /* darmowa droga startowa: od drzwi Dworu na zewnątrz, RULES.start.road pól (przerwana na pierwszym polu, którego nie da się utwardzić); koszt zero, ludzie chodzą po niej szybciej, a budynek postawiony na niej po prostu ją zastępuje */
+  function startRoad() {
+    const n = Data.RULES.start.road | 0, b = state.keep, map = state.map; if (!n || !b) return;
+    const m = typeof SPRITE_META !== 'undefined' ? Data.metaOf(b.id, state.factionId, b.rot) : null, c = centerOf(b);
+    let side = 'S', dx = 0, dy = b.h / 2; if (m && m.in) { side = m.in[0]; dx = m.in[1]; dy = m.in[2]; }
+    const x0 = Math.floor(c.x + dx), y0 = Math.floor(c.y + dy), step = side === 'E' ? [1, 0] : [0, 1];
+    let laid = 0;
+    for (let i = 0; i < n; i++) {
+      const t = MapGen.at(map, x0 + step[0] * i, y0 + step[1] * i);
+      if (!t || t.h !== 1 || t.occup || t.wall || t.deposit || (t.k && Terrain.BLOCK_K[t.k])) break;
+      t.road = 1; laid++;
+    }
+    if (laid) { map.hasRoad = true; map.roadRev = (map.roadRev | 0) + 1; }
   }
 
   /* obrys budynku w×h pól; (x, y) = północny róg. Zajętość kafli (occup) obejmuje cały obrys */
@@ -8283,7 +8300,7 @@ const Economy = (() => {
       const def = Data.BUILDINGS[b.id];
       // kopalnie i wytwórnia kadzidła jedzą tylko z nadwyżki
       if (MINE_EATERS[b.id] && totalFood(res) < food5min) { b.st = { c: 'food' }; continue; }
-      // Dobrobyt: kościół/meczet/kapliczka spala dobro nacji (0,3/min)
+      // Dobrobyt: kościół/świątynia/meczet/kapliczka spala dobro nacji (0,3/min)
       if (b.id === 'temple') {
         const good = DOBRO[s.factionId];
         if (res[good] >= 0.3 * dt) { res[good] -= 0.3 * dt; fed.temple++; }
@@ -8466,6 +8483,26 @@ const Build = (() => {
     s.sites.splice(s.sites.indexOf(site), 1);
   }
 
+  /* burzenie ukończonego budynku: zwrot Data.RULES.demolish.refund materiałów (deski, kamień, glina — bez złota, które płaci się za robociznę); Dworu nie wolno zburzyć */
+  function refundOf(id) {
+    const c = World.costOf(id), r = Data.RULES.demolish.refund, out = {};
+    for (const k in c) if (MAT[k]) { const n = Math.round(c[k] * r + 1e-9); if (n > 0) out[MAT[k]] = n; }
+    return out;
+  }
+  function refundStr(id) { const b = refundOf(id), t = Object.keys(b).map(g => b[g] + ' ' + g).join(', '); return t || 'brak materiałów'; }
+  function demolish(b) {
+    const s = World.state();
+    if (!b || !s.buildings.includes(b)) return { ok: false, reason: 'Tu nie ma budynku' };
+    if (b.id === 'keep') return { ok: false, reason: 'Dworu nie można zburzyć' };
+    const back = refundOf(b.id);
+    for (const g in back) s.res[g] = (s.res[g] || 0) + back[g];
+    delete s.staffed[b.uid];
+    World.release(b.x, b.y, b.w, b.h, b.uid);
+    s.buildings.splice(s.buildings.indexOf(b), 1);
+    s.stats.demolished = (s.stats.demolished | 0) + 1;
+    return { ok: true, back };
+  }
+
   /* koniec wyrównywania: pola obrysu dostają poziom docelowy; Game odświeża chunki podłoża z listy map.dirty */
   /* oczyszczanie placu wg postępu etapu 0: znikają kolejne drzewa, potem bagna (all — do końca) */
   function applyClear(site, all) {
@@ -8562,7 +8599,7 @@ const Build = (() => {
     return carry * 0.5 + work * 0.5;
   }
 
-  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress, clearingTrees, PIECE_MIN, BASE_WORK, PER_PIECE };
+  return { enqueue, siteAt, cancel, demolish, refundOf, refundStr, tick, progressOf, levelProgress, clearingTrees, PIECE_MIN, BASE_WORK, PER_PIECE };
 })();
 
 /* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
@@ -9310,7 +9347,7 @@ const Advisor = (() => {
         : 'Brak jedzenia od ' + s.starveTimer.toFixed(1) + ' min — za ' + left.toFixed(1) + ' min zacznie ginąć ludność.' });
     }
     if (pop < 45) w.push({ sev: 'bad', text: 'Popularność ' + Math.round(pop) + ' < 45 — imigracja zamrożona.' +
-      (s.controls.tax >= 2 ? ' Podatek ' + s.controls.tax + ' obniża ją o ' + (s.controls.tax === 3 ? 16 : 8) + ' (kościół/meczet/kapliczka +10).' : ' Zwiększ racje lub zbuduj Dobrobyt.') });
+      (s.controls.tax >= 2 ? ' Podatek ' + s.controls.tax + ' obniża ją o ' + (s.controls.tax === 3 ? 16 : 8) + ' (kościół/świątynia/meczet/kapliczka +10).' : ' Zwiększ racje lub zbuduj Dobrobyt.') });
     else if (s.controls.tax === 3) w.push({ sev: 'warn', text: 'Podatek 3 daje −16 popularności — pułapka w grze startowej (spec: zamraża imigrację). Popularność: ' + Math.round(pop) + '.' });
     if (rep) {
       if (rep.buildings > 0) w.push({ sev: 'info', text: 'Podatek górniczy: kopalnie/wytwórnie zjadają ' + rep.buildings.toFixed(2).replace('.', ',') + ' porcji/min (≈ ' + Math.round(rep.buildings * 6) + ' ' + osob(Math.round(rep.buildings * 6)) + '), tylko z nadwyżki jedzenia.' });
@@ -9675,7 +9712,7 @@ const BuildMode = (() => {
   let selected = null; // id budynku w trybie budowy albo narzędzie dróg: 'road' (wytycz drogę), 'roadx' (rozbierz)
   let hover = { x: -1, y: -1, fx: -1, fy: -1 }; // pole pod kursorem i dokładny punkt świata
   let roadStart = null; // początek wytyczanej drogi (drugi klik kończy)
-  const isTool = () => selected === 'road' || selected === 'roadx' || selected === 'wall' || selected === 'wallx' || selected === 'gate';
+  const isTool = () => selected === 'demolish' || selected === 'road' || selected === 'roadx' || selected === 'wall' || selected === 'wallx' || selected === 'gate';
 
   /* obrót (rot 0–3): budynki z wariantami sprite'ów (Data.rotsOf: dziś Przystań i Okręt) obracają się klawiszem R albo przyciskiem ⟳; dopóki gracz nie obróci ręcznie, kierunek dobiera się sam
      pod kursorem (pierwszy dozwolony) — Przystań obraca się molem ku wodzie */
@@ -9707,10 +9744,10 @@ const BuildMode = (() => {
   function setBarNote(text, good) { if (lastNote === text + good) return; lastNote = text + good; bcNote.textContent = text; bcNote.className = good ? 'good' : text ? 'bad' : ''; }
   function tap() { if (selected && !isTool() && coarse()) return; click(); }                // dotyk: tylko ruch ducha (hover ustawiony przez wywołującego)
   function select(id) {
-    selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); syncBar(); if (id && coarse()) { try { UI.hideTooltip(); } catch (e) { /* UI jeszcze nie gotowe */ } }                     // tooltip od dotknięcia pozycji menu nie zostaje pod paskiem potwierdzenia
+    selected = id; roadStart = null; demoTarget = null; rot = 0; autoRot = true; syncRotBtn(); syncBar(); if (id && coarse()) { try { UI.hideTooltip(); } catch (e) { /* UI jeszcze nie gotowe */ } }                     // tooltip od dotknięcia pozycji menu nie zostaje pod paskiem potwierdzenia
     if (id && !isTool() && coarse() && typeof canvas !== 'undefined') { const w = Camera.screenToWorld(canvas.width / dpr / 2, canvas.height / dpr * 0.42); setHover(w.x, w.y); }       // duch na środku widoku
   }
-  function clear() { selected = null; roadStart = null; syncRotBtn(); syncBar(); }
+  function clear() { selected = null; roadStart = null; demoTarget = null; syncRotBtn(); syncBar(); }
   function isSelected() { return selected; }
   function setHover(wx, wy) { hover.fx = wx; hover.fy = wy; hover.x = Math.floor(wx); hover.y = Math.floor(wy); }
   /* północny róg obrysu budowanego budynku tak, by obrys był wyśrodkowany pod kursorem */
@@ -9725,8 +9762,19 @@ const BuildMode = (() => {
     return s.buildings.find(b => b.uid === t.occup) || null;
   }
 
+  let demoTarget = null;                                       // budynek wskazany do zburzenia (drugie kliknięcie w ten sam budynek wykonuje burzenie)
   function toolClick() {
     const map = World.state().map;
+    if (selected === 'demolish') {
+      const st = Build.siteAt(hover.x, hover.y);
+      if (st) { Build.cancel(st); demoTarget = null; UI.flashHint('Plac budowy usunięty — materiały i złoto wróciły do magazynu'); UI.refreshHUD(); return; }
+      const b = buildingAtHover();
+      if (!b) { demoTarget = null; UI.flashHint('Tu nie ma budynku'); return; }
+      if (b.id === 'keep') { demoTarget = null; UI.flashHint('Dworu nie można zburzyć'); return; }
+      if (demoTarget !== b) { demoTarget = b; UI.flashHint('Kliknij ponownie, aby zburzyć: ' + Data.nameOf(b.id) + ' (zwrot: ' + Build.refundStr(b.id) + ')'); return; }
+      const r = Build.demolish(b); demoTarget = null;
+      UI.flashHint(r.ok ? Data.nameOf(b.id) + ' zburzona — zwrot: ' + (Object.keys(r.back).map(g => r.back[g] + ' ' + g).join(', ') || 'brak') : r.reason); UI.refreshHUD(); return;
+    }
     if (selected === 'wallx') { const was = (MapGen.at(map, hover.x, hover.y) || {}).wall; UI.flashHint(Walls.remove(hover.x, hover.y) ? (was > 1 ? 'Brama rozebrana' : 'Mur rozebrany') : 'Tu nie ma muru'); return; }
     if (selected === 'gate') { const r = Walls.layGate(hover.x, hover.y); UI.flashHint(r.ok ? 'Brama postawiona (' + Walls.costStr(r.cost) + ')' : r.reason); if (r.ok) UI.refreshHUD(); return; }
     if (selected === 'wall') {
@@ -9752,6 +9800,15 @@ const BuildMode = (() => {
   }
   function toolDraw(ctx) {
     const s = World.state(), z = Camera.zoom, map = s.map, t = MapGen.at(map, hover.x, hover.y); if (!t) return;
+    if (selected === 'demolish') {
+      const st = Build.siteAt(hover.x, hover.y), b = st ? null : buildingAtHover(), o = st || b;
+      if (!o) { Camera.fillPoly(ctx, Camera.footprint(hover.x, hover.y, 1, 1), 'rgba(160,160,160,0.25)', 'rgba(200,200,200,0.7)', Math.max(1.5, 2 * z)); return; }
+      const armed = b && b === demoTarget, no = b && b.id === 'keep';
+      Camera.fillPoly(ctx, Camera.footprint(o.x, o.y, o.w, o.h), no ? 'rgba(160,160,160,0.3)' : armed ? 'rgba(235,60,60,0.55)' : 'rgba(220,90,90,0.35)', no ? 'rgba(200,200,200,0.8)' : 'rgba(255,140,140,0.95)', Math.max(1.5, 2 * z));
+      const p = Camera.worldToScreen(o.x + o.w / 2, o.y + o.h / 2); ctx.font = 'bold ' + Math.max(11, Math.round(12 * z)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffe0d8'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+      const txt = no ? 'Dworu nie można zburzyć' : st ? 'anuluj plac · pełny zwrot' : (armed ? 'kliknij, by zburzyć · ' : 'zburz · ') + 'zwrot: ' + Build.refundStr(o.id);
+      ctx.strokeText(txt, p.x, p.y); ctx.fillText(txt, p.x, p.y); return;
+    }
     if (selected === 'gate') {
       const pv = Walls.gatePreview(hover.x, hover.y), a = Camera.worldToScreen(hover.x + 0.5, hover.y + 0.5);
       Camera.fillPoly(ctx, Camera.footprint(hover.x, hover.y, 1, 1), pv.ok ? 'rgba(120,220,120,0.4)' : 'rgba(220,90,90,0.4)', pv.ok ? 'rgba(170,255,170,0.9)' : 'rgba(255,140,140,0.9)', Math.max(1.5, 2 * z));
@@ -10238,18 +10295,19 @@ const UI = (() => {
   function roadToolsUi() {
     const fid = World.state().factionId;
     const wallTab = activeCat === 'Mury', wc = Walls.costStr(Walls.costOf());
-    for (const [id, name, cost] of wallTab ? [['wall', 'Mur', wc + ' / pole'], ['gate', 'Brama', Walls.costStr(Walls.gateCost())], ['wallx', 'Rozbierz mur', 'bez zwrotu']] : [['road', 'Droga', Roads.COST + ' deska / pole'], ['roadx', 'Rozbierz drogę', 'bez zwrotu']]) {
+    for (const [id, name, cost] of wallTab ? [['wall', 'Mur', wc + ' / pole'], ['gate', 'Brama', Walls.costStr(Walls.gateCost())], ['wallx', 'Rozbierz mur', 'bez zwrotu']] : [['road', 'Droga', Roads.COST + ' deska / pole'], ['roadx', 'Rozbierz drogę', 'bez zwrotu'], ['demolish', 'Zburz budynek', Math.round(Data.RULES.demolish.refund * 100) + '% zwrotu']]) {
       const item = document.createElement('div'); item.className = 'buildItem'; if (BuildMode.isSelected() === id) item.classList.add('selected');
       const mini = document.createElement('canvas'); mini.width = 124; mini.height = 88; const m = mini.getContext('2d'); m.scale(2, 2);
       const p = Data.FACTIONS[fid].palette; m.fillStyle = p.terrain === 'sand' ? '#d8c090' : p.terrain === 'tundra' ? '#6a7a4c' : '#5a8a3c'; m.fillRect(0, 0, 62, 44);
       if (id === 'gate') { const wp = Walls.palette(fid); for (const cx of [16, 46]) { m.fillStyle = wp.s; m.fillRect(cx - 5, 12, 10, 24); m.fillStyle = wp.e; m.fillRect(cx, 12, 5, 24); m.fillStyle = wp.t; m.fillRect(cx - 5, 9, 10, 4); } m.fillStyle = wp.s; m.fillRect(16, 12, 30, 6); m.fillStyle = wp.t; m.fillRect(16, 10, 30, 3); }
       else if (wallTab) { const wp = Walls.palette(fid); for (let i = 0; i < 4; i++) { const cx = 14 + i * 11, cy = 30 - i * 5; m.fillStyle = wp.s; m.fillRect(cx - 5.5, cy - 4, 11, 9); m.fillStyle = wp.e; m.fillRect(cx, cy - 4, 5.5, 9); m.fillStyle = wp.t; m.beginPath(); m.moveTo(cx, cy - 9); m.lineTo(cx + 5.5, cy - 6); m.lineTo(cx, cy - 3); m.lineTo(cx - 5.5, cy - 6); m.closePath(); m.fill(); } }
+      else if (id === 'demolish') { m.fillStyle = '#9a8460'; m.fillRect(16, 16, 30, 20); m.fillStyle = '#7a3a2a'; m.beginPath(); m.moveTo(12, 17); m.lineTo(31, 6); m.lineTo(50, 17); m.closePath(); m.fill(); m.fillStyle = '#4a3a28'; m.fillRect(28, 24, 7, 12); }
       else { m.fillStyle = '#8a6e40'; for (let i = 0; i < 4; i++) { const cx = 14 + i * 11, cy = 30 - i * 5; m.beginPath(); m.moveTo(cx, cy - 6); m.lineTo(cx + 11, cy); m.lineTo(cx, cy + 6); m.lineTo(cx - 11, cy); m.closePath(); m.fill(); } }
-      if (id === 'roadx' || id === 'wallx') { m.strokeStyle = '#e05050'; m.lineWidth = 3; m.beginPath(); m.moveTo(20, 10); m.lineTo(44, 34); m.moveTo(44, 10); m.lineTo(20, 34); m.stroke(); }
+      if (id === 'roadx' || id === 'wallx' || id === 'demolish') { m.strokeStyle = '#e05050'; m.lineWidth = 3; m.beginPath(); m.moveTo(20, 10); m.lineTo(44, 34); m.moveTo(44, 10); m.lineTo(20, 34); m.stroke(); }
       item.appendChild(mini);
       const nm = document.createElement('div'); nm.className = 'bname'; nm.textContent = name; item.appendChild(nm);
       const co = document.createElement('div'); co.className = 'bcost'; co.textContent = cost; item.appendChild(co);
-      item.onclick = () => { BuildMode.select(id); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); item.classList.add('selected'); UI.flashHint({ road: 'Wskaż początek drogi — po drodze ludzie chodzą szybciej', roadx: 'Kliknij pole drogi, aby ją rozebrać', wall: 'Wskaż początek muru — mur zamyka przejście, ozdabia i oddziela gród', gate: 'Kliknij pole muru (albo wolne pole czy drogę), aby postawić bramę — przejście w murze', wallx: 'Kliknij pole muru lub bramy, aby je rozebrać' }[id]); };
+      item.onclick = () => { BuildMode.select(id); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); item.classList.add('selected'); UI.flashHint({ road: 'Wskaż początek drogi — po drodze ludzie chodzą szybciej', roadx: 'Kliknij pole drogi, aby ją rozebrać', wall: 'Wskaż początek muru — mur zamyka przejście, ozdabia i oddziela gród', gate: 'Kliknij pole muru (albo wolne pole czy drogę), aby postawić bramę — przejście w murze', wallx: 'Kliknij pole muru lub bramy, aby je rozebrać', demolish: 'Kliknij budynek (dwa razy, by potwierdzić) — zwrot ' + Math.round(Data.RULES.demolish.refund * 100) + '% materiałów; plac budowy anulujesz z pełnym zwrotem' }[id]); };
       buildItems.appendChild(item);
     }
   }
@@ -11137,7 +11195,7 @@ const Fauna = (() => {
       if (d > 0.01) { a.x += dx / d * stp; a.y += dy / d * stp; }
       if (a.fl === 1) a.z = Math.min(K.soar ? 0.85 : 0.7, a.z + dt * 0.9); else a.z = Math.min(a.z, d * 0.18);
       if (d < 0.25) {
-        if (a.fl === 2) { a.fl = 0; a.z = 0; a.m = IDLE; a.t = +rr(f, 3, 8).toFixed(2); return true; }
+        if (a.fl === 2) { a.x = a.tx; a.y = a.ty; a.fl = 0; a.z = 0; a.m = IDLE; a.t = +rr(f, 3, 8).toFixed(2); return true; }
         if (!K.soar && rnd(f) < 0.65) {                                           // lądowanie w pobliżu celu (w siedlisku gatunku; bez miejsca — leci dalej)
           let landed = false;
           for (let g = 0; g < 14 && !landed; g++) { const ang = rnd(f) * 6.283, rad = rr(f, 0, 5), x = a.x + Math.cos(ang) * rad, y = a.y + Math.sin(ang) * rad, t = tileAt(map, x, y); if (spawnTile(t) && HAB[K.hab](map, x, y)) { a.fl = 2; a.tx = x; a.ty = y; landed = true; } }

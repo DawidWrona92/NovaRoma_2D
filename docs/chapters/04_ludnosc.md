@@ -70,12 +70,12 @@ Popularność startuje od 50 i jest sumą modyfikatorów ograniczoną do 0–100
 
 ## Dobrobyt {#dobrobyt}
 
-Dobrobyt zastępuje manę z wcześniejszych wersji: kościół lub meczet spala dobro własnej nacji (0,3/min) i daje **+10 popularności**, a Saraceni i Słowianie dostają dodatkowo **+6** z Łaźni lub Bani. Jeden budynek obsługuje 50 osób: premia obowiązuje, gdy `liczba zasilonych budynków × 50 ≥ ludność`; liczba zasilonych liczona jest w ticku produkcji (zapas dobra musi pokryć zużycie tej chwili) i dopiero w następnym ticku wchodzi do popularności.
+Dobrobyt zastępuje manę z wcześniejszych wersji: kościół, świątynia (Wikingowie) lub meczet spala dobro własnej nacji (0,3/min) i daje **+10 popularności**, a Saraceni i Słowianie dostają dodatkowo **+6** z Łaźni lub Bani. Jeden budynek obsługuje 50 osób: premia obowiązuje, gdy `liczba zasilonych budynków × 50 ≥ ludność`; liczba zasilonych liczona jest w ticku produkcji (zapas dobra musi pokryć zużycie tej chwili) i dopiero w następnym ticku wchodzi do popularności.
 
 Tabela: Dobrobyt według nacji
 | | Frankowie | Saraceni | Wikingowie | Słowianie |
 |---|---|---|---|---|
-| Budynek | Kościół 8 d + 80 zł | Meczet 6 d + 4 gl + 80 zł; Łaźnia 6 d + 6 gl + 40 zł | Kościół 12 d + 80 zł | Kapliczka 8 d + 80 zł; Bania 6 d + 40 zł |
+| Budynek | Kościół 8 d + 80 zł | Meczet 6 d + 4 gl + 80 zł; Łaźnia 6 d + 6 gl + 40 zł | Świątynia 12 d + 80 zł | Kapliczka 8 d + 80 zł; Bania 6 d + 40 zł |
 | Dobro (0,3/min) | {{v:Economy.DOBRO.franks}} (Winnica + Winiarz) | {{v:Economy.DOBRO.saracens}} (z łańcucha) | {{v:Economy.DOBRO.vikings}} (z łańcucha) | {{v:Economy.DOBRO.slavs}} (z łańcucha miodu i wosku) |
 | Premia | +10 | +10 (Meczet), +6 (Łaźnia: woda 0,5/min) | +10 | +10 (Kapliczka), +6 (Bania: woda 0,3 + pień 0,2/min) |
 | Koszt dobra | 0,3 wina/min | ok. 0,6–1,3 zł/min utraconej sprzedaży | konkuruje z Okrętem | ok. 0,9 osobominuty/min utraconej daniny |

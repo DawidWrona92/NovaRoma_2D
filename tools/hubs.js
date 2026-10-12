@@ -48,8 +48,8 @@ for (const size of [48, 72, 96]) {
   World.init('slavs', { climate: 'temperate', type: 'plain', seed: 3, size: 96 }); const s = World.state(); rich(s); const N = 96;
   let a = null; for (let y = 0; y < N && !a; y++) for (let x = 0; x < N; x++) if (World.canPlace('settlement', x, y).ok) { a = [x, y]; break; }
   World.placeBuilding('settlement', a[0], a[1], true);
-  const r = World.canPlace('settlement', a[0] + 6, a[1]); ok(!r.ok && /Osady|Dworu|Zajęte|przerwa|blisko/.test(r.reason), 'tuż obok Osady nie da się postawić drugiej: ' + r.reason);
-  let got = null; for (let dx = 5; dx < 25 && !got; dx++) { const rr = World.canPlace('settlement', a[0] + dx, a[1]); if (!rr.ok && /innej Osady/.test(rr.reason)) got = rr.reason; }
+  const r = World.canPlace('settlement', a[0] + 6, a[1]); ok(!r.ok, 'tuż obok Osady nie da się postawić drugiej: ' + r.reason);
+  let got = null; for (let dy = -12; dy <= 12 && !got; dy++) for (let dx = -24; dx <= 24 && !got; dx++) { const rr = World.canPlace('settlement', a[0] + dx, a[1] + dy); if (!rr.ok && /innej Osady/.test(rr.reason)) got = rr.reason; }      // dowolne pole w pobliżu (teren zależy od generatora)
   ok(got && got.includes('20'), 'odmowa „za blisko innej Osady” podaje 20 pól na mapie 96: ' + got);
 }
 

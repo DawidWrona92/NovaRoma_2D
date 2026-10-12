@@ -40,7 +40,7 @@ const ok = (c, msg) => { console.log((c ? '  ✔ ' : '  ✘ ') + msg); if (!c) f
     }
     const total = await page.evaluate(() => Object.keys(Data.BUILDINGS).filter(id => id !== 'keep' && (!Data.BUILDINGS[id].factions || Data.BUILDINGS[id].factions.includes(World.state().factionId))).length);
     ok(items === total, 'pasek budowy pokazuje wszystkie ' + total + ' budynków nacji (znaleziono ' + items + ')');
-    ok(roadItems === 2, 'zakładka Drogi: narzędzia Droga i Rozbierz drogę (znaleziono ' + roadItems + ')');
+    ok(roadItems === 3, 'zakładka Drogi: narzędzia Droga, Rozbierz drogę i Zburz budynek (znaleziono ' + roadItems + ')');
     ok(wallItems === 3, 'zakładka Mury: narzędzia Mur, Brama i Rozbierz mur (znaleziono ' + wallItems + ')');
     await page.locator('.buildItem').first().hover();
     ok((await page.locator('#tooltip').innerText()).includes('Koszt'), 'tooltip pozycji budowy pokazuje koszt');

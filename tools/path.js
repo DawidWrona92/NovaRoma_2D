@@ -86,7 +86,7 @@ World.init('franks', { climate: 'temperate', type: 'lakes', seed: 7 });
 // determinizm i izolacja RNG
 { const map = World.state().map, a = JSON.stringify(Path.find(map, 5.5, 5.5, 40.5, 40.5, {})), b = JSON.stringify(Path.find(map, 5.5, 5.5, 40.5, 40.5, {})); ok(a === b, 'determinizm: to samo zapytanie → ta sama trasa'); }
 ok(rngInPath === 0, `Path nie wywołuje RNG gry (wywołań wewnątrz Path: ${rngInPath})`);
-ok(ms / queries < 2.5, `średni czas A*: ${(ms / queries).toFixed(2)} ms na zapytanie (limit 2,5)`);
+ok(ms / queries < 3.5, `średni czas A*: ${(ms / queries).toFixed(2)} ms na zapytanie (limit 3,5; od Punktu 20 każda mapa ma drogę startową, więc heurystyka liczy koszt drogi 0,6 — bez dróg było ok. 1,2 ms)`);
 console.log(`${queries} zapytań A* (${nulls} bez trasy), przejść brodem/lodem w trasach: ${crossings}, średnio ${(ms / queries).toFixed(2)} ms`);
 console.log(fails ? `\n${fails} z ${checks} sprawdzeń nie przeszło` : `\nWszystko OK (${checks} sprawdzeń)`);
 process.exit(fails ? 1 : 0);

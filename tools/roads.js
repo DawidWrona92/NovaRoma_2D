@@ -11,11 +11,13 @@ const roadCount = map => map.tiles.filter(t => t.road).length;
 
 World.init('franks', { climate: 'temperate', type: 'plain', seed: 7 });
 let s = World.state(), map = s.map; s.res.deski = 100;
+map.tiles.forEach(t => { t.road = 0; }); map.hasRoad = false; map.roadRev = (map.roadRev | 0) + 1;      // bez darmowej drogi startowej (Punkt 20) — test sprawdza koszt wytyczania od zera
 // 1. wytyczenie: tylko nowe pola kosztują (trasę wyznacza A*, więc nie musi być prosta)
 let r = Roads.lay(8, 30, 18, 30), road1 = []; map.tiles.forEach((t, i) => { if (t.road) road1.push(i); });
 ok(r.ok && r.n === road1.length && r.cost === r.n && s.res.deski === 100 - r.n && r.n >= 11, `droga kosztuje tyle desek, ile nowych pól (${r.n} pól, zostało ${s.res.deski} desek)`);
 const mid = road1[Math.floor(road1.length / 2)], mx = mid % 48, my = (mid / 48) | 0, n1 = road1.length;
-r = Roads.lay(mx, my, mx, my + 6);
+const br = [[mx, my + 6], [mx, my - 6], [mx + 6, my], [mx - 6, my]].find(([ex, ey]) => Roads.preview(mx, my, ex, ey).ok) || [mx, my + 6];      // koniec odnogi: pierwszy kierunek z wolnym polem (teren zależy od generatora)
+r = Roads.lay(mx, my, br[0], br[1]);
 ok(r.ok && r.n >= 1 && r.n <= 6 && roadCount(map) === n1 + r.n, `odnoga od istniejącej drogi płaci tylko za nowe pola (${r.n} z 7 pól trasy)`);
 ok(!Roads.lay(8, 30, 18, 30).ok, 'ta sama trasa drugi raz — odmowa („już jest droga”)');
 // 2. odmowy

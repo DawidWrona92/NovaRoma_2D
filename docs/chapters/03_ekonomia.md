@@ -50,7 +50,7 @@ Obsada jest **dyskretna** (budynek jest obsadzony albo nie), a nie proporcjonaln
 Dla każdego obsadzonego producenta (w kolejności z tabeli poniżej) `Economy.tick` wykonuje:
 
 1. **Budynki jedzące z nadwyżki** (Kopalnia żelaza, Kopalnia węgla, Wytwórnia kadzidła, Kopalnia darniowa): jeśli zapas jedzenia jest mniejszy niż 5 minut zużycia ludności, budynek stoi (status **J**) — ludność ma pierwszeństwo.
-2. **Świątynia** (Kościół / Meczet / Kapliczka) nie produkuje; spala `0,3 × dt` dobra nacji i — jeśli jest z czego — liczy się jako zasilona do Dobrobytu (rozdz. {{ref:ludnosc}}).
+2. **Świątynia** (Kościół / Meczet / Świątynia / Kapliczka) nie produkuje; spala `0,3 × dt` dobra nacji i — jeśli jest z czego — liczy się jako zasilona do Dobrobytu (rozdz. {{ref:ludnosc}}).
 3. **Wyczerpane złoże** (tylko gdy ustawiono skończone złoża): status **X**.
 4. **Wejścia.** Dla każdego wejścia `g` liczony jest ułamek `min(1, zapas g / popyt g)`, gdzie popyt to suma zapotrzebowania **wszystkich obsadzonych odbiorców** tego towaru w bieżącym ticku — gdy kilku odbiorców dzieli niedobór (pnie: Tartak, Wypalarka, Garncarnia, Bania; węgiel: Huta i Zbrojownia), każdy dostaje ten sam ułamek. Najmniejszy ułamek wejść daje `frac`.
 5. **Drwal:** `frac` ogranicza liczba drzew na mapie (`drzewa / (tempo × dt)`).

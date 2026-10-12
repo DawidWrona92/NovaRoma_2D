@@ -58,7 +58,7 @@ Tabela: Łańcuchy Wikingów
 | Łańcuch | Proporcja | Wyjście | Uwagi |
 |---|---|---|---|
 | Drewno | 1 drwal : 0,65 leśnika : 1 tartak | 2,6 deski/min | 450 drzew na mapie, dojrzewanie 3 min |
-| Miód pitny | 1 Miodosytnia : 0,33 nosiwody | 1,0 miodu pitnego/min | starcza na wyprawy i kościół (miód z wody w jednym budynku — Pasieka usunięta) |
+| Miód pitny | 1 Miodosytnia : 0,33 nosiwody | 1,0 miodu pitnego/min | starcza na wyprawy i świątynię (miód z wody w jednym budynku — Pasieka usunięta) |
 | Broń | 1 Kopalnia darniowa : 2 Wypalarki : 1 Huta : 1 Zbrojownia | do 1,0 broni/min | 4 pnie na sztukę; pracuje poniżej połowy mocy |
 | Jedzenie | 4–6 Chat rybaka + Myśliwy + Mleczarnia + Sad | 7,2–9,4 porcji/min | ryby to ok. 60% dopływu |
 

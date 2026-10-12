@@ -10,7 +10,7 @@ let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (!c) { fails++; c
     p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     await p.goto(file + '?menu=0&play=franks&seed=7' + mode); await p.waitForFunction(() => window.__gameReady, null, { timeout: 60000 });
     const tag = mode ? 'klasyczny' : 'sprite\'y';
-    await p.evaluate(() => { const s = World.state(); s['kamień'] = 0; s.res['kamień'] = 400; for (const t of s.map.tiles) { t.trees = 0; t.deposit = null; } });
+    await p.evaluate(() => { const s = World.state(); s['kamień'] = 0; s.res['kamień'] = 400; for (const t of s.map.tiles) { t.trees = 0; t.deposit = null; t.road = 0; } });      // bez drogi startowej (mur nie wchodzi na drogę)
     await p.locator('#btnBuild, button:has-text("Buduj")').first().click().catch(() => {});
     const tabs = await p.locator('#buildTabs button').allInnerTexts(); ok(tabs.includes('Mury'), `${tag}: jest zakładka Mury`);
     await p.locator('#buildTabs button', { hasText: 'Mury' }).click();

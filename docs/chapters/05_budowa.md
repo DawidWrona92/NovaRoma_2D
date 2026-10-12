@@ -53,7 +53,8 @@ Podane wyżej czasy (0,2 min noszenia na sztukę, budowa od razu po przydziale) 
 
 - Koszt w złocie (Kościół, Qanat, Łaźnia, Bania, Karawanseraj, Koszary, Strażnica) jest pobierany **przy otwarciu placu**.
 - **Frankowie:** otwarcie placu z kosztem w złocie i zakup narzędzia nie schodzą poniżej złota potrzebnego na żołd brakujących do najbliższego terminu żołnierzy (3 zł × brakujący) — Doradca przypomina o Koszarach 30 minut przed pierwszym terminem.
-- Anulowanie placu zwraca wniesione materiały i złoto; wyburzenie gotowego budynku (zdarzenie pożaru) nie zwraca niczego, a narzędzie „przywiązane” do budynku przepada.
+- Anulowanie placu zwraca wniesione materiały i złoto; pożar nie zwraca niczego, a narzędzie „przywiązane” do budynku przepada.
+- **Burzenie budynku** (Punkt 20, narzędzie **Zburz budynek** w zakładce Drogi): dwa kliknięcia w ten sam budynek (pierwsze pokazuje zwrot, drugie burzy). Zwrot to `Data.RULES.demolish.refund` = {{v:Data.RULES.demolish.refund}} (30%) kosztu w **materiałach** (deski, kamień, glina — zaokrąglone; złota nie zwracamy, bo płaci się nim za robociznę), więc przenoszenie budynku jest możliwe, ale kosztuje. Dworu zburzyć nie można; kliknięcie w plac budowy w tym narzędziu anuluje go z pełnym zwrotem. Obsada budynku znika (narzędzie „przywiązane” przepada), pola obrysu się zwalniają.
 - Budowniczowie, którzy nic nie mają do roboty (brak materiału na każdym placu), stoją bezczynnie — w teście 3 budowniczych jest bezczynnych 60–73% czasu, co potwierdza, że wąskim gardłem są deski.
 
 ## Odbudowa po pożarze {#odbudowa}

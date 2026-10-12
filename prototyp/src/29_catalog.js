@@ -20,7 +20,7 @@ const NAMES = {
   fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
   gatherer: 'Chata zbieracza', field: 'Pole stałe', kasha: 'Kaszarnia', bartnik: 'Barć', waxery: 'Woskarnia', trapper: 'Chata łowcy futer', tannery: 'Garbarnia', sauna: 'Bania'
 };
-const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Kościół', slavs: 'Kapliczka' };
+const TEMPLE_PL = { franks: 'Kościół', saracens: 'Meczet', vikings: 'Świątynia', slavs: 'Kapliczka' };
 const spriteName = (nation, id) => `${nation}_${id}`;
 const nameOfBuilding = (nation, id) => id === 'temple' ? TEMPLE_PL[nation] : NAMES[id.split('@')[0]];
 

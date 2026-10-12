@@ -12,6 +12,7 @@ function sim(fid, cl, ty, workersOn, withWalkers, probe) {
   World.init(fid, { climate: cl, type: ty, seed: 7 });
   const s = World.state(), plan = TestBots.RECIPE[fid].slice(); let pi = 0, nd = 0;
   s.settings.workers = workersOn; s.settings.logistics = workersOn;
+  for (let r = 4; r < 12; r++) { let done = false; for (let dy = -r; dy <= r && !done; dy++) for (let dx = -r; dx <= r && !done; dx++) { const x = 22 + dx, y = 26 + dy; if (World.canPlace('hut', x, y).ok) { World.placeBuilding('hut', x, y, true); done = true; } } if (done) break; }      // Chata blisko Dworu, gdzie krążą wolni mieszkańcy (miejsce Chat z planu bota zależy od terenu)
   for (let t = 0; t < MIN; t += 0.05) {
     World.tick(0.05); if (withWalkers) Walkers.update(0.05);
     if (t >= nd) { nd = t + 0.5; if (pi < plan.length) { const r = TestBots.tryBuild(s, plan[pi]); if (r === 'built' || r === 'noplace') pi++; } }

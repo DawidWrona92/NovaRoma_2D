@@ -85,7 +85,8 @@ Droga to pole z `tile.road = 1` (zapisywane w kaflu, więc trafia do snapshotu).
 - koszt: **1 deska za każde nowe pole** (pola z drogą nic nie kosztują); podgląd pokazuje liczbę pól i koszt przed potwierdzeniem,
 - droga nie powstanie na wodzie, bagnie, wydmie, klifie, drzewach, złożach i zajętych polach; początek i koniec muszą leżeć na wolnym lądzie,
 - budowa budynku lub placu zdejmuje drogę spod obrysu; narzędzie **Rozbierz drogę** usuwa pojedyncze pola (bez zwrotu),
-- po drodze piesi i nosiciele idą **ok. 1,6× szybciej**, a A\* ją preferuje (koszt pola 0,6 — odpowiada prędkości ×1,6).
+- po drodze piesi i nosiciele idą **ok. 1,6× szybciej**, a A\* ją preferuje (koszt pola 0,6 — odpowiada prędkości ×1,6),
+- **droga startowa** (Punkt 20): od drzwi Dworu na zewnątrz prowadzi bezpłatna droga długości `Data.RULES.start.road` = {{v:Data.RULES.start.road}} pól (`World.startRoad`; przerywana na pierwszym polu, którego nie da się utwardzić); budynek postawiony na niej po prostu ją zastępuje. Ponieważ każda mapa ma już drogę, A\* liczy heurystykę z kosztem drogi 0,6, więc średnie zapytanie jest ok. 2× wolniejsze niż na mapie bez dróg (1,2 → 2,8 ms w teście losowych par pól 48×48; w grze trasy są krótsze).
 
 Test `tools/roads.js` sprawdza m.in. koszt tylko za nowe pola, odmowy, zdejmowanie drogi przez budowę, preferowanie drogi przez A\*, brak RNG i zapis przez JSON.
 

@@ -27,7 +27,7 @@ z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna 
    - **kontrola jakości `?lint=1`** (`node lint.js [nazwy]`): przenikanie się brył, zła kolejność, okna poza ścianą / nachodzące / zbyt gęste (>50% szerokości),
      elementy wystające poza obrys, ucięcie na brzegu płótna, nierozwiązywalne cykle głębi. **Wszystkie 88 budynków przechodzi z 0 ostrzeżeń.**
 3. **Uwagi z przeglądu zrealizowane:** u Franków 2–3 okna na ścianę (ciemne szyby, jeden kolor okiennic, ryglówka dopasowana do okien), kościół przeprojektowany
-   (nawa + przypory + 3 witraże + prosta wieża z iglicą — bez zegara, rozety i pinakli), u Wikingów kościół słupowy (nawa, nawy boczne, wieża), u Słowian „Święty krąg".
+   (nawa + przypory + 3 witraże + prosta wieża z iglicą — bez zegara, rozety i pinakli), u Wikingów świątynia słupowa (dawniej: kościół) (nawa, nawy boczne, wieża), u Słowian „Święty krąg".
    **Smocze głowy** występują tylko u Wikingów i zawsze patrzą od budynku (na obu końcach kalenicy: `dragonEnd`, `side = s2·d`); budynki Słowian nie mają żadnych głów.
 4. **Okrągła cegła na okrągłych bryłach** (wieże, studnie, kopuły bębnów, młyn): tekstura jest mapowana walcowo (`cylTexture`) — cegły zwężają się ku krawędziom
    i układają w łuki, zamiast płaskiej siatki jak na ścianach.
@@ -66,7 +66,7 @@ z własnym obrysem (2×2 … 4×4 pola). `grafika_prototyp.html` to samodzielna 
 | keep | Dwór jarla | 4×4 | palisada z bramą ze smoczymi słupami, hala ze smoczymi łbami, dom gościnny, spichlerz na palach |
 | hut / woodcutter / forester / hunter | Chaty | 2×2 | zrąb z wystającymi końcami bali, darń, suszarnie |
 | sawmill / dairy / orchard / watercarrier / market / store | | 3×2 / 2×3 / 3×3 / 2×2 / 3×3 / 3×2 | kamień runiczny na targu |
-| temple | Kościół słupowy | 3×3 | nawa pod gontem, nawy boczne, wieża z portalem, smocze łby, kamienie runiczne |
+| temple | Świątynia słupowa | 3×3 | nawa pod gontem, nawy boczne, wieża z portalem, smocze łby, kamienie runiczne |
 | fisherhut / peatmine / charburner / mead | Chata rybaka, Kopalnia darniowa, Wypalarka węgla, Miodosytnia | 2×2 / 3×3 / 3×3 / 2×3 | łódź na brzegu; torfowisko; mielerz z żarem; kadzie |
 | dock / ship | Przystań, Okręt | 4×2 / 4×2 | pomost na palach z żurawikiem; okręt z tarczami, żaglem i smoczą głową |
 | smelter / toolforge / armory | Huta, Kuźnia, Zbrojownia | 3×3 / 2×3 / 3×2 | piec szybowy z żarem; otwarta kuźnia; rzędy tarcz |

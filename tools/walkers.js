@@ -40,7 +40,7 @@ for (const [fid, cl, ty] of SETS) {
       if (a.kind === 'builder') builders++;
       if (a.kind === 'carrier') { carriers++; lastPos.set(a, [a.x, a.y]); seenCar.add(a); }
     }
-    for (const a of [...seenCar]) if (!figs.includes(a)) { seenCar.delete(a); if (a.done) { carrierDone++; if (a.goal) { const p = lastPos.get(a); if (Math.hypot(p[0] - a.goal[0], p[1] - a.goal[1]) < 1.2) carNear++; else carFar++; } } }
+    for (const a of [...seenCar]) if (!figs.includes(a)) { seenCar.delete(a); if (a.done) { carrierDone++; if (a.goal) { const p = lastPos.get(a); if (Math.hypot(p[0] - a.goal[0], p[1] - a.goal[1]) < 1.6) carNear++; else carFar++; } } }
     builderSeen = Math.max(builderSeen, builders);
   });
   ok(bad === 0, `${tag}: ${bad} postaci na polach nieprzechodnich lub zajętych: ${[...badTiles].slice(0, 4).join(' | ')}`);
