@@ -169,14 +169,15 @@ BAKED.saracens_market = function () {
 };
 
 /* SKŁAD 3×2: magazyn z płaskim dachem i nadbudówką świetlika, wielka brama, amfory i worki */
-BAKED.saracens_store = function () {
+BAKED.saracens_store = function (kind) {
   const sc = sceneFor(3, 2, 2.6), B = new Build(sc);
   sc.patch(0, 0.1, 1.9, 1.2, { seed: 28, pal: '#b79a62', alpha: 0.75 });
   flatHouse(B, { x0: -1.3, x1: 1.3, y0: -0.7, y1: 0.35, h: 1.0, S: { door: sarDoor(0.5, 0.6, 0.5), win: { n: 2, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } }, E: { win: { n: 1, ...arcWin(0.16, 0.26, 0.2, { frame: SR.wood }) } } });
   B.box(-0.5, -0.5, 1.12, 0.5, -0.05, 1.45, 'sandstone', { ao: 0.25, pal: SR.sandL }, (S) => facade(sc, S, { win: { n: 2, ...arcWin(0.16, 0.2, 0.08, { lit: '#243a42', lit2: '#101e24' }) } }));
   B.parapet(-0.51, -0.51, 0.51, -0.04, 1.45, 0.1, 0.06);
   B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'sandstone', 0.14);
-  B.jar(-1.0, 0.65); B.jar(-0.82, 0.7); B.jar(-0.68, 0.62, 0.95); B.jar(-0.9, 0.85, 0.9); B.sack(0.7, 0.65); B.sack(0.9, 0.72); B.sack(0.8, 0.85, '#c9b27a', 0.9); B.crate(1.1, 0.6, 0.22, 0.22);
+  if (kind) hubProps(B, kind);
+  else { B.jar(-1.0, 0.65); B.jar(-0.82, 0.7); B.jar(-0.68, 0.62, 0.95); B.jar(-0.9, 0.85, 0.9); B.sack(0.7, 0.65); B.sack(0.9, 0.72); B.sack(0.8, 0.85, '#c9b27a', 0.9); B.crate(1.1, 0.6, 0.22, 0.22); }
   return B.flush();
 };
 

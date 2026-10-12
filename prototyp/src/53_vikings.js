@@ -173,13 +173,14 @@ BAKED.vikings_market = function () {
 };
 
 /* SKŁAD 3×2: długi skład z ciemnych desek pod darnią, szeroka dwuskrzydłowa brama, okienko strychu, worki i beczki */
-BAKED.vikings_store = function () {
+BAKED.vikings_store = function (kind) {
   const sc = sceneFor(3, 2, 2.8), B = new Build(sc);
   sc.patch(0, 0.1, 1.9, 1.2, { seed: 44, pal: VK.bog, alpha: 0.8 });
   vkHouse(B, { x0: -1.3, x1: 1.3, y0: -0.8, y1: 0.35, h1: 0.85, low: ['plank', VK.wall], S: { door: vkDoor(0.5, 0.56, 0.5, { arch: false }), win: vkWin({ n: 2, w: 0.14, h: 0.16 }) }, E: { win: vkWin({ w: 0.14, h: 0.16 }) },
     roof: { rise: 0.72, gwin: { w: 0.18, h: 0.2, frame: VK.dark } }, deco1: (S, E, rS) => vkShields(sc, S, { v: 0.2, n: 8, a: 0.2, b: 2.4, r: 0.06, avoid: avoidOf(rS, 0.1) }) });
   B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'rubble', 0.14);
-  B.sack(-0.95, 0.62, '#d8c898'); B.sack(-0.75, 0.7, '#cdbb88'); B.sack(-0.9, 0.82, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85);
+  if (kind) hubProps(B, kind);
+  else { B.sack(-0.95, 0.62, '#d8c898'); B.sack(-0.75, 0.7, '#cdbb88'); B.sack(-0.9, 0.82, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85); }
   return B.flush();
 };
 

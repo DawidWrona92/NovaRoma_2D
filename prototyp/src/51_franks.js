@@ -113,7 +113,7 @@ BAKED.franks_sawmill = function () {
 };
 
 /* SKŁAD 3×2: kamienny parter, ryglowe piętro, szeroka brama, wciągarka i worki */
-BAKED.franks_store = function () {
+BAKED.franks_store = function (kind) {
   const sc = sceneFor(3, 2, 3.0), B = new Build(sc);
   sc.patch(0, 0.1, 1.9, 1.2, { seed: 15, alpha: 0.7 });
   const h = cottage(B, { x0: -1.3, x1: 1.3, y0: -0.8, y1: 0.35, h1: 0.8, floors: 2, h2: 0.7, J: 0.08, ridge: 'x', low: ['stone', FR.stone], up: ['plaster', FR.plaster, FR.timber], nuS2: 4, nuE2: 2,
@@ -122,7 +122,8 @@ BAKED.franks_store = function () {
     S2: { marg: 0.1, win: { n: 3, w: 0.17, h: 0.3, v: 0.18, shut: FR.shutR, frame: FR.timber } }, E2: { win: { n: 1, w: 0.17, h: 0.3, v: 0.18, frame: FR.timber } },
     roof: { mat: 'tiles', pal: FR.tilesD, rise: 0.7, ov: 0.1, ovE: 0.1, gableMat: 'plaster', gablePal: FR.plaster }, chim: [0.8, -0.45, 0.5, 0.26] });
   B.stairs(-0.3, 0.3, 0.37, 2, 0.12, 'stone', 0.14);
-  B.sack(-0.75, 0.62, '#d8c898'); B.sack(-0.55, 0.7, '#cdbb88'); B.sack(-0.7, 0.8, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85);
+  if (kind) hubProps(B, kind);
+  else { B.sack(-0.75, 0.62, '#d8c898'); B.sack(-0.55, 0.7, '#cdbb88'); B.sack(-0.7, 0.8, '#d8c898', 0.9); B.crate(0.75, 0.65, 0.22, 0.22); B.crate(0.98, 0.7, 0.2, 0.3); B.barrel(0.55, 0.85); }
   return B.flush();
 };
 

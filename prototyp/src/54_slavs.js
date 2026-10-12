@@ -192,7 +192,7 @@ BAKED.slavs_market = function () {
 };
 
 /* SKŁAD 3×2: spichlerz na palach z szerokim okapem, schodkami, wentylacyjnymi szczelinami, wciągarką i workami */
-BAKED.slavs_store = function () {
+BAKED.slavs_store = function (kind) {
   const sc = sceneFor(3, 2, 2.9), B = new Build(sc), zf = 0.42;
   sc.patch(0, 0.1, 1.9, 1.3, { seed: 22, alpha: 0.7 });
   for (const x of [-1.15, 0, 1.15]) for (const y of [-0.5, 0.5]) B.cyl(x, y, 0, zf - 0.1, 0.08, { mat: 'log', pal: '#7a5a36', topMat: 'plank', ao: 0.3, shadow: false });
@@ -200,7 +200,8 @@ BAKED.slavs_store = function () {
   slHouse(B, { x0: -1.28, x1: 1.28, y0: -0.68, y1: 0.68, zp: zf, h1: 0.9, plinth: false, low: ['plank', SL.plank], corners: false, S: { door: slDoor(0.5, 0.6, 0.62, { lintel: SL.red }) }, roof: { rise: 0.78, ov: 0.18, ovE: 0.16, gableMat: 'plank', gablePal: SL.plank },
     deco1: (S, E) => { sc.local(S.O, S.U, S.V, (g) => { g.fillStyle = '#17120e'; for (const u of [0.25, 0.5, 1.9, 2.15, 2.4]) g.fillRect(u, 0.18, 0.04, 0.3); }); sc.local(E.O, E.U, E.V, (g) => { g.fillStyle = '#17120e'; for (const u of [0.35, 0.6, 0.85, 1.1]) g.fillRect(u, 0.18, 0.04, 0.3); }); } });
   B.stairs(-0.3, 0.3, 0.7, 2, zf, 'plank', 0.13, SL.plank);
-  B.sack(0.9, 0.88, '#d8c898'); B.sack(1.06, 0.86, '#cdbb88'); B.barrel(-0.95, 0.88); B.barrel(-1.12, 0.82, 0, 0.9);
+  if (kind) hubProps(B, kind);
+  else { B.sack(0.9, 0.88, '#d8c898'); B.sack(1.06, 0.86, '#cdbb88'); B.barrel(-0.95, 0.88); B.barrel(-1.12, 0.82, 0, 0.9); }
   return B.flush();
 };
 

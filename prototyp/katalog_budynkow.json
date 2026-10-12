@@ -333,6 +333,104 @@
       "ay": 365
      }
     },
+    "settlement": {
+     "sprite": "franks_settlement",
+     "nazwa": "Osada",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 0
+     },
+     "dym": [
+      [
+       -0.6,
+       -0.8,
+       2.794
+      ],
+      [
+       1.2,
+       -0.6,
+       2.27
+      ]
+     ],
+     "sprite_px": {
+      "w": 444,
+      "h": 392,
+      "ax": 213,
+      "ay": 270
+     }
+    },
+    "minestore": {
+     "sprite": "franks_minestore",
+     "nazwa": "Skład górniczy",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [
+      [
+       0.8,
+       -0.45,
+       2.76
+      ]
+     ],
+     "sprite_px": {
+      "w": 388,
+      "h": 348,
+      "ax": 169,
+      "ay": 238
+     }
+    },
+    "timberstore": {
+     "sprite": "franks_timberstore",
+     "nazwa": "Skład drzewny",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [
+      [
+       0.8,
+       -0.45,
+       2.76
+      ]
+     ],
+     "sprite_px": {
+      "w": 388,
+      "h": 348,
+      "ax": 169,
+      "ay": 238
+     }
+    },
     "quarry": {
      "sprite": "franks_quarry",
      "nazwa": "Kamieniołom",
@@ -955,6 +1053,81 @@
       "ay": 225
      }
     },
+    "settlement": {
+     "sprite": "saracens_settlement",
+     "nazwa": "Osada",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 0
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 452,
+      "h": 340,
+      "ax": 233,
+      "ay": 234
+     }
+    },
+    "minestore": {
+     "sprite": "saracens_minestore",
+     "nazwa": "Skład górniczy",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 324,
+      "h": 248,
+      "ax": 149,
+      "ay": 159
+     }
+    },
+    "timberstore": {
+     "sprite": "saracens_timberstore",
+     "nazwa": "Skład drzewny",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 324,
+      "h": 248,
+      "ax": 149,
+      "ay": 159
+     }
+    },
     "claypit": {
      "sprite": "saracens_claypit",
      "nazwa": "Glinianka",
@@ -1555,6 +1728,92 @@
       "h": 344,
       "ax": 205,
       "ay": 239
+     }
+    },
+    "settlement": {
+     "sprite": "vikings_settlement",
+     "nazwa": "Osada",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 0
+     },
+     "dym": [
+      [
+       -1.18,
+       -0.6,
+       1.97
+      ],
+      [
+       1.002,
+       -0.6,
+       1.95
+      ]
+     ],
+     "sprite_px": {
+      "w": 456,
+      "h": 324,
+      "ax": 217,
+      "ay": 218
+     }
+    },
+    "minestore": {
+     "sprite": "vikings_minestore",
+     "nazwa": "Skład górniczy",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 348,
+      "h": 284,
+      "ax": 153,
+      "ay": 190
+     }
+    },
+    "timberstore": {
+     "sprite": "vikings_timberstore",
+     "nazwa": "Skład drzewny",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.35
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 348,
+      "h": 284,
+      "ax": 153,
+      "ay": 190
      }
     },
     "fisherhut": {
@@ -2276,6 +2535,92 @@
       "h": 280,
       "ax": 177,
       "ay": 174
+     }
+    },
+    "settlement": {
+     "sprite": "slavs_settlement",
+     "nazwa": "Osada",
+     "obrys": [
+      4,
+      3
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 1.5
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": -0.8,
+      "y": 0
+     },
+     "dym": [
+      [
+       -1.18,
+       -0.6,
+       2.18
+      ],
+      [
+       1.175,
+       -0.6,
+       2
+      ]
+     ],
+     "sprite_px": {
+      "w": 468,
+      "h": 352,
+      "ax": 229,
+      "ay": 234
+     }
+    },
+    "minestore": {
+     "sprite": "slavs_minestore",
+     "nazwa": "Skład górniczy",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.68
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 364,
+      "h": 332,
+      "ax": 165,
+      "ay": 218
+     }
+    },
+    "timberstore": {
+     "sprite": "slavs_timberstore",
+     "nazwa": "Skład drzewny",
+     "obrys": [
+      3,
+      2
+     ],
+     "wejscie": {
+      "strona": "S",
+      "x": 0,
+      "y": 1
+     },
+     "drzwi": {
+      "strona": "S",
+      "x": 0,
+      "y": 0.68
+     },
+     "dym": [],
+     "sprite_px": {
+      "w": 364,
+      "h": 332,
+      "ax": 165,
+      "ay": 218
      }
     },
     "gatherer": {

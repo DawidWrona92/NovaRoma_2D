@@ -1,7 +1,7 @@
 /* ====================== KATALOG BUDYNKÓW: id z gry → sprite, obrys, nazwa ======================
    Sprite budynku `id` nacji `n` nazywa się `${n}_${id}` (np. franks_mill). Obrys (fw×fh w polach) pochodzi z wypieczonego sprite'a.
    Lista id odpowiada Data.BUILDINGS z Nova_Roma.html: 12 budynków wspólnych + budynki specyficzne dla nacji. */
-const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple'];
+const COMMON_IDS = ['keep', 'hut', 'woodcutter', 'forester', 'sawmill', 'hunter', 'dairy', 'orchard', 'watercarrier', 'market', 'store', 'temple', 'settlement', 'minestore', 'timberstore'];
 const NATIONS = {
   franks: COMMON_IDS.concat(['quarry', 'farm', 'mill', 'bakery', 'ironmine', 'coalmine', 'smelter', 'toolforge', 'armory', 'vineyard', 'winery', 'barracks']),
   saracens: COMMON_IDS.concat(['claypit', 'dategrove', 'incensewood', 'incense', 'cotton', 'weaver', 'pottery', 'qanat', 'bathhouse', 'caravanserai', 'guardpost']),
@@ -13,7 +13,7 @@ const ROT_VARIANTS = { vikings: { dock: [1, 2, 3], ship: [1, 2, 3] } };
 const variantIds = n => Object.entries(ROT_VARIANTS[n] || {}).flatMap(([id, rs]) => rs.map(r => `${id}@${r}`));
 const NATION_PL = { franks: 'FRANKOWIE', saracens: 'SARACENI', vikings: 'WIKINGOWIE', slavs: 'SŁOWIANIE' };
 const NAMES = {
-  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia',
+  keep: 'Dwór', hut: 'Chata', woodcutter: 'Chata drwala', forester: 'Leśniczówka', sawmill: 'Tartak', hunter: 'Chata myśliwego', dairy: 'Mleczarnia', orchard: 'Sad', watercarrier: 'Chata nosiwody', market: 'Targ', store: 'Skład', temple: 'Świątynia', settlement: 'Osada', minestore: 'Skład górniczy', timberstore: 'Skład drzewny',
   quarry: 'Kamieniołom', farm: 'Farma', mill: 'Młyn', bakery: 'Piekarnia', ironmine: 'Kopalnia żelaza', coalmine: 'Kopalnia węgla', smelter: 'Huta', toolforge: 'Kuźnia narzędzi', armory: 'Zbrojownia', vineyard: 'Winnica', winery: 'Winiarz', barracks: 'Koszary',
   claypit: 'Glinianka', dategrove: 'Gaj daktylowy', incensewood: 'Las kadzidlany', incense: 'Wytwórnia kadzidła', cotton: 'Plantacja bawełny', weaver: 'Tkalnia', pottery: 'Garncarnia', qanat: 'Qanat', bathhouse: 'Łaźnia', caravanserai: 'Karawanseraj', guardpost: 'Strażnica',
   fisherhut: 'Chata rybaka', peatmine: 'Kopalnia darniowa', charburner: 'Wypalarka węgla', mead: 'Miodosytnia', dock: 'Przystań', ship: 'Okręt',
