@@ -10632,15 +10632,18 @@ const Music = (() => {
         if (L.has('frame')) { add(t0, 'frame', 45, 0.5, 0.5 * vel); add(t0 + 2 * spb, 'frame', 45, 0.5, 0.38 * vel); if (b % 4 === 3) add(t0 + 3 * spb, 'frame', 45, 0.5, 0.25 * vel); }
         if (L.has('kantele') && b % 2 === 0) { const pen = [0, 2, 4, 5, 7, 9]; add(t0 + (rnd() < 0.5 ? 0 : spb * 2) + 0.02, 'kantele', deg(R + 12, c.M, d0 + pen[Math.floor(rnd() * pen.length)]), 3, 0.34 * vel); if (rnd() < 0.5) add(t0 + spb * 3, 'kantele', deg(R + 12, c.M, d0 + pen[Math.floor(rnd() * pen.length)] + 2), 3, 0.26 * vel); } } },
 
-    slavs: { name: 'Wieczór nad rzeką', bpm: 60, beats: 3, root: 52, mode: 'aeolian', wet: 0.34, cutoff: 4500, trim: 1,
-      prog: { A: [0, 6, 0, 4, 5, 6, 0, 0], B: [3, 0, 6, 0, 5, 3, 4, 0], C: [0, 6, 0, 0] },
-      form: [['A', 4, 'gusli bass'], ['A', 8, 'gusli bass sopilka'], ['B', 8, 'gusli bass sopilka pad'], ['A', 8, 'gusli bass sopilka frame'], ['C', 4, 'gusli pad'], ['B', 8, 'gusli bass sopilka pad frame'], ['A', 8, 'gusli bass sopilka pad'], ['A', 12, 'gusli bass pad fade']],
-      arp: { voice: 'gusli', base: 7, low: false, pats: [[0, 2, 3, 2, 3, 2], [0, 1, 2, 3, 2, 1], [0, 2, 1, 2, 3, 2]] },
+    /* Słowianie: wolny walc ludowy (3/4, 54 BPM), gęśle w niskim rejestrze (arpeggia od toniki w górę), niski flet sopilka pod melodią, basowe szarpnięcia gęśli, cichy bęben obręczowy i ciepły bordon.
+       Akordy poniżej toniki (-1 = VII, -2 = VI) trzymają całość nisko; sekcja A wraca trzy razy (ten sam temat), B jest odpowiedzią, C — cichym mostkiem bez fletu. */
+    slavs: { name: 'Wieczór nad rzeką', bpm: 54, beats: 3, root: 52, mode: 'aeolian', wet: 0.34, cutoff: 3000, trim: 1,
+      prog: { A: [0, -1, 0, 4, -2, -1, 0, 0], B: [3, 0, -1, 0, -2, 3, 4, 0], C: [0, -1, 0, 0] },
+      form: [['A', 4, 'gusli drone'], ['A', 8, 'gusli bass drone'], ['A', 8, 'gusli bass sopilka'], ['B', 8, 'gusli bass sopilka pad'], ['A', 8, 'gusli bass sopilka frame'], ['C', 4, 'gusli pad drone'], ['B', 8, 'gusli bass sopilka pad frame'], ['A', 8, 'gusli bass sopilka pad'], ['A', 8, 'gusli bass sopilka drone fade']],
+      arp: { voice: 'gusli', base: 0, low: false, pats: [[0, 3, 2, 3, 4, 3], [0, 2, 3, 4, 3, 2], [0, 3, 1, 3, 4, 3], [0, 3, 2, 4, 3, 2]] },
       pad: { voice: 'pad', oct: 12 },
-      lead: { voice: 'sopilka', range: [0, 8], shift: -7, oct: 12, pool: [1, 1, 1.5, 0.5, 2, 1], vel: 0.42, orn: 0, rest: 0.12 },
-      extra(c) { const { add, t0, b, L, vel, spb, d0, ch } = c;
-        if (L.has('bass')) { add(t0, 'gusli', ch(d0, -7), 2.0, 0.55 * vel); if (b % 2 === 1) add(t0 + 2 * spb, 'gusli', ch(d0, -3), 1.6, 0.3 * vel); }
-        if (L.has('frame')) { add(t0, 'frame', 52, 0.5, 0.36 * vel); add(t0 + 2 * spb, 'frame', 52, 0.5, 0.2 * vel); } } }
+      lead: { voice: 'sopilka', range: [1, 8], shift: -7, oct: 12, pool: [1, 1, 2, 3, 1.5, 1.5, 2], vel: 0.27, orn: 0, rest: 0.04 },
+      extra(c) { const { add, t0, b, L, vel, spb, bar, R, d0, ch } = c;
+        if (L.has('bass')) { let bn = ch(d0, -7); if (bn < 38) bn += 12; add(t0, 'gusli', bn, 2.4, 0.6 * vel); if (b % 2 === 1) add(t0 + 2 * spb, 'gusli', bn + 7, 1.8, 0.3 * vel); }
+        if (L.has('drone') && b % 2 === 0) { add(t0, 'drone', R - 12, bar * 2 + 0.5, 0.3 * vel); add(t0, 'drone', R - 5, bar * 2 + 0.5, 0.16 * vel); }
+        if (L.has('frame')) { add(t0, 'frame', 52, 0.5, 0.36 * vel); add(t0 + 2 * spb, 'frame', 52, 0.5, 0.2 * vel); if (b % 4 === 3) add(t0 + 1 * spb, 'frame', 52, 0.5, 0.12 * vel); } } }
   };
 
   function compose(nation, loop = 0) {
