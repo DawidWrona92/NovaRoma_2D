@@ -5600,6 +5600,29 @@ const Terrain = (() => {
         k++;
       } }
 
+    /* masyw górski (decyzja użytkownika: kopalnie tylko w górach): na mapach bez własnych gór (wszystkie typy poza górzystą) rośnie jeden skalisty masyw — rdzeń e = 3 (w środku 4), otoczony stokiem e = 2,
+       żeby dojście nie kończyło się klifem; tylko tam leżą złoża kamienia, żelaza i węgla (MOUNTAIN_KINDS). Leży 15–23 pola od Dworu, poza obszarem startowym, na lądzie. */
+    if (o.type !== 'mountains' && Object.keys((Data.FACTIONS[fid] || {}).deposits || {}).some(k => MOUNTAIN_KINDS.has(k))) {   // tylko nacja z kopalniami skalnymi (Frankowie); reszta map bez zmian
+      const raise = (cells, rad, tries) => { for (const [t, d] of cells) if (t.h === 1 && dPlaza(t.x, t.y) > EARLY_R + 1.5) t.e = Math.max(t.e, d < 2.2 ? 4 : d < rad ? 3 : 2); map.meta.massif = { x: Math.round(cells.cx), y: Math.round(cells.cy), r: +rad.toFixed(1), tries }; };   // pola obszaru startowego zostają płaskie
+      let best = null, done = false; const mr = prng(seed ^ 0x5A17C0DE);                                     // własny strumień: reszta generatora zostaje taka sama jak bez masywu
+      for (let tries = 0; !done && tries < 900; tries++) {
+        const a = mr() * 6.283, rr = 17 + mr() * 8 + (tries > 300 ? 3 : 0), cx = CX + Math.cos(a) * rr, cy = CY + Math.sin(a) * rr, rad = 8.0 + mr() * 1.0, p1 = mr() * 6.28, p2 = mr() * 6.28, R2 = rad + 2.2, cells = [];
+        if (cx < 8 || cy < 8 || cx > N - 8 || cy > N - 8) continue;
+        let wet = 0, sea = 0;
+        for (let y = Math.floor(cy - R2 - 1); y <= Math.ceil(cy + R2 + 1); y++) for (let x = Math.floor(cx - R2 - 1); x <= Math.ceil(cx + R2 + 1); x++) {
+          if (x < 0 || y < 0 || x >= N || y >= N) continue;
+          const ang = Math.atan2(y + 0.5 - cy, x + 0.5 - cx), wob = 1 + 0.16 * Math.sin(2 * ang + p1) + 0.1 * Math.sin(3 * ang + p2), d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+          if (d < R2 * wob) { const t = tiles[y * N + x]; cells.push([t, d / wob]); if (t.h === 0) { wet++; if (t.wk === 'sea') sea++; } }
+        }
+        cells.cx = cx; cells.cy = cy;
+        const area = cells.filter(([t, d]) => t.h === 1 && d < rad && dPlaza(t.x, t.y) > EARLY_R + 1.5).length, areaMin = tries < 250 ? 205 : tries < 500 ? 170 : 130;   // wymagania łagodnieją, gdy mapa jest bardzo wodna
+        if (sea > 0 || wet > cells.length * 0.4) continue;                                                           // nie nad morzem (Przystań i Okręty potrzebują brzegu) i nie głównie woda
+        if (!best || area > best.area) best = { cells, rad, area, tries };
+        if (area >= areaMin) { raise(cells, rad, tries); done = true; }
+      }
+      if (!done && best) raise(best.cells, best.rad, best.tries);                                                     // ostatnia deska ratunku: najlepsze znalezione miejsce
+    }
+
     // 3. klify: Δe ≥ 2 między sąsiednimi polami lądu, najbardziej strome stoki (wg udziału T.cliff), nadbrzeżne skarpy nad morzem — z dala od Dworu
     const cand = [];
     for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
@@ -5714,18 +5737,19 @@ const Terrain = (() => {
     }
     while (cur > target) { const i = Math.floor(rnd() * tiles.length); if (tiles[i].trees > 0) { tiles[i].trees--; cur--; } }
   }
+  const MOUNTAIN_KINDS = new Set(['stone', 'iron', 'coal']);                      // złoża, które leżą wyłącznie w górach (pola o wysokości e ≥ 3)
   function reDeposit(map, rnd, o, seen, pad) {
     const N = map.size, tiles = map.tiles, bad = [], block = new Uint8Array(N * N), G = Data.RULES.gap | 0;
     const hold = org => { reserve(map, pad, org[0], org[1], 3, 3); for (let yy = -G; yy < 3 + G; yy++) for (let xx = -G; xx < 3 + G; xx++) { const bx = org[0] + xx, by = org[1] + yy; if (bx >= 0 && by >= 0 && bx < N && by < N) block[by * N + bx] = 1; } };   // kopalnie 3×3 muszą się zmieścić z przerwą (Data.RULES.gap)
     for (let i = 0; i < N * N; i++) {
       const t = tiles[i]; if (!t.deposit) continue;
-      const x = i % N, y = (i / N) | 0, org = t.h === 1 && !t.k && seen[i] && dPlaza(x, y) > 6 ? mineOrigin(map, x, y, seen, true, block) : null;
+      const x = i % N, y = (i / N) | 0, org = t.h === 1 && !t.k && seen[i] && dPlaza(x, y) > 6 && (!MOUNTAIN_KINDS.has(t.deposit) || t.e >= 3) ? mineOrigin(map, x, y, seen, true, block) : null;
       if (org) hold(org); else { bad.push(t.deposit); t.deposit = null; }
     }
     for (const kind of bad) {
-      for (let guard = 0; guard < 6000; guard++) {
+      for (let guard = 0; guard < 9000; guard++) {
         const x = 3 + Math.floor(rnd() * (N - 6)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x, t = tiles[i], d = dPlaza(x, y);
-        if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : 30) || (o.type === 'mountains' && t.e < 2 && guard < 3000)) continue;
+        if (t.h !== 1 || t.k || t.deposit || t.occup || !seen[i] || d <= 7 || d >= (guard < 4000 ? 22 : guard < 7000 ? 30 : 40) || (MOUNTAIN_KINDS.has(kind) && t.e < 3)) continue;   // kamień, żelazo i węgiel — tylko w górach
         const org = mineOrigin(map, x, y, seen, true, block); if (!org) continue;
         t.deposit = kind; t.trees = 0; hold(org); break;
       }
@@ -5807,6 +5831,8 @@ const Terrain = (() => {
       if (s.shoreNear < 12 || s.shoreNearest > 13) why.push('mało brzegu dla Wikingów: ' + s.shoreNear + ' @' + s.shoreNearest.toFixed(1));
       const cap = shoreCapacity(map); s.shoreCap = cap; if (cap < 9) why.push('brzeg mieści tylko ' + cap + '/9 budynków nadmorskich');
     }
+    { const plan = (Data.FACTIONS[fid] || {}).deposits || {}, have = {}; map.tiles.forEach(t => { if (t.deposit) have[t.deposit] = (have[t.deposit] || 0) + 1; });
+      for (const k in plan) if ((have[k] || 0) < plan[k]) why.push('za mało złóż ' + k + ': ' + (have[k] || 0) + '/' + plan[k]); }   // komplet złóż (kamień, żelazo i węgiel tylko w górach) — inaczej generator losuje mapę od nowa
     let noFit = 0; map.tiles.forEach((t, i) => { if (t.deposit && !mineFits(map, i % map.size, (i / map.size) | 0, reachSet(map))) noFit++; });
     if (noFit) why.push('złoża bez miejsca na kopalnię: ' + noFit);
     return { ok: !why.length, why, s };
@@ -5822,6 +5848,7 @@ const Terrain = (() => {
       map.meta = { climate: o.climate, type: o.type, seed: o.seed, fid, attempt };
       const seed = (strHash(o.climate + '|' + o.type) ^ Math.imul(o.seed + attempt * 7919, 2654435761)) >>> 0, rnd = prng(seed ^ 0x9E3779B9);
       build(map, o, C, T, seed, fid, target);
+      if (map.meta.massif) for (const t of tiles) if (t.h === 1 && t.e >= 3 && t.k && t.k !== 'cliff') t.k = null;   // w górach nie ma wydm, bagien, zasp ani oaz — skała pod kopalnie
       ensureConnected(map);
       REACH.delete(map.tiles); const seen = reachSet(map), pad = new Uint8Array(N * N);       // osiągalność liczona od nowa po zmianie terenu
       reDeposit(map, rnd, o, seen, pad);
