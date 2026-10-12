@@ -12,7 +12,7 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 
 | # | Zmiana | Stan |
 |---|---|---|
-| 1 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach.** Decyzja: na mapie Franków jest skalisty masyw górski (poziom ≥ 3), złoża tylko tam; własny generator losowy, walidacja wymaga kkompletu złóż | ✔ w kodzie; krótkie testy OK (`terrain`, `footprints`, `spacing`, `leveling`, `path`, `walkers`, `roads`, `logistics`, `minimap`, `workers`, `scenarios` 58/58). **Na koniec (duże testy):** pełna regresja `regress.sh`, bramka `physical.js` dla Franków (kopalnie dalej od Dworu), scenariusze ekonomii |
+| 1 | **Kopalnie (kamień, żelazo, węgiel) tylko w górach.** Decyzja: na mapie Franków jest skalisty masyw górski (poziom ≥ 3), złoża tylko tam; własny generator losowy, walidacja wymaga kompletu złóż | ✔ w kodzie; krótkie testy OK (`terrain`, `footprints`, `spacing`, `leveling`, `path`, `walkers`, `roads`, `logistics`, `minimap`, `workers`, `scenarios` 58/58). **Na koniec (duże testy):** pełna regresja `regress.sh`, bramka `physical.js` dla Franków (kopalnie dalej od Dworu), scenariusze ekonomii |
 | 2 | **Zwierzęta oddalają się od budowli** (strefa 3,5 pola wokół budynków i placów; legowisko w mieście się przenosi) | ✔ w kodzie, `fauna.js` 936/936, `browser_fauna` OK |
 | 3 | **Mniej zwierząt i odradzanie w punktach spawnu** (wałęsające się i ptaki po 50%, łowna po 70%, `ref` 4, szybsze odradzanie przy legowiskach) | ✔ w kodzie; test „1 Chata” poluzowany (średni plon ≥ 0,60) |
 
