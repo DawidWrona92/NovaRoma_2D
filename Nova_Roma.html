@@ -190,6 +190,10 @@
     background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text);
     font-size: 12px; line-height: 1.45; padding: 7px 10px; pointer-events: none;
   }
+  #fCard { position: absolute; z-index: 26; left: 8px; top: calc(var(--hud-h) + 40px); max-width: 270px; min-width: 190px; background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text); font-size: 12px; line-height: 1.45; padding: 7px 10px 9px; display: none; }
+  #fCard h3 { color: var(--gold); font-size: 14px; margin: 0 0 1px; } #fCard .sub { color: #a89878; font-size: 11px; } #fCard .row { margin-top: 3px; }
+  #fCard button { margin-top: 6px; margin-right: 6px; padding: 5px 9px; font-size: 12px; cursor: pointer; background: #3a2c18; color: var(--gold); border: 1px solid var(--panel-border); }
+  #fCard .fClose { position: absolute; right: 4px; top: 2px; margin: 0; padding: 0 6px; border: 0; background: none; color: #c8bda8; font-size: 15px; }
   #bInfo h3 { color: var(--gold); font-size: 14px; margin-bottom: 3px; }
   #bInfo .sub { color: #a89878; font-size: 11px; }
 
@@ -5570,6 +5574,7 @@ const Camera = (() => {
              y: (wx + wy) * (TH*api.zoom/2) + api.y + h/2 };
   };
   /* obrys w×h pól (północny róg x, y) jako 4 punkty ekranu: N, E, S, W */
+  api.focus = (wx, wy) => { api.x = -(wx - wy) * (TW * api.zoom / 2); api.y = -(wx + wy) * (TH * api.zoom / 2); };      // środek widoku na punkcie świata
   api.footprint = (x, y, w, h) => [api.worldToScreen(x, y), api.worldToScreen(x + w, y), api.worldToScreen(x + w, y + h), api.worldToScreen(x, y + h)];
   api.fillPoly = (ctx, pts, fill, stroke, lw) => {
     ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath();
@@ -9409,7 +9414,7 @@ const BuildMode = (() => {
   const bar = mkEl('div', 'buildConfirm', '', document.body), bcNote = mkEl('div', 'bcNote', '', bar), bcBtns = mkEl('div', 'bcBtns', '', bar);
   const bcOk = mkEl('button', 'bcOk', '✔ Postaw', bcBtns), bcRot = mkEl('button', 'bcRot', '⟳ Obróć', bcBtns), bcCancel = mkEl('button', 'bcCancel', '✖ Zakończ', bcBtns); let lastNote = null;
   const syncBar = () => { document.body.classList.toggle('cb', !!selected && coarse()); bcRot.style.display = rotsFor(selected).length > 1 ? '' : 'none'; if (!selected) lastNote = null; };
-  function exitBuild() { clear(); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); try { UI.pinBuilding(null); } catch (e) { /* UI jeszcze nie gotowe */ } }
+  function exitBuild() { clear(); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); try { UI.pinBuilding(null); UI.pinFigure(null); } catch (e) { /* UI jeszcze nie gotowe */ } }
   bcOk.onclick = () => click(); bcRot.onclick = () => rotate(1); bcCancel.onclick = exitBuild;
   function setBarNote(text, good) { if (lastNote === text + good) return; lastNote = text + good; bcNote.textContent = text; bcNote.className = good ? 'good' : text ? 'bad' : ''; }
   function tap() { if (selected && !isTool() && coarse()) return; click(); }                // dotyk: tylko ruch ducha (hover ustawiony przez wywołującego)
@@ -9466,6 +9471,9 @@ const BuildMode = (() => {
         UI.refreshHUD();
         return;
       }
+      const fg = UI.figureAt(hover.fx, hover.fy);                              // klik na postać: karta (kim jest, gdzie pracuje, idź do budynku)
+      if (fg) { UI.pinFigure(fg); return; }
+      UI.pinFigure(null);
       UI.pinBuilding(buildingAtHover()); // klik na budynek: karta stanu (klik w puste pole ją zamyka)
       return;
     }
@@ -9990,6 +9998,58 @@ const UI = (() => {
     if (b && BuildMode.coarse()) pinT = setTimeout(() => { if (pinned === b) { pinned = null; refreshOverlays(); } }, 7000);          // telefon: karta budynku to chwilowy podgląd, zwija się sama
   }
   function hoverBuilding(b) { if (b !== hovered) { hovered = b; refreshOverlays(); } }
+
+  /* karta postaci (Faza 9E): kliknięcie robotnika, budowniczego, mieszkańca albo nosiciela pokazuje, kim jest, gdzie pracuje lub mieszka, co robi, i przycisk przenoszący widok do jego budynku */
+  const NAMES = {
+    franks: ['Gerard', 'Hugo', 'Odo', 'Roland', 'Pepin', 'Lothar', 'Bernard', 'Aymeric', 'Thibault', 'Waleran', 'Ansel', 'Berta', 'Adela', 'Mathilda', 'Clotylda', 'Ermengarda'],
+    saracens: ['Omar', 'Yusuf', 'Khalid', 'Tariq', 'Idris', 'Salim', 'Rashid', 'Hakim', 'Zayd', 'Karim', 'Layla', 'Samira', 'Nadia', 'Zahra', 'Fatima', 'Amira'],
+    vikings: ['Bjorn', 'Ragnar', 'Sven', 'Olaf', 'Leif', 'Erik', 'Gunnar', 'Ivar', 'Harald', 'Ulf', 'Astrid', 'Freya', 'Sigrid', 'Thora', 'Ingrid', 'Helga'],
+    slavs: ['Bogdan', 'Mieszko', 'Wojciech', 'Radomir', 'Wit', 'Zbigniew', 'Borys', 'Dobromir', 'Jaromir', 'Przemko', 'Dobrawa', 'Wanda', 'Miła', 'Jarosława', 'Zdzisława', 'Bożena']
+  };
+  const TITLES = { woodcutter: 'Drwal', forester: 'Leśnik', sawmill: 'Cieśla (tartak)', hunter: 'Myśliwy', dairy: 'Mleczarz', orchard: 'Sadownik', watercarrier: 'Nosiciel wody', market: 'Kupiec', temple: 'Duchowny', quarry: 'Kamieniarz', farm: 'Rolnik', mill: 'Młynarz', bakery: 'Piekarz', ironmine: 'Górnik', coalmine: 'Górnik', smelter: 'Hutnik', toolforge: 'Kowal', armory: 'Płatnerz', vineyard: 'Winiarz', winery: 'Winiarz', barracks: 'Żołnierz', claypit: 'Kopacz gliny', dategrove: 'Sadownik', incensewood: 'Zbieracz żywicy', incense: 'Kadzidlarz', cotton: 'Rolnik', weaver: 'Tkacz', pottery: 'Garncarz', qanat: 'Kopacz qanatu', bathhouse: 'Łaziebny', caravanserai: 'Karawaniarz', guardpost: 'Strażnik', fisherhut: 'Rybak', peatmine: 'Górnik torfu', charburner: 'Węglarz', mead: 'Miodosyt', dock: 'Doker', ship: 'Żeglarz', gatherer: 'Zbieracz', field: 'Rolnik', kasha: 'Kasznik', bartnik: 'Bartnik', waxery: 'Woskarz', trapper: 'Łowca futer', tannery: 'Garbarz', sauna: 'Łaziebny' };
+  const ACTS = { chop: 'rąbie drzewo', plant: 'sadzi drzewko', saw: 'piłuje deski', dig: 'kopie', hammer: 'buduje', pick: 'kuje skałę', forge: 'kuje w kuźni', sweep: 'zamiata', look: 'sprawdza zapas w Składzie', hoe: 'uprawia pole', milk: 'doi', draw: 'czerpie wodę', fish: 'łowi ryby', trap: 'zastawia sidła', tap: 'nacina drzewa' };
+  const hashN = n => { let x = (Math.imul((n | 0) + 1, 2654435761) ^ 0x9e3779b9) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; x ^= x >>> 13; return x >>> 0; };
+  let pinnedFig = null; const fCard = document.createElement('div'); fCard.id = 'fCard'; document.body.appendChild(fCard);
+  /* kim jest postać i dokąd prowadzi „idź do budynku”: { name, title, line (gdzie pracuje/mieszka), target (budynek lub plac), doing } */
+  function figInfo(a) {
+    const s = World.state(), names = NAMES[s.factionId] || NAMES.franks, seed = a.kind === 'worker' ? (a.uid | 0) * 7 + 3 : a.kind === 'builder' ? (a.site | 0) * 13 + (a.i | 0) * 5 : Math.floor((a.phase || 0) * 1000);
+    const name = names[hashN(seed) % names.length], doing = a.act ? ACTS[a.act] || null : (a.load ? 'niesie ładunek' : (a.moving ? 'idzie' : 'stoi'));
+    if (a.kind === 'worker') {
+      const b = s.buildings.find(q => q.uid === a.uid); if (!b) return null;
+      return { name, title: TITLES[b.id] || 'Pracownik', line: 'Pracuje w: ' + Data.nameOf(b.id), target: b, doing };
+    }
+    if (a.kind === 'builder') {
+      const site = s.sites.find(q => q.uid === a.site);
+      return site ? { name, title: 'Budowniczy', line: 'Buduje: ' + Data.nameOf(site.id), target: site, doing } : { name, title: 'Budowniczy', line: 'Czeka na zlecenie przy Dworze', target: s.keep, doing };
+    }
+    if (a.kind === 'carrier') return { name, title: 'Nosiciel', line: 'Zanosi towar do magazynu', target: s.keep, doing };
+    const homes = s.buildings.filter(q => q.id === 'hut' || q.id === 'settlement'), home = homes.length ? homes[hashN(seed) % homes.length] : s.keep;
+    return { name, title: 'Mieszkaniec', line: 'Mieszka w: ' + Data.nameOf(home.id), target: home, doing };
+  }
+  /* postać pod punktem ekranu (kliknięcie): najbliższa w prostokącie wokół sylwetki (stopy w a.x, a.y; wysokość ≈ 55 px × zoom) */
+  function figureAt(wx, wy) {
+    const c = Camera.worldToScreen(wx, wy), z = Camera.zoom; let best = null, bd = Infinity;
+    for (const a of Walkers.figures()) {
+      const p = Camera.worldToScreen(a.x, a.y), dx = Math.abs(c.x - p.x), dy = c.y - p.y;
+      if (dx > 16 * z + 6 || dy < -58 * z - 6 || dy > 8 * z + 6) continue;
+      const d = dx + Math.abs(dy + 24 * z) * 0.5; if (d < bd) { bd = d; best = a; }
+    }
+    return best;
+  }
+  function renderFigCard() {
+    const info = pinnedFig && Walkers.figures().includes(pinnedFig) ? figInfo(pinnedFig) : null;
+    if (!info) { pinnedFig = null; fCard.style.display = 'none'; return; }
+    fCard.innerHTML = '<button class="fClose" data-a="close" aria-label="Zamknij">✕</button><h3>' + info.name + '</h3><div class="sub">' + info.title + '</div><div class="row">' + info.line + '</div>' + (info.doing ? '<div class="sub">Teraz: ' + info.doing + '</div>' : '') + '<button data-a="go">➜ Idź do budynku</button>';
+    fCard.style.display = 'block';
+  }
+  function pinFigure(a) { pinnedFig = a; if (a) { pinned = null; clearTimeout(pinT); refreshOverlays(); } renderFigCard(); }
+  fCard.addEventListener('click', ev => {
+    const act = ev.target.getAttribute && ev.target.getAttribute('data-a'); if (!act) return;
+    if (act === 'close') { pinFigure(null); return; }
+    const info = pinnedFig && figInfo(pinnedFig); if (!info) { pinFigure(null); return; }
+    const c = World.centerOf(info.target); Camera.focus(c.x, c.y); if (World.state().buildings.includes(info.target)) pinBuilding(info.target);
+  });
+  let figT = 0; function tickFigure() { if (pinnedFig && performance.now() - figT > 250) { figT = performance.now(); renderFigCard(); } }
   function toggleAdvisor(force) {
     advisorOpen = force === undefined ? !advisorOpen : force;
     const el = document.getElementById('advisor');
@@ -10106,7 +10166,7 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
 })();
 
 /* ================================ MODUL: MENU ================================
@@ -11268,6 +11328,7 @@ const Game = (() => {
       ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(8, Math.round(9 * z)) + 'px sans-serif';
       ctx.textAlign = 'center'; ctx.fillText(badge[0], bx, by + 3.3 * z); ctx.textAlign = 'start';
     }
+    { const pf = UI.pinnedFigure(); if (pf) { const p = Camera.worldToScreen(pf.x, pf.y); ctx.save(); ctx.strokeStyle = 'rgba(255,225,120,0.95)'; ctx.lineWidth = Math.max(1.5, 2 * z); ctx.beginPath(); ctx.ellipse(p.x, p.y, 17 * z, 8 * z, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } UI.tickFigure(); }
     BuildMode.draw(ctx);
     if (ground) ground.work(8);                                  // brakujące poziomy chunków i odświeżone nakładki — w budżecie czasu klatki
   }
