@@ -10,7 +10,7 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   const s = World.state(); s.res.deski = 999; s.res.kamień = 99; s.res.złoto = 999; s.res.narzędzia = 50; s.res['pień'] = 0; s.settings.workers = true; s.settings.physical = true;
   const put = id => { for (let r = 3; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
   const wc = put('woodcutter'), sw = put('sawmill'); s.staffed[wc.uid] = s.staffed[sw.uid] = true; s.res.deski = 0;
-  let n = 0, working = 0, idleSt = 0, sweeping = 0, partial = 0, sawActs = 0, loadSeen = new Set();
+  let n = 0, working = 0, idleSt = 0, sweeping = 0, partial = 0, sawActs = 0, sawFar = 0, loadSeen = new Set(); const sawDoor = Walkers.doorOf(sw);
   for (let i = 0; i < 1200; i++) {
     World.tick(0.05); Walkers.update(0.05); if (i % 20 === 19) s.res.deski = 0;                      // deski są stale wydawane (budowa), więc Tartak nie stoi z pełnym magazynem
     if (i < 400) continue; n++;
@@ -18,7 +18,7 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
     if (sw.st && sw.st.c === 'in' && (sw.eff || 0) >= 0.2) partial++;
     if (Workers.idleNow(sw)) idleSt++;
     if (w.act === 'sweep' || w.act === 'look') sweeping++;
-    if (w.act === 'saw') sawActs++;
+    if (w.act === 'saw') { sawActs++; if (Math.hypot(w.x - sawDoor[0], w.y - sawDoor[1]) > 2.5) sawFar++; }
     if (w.load) loadSeen.add(w.load[0]);
   }
   const eff = sw.eff || 0;
@@ -26,6 +26,7 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   ok(idleSt === 0, `${fid}: robotnik Tartaku nie jest uznany za bezczynnego, gdy Tartak pracuje częściowo (${idleSt}/${n} próbek)`);
   ok(sweeping < n * 0.15, `${fid}: robotnik Tartaku nie zamiata zamiast pracować (${sweeping}/${n} próbek)`);
   ok(sawActs > n * 0.2, `${fid}: robotnik Tartaku piłuje (${sawActs}/${n} próbek)`);
+  ok(sawActs > 0 && sawFar === 0, `${fid}: cieśla piłuje przy drzwiach Tartaku, nie po całym grodzie (${sawFar}/${sawActs} próbek dalej niż 2,5 pola od drzwi)`);
   console.log(`${fid}: eff Tartaku ${Math.round(eff * 100)}% · piłuje ${sawActs}/${n} · zamiata ${sweeping} · ładunki ${[...loadSeen].join(',')}`);
 }
 // Leśnik: sadzi sadzonki na polach wybranych przez logikę, ręka pusta po sadzeniu, powrót do domu po następną, drzewo wyrasta tam, gdzie posadzono
@@ -94,12 +95,12 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
     World.tick(0.05); Walkers.update(0.05); s.res['mąka'] = 20; s.res.woda = 20; s.res['pień'] = 20; s.res.deski = 0; s.res.chleb = 0; n++;
     const wb = Walkers.figures().find(a => a.kind === 'worker' && a.uid === bk.uid), ws = Walkers.figures().find(a => a.kind === 'worker' && a.uid === sw.uid);
     if (wb) { if (wb.hidden) hiddenN++; if (Workers.lit(bk.uid)) litN++; if (prevHidden && !wb.hidden) exits++; prevHidden = !!wb.hidden; }
-    if (ws) { if (ws.hidden) swHidden++; if (ws.act === 'saw' && Math.hypot(ws.x - dSw[0], ws.y - dSw[1]) > 0.8) swAway++; }
+    if (ws) { if (ws.hidden) swHidden++; if (ws.act === 'saw' && Math.hypot(ws.x - dSw[0], ws.y - dSw[1]) <= 1.0) swAway++; }
   }
   ok(hiddenN > n * 0.2, `piekarz wchodzi do budynku i bywa niewidoczny (${hiddenN}/${n} próbek)`);
   ok(litN > 0 && litN <= hiddenN, `w oknach piekarni świeci się światło, gdy ktoś pracuje w środku (${litN} próbek)`);
   ok(exits >= 3, `piekarz wychodzi z budynku po pracy (${exits} razy)`);
-  ok(swHidden === 0 && swAway > 0, `Tartak: robotnik zawsze widoczny, piłuje przy stanowisku obok budynku (${swAway} próbek poza drzwiami)`);
+  ok(swHidden === 0 && swAway > 0, `Tartak: robotnik zawsze widoczny, piłuje na stanowisku tuż przy drzwiach (${swAway} próbek w odległości ≤ 1 pola)`);
 }
 // Targ: karta budynku opisuje, do czego służy (kupno narzędzi; Saraceni — też sprzedaż)
 for (const fid of ['franks', 'saracens']) {

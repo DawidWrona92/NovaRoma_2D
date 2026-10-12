@@ -5480,7 +5480,7 @@ const Data = (() => {
   /* Role robotników (Faza 9B): czynność, miejsce pracy i narzędzie widoczne na ekranie. spot: 'door' — przy drzwiach, 'field' — pola wokół (r = zakres odległości od środka obrysu),
      'tree' — najbliższe drzewo, 'shore' — brzeg wody, 'service' — obsługa (stoi i krąży przy drzwiach). Ładunek wejścia i wyjścia wynika z towarów budynku (LOADS). */
   const ROLES = {
-    woodcutter: { act: 'chop', tool: 'axe', spot: 'tree' }, forester: { act: 'plant', tool: 'sapling', spot: 'field', r: [3, 6] }, sawmill: { act: 'saw', tool: 'saw', spot: 'field', r: [1.2, 2.2], n: 1 },
+    woodcutter: { act: 'chop', tool: 'axe', spot: 'tree' }, forester: { act: 'plant', tool: 'sapling', spot: 'field', r: [3, 6] }, sawmill: { act: 'saw', tool: 'saw', spot: 'door' },
     dairy: { act: 'milk', tool: 'bucket', spot: 'field', r: [1.4, 2.4], n: 1 }, orchard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4], n: 3 }, watercarrier: { act: 'draw', tool: 'bucket', spot: 'field', r: [1.2, 2.2], n: 1 },
     hunter: { act: 'shoot', tool: 'bow', spot: 'field', r: [4, 8], n: 3 }, market: { act: 'stall', spot: 'service' }, temple: { act: 'pray', spot: 'service' }, barracks: { act: 'drill', tool: 'spear', spot: 'service' },
     quarry: { act: 'dig', tool: 'pick', spot: 'field', r: [1.2, 2.2], n: 1 }, ironmine: { act: 'dig', tool: 'pick', spot: 'field', r: [1.2, 2.2], n: 1 }, coalmine: { act: 'dig', tool: 'pick', spot: 'field', r: [1.2, 2.2], n: 1 },
