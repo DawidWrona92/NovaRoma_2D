@@ -53,6 +53,10 @@ Faza 9F (uwaga graczy: *mleczarz doi, chodząc po mapie i zatrzymując się w lo
 
 > [!uwaga] Pętle są wizualizacją. Czasy i plony liczy ekonomia (rozdz. {{ref:ekonomia}}); „odpoczynek” i drogi nie zmieniają produkcji poza dawną karą za dystans do Składu (rozdz. {{ref:logistyka}}). Prawdziwe zależności z gier-wzorców (dojrzewanie krów i upraw, pojemność stosów, wózki) nie są modelowane — to kandydaci na przyszły etap.
 
+### Odpoczynek na krześle {#odpoczynek}
+
+Po zakończonym cyklu robotnik wraca do drzwi i **odpoczywa na krześle** (Punkt 15): krok `rest` z flagą `sit` trwa ok. 0,9 min gry (przy ×1 ok. 11 s). Podobnie **wolni mieszkańcy** (`Walkers`, `driveCitizen`): gdy postać dojdzie do celu, z prawdopodobieństwem `REST.p` = 25% idzie do najbliższych drzwi Chaty lub Osady w promieniu 6 pól i siada na jednym z miejsc obok drzwi (dwa po bokach, potem dalsze i tuż przed drzwiami; miejsce musi być wolne, bez drzewa, bagna, muru i budynku, jedno miejsce — jedna osoba) na 0,5–1,2 min, po czym wstaje i idzie do bieżącego celu cienia. Warstwa jest **czysto wizualna** (cień symulacji z RNG idzie dalej, własny hasz zamiast `RNG`) i działa tylko przy `settings.workers`. Krzesło nie jest częścią sprite'ów budynków: to rekwizyt rysowany pod postacią na czas odpoczynku (rozdz. {{ref:mieszkancy}}). Test: `tools/rest.js` (siadają i robotnicy, i wolni mieszkańcy; miejsca wolne i przechodnie; jedno miejsce — jedna osoba; nikt nie siedzi dłużej niż 1,4 min; logika identyczna z postaciami i bez), `tools/browser_rest.js`.
+
 ## Robotnicy i ich czynności: moduł Workers {#workers}
 
 Od Fazy 9B-1 (przełącznik `settings.workers`, w grze włączony; `?workers=0` przywraca dawne cienie) **każdy obsadzony budynek z rolą ma jednego widocznego robotnika**, który wykonuje swoją pętlę pracy. Moduł `Workers` korzysta z `Walkers` (ścieżki, drogi, ewakuacja spod placów), ale nie zmienia logiki gry: tak jak piesi jest „cieniem symulacji” — stan żyje poza stanem gry, nie losuje (miejsca pracy wybiera funkcja skrótu z `uid` budynku) i nie wywołuje globalnego `RNG`. Na ekranie widać więc to, co dzieje się w ekonomii, ale niczego to nie zmienia w wynikach.

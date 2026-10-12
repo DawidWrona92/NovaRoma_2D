@@ -11074,11 +11074,43 @@ const Walkers = (() => {
     return !a.moving;
   }
 
+  /* ODPOCZYNEK PRZED DOMEM (Punkt 15, tylko wizualny): wolny mieszkaniec, który doszedł do celu blisko drzwi Chaty lub Osady, z prawdopodobieństwem REST.p idzie do jednego z dwóch miejsc po bokach drzwi
+     i siada na krześle na REST.min–REST.max min gry; potem wstaje i dąży do bieżącego celu cienia. Logika gry (cień z RNG) idzie dalej niezależnie; własny hasz zamiast RNG; tylko przy settings.workers */
+  const REST = { p: 0.25, min: 0.5, max: 1.2, cool: 2.5, near: 6, side: 0.6 }, HOMES = { hut: 1, settlement: 1 }, seats = new Map();
+  const frac = (a, n) => { const h = Math.sin(a.phase * 12.9898 + n * 78.233 + 1.7) * 43758.5453; return h - Math.floor(h); };
+  function seatFor(a, s, map) {
+    let best = null, bd = Infinity;
+    for (const b of s.buildings) {
+      if (!HOMES[b.id]) continue; const c = World.centerOf(b); if (Math.abs(c.x - a.x) + Math.abs(c.y - a.y) > REST.near + 5) continue;
+      const d = doorOf(b), dd = Math.hypot(d[0] - a.x, d[1] - a.y); if (dd > REST.near || dd >= bd) continue;
+      for (const sd of [1, -1, 1.7, -1.7, 0.01]) {                              // dwa miejsca po bokach drzwi, potem dalsze i tuż przed drzwiami (gdy boki zajęte drzewem, bagnem lub budynkiem)
+        const key = b.uid + ':' + sd, who = seats.get(key); if (who && who !== a && who.seat === key) continue;
+        const p = [d[0] + Math.SQRT1_2 * REST.side * sd, d[1] - Math.SQRT1_2 * REST.side * sd], t = tileAt(map, p);
+        if (!t || t.h !== 1 || t.occup != null || t.wall || t.trees || t.k || !Terrain.passable(t) || t.pad) continue;
+        best = { key, p }; bd = dd; break;
+      }
+    }
+    return best;
+  }
+  function endRest(a) { if (a.seat && seats.get(a.seat) === a) seats.delete(a.seat); a.seat = null; a.sit = false; a.act = null; a.stage = null; a.cool = REST.cool; a.gx = NaN; }
   function driveCitizen(a, c, dt, map) {
+    const s = World.state(), on = !!s.settings.workers;
+    if (a.sit) { a.moving = false; a.rem -= dt; if (!on || a.rem <= 0) endRest(a); return; }
+    if (a.seat) {                                                              // idzie do krzesła
+      const done = advance(a, a.speed * dt, map), sp = a.seatP;
+      if (!on || (done && Math.hypot(sp[0] - a.x, sp[1] - a.y) > 0.4)) { endRest(a); return; }
+      if (done) { a.sit = true; a.act = 'rest'; a.stage = 'Odpoczywa przed domem'; a.rem = REST.min + frac(a, (a.rn | 0) + 50) * (REST.max - REST.min); a.tx = a.x + 1; a.ty = a.y + 1; }
+      return;
+    }
+    a.cool = (a.cool || 0) - dt;
     if (a.gx !== c.tx || a.gy !== c.ty) {                                     // cień wybrał nowy cel: przesuwamy go na najbliższe wolne, przechodnie pole
       a.gx = c.tx; a.gy = c.ty; const g = Path.nearest(map, c.tx, c.ty, OPTS, 6) || [a.x, a.y]; plan(a, g[0], g[1], map);
     }
     advance(a, a.speed * dt, map);
+    if (on && !a.moving && a.cool <= 0 && !a.evac) {                           // doszła do celu: losowanie odpoczynku przed domem
+      a.rn = (a.rn | 0) + 1; a.cool = 0.3;
+      if (frac(a, a.rn) < REST.p) { const q = seatFor(a, s, map); if (q) { a.seat = q.key; a.seatP = q.p; seats.set(q.key, a); plan(a, q.p[0], q.p[1], map); } }
+    }
   }
   function makeCitizen(c, map) {
     const p = Path.nearest(map, c.x, c.y, OPTS, 6) || [c.x, c.y], a = agent('citizen', p[0], p[1], c.speed * Data.RULES.clock.secPerMin / 4, c.color, c.phase); a.gx = NaN; return a;
@@ -11154,14 +11186,14 @@ const Walkers = (() => {
   /* dt: czas gry w minutach (jak World.tick); wywoływane po każdym kroku logiki, także z dt = 0 */
   function update(dt) {
     const s = World.state(), map = s.map; if (!map || !s.keep) return;
-    if (map !== lastMap) { citizens.clear(); carriers.clear(); builders.clear(); waiting = []; ending = []; lastMap = map; }
+    if (map !== lastMap) { citizens.clear(); carriers.clear(); builders.clear(); waiting = []; ending = []; seats.clear(); lastMap = map; }
     const seenC = new Set(), seenK = new Set(), WK = !!s.settings.workers;           // tryb robotników: pracownicy budynków chodzą sami (Workers), nosiciele-cienie znikają, obywateli widać tylko tylu, ilu jest wolnych
     for (const c of s.citizens) { seenC.add(c); let a = citizens.get(c); if (!a) citizens.set(c, a = makeCitizen(c, map)); driveCitizen(a, c, dt, map); }
     if (!WK) for (const c of s.carriers) {
       seenK.add(c); let a = carriers.get(c); if (!a) carriers.set(c, a = makeCarrier(c, s, map));
       if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
     }
-    for (const [c] of citizens) if (!seenC.has(c)) citizens.delete(c);
+    for (const [c, a] of citizens) if (!seenC.has(c)) { if (a.seat && seats.get(a.seat) === a) seats.delete(a.seat); citizens.delete(c); }
     for (const [c, a] of carriers) if (!seenK.has(c)) { carriers.delete(c); if (!a.done) ending.push(a); }
     for (const a of ending) if (!a.done && advance(a, a.speed * dt, map)) a.done = true;
     ending = ending.filter(a => !a.done);
@@ -11294,7 +11326,7 @@ const Workers = (() => {
         if (homes.length) { const first = (w.cyc | 0) % homes.length; sp = [0, 1, 2].filter(k => k < homes.length).map(k => { const h = homes[(first + k) % homes.length], d = Walkers.doorOf(h); return [d[0] - 0.3, d[1] + 0.9, d[0], d[1]]; }); label = 'Błogosławi mieszkańców'; }
       }
       for (let i = 0; i < sp.length; i++) { steps.push({ k: 'go', p: sp[i], label: b.id === 'temple' ? 'Idzie do domów mieszkańców' : 'Obchodzi okolicę' }, { k: 'act', act: role.act, dur: 1.2 + hash(b.uid, 10 + i) * 1.6, face: [sp[i][2], sp[i][3]], label }); }
-      steps.push({ k: 'go', p: [door[0], door[1]], label: 'Wraca do domu' }, { k: 'act', act: 'rest', dur: 0.8, face: [door[0], door[1] + 1], label: 'Odpoczywa' });
+      steps.push({ k: 'go', p: [door[0], door[1]], label: 'Wraca do domu' }, { k: 'act', act: 'rest', sit: true, dur: 0.9, face: [door[0], door[1] + 1], label: 'Odpoczywa' });
       return steps;
     }
     const outG = firstGood(def.out, () => true), ins = Object.keys(def.inp || {}).filter(LIMITED), inG = ins[0] || null;
@@ -11321,7 +11353,7 @@ const Workers = (() => {
     return steps;
   }
   /* odpoczynek przy drzwiach po cyklu (krótko; logiki produkcji to nie dotyczy) */
-  const rest = door => ({ k: 'act', act: 'rest', dur: 0.35, face: [door[0], door[1] + 1] });
+  const rest = door => ({ k: 'act', act: 'rest', sit: true, dur: 0.9, face: [door[0], door[1] + 1] });                   // sit: odpoczynek na krześle przed drzwiami (Punkt 15; rysowanie w Game.drawFigure)
   const IDLE_AFTER = 1.0, WORK_AFTER = 0.3;                                          // min gry: tyle musi trwać postój (praca), by robotnik zmienił tryb
   /* budynek stoi: brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże. Gdy wejścia lub miejsca starcza tylko częściowo (np. Tartak dostaje 56% pni), logika produkuje
      ułamek nominału — robotnik wtedy pracuje, a nie stoi (RULES.cycle.partial: najniższy ułamek, od którego uznaje się budynek za pracujący) */
@@ -11345,7 +11377,7 @@ const Workers = (() => {
   function enterStep(w, st, map) {
     const a = w.a; w.planned = true;
     if (st.k === 'go') { Walkers.kit.plan(a, st.p[0], st.p[1], map); a.act = null; }
-    else if (st.k === 'act') { a.act = st.act; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } if (st.plant) planted.set(st.plant, w.b.uid === st.plant.b ? World.state().time : 0); }
+    else if (st.k === 'act') { a.act = st.act; a.sit = !!st.sit; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } if (st.plant) planted.set(st.plant, w.b.uid === st.plant.b ? World.state().time : 0); }
     else if (st.k === 'idle') { a.act = null; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
     else if (st.k === 'enter') { a.hidden = true; a.moving = false; a.act = null; }
     else if (st.k === 'exit') { a.hidden = false; }
@@ -11664,6 +11696,11 @@ const Game = (() => {
       } else push({ d: a.x + a.y, kind: 'c', fig: a, sx: p.x, sy: p.y, x: a.x, y: a.y, bb: [p.x - 30 * z, p.y - 40 * z, p.x + 30 * z, p.y + 10 * z] });
     }
 
+    // 3a. krzesła odpoczywających (Punkt 15): stan pojawiania i znikania; po wstaniu krzesło jeszcze 0,45 s blednie w miejscu
+    { const seen = new Set(); for (const a of Walkers.figures()) if (a.act === 'rest' && a.sit && !a.hidden) { seen.add(a); const r = chairs.get(a); if (!r) chairs.set(a, { x: a.x, y: a.y, since: t, left: 0 }); else { r.x = a.x; r.y = a.y; r.left = 0; } }
+      for (const [a, r] of chairs) { if (seen.has(a)) continue; if (!r.left) r.left = t; if (t - r.left > 0.45) { chairs.delete(a); continue; }
+        if (sprOn) { const p = Camera.worldToScreen(r.x, r.y), bb = [p.x - 30 * K, p.y - 60 * K, p.x + 30 * K, p.y + 6 * K]; push({ d: r.x + r.y, kind: 'ch', r, sx: p.x, sy: p.y, k: K, x: r.x, y: r.y, bb }); } } }
+
     // 3b. zwierzęta i myśliwi z łukiem (Faza 8): stan z logiki (Fauna); profil w prawo odbijany wg kierunku na ekranie; ptaki w locie rysowane osobno, nad wszystkim
     const fliers = [];
     if (sprOn && s.settings.fauna && s.fauna) {
@@ -11729,6 +11766,7 @@ const Game = (() => {
       } else if (it.kind === 'd' || it.kind === 'x') Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr);
       else if (it.kind === 's') drawSite(it, t, f);
       else if (it.kind === 'w') { if (it.spr) Sprites.draw(ctx, it.spr, 'c', it.sx, it.sy, it.k, dpr); else drawWall(it, K); }
+      else if (it.kind === 'ch') drawChair(it.sx, it.sy, it.k, Math.max(0, 1 - (t - it.r.left) / 0.45), Data.FACTIONS[fid].palette.timber);
       else if (it.kind === 'f') drawFigure(it, t);
       else if (it.kind === 'a') drawAnimal(it, t);
       else Gfx.drawCitizen(ctx, it.fig, it.sx, it.sy, z, fid, f.palette, t);
@@ -11881,7 +11919,37 @@ const Game = (() => {
     return [d.dx * d.len * f, d.dy * d.len * f];
   }
 
+  /* ODPOCZYNEK NA KRZEŚLE (Punkt 15): krzesło to rekwizyt rysowany pod postacią (nie jest częścią sprite'ów budynków) — pojawia się, gdy postać siada, i znika po wstaniu; barwa drewna z palety nacji.
+     Poza siedząca: tułów z istniejącego sprite'a „front", przycięty na wysokości bioder i obniżony; uda, podudzia i buty dorysowane; w cyklu ok. 8 s: kołysanie, rozciąganie (ręce w górę), popijanie. Narzędzie ukryte. */
+  const chairs = new Map();                                                    // postać → { x, y, since, left } (stan krzesła do animacji pojawiania i znikania)
+  function tintC(col, f) { const m = /^#?([0-9a-f]{6})$/i.exec(col || ''); if (!m) return col; const n = parseInt(m[1], 16), c = v => Math.max(0, Math.min(255, Math.round(v * f))); return 'rgb(' + c(n >> 16 & 255) + ',' + c(n >> 8 & 255) + ',' + c(n & 255) + ')'; }
+  function drawChair(sx, sy, k, al, wood) {
+    ctx.save(); ctx.globalAlpha = al; ctx.translate(sx, sy); const dk = tintC(wood, 0.62), md = tintC(wood, 1.0), lt = tintC(wood, 1.3);
+    line(-10, -42, -10, -6, 2.8, dk, k); line(10, -42, 10, -6, 2.8, dk, k);                                  // oparcie: słupki i listwy
+    poly([[-10, -40], [10, -40], [10, -33], [-10, -33]], md, k); poly([[-10, -30], [10, -30], [10, -24], [-10, -24]], md, k);
+    line(-10, -6, -10, 0, 2.6, dk, k); line(10, -6, 10, 0, 2.6, dk, k);                                       // przednie nogi
+    poly([[-10, -16], [10, -16], [13, -11], [-13, -11]], lt, k); poly([[-13, -11], [13, -11], [13, -7], [-13, -7]], dk, k);   // siedzisko: góra i przód
+    ctx.restore();
+  }
+  function drawSeated(it, t) {
+    const fig = it.fig, k = it.k, r = chairs.get(fig) || { since: t }, u = Math.min(1, (t - r.since) / 0.4), wood = Data.FACTIONS[World.state().factionId].palette.timber;
+    const ph = (fig.phase || 0) * 0.37, T = ((t * 0.125 + ph) % 1 + 1) % 1;
+    let lean = 0.03 * Math.sin(t * 1.2 + ph * 6), arms = 0, sip = 0;
+    if (T >= 0.30 && T < 0.42) { arms = Math.sin(Math.PI * (T - 0.30) / 0.12); lean = -0.10 * arms; }
+    else if (T >= 0.60 && T < 0.78) { sip = Math.pow(Math.sin(Math.PI * (T - 0.60) / 0.18), 0.6); lean = -0.03 * sip; }
+    drawChair(it.sx, it.sy, k, u, wood);
+    const pants = '#5b4b3a', sleeve = fig.color || '#a07a50', skin = Data.FACTIONS[World.state().factionId].palette.skin || '#e8c39a', sp = it.cast.front[0];
+    ctx.save(); ctx.translate(it.sx, it.sy - 17.5 * k); if (it.mirror) ctx.scale(-1, 1); ctx.rotate(lean);
+    ctx.save(); ctx.beginPath(); ctx.rect(-70 * k, -190 * k, 140 * k, 190 * k); ctx.clip(); Sprites.draw(ctx, sp, 'c', 0, 30 * k, k, dpr); ctx.restore();   // tułów (cięcie w pasie)
+    if (arms > 0.02) for (const sg of [-1, 1]) { line(sg * 7, -22, sg * (9 + 4 * arms), -22 - 17 * arms, 3.4, sleeve, k); oval(sg * (9 + 4 * arms), -22 - 18 * arms, 2.4, 2.4, skin, k); }
+    if (sip > 0.02) { const cx = 9 - 6 * sip, cy = -9 - 18 * sip; line(7, -17, cx, cy, 3.2, sleeve, k); poly([[cx - 2.6, cy - 5], [cx + 2.6, cy - 5], [cx + 2, cy + 1], [cx - 2, cy + 1]], '#d8d0b8', k); oval(cx, cy + 1, 2.4, 2.2, skin, k); }
+    ctx.restore();
+    ctx.save(); ctx.translate(it.sx, it.sy); if (it.mirror) ctx.scale(-1, 1);
+    for (const sg of [-1, 1]) { oval(sg * 4.6, -14, 5, 4, pants, k, 0, 'rgba(16,10,6,0.6)'); poly([[sg * 2.4, -12], [sg * 7, -12], [sg * 7.2, -3], [sg * 2.2, -3]], tintC(pants, 0.85), k, 'rgba(16,10,6,0.6)'); oval(sg * 4.8, -2, 4.6, 2.3, '#2a1c10', k); }
+    ctx.restore();
+  }
   function drawFigure(it, t) {
+    if (it.fig.act === 'rest' && it.fig.sit && it.cast && it.cast.front && it.cast.front[0]) { drawSeated(it, t); return; }
     const mv = it.fig.moving !== false, frame = mv ? Math.floor(t * 3.6 + it.fig.phase) % 2 : 0, sp = it.cast[it.view][frame], bob = mv ? Math.abs(Math.sin((t * 3.6 + it.fig.phase) * Math.PI)) * 1.2 * Camera.zoom : 0;
     ctx.save(); ctx.translate(it.sx, it.sy - bob); if (it.mirror) ctx.scale(-1, 1);
     Sprites.draw(ctx, sp, 'c', 0, 0, it.k, dpr); ctx.restore();

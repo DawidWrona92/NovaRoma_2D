@@ -45,6 +45,7 @@ Tabela: Co sprawdza test każdego modułu świata
 | `path.js` | `Path` | koszt = niezależny Dijkstra, trasa tylko po polach przechodnich, brak ścinania rogów, brak RNG, determinizm, szybkość |
 | `walkers.js` | `Walkers` | postacie tylko na wolnych polach, nosiciele dochodzą do drzwi, **logika identyczna z Walkers i bez** (cień symulacji) |
 | `roads.js` | `Roads` | koszt tylko za nowe pola, odmowy, zdejmowanie drogi przez budowę, preferowanie drogi przez A\*, JSON |
+| `rest.js` | `Walkers`, `Workers` | odpoczynek na krześle: siadają robotnicy i wolni mieszkańcy, miejsca wolne i przechodnie, jedno miejsce — jedna osoba, czas siedzenia ograniczony, logika identyczna z postaciami i bez, bez `settings.workers` nikt nie siada (+ `browser_rest.js`) |
 | `walls.js` | `Walls` | koszt wg nacji, odmowy (drzewa, droga, brak surowców), nieprzechodniość i obejście przez A\*, odcięcie budynku od Dworu, burzenie, brak wpływu bez murów; **bramy**: koszt, oś, przejście A\*, droga przez bramę, teren zamknięty bez bramy (+ `browser_walls.js`: zakładka Mury z trzema narzędziami, oba tryby grafiki) |
 | `spacing.js`, `leveling.js` | `World.canPlace`, `Build` | przerwa 1 pole, strefa kary 2–3, wyrównywanie stoków, wzgórza decyzyjne |
 | `logistics.js` | `Logistics` | blisko Składu bez kary, daleko spadek do minimum, drogi i Skład pomagają, ekonomia produkuje mniej |

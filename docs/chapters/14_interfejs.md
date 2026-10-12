@@ -18,7 +18,7 @@ Tabela: Ekrany przed grą i w grze
 
 ### Karta postaci i podświetlenie złóż {#karta-postaci}
 
-**Karta postaci** (Faza 9E). Kliknięcie lub dotknięcie robotnika, budowniczego, mieszkańca albo nosiciela zaznacza go żółtą obwódką i otwiera kartę (`#fCard`): imię (z puli imion nacji), rola (np. Drwal, Leśnik, Kamieniarz, Budowniczy, Mieszkaniec), wiersz „Pracuje w: …” albo „Mieszka w: …” (mieszkaniec ma przypisaną Chatę lub Osadę deterministycznie z fazy postaci), bieżąca czynność oraz przycisk **➜ Idź do budynku**, który przenosi widok (`Camera.focus`) i otwiera kartę budynku. Karta znika, gdy postać znika, po ✕ i po Esc; test: `tools/browser_figure.js`.
+**Karta postaci** (Faza 9E; odpoczywający na krześle mają etap „Odpoczywa” / „Odpoczywa przed domem”). Kliknięcie lub dotknięcie robotnika, budowniczego, mieszkańca albo nosiciela zaznacza go żółtą obwódką i otwiera kartę (`#fCard`): imię (z puli imion nacji), rola (np. Drwal, Leśnik, Kamieniarz, Budowniczy, Mieszkaniec), wiersz „Pracuje w: …” albo „Mieszka w: …” (mieszkaniec ma przypisaną Chatę lub Osadę deterministycznie z fazy postaci), bieżąca czynność oraz przycisk **➜ Idź do budynku**, który przenosi widok (`Camera.focus`) i otwiera kartę budynku. Karta znika, gdy postać znika, po ✕ i po Esc; test: `tools/browser_figure.js`.
 
 **Złoża.** Złoże kamienia ma własny, jasny wygląd ciosanego wapienia (nie szare głazy dekoracji). Po wybraniu kopalni, Kamieniołomu lub Glinianki w trybie budowy pola z pasującym złożem pulsują na bursztynowo z napisem „złoże: …”.
 
