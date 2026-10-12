@@ -29,6 +29,8 @@ Gra to jeden plik `Nova_Roma.html` (JavaScript, canvas 2D, 4 nacje: Frankowie, S
 | 9D-3 | **Składy wyspecjalizowane**: górniczy (ruda, węgiel, kamień, glina, sztabki) i drzewny (pień, deski) — +100 szt. tylko swoich towarów, obsługują producenta, którego wszystkie towary przyjmują; logistyka liczy najbliższy pasujący węzeł (`via`), mapa ciepła i Doradca podpowiadają właściwy węzeł; `tools/hubs.js` 112 sprawdzeń | ✔ |
 | 9D-docs | rozdz. 10, 12, 14, 15, 16, 17, 06, aneks E, README testów | ◐ agenci dokumentacji w toku |
 
+**Faza 9E — uwagi z gry kolegów** (zgłaszane na bieżąco): ✔ robotnik Tartaku pracuje przy niepełnym wejściu (Doradca: „Za mało wejścia … N%”); ✔ Leśnik sadzi na polach, gdzie rosną drzewa (ręka pusta, powrót po sadzonkę, rosnące drzewko); ✔ złoża kamienia odróżnialne od skał + podświetlenie pól złóż przy wyborze kopalni; ✔ karta postaci z przyciskiem „Idź do budynku”; ✔ opis Targu (karta, menu, Doradca); ✔ **oczyszczanie terenu** — budowa na drzewach i bagnie (0,6 min / drzewo, 2 min / pole bagna; rzeki, klify, złoża blokują). Testy: `chain.js`, `clearing.js`, `browser_figure.js`.
+
 Do sprawdzenia przy dużych testach: wydajność 96×96 na telefonie (pomiar tylko w Chromium: start 4,4 s, tick 0,17 ms), bilans botów na mapach 72/96 (wzorzec `baseline6`).
 
 Wcześniej w tej serii (✔): kopalnie tylko w górach (masyw), zwierzęta unikają miasta i odradzają się w punktach spawnu, karawana kosmetyczna, `L_ref` 5, gra jako artefakt (https://claude.ai/artifact/KqRh8cYnMbqEnTdCYN85kd), ekran diagnostyczny startu.

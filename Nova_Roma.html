@@ -5473,7 +5473,7 @@ const Data = (() => {
   const RES_LABEL = { d:'deski', k:'kamień', gl:'glina', zl:'złoto' };
   /* zasady zabudowy (od obrysu budynku): pole 1 — zakaz (twarda przerwa `gap`, „ulica” na drogę i przejścia); pola 2–3 — budowa dłuższa (`ring` pól za przerwą:
      każdy sąsiedni budynek dolicza `per` do czasu budowy, najwyżej `max`); od pola 4 — normalnie */
-  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
+  const RULES = { gap: 1, crowd: { ring: 2, per: 0.10, max: 0.40 }, logistics: { free: 6, span: 20, min: 0.7 }, level: { per: 0.25 }, clock: { secPerMin: 12, speeds: [1, 2, 3, 6] }, walk: { v: 18, builder: 18, carrier: 18, caravan: 16 }, cycle: { load: 10, handle: 0.1, ref: 5, spell: 1.2, min: 0.3, treeRef: 5, carry: 10, partial: 0.2 }, caravan: { load: 8, wait: 3, sale: 0.3 }, hub: { free: 3, cap: 40, minDist: 12, apart: 10, special: 100 }, clear: { tree: 0.6, bog: 2.0 } };   // clock: sekundy rzeczywiste na minutę gry przy prędkości ×1 (bazowo 12; dawniej 4) i dostępne prędkości; walk: prędkość marszu widocznych postaci w polach na minutę gry (v = 18 ≈ 1,5 pola/s przy 12 s/min); cycle: cykl pracy robotnika — ładunek jednego kursu (szt.), czas obsługi przy składzie (min), odległość odniesienia L_ref (koszt pola; bliżej nie ma kary ani premii), długość jednego „odcinka pracy" na ekranie (min) najniższa sprawność (brak dojścia), odległość odniesienia do drzewa drwala (treeRef) liczba sztuk materiału noszonych przez budowniczego w jednym kursie (carry) i najniższy ułamek produkcji, od którego budynek z niepełnym wejściem lub magazynem pokazuje się jako pracujący (partial); clear: oczyszczanie terenu pod budowę (settings.clearing) — minut pracy budowniczych na drzewo (tree) i na pole bagna do osuszenia (bog); hub: Osada i Składy wyspecjalizowane (Faza 9D) — free: o ile pól krótszą drogę mają producenci liczący do Osady, cap: pojemność Osady (szt. każdego towaru), special: pojemność Składu górniczego i drzewnego (szt. jego towarów), minDist: najmniejsza odległość Osady od Dworu (pola, ×K = rozmiar mapy / 48), apart: najmniejsza odległość między Osadami (×K); caravan: karawana Saracenów — ładunek wysyłki (szt.), najdłuższe oczekiwanie na komplet (min) i czas sprzedaży na końcu trasy (min); level.per: minut pracy budowniczych na każdy poziom wyrównywanego terenu (pole × różnica wysokości)
   //   // logistics: koszt dojścia do Składu / Dworu (w polach drogi: 1 pole lądu = 1, droga 0,6) bez kary, zakres spadku sprawności, najniższa sprawność
   const RULES_NOTE = 'Zasady zabudowy: pole obok budynku jest zabronione; w odległości 2–3 pól od innych budynków budowa trwa dłużej (+10% za każdy, maks. +40%) — od 4. pola normalnie. Pochyły teren trzeba wyrównać: +0,25 min budowy za każde pole do przesunięcia.';
 
@@ -7630,7 +7630,7 @@ const World = (() => {
     /* liczniki do raportów i testów */
     stats: { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 },
     /* ustawienia scenariusza: napady na karawanę (Saraceni), reguła wysyłki Wikingów (90% robotników zostaje) */
-    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false },
+    settings: { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false },
     animals: [], fauna: null,                                  // zwierzęta (Faza 8): lista JSON-owa i stan modułu Fauna (włączane przez Fauna.enable)
     depositLeft: null, // opcjonalne skończone złoża, np. { clay: 60 } — wyczerpanie zatrzymuje tylko budowę, nie ekonomię
     /* Etap 3 — logistyka budowy */
@@ -7653,7 +7653,7 @@ const World = (() => {
     state.treeFrac = 0; state.plantFrac = 0; state.plantSeq = 0; state.caravans = []; state.caravanWait = 0; state.caravanPile = {};
     state.welfare = {}; state.foodRep = null; state.waitingForTool = false;
     state.stats = { toolsBought: 0, toolsForged: 0, planksSpent: 0, starveMin: 0 };
-    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false };
+    state.settings = { raids: true, voyageGuard: true, shoreSpots: 6, logistics: false, fauna: false, workers: false, physical: false, clearing: false };
     state.animals = []; state.fauna = null;
     state.depositLeft = null;
     Data.cur.faction = factionId;
@@ -7715,6 +7715,17 @@ const World = (() => {
     const need = es.reduce((a, e) => a + Math.abs(e - target), 0);
     return { need, target, minutes: need * Data.RULES.level.per };
   }
+  /* oczyszczanie terenu pod obrys (settings.clearing): drzewa do ścięcia i pola bagna do osuszenia na polach lądu obrysu; minutes = Σ drzew × RULES.clear.tree + Σ bagien × RULES.clear.bog;
+     items — kolejność prac (najpierw drzewa, potem bagna): [indeks pola, 't' | 'b']; rzeki, klify, wydmy i ruchome piaski nie podlegają oczyszczaniu */
+  function clearOf(id, x, y, rot) {
+    const out = { trees: 0, bogs: 0, minutes: 0, items: [] }; if (!state.settings.clearing) return out;
+    const [w, h] = fpOf(id, rot), z = Data.zonesOf(id, state.factionId, rot), land = z ? new Set(z.land.map(q => q[1] * w + q[0])) : null, N = state.map.size, R = Data.RULES.clear, bogs = [];
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      if (land && !land.has(dy * w + dx)) continue; const t = MapGen.at(state.map, x + dx, y + dy); if (!t) continue; const i = (y + dy) * N + x + dx;
+      for (let k = 0; k < t.trees; k++) { out.trees++; out.items.push([i, 't']); } if (t.k === 'bog') { out.bogs++; bogs.push([i, 'b']); }
+    }
+    out.items.push(...bogs); out.minutes = out.trees * R.tree + out.bogs * R.bog; return out;
+  }
   /* ciasna zabudowa: ilu sąsiadów stoi tuż za przerwą (pierścień `ring` pól za GAP) → kara czasu budowy; zwraca { n, pct } */
   function crowdOf(id, x, y, rot) {
     const [w, h] = fpOf(id, rot), R = Data.RULES, g = R.gap | 0, a = g + 1, b = g + R.crowd.ring, uids = new Set();
@@ -7762,8 +7773,9 @@ const World = (() => {
         if (!t || t.h !== 0 || t.wk !== 'sea' || t.occup != null) return { ok: false, reason: id === 'ship' ? 'Okręt stoi tylko na wolnej wodzie morza' : 'Molo musi stać na wolnej wodzie morza' };
         continue;
       }
-      if (!t || t.h !== 1 || t.occup || t.trees > 0) return { ok: false, reason: zones && id === 'dock' ? 'Szopa Przystani musi stać na wolnym lądzie' : 'Zajęte lub niebudowlane pole' };
-      if (t.k && Terrain.BLOCK_K[t.k]) return { ok: false, reason: K_WHY[t.k] };
+      const clr = !!state.settings.clearing;                                                   // budowniczowie wytną drzewa i osuszą bagno, zanim zaczną budować (clearOf)
+      if (!t || t.h !== 1 || t.occup || (t.trees > 0 && !clr)) return { ok: false, reason: zones && id === 'dock' ? 'Szopa Przystani musi stać na wolnym lądzie' : 'Zajęte lub niebudowlane pole' };
+      if (t.k && Terrain.BLOCK_K[t.k] && !(clr && t.k === 'bog')) return { ok: false, reason: K_WHY[t.k] };
       // złoże jest zarezerwowane dla pasującej kopalni
       if (t.deposit && def.req !== 'deposit:' + t.deposit) return { ok: false, reason: 'Złoże — miejsce tylko na kopalnię' };
       if (t.deposit) hasDeposit = true;
@@ -7965,7 +7977,7 @@ const World = (() => {
 
   function state$() { return state; }
   return { init, state: state$, build, placeFree, placeBuilding, canPlace, crowdOf, levelOf, canAfford, costOf,
-           tick, spawnCitizen, treeCount, addTree, saplingSpot, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf, dockPierTiles };
+           tick, spawnCitizen, treeCount, addTree, saplingSpot, clearOf, takeTrees, nearestTree, footprint: fpOf, occupy, release, centerOf, dockPierTiles };
 })();
 
 /* ============================= MODUL: ECONOMY ==============================
@@ -8318,11 +8330,12 @@ const Build = (() => {
     if ((cost.zl || 0) > s.res.złoto - reserve) return { ok: false, reason: 'Brak złota (rezerwa na żołd)!' };
     s.res.złoto -= (cost.zl || 0); // złoto przy otwarciu placu
     const [w, h] = World.footprint(id, rot);
-    const crowd = World.crowdOf(id, x, y, rot).pct, lv = World.levelOf(id, x, y, rot);    // ciasna zabudowa wydłuża budowę (Data.RULES.crowd); pochyły teren wymaga wyrównania (etap 0)
+    const crowd = World.crowdOf(id, x, y, rot).pct, lv = World.levelOf(id, x, y, rot), cl = World.clearOf(id, x, y, rot);    // ciasna zabudowa wydłuża budowę (Data.RULES.crowd); pochyły teren wymaga wyrównania, a drzewa i bagno — oczyszczenia (etap 0)
     const site = { id, x, y, w, h, uid: s.nextId++, need: {}, got: {}, work: 0,
-      gold: cost.zl || 0, pieces: piecesOf(cost), crowd, levelTarget: lv.target, levelTotal: lv.minutes, levelLeft: lv.minutes,
+      gold: cost.zl || 0, pieces: piecesOf(cost), crowd, levelTarget: lv.target, levelTotal: lv.minutes + cl.minutes, levelLeft: lv.minutes + cl.minutes,
       workNeed: (BASE_WORK + PER_PIECE * piecesOf(cost)) * (1 + crowd), assigned: 0 };
     if (rot) site.rot = rot;
+    if (cl.items.length) site.clr = { items: cl.items, n: 0, trees: cl.trees };                // oczyszczanie: lista prac i ile już wykonano (drzewa znikają po kolei, wg postępu etapu 0)
     for (const k in cost) if (MAT[k]) site.need[MAT[k]] = cost[k];
     s.sites.push(site);
     World.occupy(x, y, w, h, site.uid); // rezerwacja kafli pod plac
@@ -8343,7 +8356,17 @@ const Build = (() => {
   }
 
   /* koniec wyrównywania: pola obrysu dostają poziom docelowy; Game odświeża chunki podłoża z listy map.dirty */
+  /* oczyszczanie placu wg postępu etapu 0: znikają kolejne drzewa, potem bagna (all — do końca) */
+  function applyClear(site, all) {
+    const c = site.clr; if (!c) return; const map = World.state().map, want = all ? c.items.length : Math.floor(levelProgress(site) * c.items.length + 1e-9);
+    while (c.n < want) {
+      const [i, k] = c.items[c.n++], t = map.tiles[i]; if (!t) continue;
+      if (k === 't') { if (t.trees > 0) t.trees--; } else if (t.k === 'bog') { t.k = null; (map.dirty = map.dirty || []).push([i % map.size, (i / map.size) | 0, 1, 1]); }
+    }
+  }
+  const clearingTrees = site => !!(site.clr && site.clr.n < site.clr.trees);                      // trwa ścinanie drzew (budowniczowie z siekierą)
   function flatten(site) {
+    applyClear(site, true);
     const map = World.state().map;
     for (let dy = 0; dy < site.h; dy++) for (let dx = 0; dx < site.w; dx++) { const t = MapGen.at(map, site.x + dx, site.y + dy); if (t) t.e = site.levelTarget; }
     (map.dirty = map.dirty || []).push([site.x, site.y, site.w, site.h]);
@@ -8392,7 +8415,7 @@ const Build = (() => {
       }
       if (leveling) {                                                         // etap 0: wyrównywanie terenu — budowniczowie kopią, nie noszą i nie budują
         site.levelLeft -= site.assigned * dt;
-        if (site.levelLeft <= 1e-9) { site.levelLeft = 0; flatten(site); }
+        if (site.levelLeft <= 1e-9) { site.levelLeft = 0; flatten(site); } else applyClear(site, false);
         continue;
       }
       // etap 1: noszenie — 0,2 min budowniczego na sztukę
@@ -8428,7 +8451,7 @@ const Build = (() => {
     return carry * 0.5 + work * 0.5;
   }
 
-  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress, PIECE_MIN, BASE_WORK, PER_PIECE };
+  return { enqueue, siteAt, cancel, tick, progressOf, levelProgress, clearingTrees, PIECE_MIN, BASE_WORK, PER_PIECE };
 })();
 
 /* ===================== MODUL: TRIBUTE (Etap 4: haracz seniora) ============== */
@@ -8927,6 +8950,7 @@ const TestBots = (() => {
     if (cfg.fauna) Fauna.enable(s);                      // opcjonalnie: bot gra z fauną (Faza 8); domyślnie bez — jak scenariusze specyfikacji
     if (cfg.logistics) s.settings.logistics = true;      // opcjonalnie: dawna krzywa logistyczna / fizyczny cykl pracy (Faza 9B-2); domyślnie wyłączone — jak scenariusze specyfikacji
     if (cfg.physical) s.settings.physical = true;
+    if (cfg.clearing) s.settings.clearing = true;
     if (cfg.tax != null) s.controls.tax = cfg.tax;
     Tribute.set(cfg.preset || 'normal');
     const plan = (RECIPE[cfg.faction] || []).slice();
@@ -9576,6 +9600,8 @@ const BuildMode = (() => {
     const crowd = check.ok ? World.crowdOf(selected, o.x, o.y, rr) : null, lvl = check.ok ? World.levelOf(selected, o.x, o.y, rr) : null, parts = [];
     if (crowd && crowd.n) parts.push('+' + Math.round(crowd.pct * 100) + '% czasu budowy (ciasna zabudowa)');
     if (lvl && lvl.need) parts.push('+' + lvl.minutes.toFixed(1).replace('.', ',') + ' min wyrównania terenu');
+    const clr = check.ok ? World.clearOf(selected, o.x, o.y, rr) : null;
+    if (clr && clr.items.length) parts.push('+' + clr.minutes.toFixed(1).replace('.', ',') + ' min czyszczenia (' + [clr.trees ? clr.trees + ' ' + (clr.trees === 1 ? 'drzewo' : 'drzew') : '', clr.bogs ? clr.bogs + ' pól bagna' : ''].filter(Boolean).join(', ') + ')');
     const tp = check.ok ? transportAt(s, selected, o.x, o.y) : null;                                   // transport: odległość do Składu / Dworu i skutek (Faza 9B)
     if (tp) parts.push(tp);
     const note = !check.ok ? check.reason : parts.join(' · ');
@@ -9834,6 +9860,7 @@ const UI = (() => {
     updC();
     // sprawność logistyczna: w grze domyślnie włączona (?logistics=0 wyłącza); scenariusze specyfikacji liczą się bez niej
     s.settings.logistics = new URLSearchParams(location.search).get('logistics') !== '0';
+    s.settings.clearing = new URLSearchParams(location.search).get('clearing') !== '0';                                          // budowa na drzewach i bagnie z oczyszczaniem (Faza 9E-3); ?clearing=0 — dawny zakaz
     s.settings.physical = s.settings.logistics && new URLSearchParams(location.search).get('physical') !== '0';          // sprawność z cyklu pracy (Faza 9B-2); ?physical=0 — dawna krzywa liniowa
     s.settings.workers = new URLSearchParams(location.search).get('workers') !== '0';        // role i czynności robotników (Faza 9B-1); ?workers=0 — dawne cienie: nosiciele i obywatele
     const btnL = document.getElementById('btnLogi'), updL = () => { btnL.textContent = '🚚 Logistyka: ' + (s.settings.logistics ? 'wł.' : 'wył.'); };
@@ -10743,9 +10770,9 @@ const Walkers = (() => {
       const bse = baseOf(s, site, door);
       evacCheck(a, map); if (a.evac) { advance(a, a.speed * dt, map); continue; }
       const carrying = !(site.levelLeft > 0) && Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
-      a.v = 1; a.tool = site.levelLeft > 0 ? 'pick' : 'hammer';
+      a.v = 1; a.tool = site.levelLeft > 0 ? (Build.clearingTrees(site) ? 'axe' : 'pick') : 'hammer';
       { const g = Object.keys(site.need).find(k => (site.got[k] || 0) < site.need[k]) || Object.keys(site.need)[0]; a.load = a.carry && g ? Data.LOADS[g] || null : null; }
-      a.act = (a.mode === 'work' && !a.moving) ? (site.levelLeft > 0 ? 'dig' : 'hammer') : null;
+      a.act = (a.mode === 'work' && !a.moving) ? (site.levelLeft > 0 ? (Build.clearingTrees(site) ? 'chop' : 'dig') : 'hammer') : null;
       if (carrying) {
         if (a.mode === 'start' || a.mode === 'work' || a.mode === 'goWork') { a.mode = 'toSite'; a.carry = true; plan(a, wp[0], wp[1], map); }
         if (advance(a, a.speed * dt, map)) {

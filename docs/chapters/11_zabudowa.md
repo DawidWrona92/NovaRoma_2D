@@ -18,6 +18,14 @@ Plac nie musi leżeć na płaskim terenie, ale różnica wysokości między pola
 
 > [!uwaga] Wyrównanie nie wymaga osobnego przycisku: po otwarciu placu budowniczowie najpierw zrównują teren, a dopiero potem noszą materiały i stawiają budynek. Czas wyrównania jest wliczony w czas, po którym budynek staje się gotowy (rozdz. {{ref:budowa}}).
 
+## Oczyszczanie terenu {#czyszczenie}
+
+Od Fazy 9E (przełącznik `settings.clearing`, w grze włączony; `?clearing=0` przywraca dawny zakaz) wolno stawiać budynki na polach z **drzewami** i z **bagnem**. Budowniczowie wykonują to w etapie 0 placu, razem z wyrównywaniem terenu: najpierw ścinają drzewa (z siekierą), potem osuszają bagno (z kilofem). Koszt czasu to {{v:Data.RULES.clear.tree}} min pracy na drzewo i {{v:Data.RULES.clear.bog}} min na pole bagna (`World.clearOf`); sumuje się z czasem wyrównania i dzieli między przydzielonych budowniczych. Podgląd w trybie budowy pokazuje „+X min czyszczenia (N drzew, M pól bagna)”. Drzewa znikają z placu po kolei, w miarę postępu etapu 0, a po jego końcu pole jest czyste.
+
+Nadal blokują: woda (morze, jezioro, **rzeka**), klify, wydmy, ruchome piaski i głęboki śnieg; złoże pozostaje zarezerwowane dla pasującej kopalni. Dekoracyjne krzaki i kępy trawy nie blokowały zabudowy wcześniej i nie blokują jej teraz — znikają, gdy pole zajmie plac.
+
+> [!decyzja] **Budowa wokół złóż** (decyzja użytkownika, Faza 9E, po uwadze, że złoża są obrośnięte lasem): zamiast zakazu — oczyszczanie przez budowniczych za cenę dłuższej budowy. Czasy zatwierdził użytkownik.
+
 ## Wymagania budynków {#wymagania}
 
 Każdy budynek może mieć pole `req` opisujące wymóg terenowy. Sprawdzenie odbywa się w `canPlace` na obrysie powiększonym o jednopolowy pierścień sąsiedztwa:

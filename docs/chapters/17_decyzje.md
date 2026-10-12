@@ -20,6 +20,7 @@ Tabela: Fazy prac i ich efekty (commity w gałęzi `claude/festive-meitner-ejo4l
 | 9B-5 | strojenie: karawana kosmetyczna (złoto od razu), L_ref 5, histereza robotników (`tools/workers.js` 60/60), bramka bilansu 75% bazowej i 85% krzywej | `ce00013` |
 | 9C | obrót budynków, Przystań i Okręt na wodzie (strefy ląd/woda), kopalnie w górach, fauna unikająca miasta, artefakt, ekran diagnostyczny startu | `693f686` |
 | 9D-1 | rozmiar mapy 48 / 72 / 96 do wyboru w Piaskownicy (domyślnie Średnia 72) | `e9b8312` |
+| 9E | poprawki z gry kolegów: Tartak i Leśnik, złoża kamienia, karta postaci, opis Targu, oczyszczanie terenu | (ten etap) |
 | 9D-2, 9D-3 | Osada (druga wioska) i Składy wyspecjalizowane (górniczy, drzewny); węzły logistyczne `hub` | `a7b37a3` |
 
 Stan i plan dalszych prac: `docs/PLAN.md` (kopia w repozytorium).

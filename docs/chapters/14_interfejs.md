@@ -16,6 +16,14 @@ Tabela: Ekrany przed grą i w grze
 
 **Sterowanie menu:** ↑/↓ i Enter, mysz i dotyk; Esc w Piaskownicy wraca do menu głównego. Nieaktywne pozycje nie przejmują fokusu klawiatury, nawet gdy kursor znajduje się nad nimi. Na telefonie (szerokość ≤ 720 px lub wysokość ≤ 640 px) układ jest pionowy: podgląd mapy nad kartami, kafle w dwóch kolumnach, przyciski o większej powierzchni dotyku.
 
+### Karta postaci i podświetlenie złóż {#karta-postaci}
+
+**Karta postaci** (Faza 9E). Kliknięcie lub dotknięcie robotnika, budowniczego, mieszkańca albo nosiciela zaznacza go żółtą obwódką i otwiera kartę (`#fCard`): imię (z puli imion nacji), rola (np. Drwal, Leśnik, Kamieniarz, Budowniczy, Mieszkaniec), wiersz „Pracuje w: …” albo „Mieszka w: …” (mieszkaniec ma przypisaną Chatę lub Osadę deterministycznie z fazy postaci), bieżąca czynność oraz przycisk **➜ Idź do budynku**, który przenosi widok (`Camera.focus`) i otwiera kartę budynku. Karta znika, gdy postać znika, po ✕ i po Esc; test: `tools/browser_figure.js`.
+
+**Złoża.** Złoże kamienia ma własny, jasny wygląd ciosanego wapienia (nie szare głazy dekoracji). Po wybraniu kopalni, Kamieniołomu lub Glinianki w trybie budowy pola z pasującym złożem pulsują na bursztynowo z napisem „złoże: …”.
+
+**Targ.** Karta Targu, jego opis w menu budowy i Doradca wyjaśniają jego rolę: kupno narzędzi za 20 zł, gdy budynek na nie czeka; Saraceni dodatkowo sprzedają tu towary handlowe (rozdz. {{ref:haracz}}).
+
 ### Piaskownica {#piaskownica}
 
 Wybór ma cztery osie, a **podgląd odświeża się po każdej zmianie** (po 60 ms zwłoki):
