@@ -60,4 +60,11 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   const st = G.Advisor.statusOf(sw); ok(st.code === 'in' && st.sev === 'warn' && /56%/.test(st.text), 'status Tartaku z 56% pni: ostrzeżenie z procentem (' + st.text + ')');
   sw.eff = 0; const st0 = G.Advisor.statusOf(sw); ok(st0.sev === 'bad' && /Brak wejścia/.test(st0.text), 'status Tartaku bez pni: Brak wejścia (' + st0.text + ')');
 }
+// Targ: karta budynku opisuje, do czego służy (kupno narzędzi; Saraceni — też sprzedaż)
+for (const fid of ['franks', 'saracens']) {
+  World.init(fid, { climate: Data.FACTIONS[fid].climate, type: 'plain', seed: 3 }); const s = World.state(); s.res.narzędzia = 50;
+  let mk = null; for (let r = 3; r < 16 && !mk; r++) for (let dy = -r; dy <= r && !mk; dy++) for (let dx = -r; dx <= r; dx++) if (World.canPlace('market', 24 + dx, 24 + dy).ok) { World.placeBuilding('market', 24 + dx, 24 + dy, true); mk = s.buildings[s.buildings.length - 1]; break; }
+  s.staffed[mk.uid] = true; const st = G.Advisor.statusOf(mk);
+  ok(/kupuje narzędzia za 20 zł/.test(st.text) && (fid !== 'saracens' || /kadzidło/.test(st.text)) && (fid !== 'franks' || /żołdu/.test(st.text)), `${fid}: karta Targu opisuje jego rolę (${st.text.slice(0, 70)}…)`);
+}
 console.log(fails ? `\n✘ ${fails} z ${checks} sprawdzeń nie przeszło` : `Wszystko OK — ${checks} sprawdzeń`); process.exit(fails ? 1 : 0);

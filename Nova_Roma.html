@@ -5418,7 +5418,7 @@ const Data = (() => {
     dairy:    { name:'Mleczarnia', cat:'Jedzenie', art:'dairy', worker:1, out:{ ser:1.0 }, costs:{ franks:{d:6}, saracens:{d:4,gl:2}, vikings:{d:6}, slavs:{d:6} } },
     orchard:  { name:'Sad', cat:'Jedzenie', art:'orchard', worker:1, out:{ owoce:1.0 }, costs:{ franks:{d:4}, saracens:{d:4}, vikings:{d:4}, slavs:{d:4} } },
     watercarrier:{ name:'Chata nosiwody', cat:'Jedzenie', art:'well', worker:1, out:{ woda:1.5 }, costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} } },
-    market:   { name:'Targ', cat:'Handel', art:'market', worker:1, costs:{ franks:{d:6}, saracens:{d:4,gl:4}, vikings:{d:6}, slavs:{d:6} }, note:'Kupno narzędzi 20 zł; Saraceni sprzedają tu kadzidło, tkaninę i ceramikę' },
+    market:   { name:'Targ', cat:'Handel', art:'market', worker:1, costs:{ franks:{d:6}, saracens:{d:4,gl:4}, vikings:{d:6}, slavs:{d:6} }, note:'Gdy budynek czeka na narzędzie, Targ kupuje je za 20 zł (kuźnia zamkowa robi tylko ok. 1 szt. na 8 min); złoto z rezerwy żołdu jest nietykalne. Saraceni sprzedają tu też kadzidło, tkaninę i ceramikę' },
     store:    { name:'Skład', cat:'Handel', art:'store', worker:0, out:{}, hub:'*', costs:{ franks:{d:4}, saracens:{d:2,gl:2}, vikings:{d:4}, slavs:{d:4} }, note:'+80 szt. każdego towaru; punkt zbiorczy dla wszystkich producentów' },
     /* Faza 9D — druga wioska i składy wyspecjalizowane: `hub` — towary, które węzeł przyjmuje ('*' = wszystkie, tablica = tylko te); producent liczy marsz do najbliższego węzła, który przyjmuje WSZYSTKIE jego towary (wejścia i wyjścia) */
     settlement:{ name:'Osada', cat:'Mieszkania', art:'hut', worker:0, hub:'*', costs:{ franks:{d:14,k:6,zl:100}, saracens:{d:10,gl:6,zl:100}, vikings:{d:20,zl:100}, slavs:{d:14,zl:100} }, note:'Druga wioska: miejsca jak 2 Chaty, +40 szt. każdego towaru, punkt zbiorczy i baza budowniczych (producenci w jej pobliżu mają o 3 pola krótszą drogę); tylko daleko od Dworu i innych Osad' },
@@ -9057,6 +9057,13 @@ const Advisor = (() => {
         return mk('tool', 'warn', 'Czeka na narzędzie: Targ kupi je za 20 zł, kuźnia zamkowa dorobi ok. 1 szt. na 8 min');
       return mk('nostaff', 'warn', 'Brak pracownika — za mało wolnej ludności (żywność obsadzana pierwsza)');
     }
+    if (b.id === 'market') {                                                                   // Targ nie produkuje: jego rola to zakup narzędzi (wszyscy) i sprzedaż towarów handlowych (Saraceni)
+      const bought = s.stats.toolsBought | 0, f1 = v => v.toFixed(1).replace('.', ',');
+      let t = 'Targ kupuje narzędzia za 20 zł, gdy jakiś budynek na nie czeka (kuźnia zamkowa robi tylko ok. 1 szt. na 8 min). Kupiono: ' + bought + ' · ' + (s.waitingForTool ? 'teraz brakuje narzędzi' : 'narzędzi nie brakuje');
+      if (s.factionId === 'franks') t += '. Złoto z rezerwy żołdu jest nietykalne';
+      if (s.factionId === 'saracens' && s.marketPrices) t += '. Sprzedaje też towary handlowe — ceny: kadzidło ' + f1(s.marketPrices.kadzidło) + ', tkanina ' + f1(s.marketPrices.tkanina) + ', ceramika ' + f1(s.marketPrices.ceramika) + ' zł (spadają ze sprzedażą)';
+      return mk('ok', 'info', t);
+    }
     const st = b.st;
     if (st && st.c === 'in' && (b.eff || 0) >= Data.RULES.cycle.partial) {                         // wejścia starcza częściowo: budynek pracuje na ułamku nominału
       const src = st.g === 'drzewa' ? [] : sourcesOf(st.g, s.factionId);
@@ -9131,6 +9138,7 @@ const Advisor = (() => {
     }
     const fullN = s.buildings.filter(b => codeOf(b) === 'full').length;
     if (fullN >= 2 && !cnt('store') && !cnt('settlement')) w.push({ sev: 'warn', text: fullN + ' budynków stoi z pełnym magazynem — Skład (+80 szt. każdego towaru) odblokuje produkcję.' });
+    if (s.waitingForTool && !cnt('market')) w.push({ sev: 'warn', text: 'Budynki czekają na narzędzia — postaw Targ (kupuje narzędzia za 20 zł) albo poczekaj na kuźnię zamkową (ok. 1 szt. na 8 min).' });
     if (s.settings.logistics || s.settings.physical) {                          // daleki marsz do magazynu: podpowiedź, który węzeł pomoże (Faza 9D)
       const goods = b => { const d = Data.BUILDINGS[b.id]; return Object.keys(d.inp || {}).concat(Object.keys(d.out || {})).filter(g => g in Economy.LIMIT); };
       const slow = s.buildings.filter(b => b.logi && !b.logi.unreachable && b.logi.eff < 0.85), mineN = slow.filter(b => Data.hubAccepts('minestore', goods(b))).length, woodN = slow.filter(b => Data.hubAccepts('timberstore', goods(b))).length, restN = slow.length - mineN - woodN;
