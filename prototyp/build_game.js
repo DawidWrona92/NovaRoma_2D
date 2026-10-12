@@ -31,7 +31,7 @@ for (const [n, ids] of Object.entries(nations.NATIONS)) {
     const b = cat.nacje[n] && cat.nacje[n].budynki[id];
     if (!b) { missing.push(`${n}_${id}`); continue; }
     if (!nations.BAKED[`${n}_${id}`]) missing.push(`${n}_${id} (brak generatora)`);
-    meta[n][id] = { fp: b.obrys, in: [b.wejscie.strona, b.wejscie.x, b.wejscie.y], smoke: b.dym, px: [b.sprite_px.w, b.sprite_px.h, b.sprite_px.ax, b.sprite_px.ay] };
+    meta[n][id] = { fp: b.obrys, in: [b.wejscie.strona, b.wejscie.x, b.wejscie.y], smoke: b.dym, wins: b.okna || [], px: [b.sprite_px.w, b.sprite_px.h, b.sprite_px.ax, b.sprite_px.ay] };
   }
 }
 if (missing.length) { console.error('Katalog niekompletny (uruchom: node katalog.js):', missing.join(', ')); process.exit(3); }

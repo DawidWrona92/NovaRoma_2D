@@ -82,6 +82,25 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   ok([...t.temple.labels].some(l => /Błogosławi/.test(l)), 'kapłan błogosławi mieszkańców');
   ok(/doi krowy.*niesie ser do Składu.*odpoczywa/.test(G.Workers.describe(set.dairy[0])), 'opis cyklu mleczarni: ' + G.Workers.describe(set.dairy[0]));
 }
+// Praca na zewnątrz i w budynku (Punkt 10): Tartak pracuje na stanowisku przy budynku, piekarz wchodzi do środka (znika), w oknach świeci się światło
+{
+  World.init('franks', { climate: 'temperate', type: 'plain', seed: 6 }); const s = World.state(); s.res.narzędzia = 50; s.settings.workers = true; s.settings.physical = true;
+  const put = id => { for (let r = 3; r < 20; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
+  const sw = put('sawmill'), bk = put('bakery'); s.staffed[sw.uid] = s.staffed[bk.uid] = true; const dSw = Walkers.doorOf(sw);
+  ok(Data.ROLES.bakery.where === 'in' && Data.ROLES.sawmill.where === 'out' && Data.ROLES.woodcutter.where === 'out', 'role: piekarnia pracuje w środku, tartak i drwal na zewnątrz');
+  ok((Data.metaOf('bakery', 'franks').wins || []).length >= 1, 'sprite piekarni ma metadane okien (' + (Data.metaOf('bakery', 'franks').wins || []).length + ')');
+  let hiddenN = 0, litN = 0, swHidden = 0, swAway = 0, bkWorkHidden = 0, n = 0, exits = 0, prevHidden = false;
+  for (let i = 0; i < 1600; i++) {
+    World.tick(0.05); Walkers.update(0.05); s.res['mąka'] = 20; s.res.woda = 20; s.res['pień'] = 20; s.res.deski = 0; s.res.chleb = 0; n++;
+    const wb = Walkers.figures().find(a => a.kind === 'worker' && a.uid === bk.uid), ws = Walkers.figures().find(a => a.kind === 'worker' && a.uid === sw.uid);
+    if (wb) { if (wb.hidden) hiddenN++; if (Workers.lit(bk.uid)) litN++; if (prevHidden && !wb.hidden) exits++; prevHidden = !!wb.hidden; }
+    if (ws) { if (ws.hidden) swHidden++; if (ws.act === 'saw' && Math.hypot(ws.x - dSw[0], ws.y - dSw[1]) > 0.8) swAway++; }
+  }
+  ok(hiddenN > n * 0.2, `piekarz wchodzi do budynku i bywa niewidoczny (${hiddenN}/${n} próbek)`);
+  ok(litN > 0 && litN <= hiddenN, `w oknach piekarni świeci się światło, gdy ktoś pracuje w środku (${litN} próbek)`);
+  ok(exits >= 3, `piekarz wychodzi z budynku po pracy (${exits} razy)`);
+  ok(swHidden === 0 && swAway > 0, `Tartak: robotnik zawsze widoczny, piłuje przy stanowisku obok budynku (${swAway} próbek poza drzwiami)`);
+}
 // Targ: karta budynku opisuje, do czego służy (kupno narzędzi; Saraceni — też sprzedaż)
 for (const fid of ['franks', 'saracens']) {
   World.init(fid, { climate: Data.FACTIONS[fid].climate, type: 'plain', seed: 3 }); const s = World.state(); s.res.narzędzia = 50;

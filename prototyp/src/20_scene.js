@@ -46,7 +46,7 @@ class Scene {
     const F = this.F = o.F ?? 1, R = this.R = o.R ?? RES;
     this.Rp = o.pRes ?? (o.ground ? R : Math.min(R, 1)); this.Ru = Math.min(R, 1);                              // plac i cień są miękkie — wystarczy rozdzielczość 1
     this.w = Math.ceil(w * F); this.h = Math.ceil(h * F); this.ax = ax * F; this.ay = ay * F;       // wymiary logiczne
-    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh; this.smokes = []; this.doors = [];                // kotwice dymu: [x, y, z] w polach względem środka obrysu
+    this.pw = Math.ceil(this.w * R); this.ph = Math.ceil(this.h * R); this.fw = o.fw; this.fh = o.fh; this.smokes = []; this.doors = []; this.wins = [];                // kotwice dymu: [x, y, z] w polach względem środka obrysu
     const mk = res => { const c = newCanvas(Math.ceil(this.w * res), Math.ceil(this.h * res)), g = c.getContext('2d'); g.setTransform(res, 0, 0, res, 0, 0); return [c, g]; };
     [this.pcv, this.pg] = mk(this.Rp);                                                               // warstwa 1: plac / decale terenu
     if (!o.ground) { [this.ucv, this.gu] = mk(this.Ru); [this.c, this.g] = mk(R); }                  // warstwa 2: cień rzucony; warstwa 3: obiekty
@@ -249,7 +249,7 @@ class Scene {
     g.drawImage(this.c, 0, 0);
     if (o.grain !== 0) addSpriteGrain(g, this.pw, this.ph, R, o.grain ?? 1);
     if (LINT) this.lint(LINT_NAME, out);
-    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh, smoke: this.smokes.map(a => a.slice()), doors: this.doors.map(d => ({ ...d })) };
+    const spr = { p: this.pcv, u: this.ucv, c: out, ax: this.ax, ay: this.ay, w: this.w, h: this.h, R, Rp: this.Rp, Ru: this.Ru, F: this.F, fw: this.fw, fh: this.fh, smoke: this.smokes.map(a => a.slice()), doors: this.doors.map(d => ({ ...d })), wins: this.wins.map(a => a.slice()) };
     return o.crop === false ? spr : cropSprite(spr);
   }
 }

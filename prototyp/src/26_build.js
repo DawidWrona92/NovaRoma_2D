@@ -146,6 +146,11 @@ function facade(sc, W, s = {}) {
       const uc = a + (b - a) * (i + 0.5) / k, u0 = uc - ww / 2, idx = res.win.length, o = { ...w, glow: typeof w.glow === 'function' ? w.glow(idx) : w.glow, shutters: kind === 'rect' ? (typeof w.shut === 'function' ? w.shut(idx) : w.shut) : undefined };
       if (kind === 'arch') archWin(sc, W.O, W.U, W.V, u0, w.v ?? 0.2, ww, hh, o); else if (kind === 'glass') glassWin(sc, W.O, W.U, W.V, u0, w.v ?? 0.3, ww, hh, o); else windowAt(sc, W.O, W.U, W.V, u0, w.v ?? 0.2, ww, hh, o);
       res.win.push({ u0, w: ww, h: hh, v0: w.v ?? 0.2, idx });
+      if (sc.wins) {                                                                                                // okno do metadanych: środek (px względem kotwicy) i wektory krawędzi poziomej i pionowej — gra zaświeca je, gdy w budynku ktoś pracuje
+        const Ud = [W.U[0] / lu, W.U[1] / lu, W.U[2] / lu], Vd = [W.V[0] / lv, W.V[1] / lv, W.V[2] / lv], v0w = w.v ?? 0.2;
+        const pt = (a, b) => sc.P(W.O[0] + Ud[0] * (u0 + a * ww) + Vd[0] * (v0w + b * hh), W.O[1] + Ud[1] * (u0 + a * ww) + Vd[1] * (v0w + b * hh), W.O[2] + Ud[2] * (u0 + a * ww) + Vd[2] * (v0w + b * hh)), c = pt(0.5, 0.5), l = pt(0, 0.5), r = pt(1, 0.5), t = pt(0.5, 0), bo = pt(0.5, 1), q = x => +x.toFixed(1);
+        sc.wins.push([q(c[0] - sc.ax), q(c[1] - sc.ay), q(r[0] - l[0]), q(r[1] - l[1]), q(bo[0] - t[0]), q(bo[1] - t[1])]);
+      }
       if (w.each) w.each(res.win[idx], idx);
     }
   });

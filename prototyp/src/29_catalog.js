@@ -35,7 +35,7 @@ function catalogJSON() {
       const s = SPR[spriteName(n, id)]; if (!s) continue;
       const d = (s.doors && s.doors[0]) || null, fw = s.fw, fh = s.fh;
       const wejscie = d && d.side === 'E' ? { strona: 'E', x: r2(fw / 2), y: r2(cl(d.y, fh / 2 - 0.3)) } : { strona: 'S', x: r2(cl(d ? d.x : 0, fw / 2 - 0.3)), y: r2(fh / 2) };
-      out.nacje[n].budynki[id] = { sprite: spriteName(n, id), nazwa: nameOfBuilding(n, id), obrys: [fw, fh], wejscie, drzwi: d ? { strona: d.side, x: d.x, y: d.y } : null, dym: s.smoke || [], sprite_px: { w: Math.round(s.w), h: Math.round(s.h), ax: Math.round(s.ax), ay: Math.round(s.ay) } };
+      out.nacje[n].budynki[id] = { sprite: spriteName(n, id), nazwa: nameOfBuilding(n, id), obrys: [fw, fh], wejscie, drzwi: d ? { strona: d.side, x: d.x, y: d.y } : null, dym: s.smoke || [], okna: s.wins || [], sprite_px: { w: Math.round(s.w), h: Math.round(s.h), ax: Math.round(s.ax), ay: Math.round(s.ay) } };
     }
   }
   return out;
