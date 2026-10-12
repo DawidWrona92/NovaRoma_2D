@@ -51,15 +51,29 @@ Cechy blokujące zabudowę wybierane są z kwantyli szumu spośród pól lądu p
 
 `ensureConnected` zapewnia, że ląd nie jest podzielony na odcięte kępy: każdą kępę ≥ 6 pól łączy z obszarem osiągalnym z Dworu najkrótszą ścieżką (Dijkstra po koszcie przeszkód), **przekopując** ją — woda na trasie zamienia się w bród, klif w obniżony stok, cecha blokująca znika. Osiągalność (`Terrain.reachSet`) liczona jest od Dworu po polach przechodnich i zapamiętywana per mapa.
 
+### Masyw górski i kopalnie w górach {#masyw}
+
+Kopalnie kamienia, żelaza i węgla (`MOUNTAIN_KINDS`) leżą **wyłącznie na polach o wysokości `e` ≥ 3** — to decyzja użytkownika. Na mapie „górzystej” takie pola są w samym terenie. Na pozostałych typach map generator dla nacji z kopalniami skalnymi (dziś Frankowie) dokłada **jeden skalisty masyw**:
+
+- **położenie:** środek 17–25 pól od Dworu (po 300 nieudanych próbach przesunięcie o +3 pola), leży na lądzie, nie nad morzem i nie na mapie głównie wodnej (> 40% wody); pola obszaru startowego zostają płaskie;
+- **kształt:** rdzeń o promieniu 8–9 pól z wypaczonym konturem — wysokość `e` = 3, a w samym środku (w promieniu 2,2 pola od centrum) `e` = 4; wokół rdzenia stok o `e` = 2, żeby dojście do góry nie kończyło się klifem;
+- **wymóg powierzchni:** rdzeń musi zawierać co najmniej 205 pól lądu (po 250 próbach: 170, po 500: 130); gdy żadne położenie nie spełni warunku, bierze się najlepsze znalezione;
+- **skała pod kopalnie:** w masywie usuwane są wydmy, bagna, zaspy i oazy (wszystkie rodzaje pól poza klifem);
+- **własny strumień losowy** (`prng(seed ^ 0x5A17C0DE)`), więc reszta generatora nie zmienia się przez obecność masywu.
+
+Położenie masywu zapisuje `map.meta.massif` = {x, y, r, tries}. Mapy Saracenów (glina), Wikingów (torf) i Słowian nie mają masywu: ich złoża i kopalnie zostają w swoich biomach (glinianka, kopalnia darniowa). Skutek dla rozgrywki: kopalnie kamienia, żelaza i węgla leżą **11–30 pól od Dworu**, czyli dalej niż przed tą zmianą, i transport (rozdz. {{ref:ruch}}) bardziej się liczy.
+
+> [!uwaga] W kodzie komentarz nad masywem podaje odległość „15–23 pola”, a losowanie daje 17–25 (opisane wyżej). Miarodajne są wartości z kodu; komentarz wymaga poprawy.
+
 ### Drzewa i złoża {#drzewa-zloza}
 
 - **`rePlant`**: usuwa drzewa z pól nieosiągalnych i cech blokujących, po czym dosadza do celu nacji z wagą rosnącą w kępach (szum), słabszą na wzgórzach; pustynia: tylko przy wodzie i oazach; Europa Wschodnia ×1,25, śnieg ×0,9. Drzewa nie rosną na polach z `pad`.
-- **`reDeposit`**: złoże musi mieć wolny obrys 3×3 pod kopalnię z przerwą (`Data.RULES.gap`), osiągalny z Dworu, w odległości 7–22 pól od środka (do 30 przy trudnościach; w górach najpierw na wzgórzach). Obrys kopalni jest **rezerwowany** (`pad = 1`, drzewa usunięte) — gracz nie może go zalesić ani wyciąć, więc generator gwarantuje miejsce.
+- **`reDeposit`**: złoże musi mieć wolny obrys 3×3 pod kopalnię z przerwą (`Data.RULES.gap`), osiągalny z Dworu, w odległości 7–22 pól od środka (do 30, a w ostateczności do 40, gdy wiele prób się nie udaje). Kamień, żelazo i węgiel tylko na polach o `e` ≥ 3 (rozdz. {{ref:masyw}}). Obrys kopalni jest **rezerwowany** (`pad = 1`, drzewa usunięte) — gracz nie może go zalesić ani wyciąć, więc generator gwarantuje miejsce.
 - **Pas brzegu Wikingów:** w promieniu 20 pól od Dworu i ≤ 3 pola od morza drzewa są usuwane i pola rezerwowane — miejsce na Przystań, 2 Okręty i 4–6 Chat rybaka.
 
 ## Walidacja {#walidacja}
 
-`Terrain.validate` odrzuca mapę, gdy: łączność lądu < 80%, złoża są nieosiągalne, osiągalne są < 85% drzew, w odległości ≤ 14 pól od Dworu jest mniej niż 280 wolnych pól budowlanych, rzeka nie ma brodu w zasięgu 16 pól, złoże nie mieści kopalni 3×3, a dla Wikingów na mapie nadmorskiej: brzegu jest za mało (≥ 12 pól w zasięgu 16, najbliższy ≤ 13) lub nie mieści się 9 budynków nadmorskich (Przystań, 2 Okręty, 6 Chat rybaka — `shoreCapacity`). Test `tools/terrain.js` sprawdza całą macierz.
+`Terrain.validate` odrzuca mapę, gdy: łączność lądu < 80%, brakuje któregoś złoża z planu nacji (`Data.FACTIONS[fid].deposits`; wtedy generator losuje mapę od nowa, do 8 prób), złoża są nieosiągalne, osiągalne są < 85% drzew, w odległości ≤ 14 pól od Dworu jest mniej niż 280 wolnych pól budowlanych, rzeka nie ma brodu w zasięgu 16 pól, złoże nie mieści kopalni 3×3, a dla Wikingów na mapie nadmorskiej: brzegu jest za mało (≥ 12 pól w zasięgu 16, najbliższy ≤ 13) lub nie mieści się 9 budynków nadmorskich (Przystań, 2 Okręty, 6 Chat rybaka — `shoreCapacity`). Test `tools/terrain.js` sprawdza całą macierz.
 
 ## Rodzaje pól: koszty i przechodniość {#koszty-pol}
 

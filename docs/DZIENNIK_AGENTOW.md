@@ -10,6 +10,7 @@ Cel: sprawdzić, czy delegowanie opłaca się względem pracy samodzielnej. Wpis
 | 10.10 | haiku-tester | regresja headless + 11 testów | 60 tys. | 10 | 30 s | P | raport niekompletny; `regress.sh` ma bashizmy (wina rodzica); wyniki odczytane z plików |
 | 10.10 | haiku-documentation | dokumentacja 9B-5 (12, 16, 17, tables, README) | ? | ? | ? | P | pominięty aneks E (6 miejsc) — poprawił rodzic |
 | 10.10 | haiku-tester | 8 testów przeglądarkowych | ? | ? | ? | T | 8/8 exit 0, bez poprawek |
+| 12.10 | haiku-documentation | góry i fauna: rozdz. 10, 12, 13, 16 | 112 tys. | 22 | 170 s | P | limit 14 tur bez raportu; rozdz. 17, `tables.js` i PDF dokończył rodzic |
 
 ## Błędy rodzica (do porównania)
 - Commit fazy 9B przy padającym `tools/workers.js` (kod wyjścia zamaskowany przez `| tail`).

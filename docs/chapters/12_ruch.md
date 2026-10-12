@@ -135,4 +135,4 @@ Gdy okręt jest w rejsie (`b.awayUntil`), na ekranie **odpływa** z przystani w 
 
 - **Składy przy producentach i drogi do nich** podnoszą wydajność (do −10% bez nich); Skład ma więc dwie role: pojemność (rozdz. {{ref:ekonomia}}) i skrócenie transportu.
 - Dwór jest **magazynem centralnym** każdej osady: do niego idzie transport, gdy nie ma Składu; im bliżej Dworu stoi producent, tym mniejsza kara — kosztem zagęszczenia (przerwa i kara za ciasną zabudowę, rozdz. {{ref:zabudowa}}).
-- Budynki daleko od wszystkiego (kopalnie na złożach, rybacy na brzegu) można „uleczyć” drogą lub własnym Składem.
+- Budynki daleko od wszystkiego (kopalnie na złożach, rybacy na brzegu) można „uleczyć” drogą lub własnym Składem. Kopalnie kamienia, żelaza i węgla leżą teraz w górskim masywie, 11–30 pól od Dworu (rozdz. {{ref:masyw}}), więc dla nich droga lub Skład bardziej się liczy.

@@ -37,6 +37,8 @@ Tabela: Decyzje użytkownika
 | **Tryb pracy „auto”** — działamy bez dopytywania, po każdej fazie commit, push i wersja WIP do przeklikania | procedura bramki | {{ref:bramka}} |
 | **Karawana Saracenów jest kosmetyczna** (jak karawana w Twierdzy): złoto ze sprzedaży wpływa od razu, a towar zbiera się przy Targu i dopiero wtedy wyrusza karawana, która idzie na krawędź mapy i wraca | `settings.physical`: stos `state.caravanPile`, brak opóźnienia złota, karawana nie jest celem napadu | {{ref:karawany}}, {{ref:e-wzorce}} |
 | **Surowsze parametry fizyki**: odległość odniesienia `RULES.cycle.ref` 8 → 5 pól („odległość boli mocniej”); bramka bilansu botów ≥ 75% wyniku bazowego i ≥ 85% wyniku z dawną krzywą (bot N tylko informacyjnie) | `Data.RULES.cycle.ref`, `tools/physical.js` | {{ref:fizyka}}, {{ref:e-wyniki}} |
+| **Kopalnie (kamień, żelazo, węgiel) tylko w górach**; na mapach bez gór powstaje skalisty masyw (dziś dla Franków) | złoża tylko na polach o wysokości ≥ 3, masyw 17–25 pól od Dworu z własnym generatorem losowym, walidacja wymaga kompletu złóż | {{ref:teren}} |
+| **Zwierzęta unikają miasta, są rzadsze i odradzają się w punktach spawnu** | strefa 3,5 pola wokół budynków, liczebność ok. 50% (łowna 70%), `ref` 4, punkty spawnu wałęsających się i ptaków | {{ref:fauna}} |
 
 ## Decyzje projektowe (z uzasadnieniem) {#decyzje-projektowe}
 

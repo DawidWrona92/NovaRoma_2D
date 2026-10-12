@@ -8,11 +8,19 @@ Katalog `Data.FAUNA` opisuje każdy gatunek. Role to: `prey` — zwierzyna łown
 
 {{tabela:fauna_gatunki}}
 
-Zwierzęta zachowują się w czterech trybach (`IDLE`, `WALK`, `FLEE`, `DEAD`, plus `HUNTED` i `HIDE` w czasie wypraw). Zwierzę, które wykryje zagrożenie (`buildThreats`), przechodzi w tryb ucieczki z prędkością `flee`, zwykle większą od spaceru `sp`. Siedlisko (`hab`) to test otoczenia: las to co najmniej 3 drzewa w promieniu 2 pól, otwarty ląd to co najwyżej 4 drzewa, brzeg to morze lub lód przy sąsiednim polu.
+Zwierzęta zachowują się w czterech trybach (`IDLE`, `WALK`, `FLEE`, `DEAD`, plus `HUNTED` i `HIDE` w czasie wypraw). Zwierzę, które wykryje zagrożenie (`buildThreats`), przechodzi w tryb ucieczki z prędkością `flee`, zwykle większą od spaceru `sp`. Siedlisko (`hab`) to test otoczenia: las to co najmniej 3 drzewa w promieniu 2 pól, otwarty ląd to co najwyżej 4 drzewa, brzeg to morze lub lód przy sąsiednim polu. Kolumna `n` w tabeli to liczba osobników na mapę 48×48 przy starcie i cel odradzania; liczebności są mniejsze niż w pierwotnym projekcie (wałęsające się i ptaki ok. 50%, zwierzyna łowna ok. 70%).
 
 ## Legowiska i odradzanie {#legowiska}
 
-Przy starcie mapy `Fauna.populate` tworzy `den` legowisk na lądzie, z dala od Dworu i w siedlisku gatunku. Przy każdym legowisku stoi stado wielkości `herd` (losowe z przedziału). Legowisko odradza osobniki z tempem `br` (os./min), dopóki w jego pobliżu nie ma więcej niż `herd[1] + 1` zwierząt tego gatunku. Dzięki temu zwierzyna odnawia się po polowaniach, ale nie rośnie bez końca.
+Przy starcie mapy `Fauna.populate` tworzy `den` legowisk na lądzie, w odległości 10–21 pól od Dworu i w siedlisku gatunku (gdy to się nie uda, dopuszczalne jest do 24 pól). Przy każdym legowisku stoi stado wielkości `herd` (losowe z przedziału). Legowisko odradza osobniki z tempem `br` (os./min), dopóki w jego pobliżu nie ma więcej niż `herd[1] + 1` zwierząt tego gatunku. Dzięki temu zwierzyna odnawia się po polowaniach, ale nie rośnie bez końca.
+
+Legowisko, wokół którego wyrosło miasto, przenosi się na wolne pole 11–30 pól od Dworu, a jego zwierzęta wracają do nowego miejsca.
+
+## Zabudowa i punkty spawnu {#zabudowa-fauna}
+
+Zwierzęta unikają miasta. Każdy budynek i każdy plac budowy ma **strefę** o promieniu: połowa dłuższego boku + `buf` = {{v:Data.FAUNA_RULES.buf}} pola (`buildZones`). Zwierzę, które znajdzie się w strefie, ucieka od jej środka, tak jak przed obywatelami. Cele wędrówek i miejsca narodzin leżą poza strefami.
+
+Wałęsające się zwierzęta i ptaki mają **punkty spawnu** (`state.fauna.spawns`: {k, x, y}, po jednym na grupę lub ptaka, wybierane przy zaludnieniu mapy). Brakujące osobniki odradzają się w punkcie spawnu swojego gatunku, który leży poza strefami zabudowy. Tempo to `respawn` = {{v:Data.FAUNA_RULES.respawn}} osobnika/min pomnożone przez brak populacji (1 − liczba/`n`); ułamkowe osobniki gromadzi licznik `state.fauna.sacc` ({gatunek: akumulator}). Zwierzyna łowna odradza się, jak dotąd, przy legowiskach.
 
 ## Polowanie z łukiem {#polowanie}
 
@@ -36,7 +44,7 @@ Zwierzęta nie są surowcem w magazynie: mięso powstaje w ekonomii jak dotąd, 
 
 ## Własny PRNG i determinizm {#prng}
 
-Fauna ma własny generator mulberry32 w `state.fauna.rs` (liczba całkowita w JSON, zasiewana ziarnem mapy). Moduł **nie wywołuje globalnego `RNG`**, więc włączenie fauny nie zmienia strumienia losowości logiki (tabela „Kto używa losowości” w rozdz. {{ref:architektura}}). Stan `fauna` (`rs`, `nid`, `bt`, `dens`, `hunts`, `kills`) należy do snapshotu gry, a `null` oznacza, że fauna jest wyłączona.
+Fauna ma własny generator mulberry32 w `state.fauna.rs` (liczba całkowita w JSON, zasiewana ziarnem mapy). Moduł **nie wywołuje globalnego `RNG`**, więc włączenie fauny nie zmienia strumienia losowości logiki (tabela „Kto używa losowości” w rozdz. {{ref:architektura}}). Stan `fauna` (`rs`, `nid`, `bt`, `dens`, `spawns`, `sacc`, `hunts`, `kills`) należy do snapshotu gry, a `null` oznacza, że fauna jest wyłączona.
 
 ## Wyłączenie i parametry adresu {#wylaczenie}
 
@@ -49,6 +57,13 @@ Przy wyłączonej faunie `Fauna.tick` nic nie robi, `stock` zwraca `null`, a `ga
 
 ## Test {#test}
 
-Moduł sprawdza `tools/fauna.js`: zaludnienie mapy według klimatu, poprawność pozycji zwierząt, zero wywołań globalnego RNG wewnątrz `Fauna`, determinizm, snapshot i restore, parytet ekonomii z fauną i bez niej, przebieg faz wyprawy (strzała, ubytek, odradzanie) oraz koszt jednego ticku. Budżet ticku wynosi ≤ 0,25 ms (rozdz. {{ref:testy}}).
+Moduł sprawdza `tools/fauna.js`: zaludnienie mapy według klimatu, poprawność pozycji zwierząt, zero wywołań globalnego RNG wewnątrz `Fauna`, determinizm, snapshot i restore, parytet ekonomii z fauną i bez niej, przebieg faz wyprawy (strzała, ubytek, odradzanie) oraz koszt jednego ticku. Dodatkowo sprawdza:
+
+- **unikanie zabudowy** — zwierzęta stojące tuż przy ścianie budynku stanowią mniej niż 2% próbek;
+- **punkty spawnu** — istnieją i mają poprawne położenie legowisk;
+- **odradzanie po wyłapaniu** — po 400 minutach wraca co najmniej 70% gatunków, a każdy odrodzony gatunek ma punkt spawnu;
+- **jedna Chata** — po 150 minutach średni `gameMult` ≥ 0,60 (zwierzyny jest mniej, plon waha się z położeniem legowisk).
+
+Limit kosztu ticku w teście to 0,6 ms, a cel 0,3 ms (rozdz. {{ref:testy}}).
 
 > [!pulapka] Zmiana `FAUNA_RULES` albo katalogu gatunków zmienia wyniki testów parytetu. Po zmianie należy uruchomić `node tools/fauna.js` i przebudować dokumentację, bo tabele z tego rozdziału są generowane z kodu.
