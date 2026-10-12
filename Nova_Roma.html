@@ -154,6 +154,7 @@
   #bcNote.bad { color: #ff9a8a; } #bcNote.good { color: #bfe8a8; }
   #bcBtns { display: flex; gap: 8px; }
   #bcBtns button { flex: 1; padding: 12px 6px; font-size: 15px; touch-action: manipulation; background: #3a2c1c; color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px; font-family: inherit; }
+  #bcBtns button#bcInfo { flex: 0 0 auto; }
   #bcBtns button#bcOk { background: #4d6b2a; border-color: #8fbf5a; font-weight: bold; }
   #bcBtns button:disabled { opacity: .45; }
   #hint {
@@ -5383,20 +5384,27 @@ const Data = (() => {
      'tree' — najbliższe drzewo, 'shore' — brzeg wody, 'service' — obsługa (stoi i krąży przy drzwiach). Ładunek wejścia i wyjścia wynika z towarów budynku (LOADS). */
   const ROLES = {
     woodcutter: { act: 'chop', tool: 'axe', spot: 'tree' }, forester: { act: 'plant', tool: 'sapling', spot: 'field', r: [3, 6] }, sawmill: { act: 'saw', tool: 'saw', spot: 'door' },
-    dairy: { act: 'milk', tool: 'bucket', spot: 'field', r: [2, 4] }, orchard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] }, watercarrier: { act: 'draw', tool: 'bucket', spot: 'door' },
-    hunter: { act: 'shoot', tool: 'bow', spot: 'field', r: [4, 8] }, market: { act: 'stall', spot: 'service' }, temple: { act: 'pray', spot: 'service' }, barracks: { act: 'drill', tool: 'spear', spot: 'service' },
+    dairy: { act: 'milk', tool: 'bucket', spot: 'field', r: [1.4, 2.4], n: 1 }, orchard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4], n: 3 }, watercarrier: { act: 'draw', tool: 'bucket', spot: 'door' },
+    hunter: { act: 'shoot', tool: 'bow', spot: 'field', r: [4, 8], n: 3 }, market: { act: 'stall', spot: 'service' }, temple: { act: 'pray', spot: 'service' }, barracks: { act: 'drill', tool: 'spear', spot: 'service' },
     quarry: { act: 'dig', tool: 'pick', spot: 'door' }, ironmine: { act: 'dig', tool: 'pick', spot: 'door' }, coalmine: { act: 'dig', tool: 'pick', spot: 'door' },
     claypit: { act: 'dig', tool: 'pick', spot: 'door' }, peatmine: { act: 'dig', tool: 'pick', spot: 'door' },
-    farm: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] }, field: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] }, cotton: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4] },
+    farm: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4], n: 4 }, field: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4], n: 4 }, cotton: { act: 'hoe', tool: 'hoe', spot: 'field', r: [2, 4], n: 4 },
     mill: { act: 'grind', tool: 'sack', spot: 'door' }, bakery: { act: 'bake', tool: 'spoon', spot: 'door' }, kasha: { act: 'stir', tool: 'spoon', spot: 'door' },
     smelter: { act: 'forge', tool: 'hammer', spot: 'door' }, toolforge: { act: 'forge', tool: 'hammer', spot: 'door' }, armory: { act: 'forge', tool: 'hammer', spot: 'door' },
-    vineyard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] }, winery: { act: 'press', tool: 'bucket', spot: 'door' }, dategrove: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4] },
-    incensewood: { act: 'tap', tool: 'knife', spot: 'field', r: [2, 5] }, incense: { act: 'stir', tool: 'spoon', spot: 'door' }, weaver: { act: 'weave', tool: 'spoon', spot: 'door' },
+    vineyard: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4], n: 3 }, winery: { act: 'press', tool: 'bucket', spot: 'door' }, dategrove: { act: 'pick', tool: 'basket', spot: 'field', r: [2, 4], n: 3 },
+    incensewood: { act: 'tap', tool: 'knife', spot: 'field', r: [2, 5], n: 3 }, incense: { act: 'stir', tool: 'spoon', spot: 'door' }, weaver: { act: 'weave', tool: 'spoon', spot: 'door' },
     pottery: { act: 'pot', tool: 'spoon', spot: 'door' }, qanat: { act: 'draw', tool: 'bucket', spot: 'door' }, bathhouse: { act: 'sweep', spot: 'service' }, caravanserai: { act: 'stall', spot: 'service' },
     guardpost: { act: 'guard', tool: 'spear', spot: 'service' }, fisherhut: { act: 'fish', tool: 'net', spot: 'shore' }, charburner: { act: 'stack', tool: 'axe', spot: 'door' },
-    mead: { act: 'brew', tool: 'spoon', spot: 'door' }, gatherer: { act: 'pick', tool: 'basket', spot: 'field', r: [3, 7] }, bartnik: { act: 'smoke', tool: 'knife', spot: 'field', r: [3, 7] },
-    waxery: { act: 'wax', tool: 'spoon', spot: 'door' }, trapper: { act: 'trap', tool: 'knife', spot: 'field', r: [3, 7] }, tannery: { act: 'tan', tool: 'knife', spot: 'door' }, sauna: { act: 'sweep', spot: 'service' }
+    mead: { act: 'brew', tool: 'spoon', spot: 'door' }, gatherer: { act: 'pick', tool: 'basket', spot: 'field', r: [3, 7], n: 3 }, bartnik: { act: 'smoke', tool: 'knife', spot: 'field', r: [3, 7], n: 3 },
+    waxery: { act: 'wax', tool: 'spoon', spot: 'door' }, trapper: { act: 'trap', tool: 'knife', spot: 'field', r: [3, 7], n: 3 }, tannery: { act: 'tan', tool: 'knife', spot: 'door' }, sauna: { act: 'sweep', spot: 'service' }
   };
+  /* Czynność robotnika słowami (karta postaci i opis cyklu pracy): bezokolicznik ruchu przy pracy */
+  const VERB = { woodcutter: 'rąbie drzewo', forester: 'sadzi drzewko', sawmill: 'piłuje deski', dairy: 'doi krowy przy zagrodzie i robi ser', orchard: 'zbiera owoce z drzew', watercarrier: 'czerpie wodę', hunter: 'poluje',
+    market: 'handluje przy straganie', temple: 'błogosławi mieszkańców', barracks: 'ćwiczy', quarry: 'kuje kamień', ironmine: 'wydobywa rudę', coalmine: 'wydobywa węgiel', claypit: 'kopie glinę', peatmine: 'wydobywa torf',
+    farm: 'uprawia i zbiera zboże', field: 'uprawia i zbiera zboże', cotton: 'zbiera bawełnę', mill: 'mieli zboże na mąkę', bakery: 'piecze chleb', kasha: 'gotuje kaszę', smelter: 'wytapia sztabki', toolforge: 'kuje narzędzia', armory: 'kuje broń',
+    vineyard: 'zbiera winogrona', winery: 'tłoczy wino', dategrove: 'zbiera daktyle', incensewood: 'nacina drzewa na żywicę', incense: 'wytwarza kadzidło', weaver: 'tka tkaninę', pottery: 'toczy ceramikę', qanat: 'czerpie wodę', bathhouse: 'sprząta łaźnię',
+    caravanserai: 'obsługuje karawany', guardpost: 'pilnuje posterunku', fisherhut: 'łowi ryby', charburner: 'wypala węgiel', mead: 'warzy miód pitny', gatherer: 'zbiera płody lasu', bartnik: 'dogląda barci', waxery: 'robi wosk', trapper: 'zastawia sidła', tannery: 'garbuje skóry', sauna: 'sprząta banię' };
+  for (const id in VERB) if (ROLES[id]) ROLES[id].verb = VERB[id];
   /* Ładunek niesiony przez robotnika: kształt do narysowania i kolor (towar → [kształt, kolor]) */
   const LOADS = {
     'pień': ['log', '#8a6238'], deski: ['plank', '#d8b878'], 'kamień': ['rock', '#a8a498'], ruda: ['rock', '#8a5a3a'], 'węgiel': ['rock', '#2a2a2a'], glina: ['rock', '#b0623a'],
@@ -9444,14 +9452,14 @@ const BuildMode = (() => {
   const coarse = () => typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 720px)').matches);
   const mkEl = (tag, id, text, parent) => { const e = document.createElement(tag); e.id = id; if (text) e.textContent = text; parent.appendChild(e); return e; };      // bez querySelector: ładuje się też w testach headless
   const bar = mkEl('div', 'buildConfirm', '', document.body), bcNote = mkEl('div', 'bcNote', '', bar), bcBtns = mkEl('div', 'bcBtns', '', bar);
-  const bcOk = mkEl('button', 'bcOk', '✔ Postaw', bcBtns), bcRot = mkEl('button', 'bcRot', '⟳ Obróć', bcBtns), bcCancel = mkEl('button', 'bcCancel', '✖ Zakończ', bcBtns); let lastNote = null;
+  const bcOk = mkEl('button', 'bcOk', '✔ Postaw', bcBtns), bcRot = mkEl('button', 'bcRot', '⟳ Obróć', bcBtns), bcInfo = mkEl('button', 'bcInfo', 'ℹ Opis', bcBtns), bcCancel = mkEl('button', 'bcCancel', '✖ Zakończ', bcBtns); let lastNote = null;
   const syncBar = () => { document.body.classList.toggle('cb', !!selected && coarse()); bcRot.style.display = rotsFor(selected).length > 1 ? '' : 'none'; if (!selected) lastNote = null; };
   function exitBuild() { clear(); document.querySelectorAll('.buildItem').forEach(el => el.classList.remove('selected')); try { UI.pinBuilding(null); UI.pinFigure(null); } catch (e) { /* UI jeszcze nie gotowe */ } }
-  bcOk.onclick = () => click(); bcRot.onclick = () => rotate(1); bcCancel.onclick = exitBuild;
+  bcOk.onclick = () => click(); bcRot.onclick = () => rotate(1); bcCancel.onclick = exitBuild; bcInfo.onclick = () => UI.toggleBuildInfo(selected, bar);          // opis budynku na telefonie: na żądanie, nad paskiem (nie zasłania pola ani przycisków)
   function setBarNote(text, good) { if (lastNote === text + good) return; lastNote = text + good; bcNote.textContent = text; bcNote.className = good ? 'good' : text ? 'bad' : ''; }
   function tap() { if (selected && !isTool() && coarse()) return; click(); }                // dotyk: tylko ruch ducha (hover ustawiony przez wywołującego)
   function select(id) {
-    selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); syncBar();
+    selected = id; roadStart = null; rot = 0; autoRot = true; syncRotBtn(); syncBar(); if (id && coarse()) { try { UI.hideTooltip(); } catch (e) { /* UI jeszcze nie gotowe */ } }                     // tooltip od dotknięcia pozycji menu nie zostaje pod paskiem potwierdzenia
     if (id && !isTool() && coarse() && typeof canvas !== 'undefined') { const w = Camera.screenToWorld(canvas.width / dpr / 2, canvas.height / dpr * 0.42); setHover(w.x, w.y); }       // duch na środku widoku
   }
   function clear() { selected = null; roadStart = null; syncRotBtn(); syncBar(); }
@@ -9971,11 +9979,17 @@ const UI = (() => {
     if (def.note) html += '<em>' + def.note + '</em>';
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
-    const r = anchor.getBoundingClientRect();
-    tooltip.style.left = Math.min(window.innerWidth - 260, r.left) + 'px';
-    tooltip.style.top = (r.top - tooltip.offsetHeight - 8) + 'px';
+    const r = anchor.getBoundingClientRect(), phone = BuildMode.coarse(), top0 = 130;                        // top0: pod nagłówkiem HUD
+    tooltip.style.maxWidth = phone ? (window.innerWidth - 20) + 'px' : '240px'; tooltip.style.maxHeight = Math.max(100, r.top - top0 - 8) + 'px'; tooltip.style.overflowY = 'auto'; tooltip.style.pointerEvents = phone ? 'auto' : 'none';
+    tooltip.style.left = (phone ? 10 : Math.min(window.innerWidth - 260, r.left)) + 'px';
+    tooltip.style.top = Math.max(top0, r.top - tooltip.offsetHeight - 8) + 'px';
   }
   function hideTooltip() { tooltip.style.display = 'none'; }
+  /* telefon: opis wybranego budynku na żądanie (przycisk „Opis” na pasku budowy); drugi dotyk chowa */
+  function toggleBuildInfo(id, anchor) {
+    if (tooltip.style.display === 'block') { hideTooltip(); return; }
+    const def = id && Data.BUILDINGS[id]; if (def) showTooltip(id, def, World.costOf(id), anchor);
+  }
 
   function refreshHUD() {
     const s = World.state();
@@ -10008,6 +10022,7 @@ const UI = (() => {
     h += '<div style="color:' + { bad: '#e08484', warn: '#e8b060', info: '#a8b8a8', good: '#8fce8f' }[st.sev] + '">' + st.text + '</div>';
     if (def.inp && Object.keys(def.inp).length) h += '<div class="sub">Wejście: ' + Object.entries(def.inp).map(([k, v]) => v + ' ' + k).join(' + ') + ' /min</div>';
     if (def.out) h += '<div class="sub">Wyjście: ' + Object.entries(def.out).map(([k, v]) => v + ' ' + lbl(k)).join(' + ') + ' /min</div>';
+    { const cyc = Workers.describe(b); if (cyc) h += '<div class="sub" style="margin-top:3px"><b>Cykl pracownika:</b> ' + cyc + '</div>'; }
     if (def.tool) h += '<div class="sub">Wymaga narzędzia' + (World.state().tooled[b.uid] ? ' (obsadzony)' : '') + '</div>';
     const st2 = World.state(), L = b.logi;
     if (st2.settings.physical && L && L.Tw != null) {                               // sekcja „Transport": cykl pracy robotnika (Faza 9B-2)
@@ -10042,13 +10057,13 @@ const UI = (() => {
     slavs: ['Bogdan', 'Mieszko', 'Wojciech', 'Radomir', 'Wit', 'Zbigniew', 'Borys', 'Dobromir', 'Jaromir', 'Przemko', 'Dobrawa', 'Wanda', 'Miła', 'Jarosława', 'Zdzisława', 'Bożena']
   };
   const TITLES = { woodcutter: 'Drwal', forester: 'Leśnik', sawmill: 'Cieśla (tartak)', hunter: 'Myśliwy', dairy: 'Mleczarz', orchard: 'Sadownik', watercarrier: 'Nosiciel wody', market: 'Kupiec', temple: 'Duchowny', quarry: 'Kamieniarz', farm: 'Rolnik', mill: 'Młynarz', bakery: 'Piekarz', ironmine: 'Górnik', coalmine: 'Górnik', smelter: 'Hutnik', toolforge: 'Kowal', armory: 'Płatnerz', vineyard: 'Winiarz', winery: 'Winiarz', barracks: 'Żołnierz', claypit: 'Kopacz gliny', dategrove: 'Sadownik', incensewood: 'Zbieracz żywicy', incense: 'Kadzidlarz', cotton: 'Rolnik', weaver: 'Tkacz', pottery: 'Garncarz', qanat: 'Kopacz qanatu', bathhouse: 'Łaziebny', caravanserai: 'Karawaniarz', guardpost: 'Strażnik', fisherhut: 'Rybak', peatmine: 'Górnik torfu', charburner: 'Węglarz', mead: 'Miodosyt', dock: 'Doker', ship: 'Żeglarz', gatherer: 'Zbieracz', field: 'Rolnik', kasha: 'Kasznik', bartnik: 'Bartnik', waxery: 'Woskarz', trapper: 'Łowca futer', tannery: 'Garbarz', sauna: 'Łaziebny' };
-  const ACTS = { chop: 'rąbie drzewo', plant: 'sadzi drzewko', saw: 'piłuje deski', dig: 'kopie', hammer: 'buduje', pick: 'kuje skałę', forge: 'kuje w kuźni', sweep: 'zamiata', look: 'sprawdza zapas w Składzie', hoe: 'uprawia pole', milk: 'doi', draw: 'czerpie wodę', fish: 'łowi ryby', trap: 'zastawia sidła', tap: 'nacina drzewa' };
+  const ACTS = { chop: 'rąbie drzewo', plant: 'sadzi drzewko', saw: 'piłuje deski', dig: 'kopie', hammer: 'buduje', pick: 'kuje skałę', forge: 'kuje w kuźni', sweep: 'zamiata', rest: 'odpoczywa', milk: 'doi krowy', grind: 'miele', bake: 'piecze', pray: 'błogosławi', look: 'sprawdza zapas w Składzie', hoe: 'uprawia pole', milk: 'doi', draw: 'czerpie wodę', fish: 'łowi ryby', trap: 'zastawia sidła', tap: 'nacina drzewa' };
   const hashN = n => { let x = (Math.imul((n | 0) + 1, 2654435761) ^ 0x9e3779b9) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; x ^= x >>> 13; return x >>> 0; };
   let pinnedFig = null; const fCard = document.createElement('div'); fCard.id = 'fCard'; document.body.appendChild(fCard);
   /* kim jest postać i dokąd prowadzi „idź do budynku”: { name, title, line (gdzie pracuje/mieszka), target (budynek lub plac), doing } */
   function figInfo(a) {
     const s = World.state(), names = NAMES[s.factionId] || NAMES.franks, seed = a.kind === 'worker' ? (a.uid | 0) * 7 + 3 : a.kind === 'builder' ? (a.site | 0) * 13 + (a.i | 0) * 5 : Math.floor((a.phase || 0) * 1000);
-    const name = names[hashN(seed) % names.length], doing = a.act ? ACTS[a.act] || null : (a.load ? 'niesie ładunek' : (a.moving ? 'idzie' : 'stoi'));
+    const name = names[hashN(seed) % names.length], doing = a.stage || (a.act ? ACTS[a.act] || null : (a.load ? 'niesie ładunek' : (a.moving ? 'idzie' : 'stoi')));
     if (a.kind === 'worker') {
       const b = s.buildings.find(q => q.uid === a.uid); if (!b) return null;
       return { name, title: TITLES[b.id] || 'Pracownik', line: 'Pracuje w: ' + Data.nameOf(b.id), target: b, doing };
@@ -10074,7 +10089,7 @@ const UI = (() => {
   function renderFigCard() {
     const info = pinnedFig && Walkers.figures().includes(pinnedFig) ? figInfo(pinnedFig) : null;
     if (!info) { pinnedFig = null; fCard.style.display = 'none'; return; }
-    fCard.innerHTML = '<button class="fClose" data-a="close" aria-label="Zamknij">✕</button><h3>' + info.name + '</h3><div class="sub">' + info.title + '</div><div class="row">' + info.line + '</div>' + (info.doing ? '<div class="sub">Teraz: ' + info.doing + '</div>' : '') + '<button data-a="go">➜ Idź do budynku</button>';
+    fCard.innerHTML = '<button class="fClose" data-a="close" aria-label="Zamknij">✕</button><h3>' + info.name + '</h3><div class="sub">' + info.title + '</div><div class="row">' + info.line + '</div>' + (info.doing ? '<div class="sub">Etap: ' + info.doing + '</div>' : '') + '<button data-a="go">➜ Idź do budynku</button>';
     fCard.style.display = 'block';
   }
   function pinFigure(a) { pinnedFig = a; if (a) { pinned = null; clearTimeout(pinT); refreshOverlays(); } renderFigCard(); }
@@ -10201,7 +10216,7 @@ const UI = (() => {
     }, Math.max(2500, msg.length * 70));
   }
 
-  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
+  return { buildFactionCards, startGame, refreshHUD, flashHint, tooltip, hideTooltip, toggleBuildInfo, pinBuilding, hoverBuilding, toggleAdvisor, pinned: () => pinned || pinnedFig, figureAt, pinFigure, pinnedFigure: () => pinnedFig, tickFigure };
 })();
 
 /* ================================ MODUL: MENU ================================
@@ -10762,7 +10777,7 @@ const Walkers = (() => {
     for (const [key, a] of builders) {
       const site = bySite.get(a.site);
       if (!live.has(key) || !site) {                                           // bez przydziału / plac ukończony lub anulowany → do Dworu i znika
-        if (a.mode !== 'home') { a.mode = 'home'; a.carry = false; a.act = null; a.load = null; plan(a, door[0], door[1], map); }
+        if (a.mode !== 'home') { a.mode = 'home'; a.carry = false; a.act = null; a.load = null; a.stage = 'Wraca do bazy'; plan(a, door[0], door[1], map); }
         if (advance(a, a.speed * dt, map)) { builders.delete(key); if (WK && waiting.length < (s.buildersActive || 0) - live.size) { a.mode = 'wait'; a.goal = null; waiting.push(a); } }
         continue;
       }
@@ -10770,6 +10785,7 @@ const Walkers = (() => {
       const bse = baseOf(s, site, door);
       evacCheck(a, map); if (a.evac) { advance(a, a.speed * dt, map); continue; }
       const carrying = !(site.levelLeft > 0) && Build.progressOf(site) < 0.5 - 1e-9, wp = workPoint(site, a.i, map);
+      a.stage = a.mode === 'toSite' ? 'Niesie materiał na plac' : a.mode === 'toKeep' ? 'Wraca po materiał do bazy' : a.mode === 'goWork' ? 'Idzie na plac' : site.levelLeft > 0 ? (Build.clearingTrees(site) ? 'Wycina drzewa z placu' : 'Wyrównuje i osusza teren') : 'Buduje';
       a.v = 1; a.tool = site.levelLeft > 0 ? (Build.clearingTrees(site) ? 'axe' : 'pick') : 'hammer';
       { const g = Object.keys(site.need).find(k => (site.got[k] || 0) < site.need[k]) || Object.keys(site.need)[0]; a.load = a.carry && g ? Data.LOADS[g] || null : null; }
       a.act = (a.mode === 'work' && !a.moving) ? (site.levelLeft > 0 ? (Build.clearingTrees(site) ? 'chop' : 'dig') : 'hammer') : null;
@@ -10890,7 +10906,7 @@ const Workers = (() => {
       cand.push([a, x + 0.5, y + 0.5]);
     }
     cand.sort((p, q) => p[0] - q[0] || p[1] - q[1] || p[2] - q[2]);
-    const n = Math.min(role.spot === 'service' ? 3 : 5, cand.length);
+    const n = Math.min(role.n || (role.spot === 'service' ? 3 : 5), cand.length);
     for (let i = 0; i < n; i++) { const p = cand[Math.floor((i + 0.5) * cand.length / n)]; out.push([p[1], p[2], p[1] + Math.cos(p[0] + ph + 2), p[2] + Math.sin(p[0] + ph + 2)]); }
     return out.length ? out : [[door[0], door[1], face[0], face[1]]];
   }
@@ -10910,41 +10926,50 @@ const Workers = (() => {
   function foresterCycle(s, b, door) {
     const N = s.map.size, rate = Object.values(Data.BUILDINGS.forester.out)[0] * (s.factionId === 'vikings' ? (Economy.VIK_RATE.forester || 1) : 1), n = rate <= 1.2 ? 1 : 4;               // zwykła Leśniczówka (1/min): jedna sadzonka na kurs; Wikingowie (2/min) niosą po cztery, bo jeden kurs na sztukę nie nadążałby
     const pend = s.saplings.filter(q => q.b === b.uid && q.i != null && !planted.has(q) && s.time < q.t).slice(0, n); if (!pend.length) return [];
-    const steps = [{ k: 'go', p: door, tool: null }, { k: 'act', act: null, dur: 0.12, face: [door[0], door[1] + 1], tool: null }, { k: 'take', g: 'sadzonki' }];
+    const steps = [{ k: 'go', p: door, tool: null, label: 'Idzie po sadzonkę' }, { k: 'act', act: null, dur: 0.12, face: [door[0], door[1] + 1], tool: null, label: 'Bierze sadzonkę' }, { k: 'take', g: 'sadzonki' }];
     for (const q of pend) {
       const x = (q.i % N) + 0.5, y = ((q.i / N) | 0) + 0.5;
-      steps.push({ k: 'go', p: [x, y], tool: null }, { k: 'act', act: 'plant', dur: 0.12, face: [x, y + 0.5], tool: null, plant: q });
+      steps.push({ k: 'go', p: [x, y], tool: null, label: 'Niesie sadzonkę na pole' }, { k: 'act', act: 'plant', dur: 0.12, face: [x, y + 0.5], tool: null, plant: q, label: 'Sadzi drzewko' });
     }
-    steps.push({ k: 'drop' }, { k: 'go', p: door, tool: null });                                           // ręka pusta dopiero po ostatniej sadzonce; po następną wraca do domu
+    steps.push({ k: 'drop' }, { k: 'go', p: door, tool: null, label: 'Wraca po następną sadzonkę' }, { k: 'act', act: 'rest', dur: 0.35, face: [door[0], door[1] + 1], tool: null, label: 'Odpoczywa' });   // ręka pusta dopiero po ostatniej sadzonce; po następną wraca do domu
     return steps;
   }
   function cycleOf(s, b, w, claimed) {
     const def = Data.BUILDINGS[b.id], role = Data.ROLES[b.id], C = Data.RULES.cycle, door = Walkers.doorOf(b), store = nearestStore(s, door, goodsOfDef(def)), steps = [];
     if (b.id === 'forester' && s.settings.physical) { const f = foresterCycle(s, b, door); return f.length ? f : [{ k: 'go', p: door, tool: null }, { k: 'idle', dur: 0.4, face: [door[0], door[1] + 1] }]; }
-    if (role.spot === 'service') {                                             // obsługa: stoi i krąży przy drzwiach
-      const sp = spotsOf(s, b, role, door, claimed);
-      for (let i = 0; i < sp.length; i++) { steps.push({ k: 'go', p: sp[i] }, { k: 'act', act: role.act, dur: 1.2 + hash(b.uid, 10 + i) * 1.6, face: [sp[i][2], sp[i][3]] }); }
-      steps.push({ k: 'go', p: [door[0], door[1]] }, { k: 'act', act: null, dur: 0.8, face: [door[0], door[1] + 1] });
+    if (role.spot === 'service') {                                             // obsługa: stoi i krąży przy drzwiach; kapłan odwiedza najbliższe domy mieszkańców i błogosławi
+      let sp = spotsOf(s, b, role, door, claimed), label = (role.verb || 'obsługuje')[0].toUpperCase() + (role.verb || 'obsługuje').slice(1);
+      if (b.id === 'temple') {
+        const homes = s.buildings.filter(h => (h.id === 'hut' || h.id === 'settlement') && Math.hypot(Walkers.doorOf(h)[0] - door[0], Walkers.doorOf(h)[1] - door[1]) <= 16)
+          .sort((p, r) => Math.hypot(Walkers.doorOf(p)[0] - door[0], Walkers.doorOf(p)[1] - door[1]) - Math.hypot(Walkers.doorOf(r)[0] - door[0], Walkers.doorOf(r)[1] - door[1]) || p.uid - r.uid);
+        if (homes.length) { const first = (w.cyc | 0) % homes.length; sp = [0, 1, 2].filter(k => k < homes.length).map(k => { const h = homes[(first + k) % homes.length], d = Walkers.doorOf(h); return [d[0] - 0.3, d[1] + 0.9, d[0], d[1]]; }); label = 'Błogosławi mieszkańców'; }
+      }
+      for (let i = 0; i < sp.length; i++) { steps.push({ k: 'go', p: sp[i], label: b.id === 'temple' ? 'Idzie do domów mieszkańców' : 'Obchodzi okolicę' }, { k: 'act', act: role.act, dur: 1.2 + hash(b.uid, 10 + i) * 1.6, face: [sp[i][2], sp[i][3]], label }); }
+      steps.push({ k: 'go', p: [door[0], door[1]], label: 'Wraca do domu' }, { k: 'act', act: 'rest', dur: 0.8, face: [door[0], door[1] + 1], label: 'Odpoczywa' });
       return steps;
     }
     const outG = firstGood(def.out, () => true), ins = Object.keys(def.inp || {}).filter(LIMITED), inG = ins[0] || null;
     const cp = Logistics.cycleParams(def, s.factionId === 'vikings' ? (Economy.VIK_RATE[b.id] || 1) : 1), Tw = cp.Tw, m = Math.max(1, Math.min(8, Math.round(Tw / C.spell)));
     const sp = spotsOf(s, b, role, door, claimed); if (role.spot === 'tree') w.treeIdx = sp[0][4];
+    const verb = role.verb || 'pracuje', say = (st, label) => { st.label = label; return st; };
     if (role.spot === 'tree' && s.settings.physical && sp[0][4] != null && store) {                              // ścina najbliższe drzewo, aż logika je zetnie (ubyło drzew na polu), niesie kłodę do Składu
       const i = sp[0][4], q = sp[0], tl = s.map.tiles[i];
-      return [{ k: 'go', p: q }, { k: 'act', act: role.act, dur: 6, face: [q[2], q[3]], watch: { i, n: tl.trees } }, { k: 'take', g: outG }, { k: 'go', p: store }, { k: 'drop' }];
+      return [say({ k: 'go', p: q }, 'Idzie do drzewa'), say({ k: 'act', act: role.act, dur: 6, face: [q[2], q[3]], watch: { i, n: tl.trees } }, 'Rąbie drzewo'), { k: 'take', g: outG }, say({ k: 'go', p: store }, 'Niesie pień do Składu'), { k: 'drop' }, say({ k: 'go', p: door }, 'Wraca do domu'), say(rest(door), 'Odpoczywa')];
     }
-    if (inG && store && w.first) steps.push({ k: 'go', p: store });
+    /* jeden cykl: [po wejście do Składu →] miejsce pracy → praca (m razy w tym samym miejscu) → wyjście do Składu → dom → odpoczynek. Miejsc pracy jest kilka i stałe (role.n); kolejne cykle zaczynają od następnego
+       (zagroda mleczarni jedno, sady i pola po kilka), więc robotnik nie wędruje po mapie, tylko wraca w te same miejsca */
+    const q = sp[(w.cyc | 0) % sp.length], outName = outG || 'towar', inName = inG || '';
+    if (inG && store && w.first) steps.push(say({ k: 'go', p: store }, 'Idzie do Składu po ' + inName));
     if (inG && store) steps.push({ k: 'take', g: inG });
-    for (let i = 0; i < m; i++) {
-      const q = sp[i % sp.length]; steps.push({ k: 'go', p: q });
-      if (i === 0 && inG && store) { steps.push({ k: 'drop' }); for (const g2 of ins.slice(1)) steps.push({ k: 'go', p: store }, { k: 'take', g: g2 }, { k: 'go', p: q }, { k: 'drop' }); }   // wejścia składamy na miejscu pracy; drugi towar — drugi kurs
-      steps.push({ k: 'act', act: role.act, dur: Tw / m, face: [q[2], q[3]] });
-    }
-    if (outG && store) steps.push({ k: 'take', g: outG }, { k: 'go', p: store }, { k: 'drop' });
-    else steps.push({ k: 'go', p: door });
+    steps.push(say({ k: 'go', p: q }, inG ? 'Niesie ' + inName + ' do pracy' : 'Idzie do pracy'));
+    if (inG && store) { steps.push({ k: 'drop' }); for (const g2 of ins.slice(1)) steps.push(say({ k: 'go', p: store }, 'Idzie po ' + g2), { k: 'take', g: g2 }, say({ k: 'go', p: q }, 'Niesie ' + g2 + ' do pracy'), { k: 'drop' }); }   // wejścia składamy na miejscu pracy; drugi towar — drugi kurs
+    for (let i = 0; i < m; i++) steps.push(say({ k: 'act', act: role.act, dur: Tw / m, face: [q[2], q[3]] }, verb[0].toUpperCase() + verb.slice(1)));
+    if (outG && store) steps.push({ k: 'take', g: outG }, say({ k: 'go', p: store }, 'Niesie ' + outName + ' do Składu'), { k: 'drop' });
+    steps.push(say({ k: 'go', p: door }, 'Wraca do domu'), say(rest(door), 'Odpoczywa'));
     return steps;
   }
+  /* odpoczynek przy drzwiach po cyklu (krótko; logiki produkcji to nie dotyczy) */
+  const rest = door => ({ k: 'act', act: 'rest', dur: 0.35, face: [door[0], door[1] + 1] });
   const IDLE_AFTER = 1.0, WORK_AFTER = 0.3;                                          // min gry: tyle musi trwać postój (praca), by robotnik zmienił tryb
   /* budynek stoi: brak wejścia, pełny magazyn, jedzenie tylko z nadwyżki, wyczerpane złoże. Gdy wejścia lub miejsca starcza tylko częściowo (np. Tartak dostaje 56% pni), logika produkuje
      ułamek nominału — robotnik wtedy pracuje, a nie stoi (RULES.cycle.partial: najniższy ułamek, od którego uznaje się budynek za pracujący) */
@@ -10953,9 +10978,9 @@ const Workers = (() => {
      towar już jest, w pozostałych przypadkach zamiata i porządkuje wokół budynku; produkcji to nie zmienia (ją wstrzymuje logika), a Doradca podaje powód postoju */
   function stalledCycle(s, b, w) {
     const role = Data.ROLES[b.id], door = Walkers.doorOf(b), store = nearestStore(s, door, goodsOfDef(Data.BUILDINGS[b.id])), steps = [], sp = spotsOf(s, b, { spot: 'service' }, door, new Set());
-    if (b.st && b.st.c === 'in' && store) steps.push({ k: 'go', p: store, tool: null }, { k: 'act', act: 'look', dur: 0.5, face: [store[0], store[1] + 1], tool: null }, { k: 'go', p: door });
-    for (let i = 0; i < Math.min(2, sp.length); i++) steps.push({ k: 'go', p: sp[i] }, { k: 'act', act: 'sweep', dur: 1.0 + hash(b.uid, 30 + i) * 1.0, face: [sp[i][2], sp[i][3]], tool: 'broom' });
-    steps.push({ k: 'go', p: door }, { k: 'act', act: 'sweep', dur: 0.8, face: [door[0], door[1] + 1], tool: 'broom' });
+    if (b.st && b.st.c === 'in' && store) steps.push({ k: 'go', p: store, tool: null, label: 'Idzie sprawdzić zapas w Składzie' }, { k: 'act', act: 'look', dur: 0.5, face: [store[0], store[1] + 1], tool: null, label: 'Sprawdza zapas' }, { k: 'go', p: door, label: 'Wraca do domu' });
+    for (let i = 0; i < Math.min(2, sp.length); i++) steps.push({ k: 'go', p: sp[i], label: 'Idzie sprzątać' }, { k: 'act', act: 'sweep', dur: 1.0 + hash(b.uid, 30 + i) * 1.0, face: [sp[i][2], sp[i][3]], tool: 'broom', label: 'Zamiata (budynek stoi)' });
+    steps.push({ k: 'go', p: door, label: 'Wraca do domu' }, { k: 'act', act: 'sweep', dur: 0.8, face: [door[0], door[1] + 1], tool: 'broom', label: 'Zamiata (budynek stoi)' });
     return steps;
   }
 
@@ -10972,10 +10997,11 @@ const Workers = (() => {
     else if (st.k === 'idle') { a.act = null; w.rem = st.dur; a.moving = false; if (st.face) { a.tx = st.face[0]; a.ty = st.face[1]; } }
     else if (st.k === 'take') { a.load = Data.LOADS[st.g] || null; }
     else if (st.k === 'drop') { a.load = null; }
+    if (st.label) a.stage = st.label; else if (st.k === 'take') a.stage = 'Bierze ładunek'; else if (st.k === 'drop') a.stage = 'Odkłada ładunek';
     if (st.k === 'act' || st.k === 'go') a.tool = st.tool !== undefined ? st.tool : (w.mode === 'idle' && st.k === 'go' ? null : (Data.ROLES[w.b.id] || {}).tool || null);   // narzędzie pracy; przy postoju miotła
   }
   function nextCycle(s, w) {
-    w.steps = w.mode === 'idle' ? stalledCycle(s, w.b, w) : cycleOf(s, w.b, w, claimedNow); w.first = false; w.si = 0; w.planned = false;
+    w.steps = w.mode === 'idle' ? stalledCycle(s, w.b, w) : cycleOf(s, w.b, w, claimedNow); w.first = false; w.si = 0; w.planned = false; w.cyc = (w.cyc | 0) + 1;
     if (!w.steps.length) w.steps = [{ k: 'idle', dur: 1 }];
   }
   function stepOne(s, w, dt, map) {
@@ -11014,7 +11040,16 @@ const Workers = (() => {
     }
     list = []; for (const w of figs.values()) list.push(w.a);
   }
-  return { update, figures: () => list, plantedAt: sp => planted.get(sp), reset() { figs.clear(); list = []; lastMap = null; }, cycleOf, spotsOf, idleNow };
+  /* opis cyklu pracy budynku b dla karty: kroki jednej pętli robotnika */
+  function describe(b) {
+    const def = Data.BUILDINGS[b.id], role = Data.ROLES[b.id]; if (!role || !def.worker) return null;
+    const ins = Object.keys(def.inp || {}).filter(LIMITED), out = firstGood(def.out, () => true), v = role.verb || 'pracuje';
+    if (b.id === 'woodcutter') return 'idzie do najbliższego drzewa → rąbie → niesie pień do Składu → wraca do domu i odpoczywa';
+    if (b.id === 'forester') return 'bierze sadzonkę w domu → idzie na wyznaczone pole → sadzi → wraca po następną i odpoczywa';
+    if (role.spot === 'service') return b.id === 'temple' ? 'idzie do najbliższych domów → błogosławi mieszkańców → wraca do domu i odpoczywa' : 'obchodzi okolicę budynku → ' + v + ' → wraca do domu i odpoczywa';
+    return [ins.length ? 'idzie po ' + ins.join(' i ') + ' do Składu' : null, role.spot === 'field' ? 'idzie do stałego miejsca pracy' : null, v, out ? 'niesie ' + out + ' do Składu' : null, 'wraca do domu i odpoczywa'].filter(Boolean).join(' → ');
+  }
+  return { update, describe, figures: () => list, plantedAt: sp => planted.get(sp), reset() { figs.clear(); list = []; lastMap = null; }, cycleOf, spotsOf, idleNow };
 })();
 
 /* ================================ MODUL: GAME ============================== */
@@ -11426,7 +11461,7 @@ const Game = (() => {
   }
   /* czynność → [prędkość, amplituda kołysania narzędzia, przysiad ciała]; 'chop' i podobne to „unieś powoli i uderz" */
   const ACT_ANIM = { chop: ['strike', 1.7, 0], dig: ['strike', 1.5, 0.6], hoe: ['strike', 1.3, 1.6], hammer: ['strike', 2.4, 0], forge: ['strike', 2.6, 0], stack: ['strike', 1.2, 0.8], saw: ['still', 0, 1.0],
-    pick: ['still', 0, 2.6], plant: ['still', 0, 3.0], milk: ['still', 0, 2.4], draw: ['still', 0, 2.0], tap: ['wave', 2, 1.0], smoke: ['wave', 1.6, 0.6], trap: ['wave', 1.4, 1.4], fish: ['wave', 0.9, 0],
+    rest: ['still', 0, 0.6], pick: ['still', 0, 2.6], plant: ['still', 0, 3.0], milk: ['still', 0, 2.4], draw: ['still', 0, 2.0], tap: ['wave', 2, 1.0], smoke: ['wave', 1.6, 0.6], trap: ['wave', 1.4, 1.4], fish: ['wave', 0.9, 0],
     grind: ['wave', 2, 0.8], bake: ['wave', 2.2, 0], stir: ['wave', 2.2, 0], weave: ['wave', 3, 0], wax: ['wave', 2, 0], brew: ['wave', 1.8, 0], pot: ['wave', 2.6, 0.6], tan: ['wave', 2.6, 0.8], press: ['still', 0, 1.6],
     sweep: ['wave', 1.6, 0.6], shoot: ['wave', 0.7, 0], look: ['wave', 0.6, 0], stall: ['wave', 0.7, 0], pray: ['still', 0, 1.2], drill: ['wave', 0.8, 0], guard: ['still', 0, 0] };
   function gearFor(a, t) {                                       // kąt narzędzia i przysiad dla bieżącej czynności

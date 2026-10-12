@@ -12,6 +12,10 @@ let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (!c) { fails++; c
   let r = await st(); ok(r.iw === 390 && r.sw <= 390, `strona nie jest szersza od ekranu (innerWidth ${r.iw}, scrollWidth ${r.sw})`); ok(!r.bar && !r.peek, 'na starcie brak paska budowy i podglądu Magazynu');
   const tabs = await page.evaluate(() => { const t = document.getElementById('buildTabs'); return t.scrollWidth > t.clientWidth && getComputedStyle(t).overflowX === 'auto'; }); ok(tabs, 'zakładki budowy przewijają się (wszystkie dostępne)');
   await page.locator('.buildItem').first().tap(); await page.waitForTimeout(400); r = await st(); ok(r.sel && r.bar, 'wybór budynku pokazuje pasek potwierdzenia');
+  const tip = () => page.evaluate(() => { const t = document.getElementById('tooltip'), b = document.getElementById('buildConfirm').getBoundingClientRect(), r = t.getBoundingClientRect(); return { shown: t.style.display === 'block', bottom: r.bottom, barTop: b.top, top: r.top, hud: document.getElementById('hud') ? document.getElementById('hud').getBoundingClientRect().bottom : 0 }; });
+  let tp = await tip(); ok(!tp.shown, 'po wyborze budynku tooltip z menu nie zostaje pod paskiem');
+  await page.locator('#bcInfo').tap(); await page.waitForTimeout(250); tp = await tip(); ok(tp.shown && tp.bottom <= tp.barTop + 1 && tp.top >= tp.hud - 1, `„Opis” pokazuje opis nad paskiem, bez kolizji (dół opisu ${Math.round(tp.bottom)} ≤ góra paska ${Math.round(tp.barTop)})`);
+  await page.locator('#bcInfo').tap(); await page.waitForTimeout(200); tp = await tip(); ok(!tp.shown, 'drugi dotyk „Opis” chowa opis');
   await page.touchscreen.tap(95, 330); await page.waitForTimeout(300); r = await st(); ok(r.sites === 0 && !r.okDis, 'dotknięcie mapy tylko przesuwa duch (nic nie stawia), „Postaw” dostępne');
   await page.locator('#bcOk').tap(); await page.waitForTimeout(300); r = await st(); ok(r.sites === 1 && r.sel, '„Postaw” otwiera plac budowy, tryb budowy trwa');
   await page.touchscreen.tap(95, 330); await page.waitForTimeout(300); r = await st(); ok(r.sites === 1 && r.okDis, 'ten sam punkt jest teraz zajęty: „Postaw” wyłączone, brak drugiego placu');

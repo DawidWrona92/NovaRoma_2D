@@ -38,6 +38,20 @@ Tabela: Prędkości widocznych postaci (pola na minutę gry; po zmianie tempa w 
 
 > [!uwaga] Bez przełącznika `settings.physical` (testy specyfikacji, `?physical=0`) prędkości postaci są **kosmetyczne**: logika zakłada, że budowniczy nosi sztukę materiału w 0,2 min niezależnie od odległości, a producent „odkłada” towar w Składzie bez czasu. Z włączonym przełącznikiem (domyślnie w grze) czas marszu **wchodzi do ekonomii** — rozdział „Fizyczna sprawność z cyklu pracy” poniżej i aneks {{ref:aneks-fizyka}}.
 
+## Pętle pracy: przegląd ról {#petle-pracy}
+
+Faza 9F (uwaga graczy: *mleczarz doi, chodząc po mapie i zatrzymując się w losowych miejscach*) przeglądnęła pętle wszystkich ról. Wspólne zasady, wzorowane na pętlach z gier w rodzaju Twierdzy, ale bez ich liczb:
+
+- **Cykl ma jasne etapy**, a bieżący etap widać na karcie postaci („Etap: Niesie ser do Składu”) i opis całego cyklu na karcie budynku („Cykl pracownika: …”).
+- **Stałe miejsca pracy.** Rola z polami nie wędruje po okolicy: mleczarz doi w jednym miejscu przy zagrodzie, sadownik i zbieracze mają po trzy stałe miejsca, rolnik cztery sekcje pola (kolejne cykle zaczynają od następnego miejsca), a robotnik wraca w te same punkty. Miejsca są deterministyczne i zależą tylko od budynku.
+- **Po cyklu robotnik wraca do domu i odpoczywa** (krótko, 0,35 min gry; to wyłącznie ilustracja, produkcji nie zmienia).
+- **Wejście niesie się ze Składu do miejsca pracy, wyjście z miejsca pracy do Składu** (lub węzła, rozdz. {{ref:wezly}}); budynek, który stoi (brak wejścia, pełny magazyn), zamiata i sprawdza zapas, a przy częściowym wejściu pracuje (rozdz. {{ref:workers}}).
+- **Leśnik** bierze sadzonkę w domu, idzie na pole wybrane przez logikę, sadzi i wraca po następną; **kapłan** idzie do najbliższych domów i błogosławi; budowniczowie niosą materiał z najbliższej bazy.
+
+{{tabela:role_pracy}}
+
+> [!uwaga] Pętle są wizualizacją. Czasy i plony liczy ekonomia (rozdz. {{ref:ekonomia}}); „odpoczynek” i drogi nie zmieniają produkcji poza dawną karą za dystans do Składu (rozdz. {{ref:logistyka}}). Prawdziwe zależności z gier-wzorców (dojrzewanie krów i upraw, pojemność stosów, wózki) nie są modelowane — to kandydaci na przyszły etap.
+
 ## Robotnicy i ich czynności: moduł Workers {#workers}
 
 Od Fazy 9B-1 (przełącznik `settings.workers`, w grze włączony; `?workers=0` przywraca dawne cienie) **każdy obsadzony budynek z rolą ma jednego widocznego robotnika**, który wykonuje swoją pętlę pracy. Moduł `Workers` korzysta z `Walkers` (ścieżki, drogi, ewakuacja spod placów), ale nie zmienia logiki gry: tak jak piesi jest „cieniem symulacji” — stan żyje poza stanem gry, nie losuje (miejsca pracy wybiera funkcja skrótu z `uid` budynku) i nie wywołuje globalnego `RNG`. Na ekranie widać więc to, co dzieje się w ekonomii, ale niczego to nie zmienia w wynikach.

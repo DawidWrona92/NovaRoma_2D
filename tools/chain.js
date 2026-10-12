@@ -60,6 +60,28 @@ for (const fid of ['franks', 'saracens', 'vikings', 'slavs']) {
   const st = G.Advisor.statusOf(sw); ok(st.code === 'in' && st.sev === 'warn' && /56%/.test(st.text), 'status Tartaku z 56% pni: ostrzeżenie z procentem (' + st.text + ')');
   sw.eff = 0; const st0 = G.Advisor.statusOf(sw); ok(st0.sev === 'bad' && /Brak wejścia/.test(st0.text), 'status Tartaku bez pni: Brak wejścia (' + st0.text + ')');
 }
+// Pętle pracy (Faza 9F): stałe miejsce pracy, powrót do domu i odpoczynek, etykiety etapów; kapłan odwiedza domy
+{
+  World.init('franks', { climate: 'temperate', type: 'plain', seed: 6 }); const s = World.state(); s.res.narzędzia = 50; s.settings.workers = true; s.settings.physical = true; s.res['zboże'] = 30; s.res.mąka = 30;
+  const put = id => { for (let r = 3; r < 20; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = 24 + dx, y = 24 + dy; if (World.canPlace(id, x, y).ok) { World.placeBuilding(id, x, y, true); return s.buildings[s.buildings.length - 1]; } } };
+  const set = {}; for (const id of ['hut', 'hut', 'dairy', 'orchard', 'farm', 'temple', 'mill']) { const b = put(id); (set[id] = set[id] || []).push(b); if (id !== 'hut') s.staffed[b.uid] = true; }
+  const track = {}; for (const id of ['dairy', 'orchard', 'farm', 'temple', 'mill']) track[id] = { spots: new Set(), rests: 0, labels: new Set(), max: 0, door: Walkers.doorOf(set[id][0]) };
+  for (let i = 0; i < 1600; i++) {
+    World.tick(0.05); Walkers.update(0.05); s.res['zboże'] = i % 40 < 20 ? 20 : 6; s.res.mąka = 0; s.res.wino = 30; s.res.chleb = 0; s.res.ser = 0; s.res.owoce = 0;          // zasoby uzupełniane i towary zużywane, żeby budynki nie stały
+    for (const id in track) { const b = set[id][0], w = Walkers.figures().find(a => a.kind === 'worker' && a.uid === b.uid); if (!w) continue; const T = track[id];
+      if (w.stage) T.labels.add(w.stage); if (w.act === 'rest') T.rests++;
+      if (w.act === Data.ROLES[id].act && w.act !== 'rest') T.spots.add(Math.round(w.x * 2) + ',' + Math.round(w.y * 2));
+      T.max = Math.max(T.max, Math.hypot(w.x - T.door[0], w.y - T.door[1])); }
+  }
+  const t = track;
+  ok(t.dairy.spots.size === 1, `mleczarz doi w jednym stałym miejscu (${t.dairy.spots.size} miejsc)`);
+  ok(t.dairy.max <= 8, `mleczarz nie oddala się od zagrody (maks. ${t.dairy.max.toFixed(1)} pól od drzwi, razem z drogą do Składu)`);
+  ok(t.orchard.spots.size >= 1 && t.orchard.spots.size <= 3, `sadownik zbiera w co najwyżej 3 stałych miejscach (${t.orchard.spots.size})`);
+  ok(t.farm.spots.size >= 1 && t.farm.spots.size <= 4, `rolnik pracuje w co najwyżej 4 sekcjach pola (${t.farm.spots.size})`);
+  for (const id of ['dairy', 'orchard', 'farm', 'mill', 'temple']) ok(t[id].rests > 0 && t[id].labels.size >= 3, `${id}: robotnik odpoczywa po cyklu (${t[id].rests} próbek), etapy: ${[...t[id].labels].slice(0, 4).join(' / ')}`);
+  ok([...t.temple.labels].some(l => /Błogosławi/.test(l)), 'kapłan błogosławi mieszkańców');
+  ok(/doi krowy.*niesie ser do Składu.*odpoczywa/.test(G.Workers.describe(set.dairy[0])), 'opis cyklu mleczarni: ' + G.Workers.describe(set.dairy[0]));
+}
 // Targ: karta budynku opisuje, do czego służy (kupno narzędzi; Saraceni — też sprzedaż)
 for (const fid of ['franks', 'saracens']) {
   World.init(fid, { climate: Data.FACTIONS[fid].climate, type: 'plain', seed: 3 }); const s = World.state(); s.res.narzędzia = 50;

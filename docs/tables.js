@@ -204,6 +204,15 @@ GEN.budynki = (fid, state) => {
   return table(state, 'Budynki nacji: ' + FNAME[fid] + ' — ' + rows.length + ' budynków poza Dworem (' + keep[0] + '×' + keep[1] + '). T = wymaga narzędzia przy obsadzeniu; tempo na minutę gry przy obsadzie 1 pracownika', ['Budynek', 'Obrys', 'Koszt', 'T', 'Prac.', 'Wejścia /min', 'Wyjścia /min', 'Wymagania terenu', 'Uwagi'], rows, { cls: 'bld', align: ['', 'center', '', 'center', 'center'] });
 };
 
+GEN.role_pracy = (arg, state) => {
+  const { Data, Workers } = game(), rows = [];
+  for (const [id, role] of Object.entries(Data.ROLES)) {
+    const def = Data.BUILDINGS[id]; if (!def) continue;
+    const kind = role.spot === 'tree' ? 'drzewo' : role.spot === 'field' ? (role.n === 1 ? 'zagroda (1 miejsce)' : role.n + ' stałe miejsca') : role.spot === 'shore' ? 'brzeg' : role.spot === 'service' ? 'obchód' : 'stanowisko przy drzwiach';
+    rows.push([def.name + (def.factions ? ' (' + def.factions.map(f => FNAME[f]).join(', ') + ')' : ''), kind, Workers.describe({ id }) || '—']);
+  }
+  return table(state, 'Pętle pracy robotników: miejsce pracy i cykl (generowane z kodu)', ['Budynek', 'Miejsce pracy', 'Cykl'], rows, { align: ['', '', 'left'] });
+};
 GEN.koszty_wspolne = (arg, state) => {
   const { Data } = game(), rows = [];
   for (const [id, def] of Object.entries(Data.BUILDINGS)) {
