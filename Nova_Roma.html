@@ -5217,7 +5217,7 @@ function natureJobs(climate) {
   return jobs;
 }
 /* złoża (kamień, żelazo, węgiel, glina, torf): skała w barwie złoża + znaki rozpoznawcze (rudne żyły, błyski węgla, wilgotny połysk gliny, mech na torfie) */
-const DEPOSIT_COL = { stone: '#8e8c84', iron: '#86594a', coal: '#2c2c32', clay: '#b9774c', peat: '#4a3a2a' };
+const DEPOSIT_COL = { stone: '#d2c3a0', iron: '#86594a', coal: '#2c2c32', clay: '#b9774c', peat: '#4a3a2a' };
 function bakeDeposit(kind, seed) {
   const o = bakeRock(seed, DEPOSIT_COL[kind], 0.8), g = o.c.getContext('2d'), r = rng(seed * 7 + kind.length);
   g.save(); g.globalCompositeOperation = 'source-atop';
@@ -5226,6 +5226,10 @@ function bakeDeposit(kind, seed) {
     if (kind === 'iron') { g.fillStyle = r() < 0.5 ? 'rgba(222,170,98,0.85)' : 'rgba(120,48,28,0.8)'; g.fillRect(x, y, l, 1.4 + r() * 1.6); }
     else if (kind === 'coal') { g.fillStyle = r() < 0.4 ? 'rgba(210,214,224,0.55)' : 'rgba(0,0,0,0.5)'; g.fillRect(x, y, 1.5 + r() * 2.5, 1.5 + r() * 2.5); }
     else if (kind === 'clay') { g.fillStyle = r() < 0.5 ? 'rgba(255,214,170,0.35)' : 'rgba(110,52,28,0.4)'; g.beginPath(); g.ellipse(x, y, l, 1.2 + r() * 1.5, 0, 0, TAU); g.fill(); }
+    else if (kind === 'stone') {                                                                                   // złoże kamienia: jasny, ciosany wapień — poziome warstwy, szwy bloków i ciemne rysy dłuta (inaczej niż szare głazy-dekoracje)
+      if (i % 2) { g.fillStyle = 'rgba(70,56,36,0.5)'; g.fillRect(x, y, l * 1.6, 1.1); } else { g.fillStyle = r() < 0.5 ? 'rgba(255,248,224,0.55)' : 'rgba(150,126,90,0.45)'; g.fillRect(x, y, l * 1.2, 2 + r() * 2); }
+      if (i % 9 === 0) { g.fillStyle = 'rgba(70,56,36,0.5)'; g.fillRect(x, y - 4, 1.1, 8); }
+    }
     else if (kind === 'peat') { g.fillStyle = r() < 0.4 ? 'rgba(86,128,50,0.6)' : 'rgba(20,12,6,0.55)'; g.beginPath(); g.ellipse(x, y, l * 0.8, 1.6, 0, 0, TAU); g.fill(); }
   }
   g.restore();
@@ -9493,6 +9497,19 @@ const BuildMode = (() => {
     ctx.fillStyle = 'rgba(230,60,60,0.30)'; ctx.fill(red); ctx.fillStyle = 'rgba(245,175,50,0.22)'; ctx.fill(amb);
   }
 
+  /* kopalnia (req 'deposit:<rodzaj>') w trybie budowy: pola z pasującym złożem pulsują na bursztynowo z napisem — widać, gdzie można ją postawić; pola z innym złożem nie świecą */
+  const DEP_NAME = { stone: 'kamień', iron: 'żelazo', coal: 'węgiel', clay: 'glina', peat: 'torf' };
+  function depositDraw(ctx, s) {
+    const req = Data.BUILDINGS[selected] && Data.BUILDINGS[selected].req; if (!req || !req.startsWith('deposit:')) return;
+    const kind = req.slice(8), N = s.map.size, W = canvas.width / dpr, H = canvas.height / dpr, hw = 32 * Camera.zoom, hh = 16 * Camera.zoom, pulse = 0.28 + 0.16 * Math.sin(performance.now() / 260), P = new Path2D(), labels = [];
+    for (let i = 0; i < N * N; i++) {
+      const t = s.map.tiles[i]; if (t.deposit !== kind || t.occup != null) continue;
+      const tx = i % N, ty = (i / N) | 0, c = Camera.worldToScreen(tx + 0.5, ty + 0.5); if (c.x < -hw || c.x > W + hw || c.y < -hh || c.y > H + hh) continue;
+      P.moveTo(c.x, c.y - hh); P.lineTo(c.x + hw, c.y); P.lineTo(c.x, c.y + hh); P.lineTo(c.x - hw, c.y); P.closePath(); labels.push(c);
+    }
+    ctx.fillStyle = 'rgba(255,200,60,' + pulse.toFixed(2) + ')'; ctx.fill(P); ctx.strokeStyle = 'rgba(255,225,120,0.9)'; ctx.lineWidth = Math.max(1, 1.5 * Camera.zoom); ctx.stroke(P);
+    if (labels.length) { ctx.font = 'bold ' + Math.max(10, Math.round(11 * Camera.zoom)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.fillStyle = '#ffe9a8'; for (const c of labels) { const txt = 'złoże: ' + (DEP_NAME[kind] || kind); ctx.strokeText(txt, c.x, c.y - 4 * Camera.zoom); ctx.fillText(txt, c.x, c.y - 4 * Camera.zoom); } ctx.textAlign = 'start'; }
+  }
   /* tekst o transporcie dla budynku produkcyjnego stawianego w polu (x, y); pamięć podręczna na pole i układ */
   const HUB_GEN = { settlement: 'Osady', minestore: 'Składu górniczego', timberstore: 'Składu drzewnego' };            // dopełniacz nazw węzłów (podpowiedzi o transporcie)
   let tpMemo = null;
@@ -9530,6 +9547,7 @@ const BuildMode = (() => {
       return;
     }
     zonesDraw(ctx, s);
+    depositDraw(ctx, s);
     const rr = curRot(), [w, h] = World.footprint(selected, rr), o = origin(selected, rr);
     if (Data.hubGoods(selected) && selected !== 'keep' && (s.settings.logistics || s.settings.physical)) heatDraw(ctx, s, o.x, o.y, selected);
     const check = World.canPlace(selected, o.x, o.y, rr);
