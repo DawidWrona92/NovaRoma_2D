@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Afganistan 1979 — Kompania 40. Armii</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="menu">
+    <h1>AFGANISTAN 1979</h1>
+    <p class="sub">Inwazja ZSRR • wojna o punkty kontroli</p>
+    <div class="maps">
+      <button class="mapbtn" data-map="wadi">
+        <span class="mapname">Wadi Kandahar</span>
+        <span class="mapdesc">Suche koryto rzeki, skalne przełęcze. Trzy punkty kontroli w wadi.</span>
+      </button>
+      <button class="mapbtn" data-map="wioska">
+        <span class="mapname">Kunduz — wioska</span>
+        <span class="mapdesc">Zabudowana wioska z gliny. Walki o studnię, meczet i wzgórze.</span>
+      </button>
+    </div>
+    <div class="help">
+      <p>LPM — wybór / ramka zaznaczania • PPM — ruch / atak • Spacja — stop • ESC — odznacz</p>
+      <p>Trzymaj punkty kontroli, by zdobywać zaopatrzenie. Zniszcz wroga lub przejmij wszystkie punkty.</p>
+    </div>
+  </div>
+  <div id="game" class="hidden">
+    <div id="topbar">
+      <span id="mapname"></span>
+      <span id="supply"></span>
+      <span id="army"></span>
+      <span id="points"></span>
+      <button id="btn-menu" title="Wyjdź do menu">MENU</button>
+    </div>
+    <canvas id="canvas" width="1280" height="680"></canvas>
+    <div id="panel">
+      <div class="pb" data-unit="sov_rifle"><b>Strzelec</b><i>100</i><small>AK-74, tan</small></div>
+      <div class="pb" data-unit="sov_rpg"><b>RPG-7</b><i>160</i><small>pojazdobójczy</small></div>
+      <div class="pb" data-unit="btr"><b>BTR-70</b><i>320</i><small>szybki, KPWT</small></div>
+      <div class="pb" data-unit="tank"><b>T-62</b><i>520</i><small>pancerz, stożek</small></div>
+    </div>
+    <div id="eventlog"></div>
+  </div>
+  <div id="endscreen" class="hidden">
+    <h2 id="endtitle"></h2>
+    <p id="endtext"></p>
+    <button id="btn-again">Zagraj ponownie</button>
+  </div>
+</div>
+<script src="sprites.js"></script>
+<script src="maps.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
